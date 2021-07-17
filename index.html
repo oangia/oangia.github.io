@@ -32,12 +32,18 @@
 </script>
 <script>
 function info() {
+  debugMess("info");
   $.ajax({
     url: api_url + '/api/info.php?code=' + code,
     method: 'GET',
     success: function(data) {
       info = data;
       debugMess(info);
+    },
+    error: function(request, status, error) {
+      debugMess(request);
+      debugMess(status);
+      debugMess(error);
     }
   });    
 }
