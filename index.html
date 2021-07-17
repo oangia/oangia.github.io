@@ -9,7 +9,7 @@
 <script>
   var info;
   var debug = findGetParameter("debug");
-  var code = "";
+  var code = findGetParameter("code");
   var dataPoints = {};
   var api_url = "https://stocks803.000webhostapp.com";
 </script>
@@ -26,9 +26,6 @@
 </style>
 </head>
 <body>
-<div>
-Mã CK : <input type="text" id="code" value="VNM"/>
-</div>
 <div class="chart" id="returnChart"></div>
 <div class="chart" id="revenueChart"></div>
 <div class="chart" id="revenueGrowthChart"></div>
@@ -39,13 +36,8 @@ Mã CK : <input type="text" id="code" value="VNM"/>
 <script>
 window.onload = function () {
   $("#code").on("keypress", function(e) {
-    if (e.which == 13) {
-      alert("before");
-      code = this.value;
-      alert(code);
       info();
       bctc();
-      alert("after");
     }
   });
 }
