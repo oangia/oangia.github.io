@@ -8,7 +8,9 @@ function info() {
     method: 'GET',
     success: function(data) {
       info = data;
-      if debug console.log(info);
+      if (debug) {
+        console.log(info);
+      }
     },
     error: function(response, status, error) {
       console.log(response);
@@ -64,5 +66,7 @@ function formatData(data) {
     dataPoints["Selling expenses on gross profit"].push({x: value.x, y: se});
     dataPoints["Financial expenses on gross profit"].push({x: value.x, y: fe});
   });
-  if debug console.log(dataPoints);
+  if (debug) {
+    console.log(dataPoints);
+  }
 }
