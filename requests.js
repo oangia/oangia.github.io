@@ -23,6 +23,7 @@ function info() {
   });    
 }
 function bctc() {
+  alert("bc");
   $.ajax({
     url: api_url + "/api/bctc.php?code=" + code + "&type=BCTT&page=1",
     method: 'GET',
