@@ -40,7 +40,7 @@ Mã CK : <input type="text" id="code" value="VNM"/>
 window.onload = function () {
   $("#code").on("keypress", function(e) {
     if (e.which == 13) {
-      alert("enter");
+      alert(this.value);
       code = this.value;
       getData();
     }
