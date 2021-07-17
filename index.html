@@ -3,12 +3,12 @@
 <head>
   <script src="https://code.jquery.com/jquery-latest.min.js"></script>
   <script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
-  <script src="/utils.js?t=1"></script>
-  <script src="/requests.js?t=1"></script>
-  <script src="/charts.js?t=1"></script>
+  <script src="https://oangia.github.io/utils.js?t=1"></script>
+  <script src="https://oangia.github.io/requests.js?t=1"></script>
+  <script src="https://oangia.github.io/charts.js?t=1"></script>
 <script>
   var info;
-  var debug = true;
+  var debug = findGetParameter("debug");
   var code = findGetParameter("code");
   var dataPoints = {};
   var api_url = "https://stocks803.000webhostapp.com";
@@ -27,10 +27,11 @@
 <div class="chart" id="revenueGrowthChart"></div>
 <div class="chart" id="profitMarginChart"></div>
 <div class="chart" id="expensesOnGrossProfitChart"></div>
+<div class="chart" id="liabilitiesRatioChart">
 <div id="debug"></div>
 <script>
 window.onload = function () {
-    getData();
+  getData();
 }
 </script>
 <script>
@@ -75,7 +76,14 @@ generateChart(
     ["column", "red", "General and Administrative expenses on gross profit"],
   ])
 ); 
-
+generateChart(
+  "liabilitiesRatioChart",
+  "Liabilities ratio",
+  prepareData([
+    ["column", "green", "Liabilities to assets"],
+    ["column", "red", "Debt to equity"],
+  ])
+); 
 }
 </script>
 </body>
