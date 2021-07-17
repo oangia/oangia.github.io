@@ -1,131 +1,41 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-<script>
-function debugMess(mes) {
-    if (debug == false) return;
-    if (typeof mes == 'object' ) {
-      mes = JSON.stringify(mes);
-    }
-    $("#debug").append("<br/><hr/><br/>");
-    $("#debug").append(mes + "<br />");
-}
-if (console.everything === undefined)
-{
-    console.everything = [];
-
-    console.defaultLog = console.log.bind(console);
-    console.log = function(){
-    debugMess({"type":"log", "datetime":Date().toLocaleString(), "value":Array.from(arguments)}); console.everything.push({"type":"log", "datetime":Date().toLocaleString(), "value":Array.from(arguments)});
-        console.defaultLog.apply(console, arguments);
-    }
-    console.defaultError = console.error.bind(console);
-    console.error = function(){
-    debugMess({"type":"error", "datetime":Date().toLocaleString(), "value":Array.from(arguments)}); console.everything.push({"type":"error", "datetime":Date().toLocaleString(), "value":Array.from(arguments)});
-        console.defaultError.apply(console, arguments);
-    }
-    console.defaultWarn = console.warn.bind(console);
-    console.warn = function(){
-     debugMess({"type":"warn", "datetime":Date().toLocaleString(), "value":Array.from(arguments)}); console.everything.push({"type":"warn", "datetime":Date().toLocaleString(), "value":Array.from(arguments)});
-        console.defaultWarn.apply(console, arguments);
-    }
-    console.defaultDebug = console.debug.bind(console);
-    console.debug = function(){
-     debugMess({"type":"debug", "datetime":Date().toLocaleString(), "value":Array.from(arguments)}); console.everything.push({"type":"debug", "datetime":Date().toLocaleString(), "value":Array.from(arguments)});
-        console.defaultDebug.apply(console, arguments);
-    }
-}
-</script>
   <script src="https://code.jquery.com/jquery-latest.min.js"></script>
   <script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+  <script src="utils.js"></script>
+  <script src="requests.js"></script>
+  <script src="charts.js"></script>
 <script>
   var info;
   var debug = true;
   var code = findGetParameter("code");
   var dataPoints = {};
   var api_url = "https://stocks803.000webhostapp.com";
-  
-  function findGetParameter(parameterName) {
-    var result = null,
-        tmp = [];
-    var items = location.search.substr(1).split("&");
-    for (var index = 0; index < items.length; index++) {
-        tmp = items[index].split("=");
-        if (tmp[0] === parameterName) result = decodeURIComponent(tmp[1]);
-    }
-    return result;
-}
 </script>
+<style>
+    .chart {
+        display: block;
+        height: 440px;
+        margin: 10px;
+    }
+</style>
+</head>
+<body>
+<div class="chart" id="returnChart"></div>
+<div class="chart" id="revenueChart"></div>
+<div class="chart" id="revenueGrowthChart"></div>
+<div class="chart" id="profitMarginChart"></div>
+<div class="chart" id="expensesOnGrossProfitChart"></div>
+<div id="debug"></div>
 <script>
-function info() {
-  console.log(api_url + '/api/info.php?code=' + code);
-  $.ajax({
-    url: api_url + '/api/info.php?code=' + code,
-    method: 'GET',
-    success: function(data) {
-      info = data;
-      debugMess(info);
-    },
-    error: function(response, status, error) {
-      debugMess(response);
-      debugMess(status);
-      debugMess(error);
-    }
-  });    
-}
-function bctc() {
-  $.ajax({
-    url: api_url + "/api/bctc.php?code=" + code + "&type=BCTT&page=1",
-    method: 'GET',
-    success: function (data) {
-      formatData(data[1]);
-      charts();
-      if (debug) {
-        var name = "";
-        $.each(data[1], function(value, index) {
-          name += value+ "<br/>";
-        });
-        debugMess(name);
-      }
-    }
-  })
-}
-function formatData(data) {
-  $.each(data, function (name, value) {
-    dataPoints[name] = [];
-    $.each(data[name].Value, function(year, value) {
-      dataPoints[name].push({x: new Date(year, 0, 1), y: value});
-    });
-  }); 
-  var growths = ["Net revenue"];
-  $.each(growths, function(index, name) {
-    dataPoints[name + " growth"] = [];
-    $.each(dataPoints[name], function(index, value) {
-      var per = 0;
-      if (index >= 1) {
-       per = (value.y - dataPoints[name][index - 1].y)*100/dataPoints[name][index - 1].y;
-      }
-      dataPoints[name + " growth"].push({x: value.x, y: parseFloat(per.toFixed(2)) });
-    });
-  });
-
-  dataPoints["General and Administrative expenses on gross profit"] = [];
-  dataPoints["Selling expenses on gross profit"] = [];
-  dataPoints["Financial expenses on gross profit"] = [];
-  $.each(dataPoints["Gross profit"], function(index, value) {
-    var gae = parseFloat((dataPoints["General and Administrative expenses"][index].y*100/value.y).toFixed(2));
-    var se = parseFloat((dataPoints["Selling expenses"][index].y*100/value.y).toFixed(2));
-    var fe = parseFloat((dataPoints["Financial expenses"][index].y*100/value.y).toFixed(2));
-    dataPoints["General and Administrative expenses on gross profit"].push({x: value.x, y: gae});
-    dataPoints["Selling expenses on gross profit"].push({x: value.x, y: se});
-    dataPoints["Financial expenses on gross profit"].push({x: value.x, y: fe});
-  });
-  debugMess(dataPoints);
+window.onload = function () {
+    getData();
 }
 </script>
 <script>
 function charts() {
-// init data
+// 
 generateChart(
   "returnChart", 
   "Return om equity", 
@@ -162,74 +72,11 @@ generateChart(
   prepareData([
     ["column", "green", "Financial expenses on gross profit"],
     ["column", "blue", "Selling expenses on gross profit"],
-    ["column", "red",     "General and Administrative expenses on gross profit"],
+    ["column", "red", "General and Administrative expenses on gross profit"],
   ])
 ); 
 
 }
-
-function prepareData(data) {
-  var chartData = [];
-  $.each(data, function(index, value) {
-    chartData.push(convertData (value[0], value[1], value[2]));
-  });
-  return chartData;
-}
-
-function convertData(type, color, name) {
-  return {        
-    type: type,  
-		 showInLegend: true, 
-	  	color: color,
-		 legendMarkerColor: color,
-		 legendText: name,
-		 indexLabel: "{y}",
-		 dataPoints: dataPoints[name]
-	 };
-}
-
-function generateChart(id, title, data, options = {}) {
-(new CanvasJS.Chart(id, {
-	animationEnabled: true,
-	zoomEnabled: true,
-	theme: "dark2",
-	title:{
-		text: title
-	},
-	dataPointWidth: 30,
-	axisX: {
-   interval: 1,
-   intervalType: "year"
-  },
-	axisY: {
-		title: "",
-		minimum: 0,
-		gridThickness: 1
-	},
-	data: data
-})).render();
-}
-</script>
-<style>
-    .chart {
-        display: block;
-        height: 440px;
-        margin: 10px;
-    }
-</style>
-</head>
-<body>
-<div class="chart" id="returnChart"></div>
-<div class="chart" id="revenueChart"></div>
-<div class="chart" id="revenueGrowthChart"></div>
-<div class="chart" id="profitMarginChart"></div>
-<div class="chart" id="expensesOnGrossProfitChart"></div>
-<div id="debug"></div>
-<script>
-    window.onload = function () {
-        info();
-        bctc();
-    }
 </script>
 </body>
 </html>
