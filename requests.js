@@ -3,11 +3,13 @@ function getData() {
   bctc();
 }
 function info() {
+  alert("ìni");
   $.ajax({
     url: api_url + '/api/info.php?code=' + code,
     method: 'GET',
     success: function(data) {
       info = data;
+      alert(infi);
       if (debug) {
         console.log(info);
       }
