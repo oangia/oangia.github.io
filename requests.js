@@ -1,4 +1,5 @@
 function getData() {
+  alert("in get data");
   info();
   bctc();
 }
