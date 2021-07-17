@@ -9,6 +9,7 @@ function debugMess(mes) {
     }
     $("#debug").append("<br/><hr/><br/>");
     $("#debug").append(mes + "<br />");
+    alert(mes);
 }
 if (console.everything === undefined)
 {
@@ -64,6 +65,11 @@ function info() {
     success: function(data) {
       info = data;
       debugMess(info);
+    },
+    error: function(response, status, error) {
+      debugMess(response);
+      debugMess(status);
+      debugMess(error);
     }
   });    
 }
