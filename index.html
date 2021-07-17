@@ -59,6 +59,7 @@ if (console.everything === undefined)
 </script>
 <script>
 function info() {
+  console.log(api_url + '/api/info.php?code=' + code);
   $.ajax({
     url: api_url + '/api/info.php?code=' + code,
     method: 'GET',
