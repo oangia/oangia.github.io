@@ -1,7 +1,11 @@
 function getData() {
   alert("in get data");
+  try {
   info();
   bctc();
+  } catch (err) {
+    console.log(err);
+  }
 }
 function info() {
   alert("ìni");
