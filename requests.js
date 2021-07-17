@@ -4,7 +4,7 @@ function getData() {
   info();
   bctc();
   } catch (err) {
-    console.log(err);
+    console.error(err);
   }
 }
 function info() {
