@@ -1,20 +1,9 @@
-function getData() {
-  alert("in get data");
-  try {
-  info();
-  bctc();
-  } catch (err) {
-    console.error(err);
-  }
-}
 function info() {
-  alert("ìni");
   $.ajax({
     url: api_url + '/api/info.php?code=' + code,
     method: 'GET',
     success: function(data) {
       info = data;
-      alert(infi);
       if (debug) {
         console.log(info);
       }
@@ -27,7 +16,6 @@ function info() {
   });    
 }
 function bctc() {
-  alert("bc");
   $.ajax({
     url: api_url + "/api/bctc.php?code=" + code + "&type=BCTT&page=1",
     method: 'GET',
