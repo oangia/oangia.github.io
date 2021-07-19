@@ -27,7 +27,7 @@
         html += "</tr>";
         $.each(data, function(index, value) {
           html += "<tr>";
-          html += "<td><a href='https://finance.vietstock.vn/" + valud.StockCode + "-ctcp-tap-doan-hoa-phat.htm' target='_blank'>" + value.StockCode + "</a></td>";
+          html += "<td><a href='https://finance.vietstock.vn/" + value.StockCode + "-ctcp-tap-doan-hoa-phat.htm' target='_blank'>" + value.StockCode + "</a></td>";
           if (value.CatID == 1) {
             html += "<td>HOSE</td>";
           } else {
