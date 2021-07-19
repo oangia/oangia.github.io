@@ -1,7 +1,11 @@
 <html>
 <head>
-  <script src="https://oangia.github.io/utils.js"></script>
   
+<!DOCTYPE HTML>
+<html>
+<head>
+  <script src="https://code.jquery.com/jquery-latest.min.js"></script>
+  <script src="https://oangia.github.io/utils.js?t=1"></script>
 </head>
 <body>
   <div id="filter"><div>
@@ -12,7 +16,6 @@
       url: api_url,
       method: "GET",
       success: function(data) {
-        alert(data);
         console.log(data);
         var html = "<table>";
         html += "<tr>";
