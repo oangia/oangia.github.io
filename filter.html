@@ -27,14 +27,14 @@
         html += "</tr>";
         $.each(data, function(index, value) {
           html += "<tr>";
-          html += "<td>" + value.StockCode + "</td>";
+          html += "<td><a href='https://finance.vietstock.vn/" + valud.StockCode + "-ctcp-tap-doan-hoa-phat.htm' target='_blank'>" + value.StockCode + "</a></td>";
           if (value.CatID == 1) {
             html += "<td>HOSE</td>";
           } else {
             html += "<td>HNX</td>";
           }
           html += "<td>" + value.ClosePrice + "</td>";
-          html += "<td>" + value.MartketCap + "</td>";
+          html += "<td>" + value.MarketCap + "</td>";
           html += "<td>" + value.Q_ROE + "</td>";
           html += "<td>" + value.Y_ROE + "</td>";
           html += "<td>" + value.Q_EPS + "</td>";
