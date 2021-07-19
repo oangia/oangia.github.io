@@ -20,11 +20,28 @@
         var html = "<table>";
         html += "<tr>";
         html += "<td>Mã ck</td>";
+        html += "<td>Sàn</td>";
+        html += "<td>Giá</td>";
+        html += "<td>Vốn hóa</td>";
+        html += "<td>ROE quý</td>";
+        html += "<td>ROE năm</td>";
+        html += "<td>EPS quý</td>";
+        html += "<td>EPS năm</td>";
         html += "</tr>";
         $.each(data, function(index, value) {
           html += "<tr>";
           html += "<td>" + value.StockCode + "</td>";
-
+          if (value.CatID == 1) {
+            html += "<td>HOSE</td>";
+          } else {
+            html += "<td>HNX</td>";
+          }
+          html += "<td>" + value.ClosePrice + "</td>";
+          html += "<td>" + value.MartketCap + "</td>";
+          html += "<td>" + value.Q_ROE + "</td>";
+          html += "<td>" + value.Y_ROE + "</td>";
+          html += "<td>" + value.Q_EPS + "</td>";
+          html += "<td>" + value.Y_EPS + "</td>";
           html += "</tr>";
         });
         html += "</table>";
