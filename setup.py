@@ -4,13 +4,12 @@ setup(
     name='oangia',
     version='0.1',
     install_requires=[
-        'yt-dlp',
-        'webvtt-py',
-        'pydub',
-        'gTTS',
-        'SpeechRecognition',
-        'moviepy==1.0.3',
-        'gspread',
-        'pandas'
-    ]
+    ],
+    extras_require={
+        'youtube': ['yt-dlp', 'webvtt-py'],
+        'video': ['pydub', 'moviepy==1.0.3'],
+        'tts': ['gTTS', 'SpeechRecognition'],
+        'all': ['pytest', 'black', 'torch'],
+        'gg_sheet': ['gspread', 'pandas']
+    }
 )
