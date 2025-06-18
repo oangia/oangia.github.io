@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Major Scale Chords</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    .checkboxes {
+      margin-bottom: 20px;
+    }
+    .checkboxes label {
+      margin-right: 10px;
+      display: inline-block;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid #aaa;
+      padding: 8px 12px;
+      text-align: center;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    tr:nth-child(even) td {
+      background-color: #f9f9f9;
+    }
+    .m {
+      color: #00c8c8;
+      font-weight: bold;
+    }
+    .sharp {
+      color: orange;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Major Scale Diatonic Chords</h1>
+
+  <div class="checkboxes" id="checkboxContainer"></div>
+
+  <table id="chordTable">
+    <thead>
+      <tr>
+        <th>Root</th>
+        <th>I</th>
+        <th>ii</th>
+        <th>iii</th>
+        <th>IV</th>
+        <th>V</th>
+        <th>vi</th>
+        <th>vii°</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <pre>Warm up
+Cuộc tình trong cơn mưa
+Biết tìm đâu
+Lạ lùng
+Đắp mộ cuộc tình
+Gió
+Main songs
+Ngày chưa giông bão
+Con cò
+Nàng thơ
+Bèo dạt mây trôi
+High songs
+Tháng tư là lời nói dối của em
+Trái tim bên lề
+How deep is your love
+Your song 
+I don’t want to miss a thing
+  </pre>
+  <p style="color:white">1. 2731 3032 6. 7734 5807 2. 2806 8217 7. 5886 0634 3. 3301 9695 8. 3598 7183 4. 7126 3194 9. 7652 0902 5. 0408 370810. 7539 6437</p>
+  <script>
+    const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const majorScaleSteps = [0, 2, 4, 5, 7, 9, 11];
+    const qualities = ["", "m", "m", "", "", "m", "dim"];
+
+    const checkboxContainer = document.getElementById("checkboxContainer");
+    const tbody = document.querySelector("#chordTable tbody");
+
+    // Create checkboxes
+    notes.forEach((note) => {
+      const label = document.createElement("label");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = note;
+      checkbox.checked = true;
+      checkbox.addEventListener("change", updateTable);
+      label.appendChild(checkbox);
+      label.append(" " + note);
+      checkboxContainer.appendChild(label);
+    });
+
+    function formatChord(chord) {
+      // Replace '#' with colored span
+      chord = chord.replace(/#/g, '<span class="sharp">#</span>');
+
+      // Replace trailing 'm' only if it's not part of 'dim'
+      if (chord.endsWith("m") && !chord.endsWith("dim")) {
+        chord = chord.slice(0, -1) + '<span class="m">m</span>';
+      }
+
+      return chord;
+    }
+
+    function getChordRow(root, rootIndex) {
+      const tr = document.createElement("tr");
+
+      const rootCell = document.createElement("td");
+      rootCell.textContent = root;
+      tr.appendChild(rootCell);
+
+      majorScaleSteps.forEach((step, i) => {
+        const noteIndex = (rootIndex + step) % 12;
+        const rawChord = notes[noteIndex] + qualities[i];
+        const td = document.createElement("td");
+        td.innerHTML = formatChord(rawChord);
+        tr.appendChild(td);
+      });
+
+      return tr;
+    }
+
+    function updateTable() {
+      tbody.innerHTML = "";
+      const checkedNotes = [...document.querySelectorAll('input[type="checkbox"]:checked')]
+        .map(cb => cb.value);
+      checkedNotes.forEach(root => {
+        const rootIndex = notes.indexOf(root);
+        const row = getChordRow(root, rootIndex);
+        tbody.appendChild(row);
+      });
+    }
+
+    // Initial table load
+    updateTable();
+  </script>
+
+</body>
+</html>
