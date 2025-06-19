@@ -92,51 +92,64 @@ h1, h2, h3, h4, h5, h6 {
       color: orange;
       font-weight: bold;
     }
+    .tabs { display: flex; cursor: pointer; margin-bottom: 1em; }
+    .tab { padding: 0.5em 1em; border: 1px solid #ccc; border-bottom: none; }
+    .tab.active { background: #eee; }
+    .tab-content { display: none; border: 1px solid #ccc; padding: 1em; }
+    .tab-content.active { display: block; }
   </style>
 </head>
 <body>
+  <div class="tabs">
+    <div class="tab active" data-tab="1">Tab 1</div>
+    <div class="tab" data-tab="2">Sport</div>
+    <div class="tab" data-tab="3">Songs</div>
+  </div>
+  
+  <div class="tab-content active" data-tab="1">
+    <h1>Major Scale Diatonic Chords</h1>
 
-  <h1>Major Scale Diatonic Chords</h1>
-
-  <div class="checkboxes" id="checkboxContainer"></div>
-
-  <table id="chordTable">
-    <thead>
-      <tr>
-        <th>Root</th>
-        <th>I</th>
-        <th>ii</th>
-        <th>iii</th>
-        <th>IV</th>
-        <th>V</th>
-        <th>vi</th>
-        <th>vii°</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <h2>Sport</h2>
-  <p>Arm wrestling</p>
-  <p>Supplement: jump rope (daily), pull up 8x3 (maingain 2 a week), abs (daily, favorite)</p>
-  <h2>Songs</h2>
-  <p>Warm up</p>
-<p>Cuộc tình trong cơn mưa</p>
-<p>Biết tìm đâu</p>
-<p>Lạ lùng</p>
-<p>Đắp mộ cuộc tình</p>
-<p>Gió</p>
-<p>Main songs</p>
-<p>Ngày chưa giông bão</p>
-<p>Con cò</p>
-<p>Nàng thơ</p>
-<p>Bèo dạt mây trôi</p>
-<p>High songs</p>
-<p>Tháng tư là lời nói dối của em</p>
-<p>Trái tim bên lề</p>
-<p>How deep is your love</p>
-<p>Your song </p>
-<p>I don’t want to miss a thing</p>
-  </pre>
+    <div class="checkboxes" id="checkboxContainer"></div>
+  
+    <table id="chordTable">
+      <thead>
+        <tr>
+          <th>Root</th>
+          <th>I</th>
+          <th>ii</th>
+          <th>iii</th>
+          <th>IV</th>
+          <th>V</th>
+          <th>vi</th>
+          <th>vii°</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>  
+  </div>
+  <div class="tab-content" data-tab="2">
+    <p>Arm wrestling</p>
+    <p>Supplement: jump rope (daily), pull up 8x3 (maingain 2 a week), abs (daily, favorite)</p>  
+  </div>
+  <div class="tab-content" data-tab="3">
+    <p>Warm up</p>
+    <p>Cuộc tình trong cơn mưa</p>
+    <p>Biết tìm đâu</p>
+    <p>Lạ lùng</p>
+    <p>Đắp mộ cuộc tình</p>
+    <p>Gió</p>
+    <p>Main songs</p>
+    <p>Ngày chưa giông bão</p>
+    <p>Con cò</p>
+    <p>Nàng thơ</p>
+    <p>Bèo dạt mây trôi</p>
+    <p>High songs</p>
+    <p>Tháng tư là lời nói dối của em</p>
+    <p>Trái tim bên lề</p>
+    <p>How deep is your love</p>
+    <p>Your song </p>
+    <p>I don’t want to miss a thing</p>
+  </div>
   <p style="color:white">1. 2731 3032 6. 7734 5807 2. 2806 8217 7. 5886 0634 3. 3301 9695 8. 3598 7183 4. 7126 3194 9. 7652 0902 5. 0408 370810. 7539 6437</p>
   
   <script>
@@ -203,6 +216,13 @@ h1, h2, h3, h4, h5, h6 {
 
     // Initial table load
     updateTable();
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.tab, .tab-content').forEach(el => el.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelector(`.tab-content[data-tab="${tab.dataset.tab}"]`).classList.add('active');
+      };
+    });
   </script>
 
 </body>
