@@ -166,7 +166,7 @@ h1, h2, h3, h4, h5, h6 {
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.value = note;
-      checkbox.checked = true;
+      checkbox.checked = note.indexOf('#') != 1;
       checkbox.addEventListener("change", updateTable);
       label.appendChild(checkbox);
       label.append(" " + note);
