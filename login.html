@@ -5,32 +5,10 @@
   <title>Login</title>
 </head>
 <body>
-  <input type="password" name="password" id="password" placeholder="Enter password">
-  <script src="sha256.js"></script>
+  <input type="password" name="password" id="login" placeholder="Enter password">
   <script>
     const public_key = 'a14e2038d76d958448d63f5407241885769394e9ab030b2d23fcdd4e714c389a';
-    function setCookie(name, value, days) {
-      const expires = new Date(Date.now() + days*864e5).toUTCString();
-      document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
-    }
-
-    function getCookie(name) {
-      return document.cookie.split('; ').find(row => row.startsWith(name + '='))?.split('=')[1];
-    }
-    
-    document.getElementById("password").addEventListener("keydown", async e => {
-      if (e.key !== "Enter") return;
-
-      const password = e.target.value;
-      const private = await sha256(password.repeat(5));
-      const public = await sha256(private);
-      if (public == public_key) {
-        setCookie("auth", public, 30);
-        window.location.href = "index.html"
-      } else {
-        alert("Invalid password.");
-      }
-    });
   </script>
+  <script src="login.js"></script>
 </body>
 </html>
