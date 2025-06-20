@@ -21,7 +21,8 @@ document.getElementById("login").addEventListener("keydown", async e => {
   const password = e.target.value;
   const private = await sha256(password.repeat(5));
   const public = await sha256(private);
-  if (public == public_key) {
+  const check = await get_public(public);
+  if (check == "true") {
     setCookie("auth", private, 30);
     window.location.href = "index.html"
   } else {
@@ -32,7 +33,8 @@ document.getElementById("login").addEventListener("keydown", async e => {
 (async () => {
   const saved = getCookie("auth");
   const public = await sha256(saved);
-  if (public == public_key) {
+  const check = await get_public(public);
+  if (check == "true") {
     setCookie("auth", saved, 30);
     document.body.style.display = "block";
   } else {
@@ -41,3 +43,11 @@ document.getElementById("login").addEventListener("keydown", async e => {
     }
   }
 })();
+async get_public(public_key) {
+  const response = await fetch(public_key);
+  if (!response.ok) {
+    return "";
+  }
+  return await response.text();
+}
+
