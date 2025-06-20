@@ -3,47 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>Login</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      background: #f4f4f4;
-    }
-    .login-box {
-      background: white;
-      padding: 2rem;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    input[type="password"] {
-      width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.5rem;
-      margin-bottom: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    input[type="submit"] {
-      width: 100%;
-      padding: 0.5rem;
-      background-color: #007BFF;
-      border: none;
-      color: white;
-      font-weight: bold;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-  </style>
 </head>
 <body>
-  <form class="login-box" action="submit.html" method="post">
-    <h2>Enter Password</h2>
-    <input type="password" name="password" placeholder="Password" required>
-    <input type="submit" value="Login">
+  <form action="submit.html" method="post">
+    <input type="password" name="password" placeholder="Enter password">
   </form>
 </body>
 </html>
