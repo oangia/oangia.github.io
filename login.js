@@ -48,6 +48,6 @@ async function get_public(public_key) {
   if (!response.ok) {
     return "";
   }
-  return await response.text();
+  return await response.text().trim();
 }
 
