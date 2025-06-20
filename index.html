@@ -138,8 +138,20 @@
       };
     });
   </script>
-  <scropt>
-  //window.location.href = "login.html";
-  </scropt>
+  <script src="sha256.js"></script>
+  <script>
+  const public_key = 'a14e2038d76d958448d63f5407241885769394e9ab030b2d23fcdd4e714c389a';
+  function getCookie(name) {
+    return document.cookie.split('; ').find(row => row.startsWith(name + '='))?.split('=')[1];
+  }
+  const auth = getCookie("auth");
+  const public = await sha256(auth);
+  if (public == public_key) {
+    setCookie("auth", public, 30);
+    
+  } else {
+    window.location.href = "login.html"
+  }
+  </script>
 </body>
 </html>
