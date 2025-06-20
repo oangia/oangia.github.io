@@ -14,6 +14,7 @@ function setCookie(name, value, days) {
 function getCookie(name) {
   return document.cookie.split('; ').find(row => row.startsWith(name + '='))?.split('=')[1];
 }
+if (document.getElementById("login") != undefined) {
 document.getElementById("login").addEventListener("keydown", async e => {
   if (e.key !== "Enter") return;
 
@@ -27,6 +28,7 @@ document.getElementById("login").addEventListener("keydown", async e => {
     alert("Invalid password.");
   }
 });
+}
 (async () => {
   const saved = getCookie("auth");
   const public = await sha256(saved);
