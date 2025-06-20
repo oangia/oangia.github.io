@@ -27,3 +27,15 @@ document.getElementById("login").addEventListener("keydown", async e => {
     alert("Invalid password.");
   }
 });
+(async () => {
+  const saved = getCookie("auth");
+  const public = await sha256(saved);
+  if (public == public_key) {
+    setCookie("auth", saved, 30);
+    document.body.style.display = "block";
+  } else {
+    if (window.location.pathname != '/login.html') {
+      window.location.href = "login.html";
+    }
+  }
+})();
