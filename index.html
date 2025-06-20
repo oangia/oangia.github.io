@@ -4,8 +4,10 @@
   <meta charset="UTF-8">
   <title>Major Scale Chords</title>
   <link rel="stylesheet" href="style.css"/>
+  <script>const public_key = 'a14e2038d76d958448d63f5407241885769394e9ab030b2d23fcdd4e714c389a';</script>
 </head>
-<body>
+<body style="display:none">
+  <script src="login.js"></script>
   <div class="tabs">
     <div class="tab active" data-tab="1">Music</div>
     <div class="tab" data-tab="2">Sport</div>
@@ -138,22 +140,6 @@
       };
     });
   </script>
-  <script src="sha256.js"></script>
-  <script>
-  const public_key = 'a14e2038d76d958448d63f5407241885769394e9ab030b2d23fcdd4e714c389a';
-  function getCookie(name) {
-    return document.cookie.split('; ').find(row => row.startsWith(name + '='))?.split('=')[1];
-  }
-  (async () => {
-    const saved = getCookie("auth");
-    const public = await sha256(saved);
-    if (public == public_key) {
-      setCookie("auth", public, 30);
-      
-    } else {
-      window.location.href = "login.html"
-    }
-  })();  
-  </script>
+  
 </body>
 </html>
