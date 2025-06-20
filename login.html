@@ -6,7 +6,23 @@
 </head>
 <body>
   <form action="submit.html" method="post">
-    <input type="password" name="password" placeholder="Enter password">
+    <input type="password" name="password" id="password" placeholder="Enter password">
   </form>
+  <script src="sha256"></script>
+  <script>
+    const public_key = 'a14e2038d76d958448d63f5407241885769394e9ab030b2d23fcdd4e714c389a';
+    document.getElementById("password").addEventListener("keydown", async e => {
+      if (e.key !== "Enter") return;
+
+      const password = e.target.value;
+      const private = await sha256(password.repeat(5));
+      const public = await sha256(private);
+      if (public == public_key) {
+        document.cookie = "auth=" + public + "; path=/";
+      } else {
+        alert("Invalid password.");
+      }
+    });
+  </script>
 </body>
 </html>
