@@ -21,7 +21,7 @@ document.getElementById("login").addEventListener("keydown", async e => {
   const private = await sha256(password.repeat(5));
   const public = await sha256(private);
   if (public == public_key) {
-    setCookie("auth", public, 30);
+    setCookie("auth", private, 30);
     window.location.href = "index.html"
   } else {
     alert("Invalid password.");
