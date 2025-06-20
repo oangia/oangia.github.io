@@ -44,7 +44,7 @@ document.getElementById("login").addEventListener("keydown", async e => {
   }
 })();
 async function get_public(public_key) {
-  const response = await fetch(public_key);
+  const response = await fetch("/public/" + public_key);
   if (!response.ok) {
     return "";
   }
