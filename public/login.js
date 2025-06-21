@@ -1,56 +1,56 @@
-async function sha256(input) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return hashHex;
+// sha256
+// getCookie
+// setCookie(key, value, days)
+async function sha256(t){let e=new TextEncoder,n=e.encode(t),i=await crypto.subtle.digest("SHA-256",n),o=Array.from(new Uint8Array(i)),r=o.map(t=>t.toString(16).padStart(2,"0")).join("");return r}function setCookie(t,e,n){let i=new Date(Date.now()+864e5*n).toUTCString();document.cookie=`${t}=${encodeURIComponent(e)}; expires=${i}; path=/`}function getCookie(t){return document.cookie.split("; ").find(e=>e.startsWith(t+"="))?.split("=")[1]}
+async function generatePrivate(password) {
+  const private_key = await sha256(password.repeat(5));
+  return private_key;
 }
-function setCookie(name, value, days) {
-  const expires = new Date(Date.now() + days*864e5).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
+async function generatePublic(private_key) {
+  const public_key = await sha256(private_key);
+  return public_key;
 }
-const script = document.currentScript;
-const url = new URL(script.src);
-const key = url.searchParams.get("code");
-console.log(code);
-function getCookie(name) {
-  return document.cookie.split('; ').find(row => row.startsWith(name + '='))?.split('=')[1];
+async function checkPublicKey(public_key) {
+  const response = await fetch("/public/" + public_key);
+  if (!response.ok) {
+    return false;
+  }
+  return (await response.text()).trim() == 'true';
 }
-if (document.getElementById("login") != undefined) {
-document.getElementById("login").addEventListener("keydown", async e => {
-  if (e.key !== "Enter") return;
-
-  const password = e.target.value;
-  const private = await sha256(password.repeat(5));
-  const public = await sha256(private);
-  const check = await get_public(public);
-  if (check == "true") {
-    setCookie("auth", private, 30);
-    window.location.href = "index.html"
+function loginFail() {
+  if (window.location.pathname != '/login.html') {
+    window.location.href = "login.html";
   } else {
     alert("Invalid password.");
   }
-});
+}
+function loginSuccess(private_key) {
+  setCookie("auth", private, 30);
+  document.body.style.display = "block";
+  if (window.location.pathname == '/login.html') {
+    window.location.href = "index.html";
+  }
+}
+async function checkLogin(private_key) {
+  const public = await generatePublic(private);
+  const checkValid = await checkPublicKey(public);
+  if (checkValid) {
+    loginSuccess();
+  } else {
+    loginFail();
+  }
+}
+const pInput = document.getElementById("login");
+if (pInput != undefined) {
+  pInput.addEventListener("keydown", async e => {
+    if (e.key !== "Enter") return;
+    const password = e.target.value;
+    const private = await generatePrivate(password);
+    await checkLogin(private);
+  });
 }
 (async () => {
   const saved = getCookie("auth");
-  const public = await sha256(saved);
-  const check = await get_public(public);
-  if (check == "true") {
-    setCookie("auth", saved, 30);
-    document.body.style.display = "block";
-  } else {
-    if (window.location.pathname != '/login.html') {
-      window.location.href = "login.html";
-    }
-  }
+  await checkLogin(saved);
 })();
-async function get_public(public_key) {
-  const response = await fetch("/public/" + public_key);
-  if (!response.ok) {
-    return "";
-  }
-  return (await response.text()).trim();
-}
 
