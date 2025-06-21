@@ -80,7 +80,7 @@ tr:nth-child(even) td {
   color: orange;
   font-weight: bold;
 }
-.tabs { display: flex; cursor: pointer; margin-bottom: 1em; }
+.tabs { display: flex; cursor: pointer;}
 .tab { padding: 0.5em 1em; border: 1px solid #ccc; border-bottom: none; }
 .tab.active { background: #eee; }
 .tab-content { display: none; border: 1px solid #ccc; padding: 1em; }
