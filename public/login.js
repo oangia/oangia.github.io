@@ -25,7 +25,7 @@ function loginFail() {
   }
 }
 function loginSuccess(private_key) {
-  setCookie("auth", private, 30);
+  setCookie("auth", private_key, 30);
   document.body.style.display = "block";
   if (window.location.pathname == '/login.html') {
     window.location.href = "index.html";
