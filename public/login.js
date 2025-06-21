@@ -36,8 +36,8 @@ class Login {
       pInput.addEventListener("keydown", async e => {
         if (e.key !== "Enter") return;
         const password = e.target.value;
-        const private = await this.password.generatePrivate(password);
-        await this.checkLogin(private);
+        const private_key = await this.password.generatePrivate(password);
+        await this.checkLogin(private_key);
       });
     }
   }
