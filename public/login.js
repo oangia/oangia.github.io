@@ -1,11 +1,7 @@
-// sha256
-// getCookie
-// setCookie(key, value, days)
 function setCookie(t,e,n){let i=new Date(Date.now()+864e5*n).toUTCString();document.cookie=`${t}=${encodeURIComponent(e)}; expires=${i}; path=/`}function getCookie(t){return document.cookie.split("; ").find(e=>e.startsWith(t+"="))?.split("=")[1]}
 class Crypto {
   async sha256(t){let e=new TextEncoder,n=e.encode(t),i=await crypto.subtle.digest("SHA-256",n),o=Array.from(new Uint8Array(i)),r=o.map(t=>t.toString(16).padStart(2,"0")).join("");return r}
 }
-
 class Password {
   constructor() {
     this.crypto = new Crypto();
@@ -19,16 +15,16 @@ class Password {
   async checkPrivateKey(private_key) {
     const public_key = await this.generatePublic(private_key);
     const response = await fetch("/public/" + public_key);
-    if (!response.ok) {
-      return false;
-    }
     return (await response.text()).trim() == 'true';
   }
 }
-
 class Login {
   constructor() {
     this.password = new Password();
+  }
+  async check(inputId) {
+    this.loginPassword(inputId);
+    this.login();
   }
   async loginPassword(inputId) {
     const pInput = document.getElementById(inputId);
@@ -69,7 +65,6 @@ class Login {
   }
 }
 const login = new Login();
-login.loginPassword("login");
-login.login();
+login.check("login");
 
 
