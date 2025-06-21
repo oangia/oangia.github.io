@@ -32,8 +32,8 @@ function loginSuccess(private_key) {
   }
 }
 async function checkLogin(private_key) {
-  const public = await generatePublic(private);
-  const checkValid = await checkPublicKey(public);
+  const public_key = await generatePublic(private_key);
+  const checkValid = await checkPublicKey(public_key);
   if (checkValid) {
     loginSuccess();
   } else {
