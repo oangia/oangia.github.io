@@ -21,6 +21,8 @@ class Password {
 class Login {
   constructor() {
     this.password = new Password();
+  }
+  async start() {
     const saved = getCookie("auth");
     await this.checkLogin(saved);
     const pInput = document.getElementById("login");
@@ -57,4 +59,4 @@ class Login {
   }
 }
 
-new Login();
+(new Login()).start();
