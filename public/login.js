@@ -21,13 +21,9 @@ class Password {
 class Login {
   constructor() {
     this.password = new Password();
-  }
-  async check(inputId) {
-    this.loginPassword(inputId);
-    this.login();
-  }
-  async loginPassword(inputId) {
-    const pInput = document.getElementById(inputId);
+    const saved = getCookie("auth");
+    await this.checkLogin(saved);
+    const pInput = document.getElementById("login");
     if (pInput != undefined) {
       pInput.addEventListener("keydown", async e => {
         if (e.key !== "Enter") return;
@@ -36,10 +32,6 @@ class Login {
         await this.checkLogin(private_key);
       });
     }
-  }
-  async login() {
-    const saved = getCookie("auth");
-    await this.checkLogin(saved);
   }
   async checkLogin(private_key) {
     const checkValid = await this.password.checkPrivateKey(private_key);
@@ -64,7 +56,5 @@ class Login {
     }
   }
 }
-const login = new Login();
-login.check("login");
 
-
+new Login();
