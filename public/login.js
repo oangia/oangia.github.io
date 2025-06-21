@@ -51,8 +51,6 @@ if (pInput != undefined) {
 }
 (async () => {
   const saved = getCookie("auth");
-  if (saved) {
-    await checkLogin(saved);
-  }
+  await checkLogin(saved);
 })();
 
