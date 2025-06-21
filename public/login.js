@@ -21,6 +21,8 @@ class Password {
 class Login {
   constructor() {
     this.password = new Password();
+    this.homePage = '/';
+    this.loginPage = '/login.html';
   }
   async start() {
     const saved = getCookie("auth");
@@ -44,8 +46,8 @@ class Login {
     }
   }
   fail() {
-    if (window.location.pathname != '/login.html') {
-      window.location.href = "login.html";
+    if (window.location.pathname != this.loginPage) {
+      window.location.href = this.loginPage;
     } else {
       alert("Invalid password.");
     }
@@ -53,8 +55,8 @@ class Login {
   success(private_key) {
     setCookie("auth", private_key, 30);
     document.body.style.display = "block";
-    if (window.location.pathname == '/login.html') {
-      window.location.href = "index.html";
+    if (window.location.pathname == this.loginPage) {
+      window.location.href = this.homePage;
     }
   }
 }
