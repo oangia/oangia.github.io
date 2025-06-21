@@ -10,7 +10,8 @@ async function generatePublic(private_key) {
   const public_key = await sha256(private_key);
   return public_key;
 }
-async function checkPublicKey(public_key) {
+async function checkPrivateKey(private_key) {
+  const public_key = await generatePublic(private_key);
   const response = await fetch("/public/" + public_key);
   if (!response.ok) {
     return false;
@@ -32,8 +33,7 @@ function loginSuccess(private_key) {
   }
 }
 async function checkLogin(private_key) {
-  const public_key = await generatePublic(private_key);
-  const checkValid = await checkPublicKey(public_key);
+  const checkValid = await checkPrivateKey(private_key);
   if (checkValid) {
     loginSuccess(private_key);
   } else {
@@ -52,7 +52,7 @@ if (pInput != undefined) {
 (async () => {
   const saved = getCookie("auth");
   if (saved) {
-  await checkLogin(saved);
+    await checkLogin(saved);
   }
 })();
 
