@@ -1,19 +1,9 @@
 *, *::before, *::after {
   box-sizing: border-box;
 }
-
-/* 2. Remove default margin */
 * {
   margin: 0;
 }
-
-/* 3. Enable keyword animations */
-@media (prefers-reduced-motion: no-preference) {
-  html {
-    interpolate-size: allow-keywords;
-  }
-}
-
 body {
   line-height: 1.5;
   font-family: sans-serif;
@@ -21,36 +11,15 @@ body {
   background:#212121;
   color: #fff;
 }
-
-/* 6. Improve media defaults */
 img, picture, video, canvas, svg {
   display: block;
   max-width: 100%;
 }
-
-/* 7. Inherit fonts for form controls */
-input, button, textarea, select {
-  font: inherit;
-}
-
-/* 8. Avoid text overflows */
-p, h1, h2, h3, h4, h5, h6 {
-  overflow-wrap: break-word;
-}
-
-/* 9. Improve line wrapping */
 p {
   text-wrap: pretty;
 }
 h1, h2, h3, h4, h5, h6 {
   text-wrap: balance;
-}
-
-/*
-  10. Create a root stacking context
-*/
-#root, #__next {
-  isolation: isolate;
 }
 .checkboxes {
   margin-bottom: 20px;
@@ -68,20 +37,10 @@ th, td {
   padding: 8px 12px;
   text-align: center;
 }
-th {
-  background-color: #f2f2f2;
-}
-tr:nth-child(even) td {
-  background-color: #f9f9f9;
-}
-.m {
-  color: #00c8c8;
-  font-weight: bold;
-}
-.sharp {
-  color: orange;
-  font-weight: bold;
-}
+th {background-color: #f2f2f2;}
+tr:nth-child(even) td { background-color: #f9f9f9;}
+.m {color: #00c8c8;font-weight: bold;}
+.sharp {color: orange;font-weight: bold;}
 .tabs { display: flex; cursor: pointer;}
 .tab { padding: 0.5em 1em; border: 1px solid #ccc; border-bottom: none; }
 .tab.active { background: #eee; }
