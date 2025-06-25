@@ -1,6 +1,6 @@
 *, *::before, *::after {box-sizing: border-box;}
 * {margin: 0;}
-body {line-height: 1.5;font-family: sans-serif;-webkit-font-smoothing: antialiased;background:#212121;color: #fff;}
+body {line-height: 1.5;font-family: sans-serif;-webkit-font-smoothing: antialiased;background:#212121;color: #ddd;}
 img, picture, video, canvas, svg {display: block;max-width: 100%;}
 p {text-wrap: pretty;}
 h1, h2, h3, h4, h5, h6 {text-wrap: balance;}
