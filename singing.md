@@ -9,6 +9,5 @@ Make it a habit, write as much as you want, get inspiration from observing life.
 2. Learning songs from records (support): Pick a song and analyze what makes you feel good
 
 ## Singing
-### Goals
 - Strong
 - Clear
