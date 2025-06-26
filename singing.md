@@ -12,7 +12,3 @@ Make it a habit, write as much as you want, get inspiration from observing life.
 ### Goals
 - Strong
 - Clear
-### Warm up exercises
-
-### Targeted exercises
-
