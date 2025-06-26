@@ -10,3 +10,5 @@ Make it a habit, write as much as you want, get inspiration from observing life.
 
 ## Singing
 Strong = resonance + open throat + breath support + clearity (vowel shape)
+
+Find your strongest, clearest position with 5 vowels and practice consistency on scales.
