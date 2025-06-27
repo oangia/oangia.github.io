@@ -13,7 +13,7 @@ Strong = 1. Resonance + 2. Open throat + 3. Breath support + 4. Clearity (vowel 
 
 Clear vowels: 1 "ng" => "y" + "ah ay ee oh oo"
 
-Strength training: 1 / 3 / 5 / 8 / 5 / 3 / 1 "bah"
+Strength training: staccato - 1 / 3 / 5 / 8 / 5 / 3 / 1 "bah" 1-2-3-4-5-4-3-2-1 123454321 "mee"
 
 ## Songs
 ### Warm up
