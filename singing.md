@@ -11,7 +11,8 @@ Make it a habit, write as much as you want, get inspiration from observing life.
 ## Singing
 Strong = 1. Resonance + 2. Open throat + 3. Breath support + 4. Clearity (vowel shape)
 
-"ng" => "yaah", "yeih" "yeeh", "yoh", "yooh"
+Clear vowels: 1 "ng" => "y" + "ah ay ee oh oo"
+Strength training: 1 / 3 / 5 / 8 / 5 / 3 / 1 "bah"
 
 Find your strongest, clearest position with 5 vowels and practice consistency on scales.
 
