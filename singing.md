@@ -8,9 +8,7 @@ Make it a habit, write as much as you want, get inspiration from observing life.
 
 2. Learning songs from records (support): Pick a song and analyze what makes you feel good
 
-## Singing
-Strong = 1. Resonance + 2. Open throat + 3. Breath support + 4. Clearity (vowel shape)
-
+## Singing/Speaking
 Clear vowels: 1 "ng" => "y" + "ah ay ee oh oo"
 
 Strength training: staccato - 1 / 3 / 5 / 8 / 5 / 3 / 1 "bah" 1-2-3-4-5-4-3-2-1 123454321 "mee"
