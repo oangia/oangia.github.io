@@ -9,9 +9,11 @@ Make it a habit, write as much as you want, get inspiration from observing life.
 2. Learning songs from records (support): Pick a song and analyze what makes you feel good
 
 ## Singing/Speaking
+Staccato - 1-2-3-4-5-4-3-2-1 123454321 "mee"
+
 Clear vowels: 1 "ng" => "y" + "ah ay ee oh oo"
 
-Strength training: staccato - 1 / 3 / 5 / 8 / 5 / 3 / 1 "bah" 1-2-3-4-5-4-3-2-1 123454321 "mee"
+Articulation for speaking: over do mouth movement
 
 ## Songs
 ### Warm up
