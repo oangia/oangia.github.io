@@ -15,6 +15,11 @@ Clear vowels: 1 "ng" => "y" + "ah ay ee oh oo"
 
 Articulation for speaking: over do mouth movement
 
+Checklist
+- Deep breath
+- Resonance, open throat
+- Over-do mouth
+
 ## Songs
 ### Warm up
 Cuộc tình trong cơn mưa
