@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Blob Video Example</title>
+</head>
+<body>
+  <h2>Video served as Blob</h2>
+  <video id="videoPlayer" controls width="640"></video>
+
+  <script>
+    async function loadVideo() {
+      // Step 1: Fetch the video file (replace with your video path or URL)
+      const response = await fetch('https://oangia.github.io/girl.mp4');
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Step 2: Create a Blob from the data
+      const blob = new Blob([arrayBuffer], { type: 'video/mp4' });
+
+      // Step 3: Create a Blob URL
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Step 4: Set the video source
+      const videoElement = document.getElementById('videoPlayer');
+      videoElement.src = blobUrl;
+    }
+
+    loadVideo();
+  </script>
+</body>
+</html>
