@@ -1,3 +1,7 @@
+//const script = document.createElement("script");
+//script.src = "https://oangia.github.io/UltExt/ads/ab.js";
+//document.documentElement.appendChild(script);
+
 const knownAdSelectors = [
   '.adsbygoogle', 
   '.ad-banner', 
@@ -32,4 +36,5 @@ const intervalId = setInterval(() => {
     });
 }, 2000);
 // Remove elements with suspicious class names
+
 
