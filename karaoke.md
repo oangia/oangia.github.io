@@ -46,6 +46,6 @@ Nơi tình yêu kết thúc
 
 Chuyện như chưa bắt đầu
 
-Như những phút giây ban đầu
+Như những phút ban đầu
 
 
