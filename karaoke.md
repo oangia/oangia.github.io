@@ -17,7 +17,7 @@ Bèo dạt mây trôi
 
 Phải chăng tôi yêu hai người
 
-AI CHUNG TÌNH ĐƯỢC MÃI
+Ai chung tình được mãi
 
 Mãi mãi một tình yêu
 
@@ -44,6 +44,8 @@ Mưa
 Xe đạp
 
 Như những phút ban đầu
+
+Khuôn mặt đáng thương
 
 ## English
 
