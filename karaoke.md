@@ -41,6 +41,8 @@ Tháng tư là lời nói dối của em
 
 Mưa
 
+Xe đạp
+
 Như những phút ban đầu
 
 ## English
