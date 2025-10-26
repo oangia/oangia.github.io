@@ -23,6 +23,8 @@ Mãi mãi một tình yêu
 
 Khi người mình yêu khóc
 
+Lời xin lỗi của một dân chơi
+
 ## A4
 
 Cơn mưa băng giá
