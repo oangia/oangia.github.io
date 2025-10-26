@@ -21,6 +21,8 @@ Ai chung tình được mãi
 
 Mãi mãi một tình yêu
 
+Khi người mình yêu khóc
+
 ## A4
 
 Cơn mưa băng giá
