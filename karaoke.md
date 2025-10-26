@@ -35,11 +35,13 @@ Nơi tình yêu kết thúc
 
 Chuyện như chưa bắt đầu
 
-Như những phút ban đầu
-
 ## > A4
 
 Tháng tư là lời nói dối của em
+
+Mưa
+
+Như những phút ban đầu
 
 ## English
 
