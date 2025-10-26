@@ -13,27 +13,21 @@ Ngày chưa giông bão
 
 Con cò
 
-Nàng thơ
-
 Bèo dạt mây trôi
 
 Phải chăng tôi yêu hai người
 
-Tháng tư là lời nói dối của em
-
-Trái tim bên lề
-
 AI CHUNG TÌNH ĐƯỢC MÃI
 
 Mãi mãi một tình yêu
-
-
 
 ## A4
 
 Cơn mưa băng giá
 
 Trái tim bên lề
+
+Nàng thơ
 
 Nơi tình yêu bắt đầu
 
