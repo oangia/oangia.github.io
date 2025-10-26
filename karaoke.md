@@ -23,22 +23,17 @@ Tháng tư là lời nói dối của em
 
 Trái tim bên lề
 
-How deep is your love
-
-Your song 
-
-I don’t want to miss a thing
-
 AI CHUNG TÌNH ĐƯỢC MÃI
 
 Mãi mãi một tình yêu
 
 
 
-## Bùi Anh Tuấn
-Trái tim bên lề
+## A4
 
-Tháng tư là lời nói dối của em
+Cơn mưa băng giá
+
+Trái tim bên lề
 
 Nơi tình yêu bắt đầu
 
@@ -48,4 +43,16 @@ Chuyện như chưa bắt đầu
 
 Như những phút ban đầu
 
+## > A4
 
+Tháng tư là lời nói dối của em
+
+## English
+
+How deep is your love
+
+Your song 
+
+I don’t want to miss a thing
+
+Californication
