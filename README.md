@@ -16,3 +16,13 @@ yt.download_audio("kb-aW78puWM")
 ```
 
 ```
+
+Life philosophy: be a man worth respect -> be useful - make people feel good (music, talking)
+
+Diet: #diet.md
+
+Workout: cardio, deadlift once a week
+
+Talking: be useful - post something daily
+
+Music: play as often as you can
