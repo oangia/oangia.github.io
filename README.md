@@ -21,8 +21,6 @@ Life philosophy: be a man worth respect -> be useful - make people feel good (mu
 
 Diet: #diet.md
 
-Workout: cardio, deadlift once a week
-
 Talking: be useful - post something daily
 
 Music: play as often as you can
@@ -39,7 +37,7 @@ Andrew, Tristan Tate: maslow - talk, sell, agree and turn any no into them being
 Nhat Huynh: Be a man worth respect: useful, excellent, make people feel good to get attention.
 
 ### Routine
-08:00 - 08:30 Cardio, deadlift, once a week
+08:00 - 08:30 Workout
 
 08:30 - 09:30 Breakfast - find and post facebook post
 
