@@ -288,6 +288,74 @@ export class FirebaseAuthUI {
             .auth-panel {
                 margin-top: 20px;
             }
+
+            .auth-modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: none;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+                padding: 20px;
+            }
+
+            .auth-modal-content {
+                background: white;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                max-width: 450px;
+                width: 100%;
+                max-height: 90vh;
+                overflow-y: auto;
+                position: relative;
+            }
+
+            .auth-modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 20px;
+                border-bottom: 1px solid #e0e0e0;
+                position: sticky;
+                top: 0;
+                background: white;
+                border-radius: 20px 20px 0 0;
+                z-index: 1;
+            }
+
+            .auth-modal-header h2 {
+                margin: 0;
+                color: #333;
+                font-size: 24px;
+            }
+
+            .auth-modal-close {
+                background: none;
+                border: none;
+                font-size: 32px;
+                color: #999;
+                cursor: pointer;
+                padding: 0;
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                line-height: 1;
+                transition: color 0.3s;
+            }
+
+            .auth-modal-close:hover {
+                color: #333;
+            }
+
+            .auth-modal-body {
+                padding: 20px;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -305,28 +373,72 @@ export class FirebaseAuthUI {
     generateToggleMode() {
         if (!this.container) return;
 
-        // Generate button and UI
+        // Generate button only
         this.container.innerHTML = `
             <button id="auth-toggle-btn" class="auth-toggle-btn">Show Login</button>
-            <div id="auth-panel" class="auth-panel" style="display: none;">
-                ${this.getUIHTML()}
+        `;
+
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.id = 'auth-modal-overlay';
+        modal.className = 'auth-modal-overlay';
+        modal.innerHTML = `
+            <div class="auth-modal-content">
+                <div class="auth-modal-header">
+                    <h2>Login</h2>
+                    <button id="auth-modal-close" class="auth-modal-close">&times;</button>
+                </div>
+                <div class="auth-modal-body">
+                    ${this.getUIHTML()}
+                </div>
             </div>
         `;
+        document.body.appendChild(modal);
 
         // Set up toggle button
         const toggleBtn = document.getElementById('auth-toggle-btn');
-        const panel = document.getElementById('auth-panel');
+        const modalOverlay = document.getElementById('auth-modal-overlay');
+        const closeBtn = document.getElementById('auth-modal-close');
         
-        if (toggleBtn && panel) {
+        if (toggleBtn && modalOverlay) {
             toggleBtn.addEventListener('click', () => {
-                this.isVisible = !this.isVisible;
-                panel.style.display = this.isVisible ? 'block' : 'none';
-                toggleBtn.textContent = this.isVisible ? 'Hide Login' : 'Show Login';
+                this.showModal();
+            });
+        }
+
+        if (closeBtn && modalOverlay) {
+            closeBtn.addEventListener('click', () => {
+                this.hideModal();
+            });
+        }
+
+        // Close modal when clicking outside
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    this.hideModal();
+                }
             });
         }
         
         // Attach event listeners
         this.attachEventListeners();
+    }
+
+    showModal() {
+        const modalOverlay = document.getElementById('auth-modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+    }
+
+    hideModal() {
+        const modalOverlay = document.getElementById('auth-modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.style.display = 'none';
+            document.body.style.overflow = ''; // Restore scrolling
+        }
     }
 
     getUIHTML() {
@@ -680,6 +792,10 @@ export class FirebaseAuthUI {
     onAuthStateChange(user) {
         if (user) {
             this.showDashboard(user);
+            // Close modal if user is logged in (in toggle mode)
+            if (this.config.mode === 'toggle') {
+                this.hideModal();
+            }
         } else {
             this.showLoginForm();
         }
