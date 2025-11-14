@@ -7,21 +7,25 @@
 
 /* Theme colors */
 :root {
-  --bs-primary: rgb(255,0,127);
-  --bs-primary-rgb: 255,0,127;
-  --bs-primary-hover: rgba(255,0,127,0.85);
-  --bs-danger: #dc2626;
-  --bs-danger-hover: #b91c1c;
-  --bs-body-bg: #ffffff;
-  --bs-body-color: #171717;
-  --bs-border-color: #e5e5e5;
-  --bs-muted: #f5f5f5;
-  --bs-muted-color: #737373;
-  --bs-card-bg: #fafafa;
-  --bs-card-border-color: #f0f0f0;
-  --bs-input-border-color: #a3a3a3;
-  --bs-shadow: rgba(0,0,0,0.1);
-  --bs-table-hover-bg: #fef0f7; /* pinkish hover for table rows */
+  /* Primary palette */
+  --bs-primary: #258292;
+  --bs-primary-rgb: 37, 130, 146; /* for transparency/gradient usage */
+  --bs-primary-hover: #1f6b70;
+  --bs-primary-active: #196163;
+
+  /* Secondary palette */
+  --bs-secondary: #6c757d;
+  --bs-secondary-rgb: 108, 117, 125;
+
+  /* Success / Info / Warning / Danger can be shifted similarly */
+  --bs-success: #28a745;
+  --bs-info: #17a2b8;
+  --bs-warning: #ffc107;
+  --bs-danger: #dc3545;
+
+  /* Optional: text and background tweaks */
+  --bs-body-color: #212529;
+  --bs-body-bg: #f8f9fa;
 }
 
 /* Body */
