@@ -34,30 +34,16 @@
 </head>
 <body>
     <div class="container">
-        <h1>Firebase Auth Demo</h1>
-        
+        <h1>Firebase Auth</h1>
         <!-- Just a div - Auth will generate the form here -->
         <div id="auth-container"></div>
     </div>
 
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js';
+        import { app } from "https://oangia.github.io/plugins/firebasejs/1.0.0/config.js";
         import { Auth } from './auth.js';
         import { authConfig } from './authConfig.js';
-        // Firebase config
-        const firebaseConfig = {
-            apiKey: "AIzaSyB0TxR5HpNJ8Ph7rnrHqXNMAmBWo1dw5Nw",
-            authDomain: "agent52.firebaseapp.com",
-            projectId: "agent52",
-            storageBucket: "agent52.firebasestorage.app",
-            messagingSenderId: "534394830199",
-            appId: "1:534394830199:web:521b810d19dbcfe9edb572",
-            measurementId: "G-J9RZWL9DZ5"
-        };
 
-        // Initialize Firebase App
-        const app = initializeApp(firebaseConfig);
-        // Initialize Auth - will generate form automatically
         authConfig.callbacks = {
             onLogin: (user) => {
                 console.log('User logged in:', user);
