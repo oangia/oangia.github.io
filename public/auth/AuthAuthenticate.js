@@ -30,10 +30,10 @@ export class AuthAuthenticate {
         // Merge user options with defaults
         this.config = {
             ...defaultConfig,
-            ...this.options,
+            ...options,
             callbacks: {
                 ...defaultConfig.callbacks,
-                ...(this.options.callbacks || {})
+                ...(options.callbacks || {})
             }
         };
         
