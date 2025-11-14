@@ -23,16 +23,58 @@ export class AuthCore {
 
     init() {
         try {
+            // Ensure auth is initialized - retry if needed
+            if (!this.app) {
+                console.error('Firebase app not provided');
+                return false;
+            }
+            
             this.auth = getAuth(this.app);
+            
+            // Verify auth was created successfully
+            if (!this.auth) {
+                console.error('Failed to initialize Firebase Auth');
+                return false;
+            }
+            
             return true;
         } catch (error) {
             console.error('Firebase Auth initialization error:', error);
+            // Retry after a short delay if it's a registration error
+            if (error.message && error.message.includes('not been registered')) {
+                setTimeout(() => {
+                    try {
+                        this.auth = getAuth(this.app);
+                    } catch (retryError) {
+                        console.error('Firebase Auth retry failed:', retryError);
+                    }
+                }, 100);
+            }
             return false;
         }
     }
 
     onAuthStateChange(callback) {
-        if (!this.auth) return;
+        if (!this.auth) {
+            // Retry initialization if auth is not available
+            if (this.init() && this.auth) {
+                onAuthStateChanged(this.auth, (user) => {
+                    this.user = user;
+                    if (callback) callback(user);
+                });
+            } else {
+                // Wait a bit and try again
+                setTimeout(() => {
+                    if (this.init() && this.auth) {
+                        onAuthStateChanged(this.auth, (user) => {
+                            this.user = user;
+                            if (callback) callback(user);
+                        });
+                    }
+                }, 200);
+            }
+            return;
+        }
         onAuthStateChanged(this.auth, (user) => {
             this.user = user;
             if (callback) callback(user);
@@ -40,6 +82,11 @@ export class AuthCore {
     }
 
     async login(email, password) {
+        if (!this.auth) {
+            if (!this.init()) {
+                return { success: false, error: 'auth/not-initialized' };
+            }
+        }
         try {
             const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
             return { success: true, user: userCredential.user };
@@ -49,6 +96,11 @@ export class AuthCore {
     }
 
     async register(email, password) {
+        if (!this.auth) {
+            if (!this.init()) {
+                return { success: false, error: 'auth/not-initialized' };
+            }
+        }
         try {
             const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
             return { success: true, user: userCredential.user };
@@ -58,6 +110,11 @@ export class AuthCore {
     }
 
     async logout() {
+        if (!this.auth) {
+            if (!this.init()) {
+                return { success: false, error: 'auth/not-initialized' };
+            }
+        }
         try {
             await signOut(this.auth);
             return { success: true };
@@ -67,6 +124,11 @@ export class AuthCore {
     }
 
     async resetPassword(email) {
+        if (!this.auth) {
+            if (!this.init()) {
+                return { success: false, error: 'auth/not-initialized' };
+            }
+        }
         try {
             await sendPasswordResetEmail(this.auth, email);
             return { success: true };
@@ -76,6 +138,11 @@ export class AuthCore {
     }
 
     async loginWithGoogle() {
+        if (!this.auth) {
+            if (!this.init()) {
+                return { success: false, error: 'auth/not-initialized' };
+            }
+        }
         try {
             const provider = new GoogleAuthProvider();
             const result = await signInWithPopup(this.auth, provider);
@@ -86,6 +153,11 @@ export class AuthCore {
     }
 
     async loginWithFacebook() {
+        if (!this.auth) {
+            if (!this.init()) {
+                return { success: false, error: 'auth/not-initialized' };
+            }
+        }
         try {
             const provider = new FacebookAuthProvider();
             const result = await signInWithPopup(this.auth, provider);

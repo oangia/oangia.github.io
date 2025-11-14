@@ -177,44 +177,30 @@ const firebaseConfig = {
 };
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { AuthCore } from './auth/AuthCore.js';
+import { AuthGuard } from './auth/AuthGuard.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const filesCol = collection(db, "files");
 
-// Initialize auth protection
-const authCore = new AuthCore(app);
-const loginPageUrl = './auth/auto-generated.html';
-
-// Listen for auth state changes (fires immediately with current user)
-authCore.onAuthStateChange((user) => {
-  if (!user) {
-    // Not logged in, redirect to login page
-    window.location.href = loginPageUrl;
-    return;
-  }
-  
-  // User is logged in, show user info
-  const userInfoEl = document.getElementById('user-info');
-  const userEmailEl = document.getElementById('user-email');
-  if (userInfoEl && userEmailEl) {
-    userEmailEl.textContent = user.email || 'User';
-    userInfoEl.style.display = 'flex';
+// Simple auth protection - just config
+const authGuard = new AuthGuard(app, {
+  loginUrl: './auth/auto-generated.html',
+  onAuthenticated: (user) => {
+    // Show user info when authenticated
+    const userInfoEl = document.getElementById('user-info');
+    const userEmailEl = document.getElementById('user-email');
+    if (userInfoEl && userEmailEl) {
+      userEmailEl.textContent = user.email || 'User';
+      userInfoEl.style.display = 'flex';
+    }
   }
 });
 
 // Logout button handler
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
-  logoutBtn.addEventListener('click', async () => {
-    const result = await authCore.logout();
-    if (result.success) {
-      window.location.href = loginPageUrl;
-    } else {
-      alert('Failed to logout. Please try again.');
-    }
-  });
+  logoutBtn.addEventListener('click', () => authGuard.logout());
 }
 
 let currentFileName = null;
