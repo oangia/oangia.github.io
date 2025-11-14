@@ -42,7 +42,7 @@ export class AuthGuard {
         // Logout button handler
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => authGuard.logout());
+            logoutBtn.addEventListener('click', () => this.logout());
         }
     }
 
