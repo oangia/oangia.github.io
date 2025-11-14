@@ -32,10 +32,18 @@ export class AuthGuard {
             }
             
             // User is authenticated
-            if (this.config.onAuthenticated) {
-                this.config.onAuthenticated(user);
+            const userInfoEl = document.getElementById('user-info');
+            const userEmailEl = document.getElementById('user-email');
+            if (userInfoEl && userEmailEl) {
+                userEmailEl.textContent = user.email || 'User';
+                userInfoEl.style.display = 'flex';
             }
         });
+        // Logout button handler
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => authGuard.logout());
+        }
     }
 
     // Public API

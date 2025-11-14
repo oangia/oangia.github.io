@@ -9,21 +9,22 @@ import { AuthHTML } from './AuthHTML.js';
  * Auth - Main authentication class that combines all components
  * 
  * @param {Object} app - Firebase app instance
- * @param {string} containerId - ID of container div
  * @param {Object} options - Configuration options
  */
 export class Auth {
-    constructor(app, containerId, options = {}) {
+    constructor(app, options = {}) {
         this.app = app;
-        this.containerId = containerId;
+        
         // Default config values
         const defaultConfig = {
             mode: 'direct', // 'direct' or 'toggle'
+            containerId: null,
             enableEmail: true,
             enableGoogle: true,
             enableFacebook: true,
             showRegister: true,
             showForgotPassword: true,
+            loginUrl: '/auth/login.html',
             redirectUrl: null, // URL to redirect after login or if already logged in
             callbacks: {
                 onLogin: null,
@@ -34,7 +35,6 @@ export class Auth {
                 onAuthStateChange: null
             }
         };
-
         // Merge user options with defaults
         this.config = {
             ...defaultConfig,
@@ -47,7 +47,7 @@ export class Auth {
         
         // Initialize core components
         this.core = new AuthCore(app);
-        this.ui = new AuthUI(containerId, this.config);
+        this.ui = new AuthUI(this.config.containerId, this.config);
         this.message = new AuthMessage();
         this.formHandler = new AuthFormHandler(this.core, this.message, this.config);
         

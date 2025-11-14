@@ -177,31 +177,16 @@ const firebaseConfig = {
 };
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { AuthGuard } from './auth/AuthGuard.js';
+import { Auth } from './auth.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const filesCol = collection(db, "files");
 
 // Simple auth protection - just config
-const authGuard = new AuthGuard(app, {
-  loginUrl: './auth/auto-generated.html',
-  onAuthenticated: (user) => {
-    // Show user info when authenticated
-    const userInfoEl = document.getElementById('user-info');
-    const userEmailEl = document.getElementById('user-email');
-    if (userInfoEl && userEmailEl) {
-      userEmailEl.textContent = user.email || 'User';
-      userInfoEl.style.display = 'flex';
-    }
-  }
+const authGuard = new Auth(app, {
+  loginUrl: './auth/login.html'
 });
-
-// Logout button handler
-const logoutBtn = document.getElementById('logout-btn');
-if (logoutBtn) {
-  logoutBtn.addEventListener('click', () => authGuard.logout());
-}
 
 let currentFileName = null;
 
