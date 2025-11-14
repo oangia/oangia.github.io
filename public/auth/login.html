@@ -43,19 +43,20 @@
         import { app } from "https://oangia.github.io/plugins/firebasejs/1.0.0/config.js";
         import { Auth } from './auth.js';
         import { authConfig } from './authConfig.js';
-
-        authConfig.callbacks = {
-            onLogin: (user) => {
-                console.log('User logged in:', user);
-            },
-            onRegister: (user) => {
-                console.log('User registered:', user);
-            },
-            onLogout: () => {
-                console.log('User logged out');
+        const auth = new Auth(app, 'authenticate', {
+            ...authConfig,
+            callbacks: {
+                onLogin: (user) => {
+                    console.log('User logged in:', user);
+                },
+                onRegister: (user) => {
+                    console.log('User registered:', user);
+                },
+                onLogout: () => {
+                    console.log('User logged out');
+                }
             }
-        }
-        const auth = new Auth(app, 'authenticate', authConfig);
+        });
     </script>
 </body>
 </html>
