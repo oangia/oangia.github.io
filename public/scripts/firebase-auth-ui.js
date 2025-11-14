@@ -65,14 +65,22 @@ export class FirebaseAuthUI {
                 this.onAuthStateChange(user);
             });
 
-            // Inject styles
-            this.injectStyles();
-
-            // Generate UI based on mode
-            if (this.config.mode === 'toggle') {
-                this.generateToggleMode();
+            // Check if container has existing forms
+            const hasExistingForms = this.hasExistingForms();
+            
+            if (hasExistingForms) {
+                // Use existing forms - attach event listeners only
+                this.attachToExistingForms();
             } else {
-                this.generateDirectMode();
+                // Generate new forms
+                this.injectStyles();
+                
+                // Generate UI based on mode
+                if (this.config.mode === 'toggle') {
+                    this.generateToggleMode();
+                } else {
+                    this.generateDirectMode();
+                }
             }
 
             return true;
@@ -272,6 +280,145 @@ export class FirebaseAuthUI {
             }
         `;
         document.head.appendChild(style);
+    }
+
+    hasExistingForms() {
+        if (!this.container) return false;
+        
+        // Check if container has any form elements
+        const hasForm = this.container.querySelector('form') !== null;
+        const hasInputs = this.container.querySelector('input[type="email"], input[type="password"]') !== null;
+        const hasButtons = this.container.querySelector('button[id*="auth"], button[id*="login"], button[id*="register"]') !== null;
+        
+        return hasForm || hasInputs || hasButtons;
+    }
+
+    attachToExistingForms() {
+        if (!this.container) return;
+
+        // Find existing form elements by common IDs, names, or data attributes
+        // Try multiple selectors for flexibility
+        const allForms = Array.from(this.container.querySelectorAll('form'));
+        const loginForm = allForms.find(form => 
+            form.id?.toLowerCase().includes('login') || 
+            form.id?.toLowerCase().includes('signin') ||
+            form.getAttribute('data-auth') === 'login' ||
+            form.getAttribute('data-auth') === 'signin'
+        ) || allForms[0];
+        
+        const registerForm = allForms.find(form => 
+            form.id?.toLowerCase().includes('register') || 
+            form.id?.toLowerCase().includes('signup') ||
+            form.getAttribute('data-auth') === 'register' ||
+            form.getAttribute('data-auth') === 'signup'
+        );
+        
+        const forgotForm = allForms.find(form => 
+            form.id?.toLowerCase().includes('forgot') || 
+            form.id?.toLowerCase().includes('reset') ||
+            form.getAttribute('data-auth') === 'forgot' ||
+            form.getAttribute('data-auth') === 'reset'
+        );
+        
+        // Find inputs - try multiple selectors
+        const allEmailInputs = Array.from(this.container.querySelectorAll('input[type="email"]'));
+        const allPasswordInputs = Array.from(this.container.querySelectorAll('input[type="password"]'));
+        
+        const emailInput = allEmailInputs.find(el => 
+            el.id?.toLowerCase().includes('email') || 
+            el.name?.toLowerCase().includes('email') ||
+            el.placeholder?.toLowerCase().includes('email')
+        ) || allEmailInputs[0];
+        
+        const passwordInput = allPasswordInputs.find(el => 
+            el.id?.toLowerCase().includes('password') && 
+            !el.id?.toLowerCase().includes('confirm')
+        ) || allPasswordInputs[0];
+        
+        const confirmPasswordInput = allPasswordInputs.find(el => 
+            el.id?.toLowerCase().includes('confirm') || 
+            el.name?.toLowerCase().includes('confirm')
+        );
+        
+        // Find buttons
+        const allButtons = Array.from(this.container.querySelectorAll('button'));
+        const googleBtn = allButtons.find(btn => 
+            btn.id?.toLowerCase().includes('google') ||
+            btn.getAttribute('data-auth') === 'google' ||
+            btn.getAttribute('data-provider') === 'google'
+        );
+        const facebookBtn = allButtons.find(btn => 
+            btn.id?.toLowerCase().includes('facebook') ||
+            btn.getAttribute('data-auth') === 'facebook' ||
+            btn.getAttribute('data-provider') === 'facebook'
+        );
+        const logoutBtn = allButtons.find(btn => 
+            btn.id?.toLowerCase().includes('logout') ||
+            btn.getAttribute('data-auth') === 'logout' ||
+            btn.getAttribute('data-action') === 'logout'
+        );
+        
+        // Find message element
+        const messageEl = this.container.querySelector('[data-auth="message"], .alert, .message') ||
+                         Array.from(this.container.querySelectorAll('[id*="message"]')).find(el => 
+                             el.id?.toLowerCase().includes('message')
+                         );
+        
+        // Store references
+        this.elements = {
+            loginForm,
+            registerForm,
+            forgotForm,
+            loginEmail: emailInput,
+            loginPassword: passwordInput,
+            registerEmail: emailInput,
+            registerPassword: passwordInput,
+            registerConfirmPassword: confirmPasswordInput,
+            forgotEmail: emailInput,
+            googleLoginBtn: googleBtn,
+            facebookLoginBtn: facebookBtn,
+            logoutBtn,
+            messageEl
+        };
+
+        // Attach event listeners to existing forms
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLogin();
+            });
+        }
+
+        if (registerForm) {
+            registerForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleRegister();
+            });
+        }
+
+        if (forgotForm) {
+            forgotForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleForgotPassword();
+            });
+        }
+
+        if (googleBtn) {
+            googleBtn.addEventListener('click', () => this.handleGoogleLogin());
+        }
+
+        if (facebookBtn) {
+            facebookBtn.addEventListener('click', () => this.handleFacebookLogin());
+        }
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => this.handleLogout());
+        }
+
+        // Set up message element if found
+        if (messageEl) {
+            this.messageElement = messageEl;
+        }
     }
 
     generateDirectMode() {
@@ -550,8 +697,12 @@ export class FirebaseAuthUI {
     async handleLogin() {
         if (!this.config.enableEmail) return;
 
-        const email = document.getElementById('auth-email')?.value;
-        const password = document.getElementById('auth-password')?.value;
+        // Try to get from generated form first, then from existing form
+        const emailInput = document.getElementById('auth-email') || this.elements?.loginEmail;
+        const passwordInput = document.getElementById('auth-password') || this.elements?.loginPassword;
+        
+        const email = emailInput?.value;
+        const password = passwordInput?.value;
 
         if (!email || !password) return;
 
@@ -569,9 +720,14 @@ export class FirebaseAuthUI {
     async handleRegister() {
         if (!this.config.enableEmail) return;
 
-        const email = document.getElementById('auth-register-email')?.value;
-        const password = document.getElementById('auth-register-password')?.value;
-        const confirmPassword = document.getElementById('auth-register-confirm')?.value;
+        // Try to get from generated form first, then from existing form
+        const emailInput = document.getElementById('auth-register-email') || this.elements?.registerEmail;
+        const passwordInput = document.getElementById('auth-register-password') || this.elements?.registerPassword;
+        const confirmPasswordInput = document.getElementById('auth-register-confirm') || this.elements?.registerConfirmPassword;
+        
+        const email = emailInput?.value;
+        const password = passwordInput?.value;
+        const confirmPassword = confirmPasswordInput?.value;
 
         if (!email || !password || !confirmPassword) return;
 
@@ -594,7 +750,9 @@ export class FirebaseAuthUI {
     async handleForgotPassword() {
         if (!this.config.enableEmail) return;
 
-        const email = document.getElementById('auth-forgot-email')?.value;
+        // Try to get from generated form first, then from existing form
+        const emailInput = document.getElementById('auth-forgot-email') || this.elements?.forgotEmail;
+        const email = emailInput?.value;
         if (!email) return;
 
         try {
@@ -649,14 +807,29 @@ export class FirebaseAuthUI {
     }
 
     showMessage(text, type = 'info') {
-        const messageEl = document.getElementById('auth-message');
-        if (!messageEl) return;
+        // Try to get from generated form first, then from existing form
+        const messageEl = document.getElementById('auth-message') || this.messageElement || this.elements?.messageEl;
+        if (!messageEl) {
+            // Fallback to console if no message element found
+            console.log(`[${type}] ${text}`);
+            return;
+        }
 
         messageEl.textContent = text;
-        messageEl.className = `auth-message auth-message-${type} show`;
+        
+        // If it's a Bootstrap alert, use Bootstrap classes
+        if (messageEl.classList.contains('alert')) {
+            messageEl.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} show`;
+        } else {
+            messageEl.className = `auth-message auth-message-${type} show`;
+        }
         
         setTimeout(() => {
-            messageEl.className = 'auth-message';
+            if (messageEl.classList.contains('alert')) {
+                messageEl.classList.remove('show');
+            } else {
+                messageEl.className = 'auth-message';
+            }
         }, 5000);
     }
 
@@ -705,13 +878,19 @@ export class FirebaseAuthUI {
 
     onAuthStateChange(user) {
         if (user) {
-            this.showDashboard(user);
+            // Only show dashboard if we generated the UI
+            if (!this.hasExistingForms()) {
+                this.showDashboard(user);
+            }
             // Close modal if user is logged in (in toggle mode)
             if (this.config.mode === 'toggle') {
                 this.hideModal();
             }
         } else {
-            this.showLoginForm();
+            // Only show login form if we generated the UI
+            if (!this.hasExistingForms()) {
+                this.showLoginForm();
+            }
         }
 
         if (this.config.callbacks?.onAuthStateChange) {
