@@ -380,13 +380,6 @@
             },
             // Custom callbacks (optional)
             callbacks: {
-                onAuthStateChange: (user) => {
-                    if (user) {
-                        showDashboard(user);
-                    } else {
-                        showLoginForm();
-                    }
-                },
                 onLogin: (user) => {
                     console.log('User logged in:', user);
                 },
@@ -408,147 +401,43 @@
         // Initialize FirebaseAuth with app instance and config
         const auth = new FirebaseAuth(app, authConfig);
 
-        // UI Elements
-        const loginForm = document.getElementById('loginForm');
-        const registerForm = document.getElementById('registerForm');
-        const forgotPasswordForm = document.getElementById('forgotPasswordForm');
-        const dashboard = document.getElementById('dashboard');
-        const messageEl = document.getElementById('message');
-
-        // Show message
-        function showMessage(text, type) {
-            messageEl.textContent = text;
-            messageEl.className = `message ${type} show`;
-            setTimeout(() => {
-                messageEl.className = 'message';
-            }, 5000);
-        }
-
-        // Show/Hide forms
-        function showLoginForm() {
-            loginForm.classList.remove('hidden');
-            registerForm.classList.add('hidden');
-            forgotPasswordForm.classList.add('hidden');
-            dashboard.classList.remove('active');
-        }
-
-        function showRegisterForm() {
-            loginForm.classList.add('hidden');
-            registerForm.classList.remove('hidden');
-            forgotPasswordForm.classList.add('hidden');
-            dashboard.classList.remove('active');
-        }
-
-        function showForgotPasswordForm() {
-            loginForm.classList.add('hidden');
-            registerForm.classList.add('hidden');
-            forgotPasswordForm.classList.remove('hidden');
-            dashboard.classList.remove('active');
-        }
-
-        function showDashboard(user) {
-            loginForm.classList.add('hidden');
-            registerForm.classList.add('hidden');
-            forgotPasswordForm.classList.add('hidden');
-            dashboard.classList.add('active');
-
-            document.getElementById('userName').textContent = user.displayName || 'User';
-            document.getElementById('userEmail').textContent = user.email;
+        // Attach form handlers - all auth logic is now handled inside the class!
+        auth.attachToForms({
+            // Forms
+            loginForm: 'loginFormElement',
+            registerForm: 'registerFormElement',
+            forgotPasswordForm: 'forgotPasswordFormElement',
             
-            const initial = (user.displayName || user.email).charAt(0).toUpperCase();
-            document.getElementById('userAvatar').textContent = initial;
-        }
-
-        // Event Listeners
-        document.getElementById('loginFormElement').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
+            // Form containers (for showing/hiding)
+            loginFormContainer: 'loginForm',
+            registerFormContainer: 'registerForm',
+            forgotPasswordFormContainer: 'forgotPasswordForm',
             
-            const result = await auth.login(email, password);
-            if (result.success) {
-                showMessage('Successfully logged in!', 'success');
-            } else {
-                showMessage(result.error, 'error');
-            }
-        });
-
-        document.getElementById('registerFormElement').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-            const confirmPassword = document.getElementById('registerConfirmPassword').value;
+            // Input fields
+            loginEmail: 'loginEmail',
+            loginPassword: 'loginPassword',
+            registerEmail: 'registerEmail',
+            registerPassword: 'registerPassword',
+            registerConfirmPassword: 'registerConfirmPassword',
+            forgotEmail: 'forgotEmail',
             
-            if (password !== confirmPassword) {
-                showMessage('Passwords do not match!', 'error');
-                return;
-            }
+            // Buttons
+            googleLoginBtn: 'googleLoginBtn',
+            facebookLoginBtn: 'facebookLoginBtn',
+            logoutBtn: 'logoutBtn',
             
-            const result = await auth.register(email, password);
-            if (result.success) {
-                showMessage('Account created successfully!', 'success');
-            } else {
-                showMessage(result.error, 'error');
-            }
-        });
-
-        document.getElementById('forgotPasswordFormElement').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('forgotEmail').value;
+            // UI elements
+            message: 'message',
+            dashboard: 'dashboard',
+            userName: 'userName',
+            userEmail: 'userEmail',
+            userAvatar: 'userAvatar',
             
-            const result = await auth.resetPassword(email);
-            if (result.success) {
-                showMessage('Password reset email sent! Check your inbox.', 'success');
-                setTimeout(showLoginForm, 2000);
-            } else {
-                showMessage(result.error, 'error');
-            }
-        });
-
-        document.getElementById('googleLoginBtn').addEventListener('click', async () => {
-            const result = await auth.loginWithGoogle();
-            if (result.success) {
-                showMessage('Successfully logged in with Google!', 'success');
-            } else {
-                showMessage(result.error, 'error');
-            }
-        });
-
-        document.getElementById('facebookLoginBtn').addEventListener('click', async () => {
-            const result = await auth.loginWithFacebook();
-            if (result.success) {
-                showMessage('Successfully logged in with Facebook!', 'success');
-            } else {
-                showMessage(result.error, 'error');
-            }
-        });
-
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            const result = await auth.logout();
-            if (result.success) {
-                showMessage('Successfully logged out!', 'success');
-            }
-        });
-
-        // Navigation links
-        document.getElementById('showRegister').addEventListener('click', (e) => {
-            e.preventDefault();
-            showRegisterForm();
-        });
-
-        document.getElementById('showLogin').addEventListener('click', (e) => {
-            e.preventDefault();
-            showLoginForm();
-        });
-
-        document.getElementById('showForgotPassword').addEventListener('click', (e) => {
-            e.preventDefault();
-            showForgotPasswordForm();
-        });
-
-        document.getElementById('backToLogin').addEventListener('click', (e) => {
-            e.preventDefault();
-            showLoginForm();
+            // Navigation links
+            showRegister: 'showRegister',
+            showLogin: 'showLogin',
+            showForgotPassword: 'showForgotPassword',
+            backToLogin: 'backToLogin'
         });
     </script>
 </body>
