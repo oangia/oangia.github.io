@@ -8,7 +8,7 @@ import {
     FacebookAuthProvider,
     signInWithPopup,
     onAuthStateChanged
-} from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js';
+} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js';
 
 /**
  * AuthCore - Core Firebase authentication operations
@@ -96,7 +96,8 @@ export class AuthCore {
     }
 
     getCurrentUser() {
-        return this.user;
+        if (!this.auth) return null;
+        return this.auth.currentUser;
     }
 
     getAuth() {

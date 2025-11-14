@@ -187,7 +187,7 @@ const filesCol = collection(db, "files");
 const authCore = new AuthCore(app);
 const loginPageUrl = './auth/auto-generated.html';
 
-// Check authentication state
+// Listen for auth state changes (fires immediately with current user)
 authCore.onAuthStateChange((user) => {
   if (!user) {
     // Not logged in, redirect to login page
