@@ -23,6 +23,7 @@ export class Auth {
             enableFacebook: true,
             showRegister: true,
             showForgotPassword: true,
+            redirectUrl: null, // URL to redirect after login or if already logged in
             callbacks: {},
             ...options
         };
@@ -44,6 +45,12 @@ export class Auth {
 
         // Set up auth state listener
         this.core.onAuthStateChange((user) => {
+            // Check if user is already logged in and redirect (only on initial load)
+            if (user && this.config.redirectUrl && !this._redirected) {
+                this._redirected = true;
+                window.location.href = this.config.redirectUrl;
+                return;
+            }
             this.onAuthStateChange(user);
         });
 
@@ -102,6 +109,12 @@ export class Auth {
                     if (this.config.callbacks?.onLogin) {
                         this.config.callbacks.onLogin(result.user);
                     }
+                    // Redirect if URL is set
+                    if (this.config.redirectUrl) {
+                        setTimeout(() => {
+                            window.location.href = this.config.redirectUrl;
+                        }, 1000);
+                    }
                 } else {
                     this.message.show(this.formHandler.getErrorMessage(result.error), 'error');
                 }
@@ -132,6 +145,12 @@ export class Auth {
                     this.message.show('Account created successfully!', 'success');
                     if (this.config.callbacks?.onRegister) {
                         this.config.callbacks.onRegister(result.user);
+                    }
+                    // Redirect if URL is set
+                    if (this.config.redirectUrl) {
+                        setTimeout(() => {
+                            window.location.href = this.config.redirectUrl;
+                        }, 1000);
                     }
                 } else {
                     this.message.show(this.formHandler.getErrorMessage(result.error), 'error');
@@ -164,12 +183,16 @@ export class Auth {
         // Social login buttons
         const googleBtn = document.getElementById('auth-google-btn');
         if (googleBtn) {
-            googleBtn.addEventListener('click', () => this.formHandler.handleGoogleLogin());
+            googleBtn.addEventListener('click', async () => {
+                await this.formHandler.handleGoogleLogin();
+            });
         }
 
         const facebookBtn = document.getElementById('auth-facebook-btn');
         if (facebookBtn) {
-            facebookBtn.addEventListener('click', () => this.formHandler.handleFacebookLogin());
+            facebookBtn.addEventListener('click', async () => {
+                await this.formHandler.handleFacebookLogin();
+            });
         }
 
         // Logout button

@@ -53,6 +53,12 @@ export class AuthFormHandler {
             if (this.config.callbacks?.onLogin) {
                 this.config.callbacks.onLogin(result.user);
             }
+            // Redirect if URL is set
+            if (this.config.redirectUrl) {
+                setTimeout(() => {
+                    window.location.href = this.config.redirectUrl;
+                }, 1000);
+            }
         } else {
             this.message.show(this.getErrorMessage(result.error), 'error');
         }
@@ -80,6 +86,12 @@ export class AuthFormHandler {
             this.message.show('Account created successfully!', 'success');
             if (this.config.callbacks?.onRegister) {
                 this.config.callbacks.onRegister(result.user);
+            }
+            // Redirect if URL is set
+            if (this.config.redirectUrl) {
+                setTimeout(() => {
+                    window.location.href = this.config.redirectUrl;
+                }, 1000);
             }
         } else {
             this.message.show(this.getErrorMessage(result.error), 'error');
@@ -112,6 +124,12 @@ export class AuthFormHandler {
             if (this.config.callbacks?.onGoogleLogin) {
                 this.config.callbacks.onGoogleLogin(result.user);
             }
+            // Redirect if URL is set
+            if (this.config.redirectUrl) {
+                setTimeout(() => {
+                    window.location.href = this.config.redirectUrl;
+                }, 1000);
+            }
         } else {
             this.message.show(this.getErrorMessage(result.error), 'error');
         }
@@ -125,6 +143,12 @@ export class AuthFormHandler {
             this.message.show('Successfully logged in with Facebook!', 'success');
             if (this.config.callbacks?.onFacebookLogin) {
                 this.config.callbacks.onFacebookLogin(result.user);
+            }
+            // Redirect if URL is set
+            if (this.config.redirectUrl) {
+                setTimeout(() => {
+                    window.location.href = this.config.redirectUrl;
+                }, 1000);
             }
         } else {
             this.message.show(this.getErrorMessage(result.error), 'error');
