@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CRUD Application</title>
+  <title>Blog Admin - Manage Posts</title>
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,28 +17,42 @@
 <body>
   <div class="container">
     <header class="header">
-      <h1 class="app-title">CRUD Tool</h1>
-      <button class="btn btn-primary" id="btnCreate" data-testid="button-create">
-        <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        Create New Item
-      </button>
+      <div>
+        <h1 class="app-title">Blog Admin</h1>
+        <p style="color: #6b7280; font-size: 14px; margin-top: 4px;">Manage your blog posts</p>
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <a href="index.html" class="btn btn-secondary" style="text-decoration: none;">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          View Blog
+        </a>
+        <button class="btn btn-primary" id="btnCreate">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          New Post
+        </button>
+      </div>
     </header>
 
     <main class="main-content">
-      <div class="loading" id="loading">Loading...</div>
+      <div class="loading" id="loading">Loading posts...</div>
       
       <div class="empty-state" id="emptyState">
         <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-          <line x1="9" y1="9" x2="15" y2="9"></line>
-          <line x1="9" y1="15" x2="15" y2="15"></line>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
         </svg>
-        <p class="empty-text">No items yet</p>
-        <p class="empty-subtext">Get started by creating your first item</p>
-        <button class="btn btn-primary" id="btnCreateEmpty" data-testid="button-create-empty">Create First Item</button>
+        <p class="empty-text">No blog posts yet</p>
+        <p class="empty-subtext">Create your first post to get started</p>
+        <button class="btn btn-primary" id="btnCreateEmpty">Create First Post</button>
       </div>
 
       <div class="table-container" id="tableContainer">
@@ -46,10 +60,10 @@
           <table class="data-table" id="dataTable">
             <thead>
               <tr>
-                <th class="th-id">ID</th>
-                <th class="th-title">Title</th>
-                <th class="th-description">Description</th>
-                <th class="th-actions">Actions</th>
+                <th class="th-title" style="width: 30%;">Title</th>
+                <th class="th-description" style="width: 40%;">Content Preview</th>
+                <th style="width: 15%;">Image</th>
+                <th style="width: 15%;">Actions</th>
               </tr>
             </thead>
             <tbody id="tableBody">
@@ -62,24 +76,24 @@
             <span id="paginationInfo">Showing 1-10 of 100</span>
           </div>
           <div class="pagination-controls">
-            <button class="btn-page" id="btnFirst" data-testid="button-first" title="First page">
+            <button class="btn-page" id="btnFirst" title="First page">
               <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="11 17 6 12 11 7"></polyline>
                 <polyline points="18 17 13 12 18 7"></polyline>
               </svg>
             </button>
-            <button class="btn-page" id="btnPrev" data-testid="button-prev" title="Previous page">
+            <button class="btn-page" id="btnPrev" title="Previous page">
               <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
             </button>
             <div class="page-numbers" id="pageNumbers"></div>
-            <button class="btn-page" id="btnNext" data-testid="button-next" title="Next page">
+            <button class="btn-page" id="btnNext" title="Next page">
               <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </button>
-            <button class="btn-page" id="btnLast" data-testid="button-last" title="Last page">
+            <button class="btn-page" id="btnLast" title="Last page">
               <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="13 17 18 12 13 7"></polyline>
                 <polyline points="6 17 11 12 6 7"></polyline>
@@ -87,12 +101,11 @@
             </button>
           </div>
           <div class="page-size-selector">
-            <label for="pageSize">Items per page:</label>
-            <select id="pageSize" class="select-page-size" data-testid="select-page-size">
+            <label for="pageSize">Posts per page:</label>
+            <select id="pageSize" class="select-page-size">
               <option value="10">10</option>
               <option value="25">25</option>
               <option value="50">50</option>
-              <option value="100">100</option>
             </select>
           </div>
         </div>
@@ -101,29 +114,38 @@
   </div>
 
   <div class="modal-overlay" id="modalOverlay">
-    <div class="modal">
+    <div class="modal" style="max-width: 800px;">
       <div class="modal-header">
-        <h2 class="modal-title" id="modalTitle">Create Item</h2>
-        <button class="btn-close" id="btnCloseModal" data-testid="button-close-modal">
+        <h2 class="modal-title" id="modalTitle">Create Post</h2>
+        <button class="btn-close" id="btnCloseModal">
           <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
-      <form class="modal-body" id="itemForm">
+      <form class="modal-body" id="postForm">
         <div class="form-group">
           <label for="title" class="form-label">Title <span class="required">*</span></label>
-          <input type="text" id="title" class="form-input" placeholder="Enter title" required data-testid="input-title">
+          <input type="text" id="title" class="form-input" placeholder="Enter post title" required>
         </div>
         <div class="form-group">
-          <label for="description" class="form-label">Description <span class="required">*</span></label>
-          <textarea id="description" class="form-textarea" placeholder="Enter description" rows="4" required data-testid="input-description"></textarea>
+          <label for="content" class="form-label">Content <span class="required">*</span></label>
+          <textarea id="content" class="form-textarea" placeholder="Write your blog post content..." rows="8" required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="featuredImage" class="form-label">Featured Image URL</label>
+          <input type="url" id="featuredImage" class="form-input" placeholder="https://example.com/image.jpg">
+          <small style="color: #6b7280; font-size: 13px; margin-top: 4px; display: block;">Optional: Add a URL to an image for this post</small>
+        </div>
+        <div class="form-group">
+          <label for="publishDate" class="form-label">Publish Date <span class="required">*</span></label>
+          <input type="datetime-local" id="publishDate" class="form-input" required>
         </div>
         <div class="form-actions">
-          <button type="button" class="btn btn-secondary" id="btnCancel" data-testid="button-cancel">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="btnSubmit" data-testid="button-submit">
-            <span id="submitText">Create</span>
+          <button type="button" class="btn btn-secondary" id="btnCancel">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmit">
+            <span id="submitText">Create Post</span>
           </button>
         </div>
       </form>
@@ -133,8 +155,8 @@
   <div class="modal-overlay" id="deleteModal">
     <div class="modal modal-small">
       <div class="modal-header">
-        <h2 class="modal-title">Confirm Delete</h2>
-        <button class="btn-close" id="btnCloseDelete" data-testid="button-close-delete">
+        <h2 class="modal-title">Delete Post</h2>
+        <button class="btn-close" id="btnCloseDelete">
           <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -142,10 +164,10 @@
         </button>
       </div>
       <div class="modal-body">
-        <p>Are you sure you want to delete this item? This action cannot be undone.</p>
+        <p>Are you sure you want to delete this blog post? This action cannot be undone.</p>
         <div class="form-actions">
-          <button type="button" class="btn btn-secondary" id="btnCancelDelete" data-testid="button-cancel-delete">Cancel</button>
-          <button type="button" class="btn btn-destructive" id="btnConfirmDelete" data-testid="button-confirm-delete">Delete</button>
+          <button type="button" class="btn btn-secondary" id="btnCancelDelete">Cancel</button>
+          <button type="button" class="btn btn-destructive" id="btnConfirmDelete">Delete Post</button>
         </div>
       </div>
     </div>
@@ -160,6 +182,438 @@
     </div>
   </div>
 
-  <script src="/main.js"></script>
+  <script>
+    // Initialize Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0TxR5HpNJ8Ph7rnrHqXNMAmBWo1dw5Nw",
+      authDomain: "agent52.firebaseapp.com",
+      projectId: "agent52",
+      storageBucket: "agent52.firebasestorage.app",
+      messagingSenderId: "534394830199",
+      appId: "1:534394830199:web:521b810d19dbcfe9edb572",
+      measurementId: "G-J9RZWL9DZ5"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const COLLECTION_NAME = 'posts';
+    
+    // Firebase CRUD Operations
+    const firebaseAPI = {
+      async getAllPosts() {
+        try {
+          const snapshot = await db.collection(COLLECTION_NAME).orderBy('publishDate', 'desc').get();
+          const posts = [];
+          snapshot.forEach((doc) => {
+            posts.push({
+              id: doc.id,
+              ...doc.data()
+            });
+          });
+          return posts;
+        } catch (error) {
+          console.error('Error getting posts:', error);
+          throw error;
+        }
+      },
+    
+      async getPost(id) {
+        try {
+          const doc = await db.collection(COLLECTION_NAME).doc(id).get();
+          if (doc.exists) {
+            return {
+              id: doc.id,
+              ...doc.data()
+            };
+          } else {
+            throw new Error('Post not found');
+          }
+        } catch (error) {
+          console.error('Error getting post:', error);
+          throw error;
+        }
+      },
+    
+      async createPost(data) {
+        try {
+          const docRef = await db.collection(COLLECTION_NAME).add({
+            title: data.title,
+            content: data.content,
+            featuredImage: data.featuredImage || '',
+            publishDate: data.publishDate,
+            createdAt: Date.now()
+          });
+          return {
+            id: docRef.id,
+            ...data
+          };
+        } catch (error) {
+          console.error('Error creating post:', error);
+          throw error;
+        }
+      },
+    
+      async updatePost(id, data) {
+        try {
+          await db.collection(COLLECTION_NAME).doc(id).update({
+            title: data.title,
+            content: data.content,
+            featuredImage: data.featuredImage || '',
+            publishDate: data.publishDate,
+            updatedAt: Date.now()
+          });
+          return {
+            id,
+            ...data
+          };
+        } catch (error) {
+          console.error('Error updating post:', error);
+          throw error;
+        }
+      },
+    
+      async deletePost(id) {
+        try {
+          await db.collection(COLLECTION_NAME).doc(id).delete();
+          return true;
+        } catch (error) {
+          console.error('Error deleting post:', error);
+          throw error;
+        }
+      }
+    };
+    
+    let currentEditId = null;
+    let currentPage = 1;
+    let pageSize = 10;
+    let totalPosts = 0;
+    let allPosts = [];
+    
+    const elements = {
+      loading: document.getElementById('loading'),
+      emptyState: document.getElementById('emptyState'),
+      tableContainer: document.getElementById('tableContainer'),
+      tableBody: document.getElementById('tableBody'),
+      modalOverlay: document.getElementById('modalOverlay'),
+      deleteModal: document.getElementById('deleteModal'),
+      postForm: document.getElementById('postForm'),
+      modalTitle: document.getElementById('modalTitle'),
+      submitText: document.getElementById('submitText'),
+      toast: document.getElementById('toast'),
+      toastMessage: document.getElementById('toastMessage'),
+      titleInput: document.getElementById('title'),
+      contentInput: document.getElementById('content'),
+      featuredImageInput: document.getElementById('featuredImage'),
+      publishDateInput: document.getElementById('publishDate'),
+      btnSubmit: document.getElementById('btnSubmit'),
+      paginationInfo: document.getElementById('paginationInfo'),
+      pageNumbers: document.getElementById('pageNumbers'),
+      btnFirst: document.getElementById('btnFirst'),
+      btnPrev: document.getElementById('btnPrev'),
+      btnNext: document.getElementById('btnNext'),
+      btnLast: document.getElementById('btnLast'),
+      pageSize: document.getElementById('pageSize')
+    };
+    
+    async function fetchPosts() {
+      try {
+        elements.loading.style.display = 'block';
+        elements.emptyState.classList.remove('show');
+        elements.tableContainer.classList.remove('show');
+    
+        const posts = await firebaseAPI.getAllPosts();
+    
+        allPosts = posts;
+        totalPosts = posts.length;
+    
+        elements.loading.style.display = 'none';
+    
+        if (posts.length === 0) {
+          elements.emptyState.classList.add('show');
+        } else {
+          elements.tableContainer.classList.add('show');
+          renderCurrentPage();
+        }
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+        elements.loading.style.display = 'none';
+        showToast('Error loading posts: ' + error.message);
+      }
+    }
+    
+    function renderCurrentPage() {
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const pagePosts = allPosts.slice(startIndex, endIndex);
+    
+      renderTable(pagePosts);
+      updatePaginationControls();
+    }
+    
+    function renderTable(posts) {
+      elements.tableBody.innerHTML = posts.map(post => {
+        const preview = post.content.substring(0, 100) + (post.content.length > 100 ? '...' : '');
+        const hasImage = post.featuredImage && post.featuredImage.trim() !== '';
+        
+        return `
+        <tr>
+          <td class="td-title">
+            <strong>${escapeHtml(post.title)}</strong>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+              ${new Date(post.publishDate).toLocaleDateString()}
+            </div>
+          </td>
+          <td class="td-description">${escapeHtml(preview)}</td>
+          <td style="text-align: center;">
+            ${hasImage ? `<img src="${escapeHtml(post.featuredImage)}" alt="Featured" style="width: 60px; height: 40px; object-fit: cover; border-radius: 4px;">` : '<span style="color: #9ca3af; font-size: 13px;">No image</span>'}
+          </td>
+          <td class="td-actions">
+            <div class="action-buttons">
+              <button class="btn btn-secondary btn-icon" onclick="openEditModal('${post.id}')" title="Edit">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button class="btn btn-destructive btn-icon" onclick="openDeleteModal('${post.id}')" title="Delete">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `}).join('');
+    }
+    
+    function updatePaginationControls() {
+      const totalPages = Math.ceil(totalPosts / pageSize);
+      const startPost = totalPosts === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+      const endPost = Math.min(currentPage * pageSize, totalPosts);
+    
+      elements.paginationInfo.textContent = `Showing ${startPost}-${endPost} of ${totalPosts}`;
+    
+      elements.btnFirst.disabled = currentPage === 1;
+      elements.btnPrev.disabled = currentPage === 1;
+      elements.btnNext.disabled = currentPage === totalPages || totalPages === 0;
+      elements.btnLast.disabled = currentPage === totalPages || totalPages === 0;
+    
+      renderPageNumbers(totalPages);
+    }
+    
+    function renderPageNumbers(totalPages) {
+      const maxVisible = 5;
+      let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    
+      if (endPage - startPage < maxVisible - 1) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+      }
+    
+      const pageButtons = [];
+      
+      for (let i = startPage; i <= endPage; i++) {
+        const isActive = i === currentPage;
+        pageButtons.push(`
+          <button 
+            class="btn-page ${isActive ? 'active' : ''}" 
+            onclick="goToPage(${i})"
+          >
+            ${i}
+          </button>
+        `);
+      }
+    
+      elements.pageNumbers.innerHTML = pageButtons.join('');
+    }
+    
+    function goToPage(page) {
+      const totalPages = Math.ceil(totalPosts / pageSize);
+      if (page < 1 || page > totalPages) return;
+      
+      currentPage = page;
+      renderCurrentPage();
+    }
+    
+    function goToFirstPage() {
+      goToPage(1);
+    }
+    
+    function goToPrevPage() {
+      goToPage(currentPage - 1);
+    }
+    
+    function goToNextPage() {
+      goToPage(currentPage + 1);
+    }
+    
+    function goToLastPage() {
+      const totalPages = Math.ceil(totalPosts / pageSize);
+      goToPage(totalPages);
+    }
+    
+    function changePageSize() {
+      pageSize = parseInt(elements.pageSize.value);
+      currentPage = 1;
+      renderCurrentPage();
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function openCreateModal() {
+      currentEditId = null;
+      elements.modalTitle.textContent = 'Create Post';
+      elements.submitText.textContent = 'Create Post';
+      elements.postForm.reset();
+      
+      // Set default publish date to now
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      elements.publishDateInput.value = now.toISOString().slice(0, 16);
+      
+      elements.modalOverlay.classList.add('show');
+      elements.titleInput.focus();
+    }
+    
+    async function openEditModal(id) {
+      try {
+        const post = await firebaseAPI.getPost(id);
+    
+        currentEditId = id;
+        elements.modalTitle.textContent = 'Edit Post';
+        elements.submitText.textContent = 'Update Post';
+        elements.titleInput.value = post.title;
+        elements.contentInput.value = post.content;
+        elements.featuredImageInput.value = post.featuredImage || '';
+        
+        // Convert timestamp to datetime-local format
+        const date = new Date(post.publishDate);
+        date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+        elements.publishDateInput.value = date.toISOString().slice(0, 16);
+        
+        elements.modalOverlay.classList.add('show');
+        elements.titleInput.focus();
+      } catch (error) {
+        console.error('Error fetching post:', error);
+        showToast('Error loading post');
+      }
+    }
+    
+    function closeModal() {
+      elements.modalOverlay.classList.remove('show');
+      elements.postForm.reset();
+      currentEditId = null;
+    }
+    
+    let deletePostId = null;
+    
+    function openDeleteModal(id) {
+      deletePostId = id;
+      elements.deleteModal.classList.add('show');
+    }
+    
+    function closeDeleteModal() {
+      elements.deleteModal.classList.remove('show');
+      deletePostId = null;
+    }
+    
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+    
+      const title = elements.titleInput.value.trim();
+      const content = elements.contentInput.value.trim();
+      const featuredImage = elements.featuredImageInput.value.trim();
+      const publishDate = new Date(elements.publishDateInput.value).getTime();
+    
+      if (!title || !content) {
+        showToast('Please fill in all required fields');
+        return;
+      }
+    
+      const data = { title, content, featuredImage, publishDate };
+    
+      try {
+        elements.btnSubmit.disabled = true;
+        
+        if (currentEditId) {
+          await firebaseAPI.updatePost(currentEditId, data);
+          showToast('Post updated successfully');
+        } else {
+          await firebaseAPI.createPost(data);
+          showToast('Post created successfully');
+        }
+    
+        closeModal();
+        await fetchPosts();
+      } catch (error) {
+        console.error('Error saving post:', error);
+        showToast('Error saving post: ' + error.message);
+      } finally {
+        elements.btnSubmit.disabled = false;
+      }
+    }
+    
+    async function confirmDelete() {
+      if (!deletePostId) return;
+    
+      try {
+        await firebaseAPI.deletePost(deletePostId);
+        showToast('Post deleted successfully');
+        closeDeleteModal();
+        await fetchPosts();
+      } catch (error) {
+        console.error('Error deleting post:', error);
+        showToast('Error deleting post: ' + error.message);
+      }
+    }
+    
+    function showToast(message) {
+      elements.toastMessage.textContent = message;
+      elements.toast.classList.add('show');
+      setTimeout(() => {
+        elements.toast.classList.remove('show');
+      }, 3000);
+    }
+    
+    // Event listeners
+    document.getElementById('btnCreate').addEventListener('click', openCreateModal);
+    document.getElementById('btnCreateEmpty').addEventListener('click', openCreateModal);
+    document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+    document.getElementById('btnCancel').addEventListener('click', closeModal);
+    document.getElementById('btnCloseDelete').addEventListener('click', closeDeleteModal);
+    document.getElementById('btnCancelDelete').addEventListener('click', closeDeleteModal);
+    document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
+    elements.postForm.addEventListener('submit', handleFormSubmit);
+    
+    elements.btnFirst.addEventListener('click', goToFirstPage);
+    elements.btnPrev.addEventListener('click', goToPrevPage);
+    elements.btnNext.addEventListener('click', goToNextPage);
+    elements.btnLast.addEventListener('click', goToLastPage);
+    elements.pageSize.addEventListener('change', changePageSize);
+    
+    elements.modalOverlay.addEventListener('click', (e) => {
+      if (e.target === elements.modalOverlay) {
+        closeModal();
+      }
+    });
+    
+    elements.deleteModal.addEventListener('click', (e) => {
+      if (e.target === elements.deleteModal) {
+        closeDeleteModal();
+      }
+    });
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fetchPosts);
+    } else {
+      fetchPosts();
+    }
+  </script>
 </body>
 </html>
