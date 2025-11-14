@@ -1,120 +1,128 @@
-/* Reset & body */
-body {
-  font-family: 'Inter', system-ui, sans-serif;
-  background: #f4f6f8;
+/* Reset some things */
+* {
   margin: 0;
-  padding: 32px;
-  color: #222;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-/* Card container */
-.card {
-  max-width: 900px;
-  margin: 0 auto;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-  padding: 32px;
+/* Theme colors */
+:root {
+  --bs-primary: rgb(255,0,127);
+  --bs-primary-rgb: 255,0,127;
+  --bs-primary-hover: rgba(255,0,127,0.85);
+  --bs-danger: #dc2626;
+  --bs-danger-hover: #b91c1c;
+  --bs-body-bg: #ffffff;
+  --bs-body-color: #171717;
+  --bs-border-color: #e5e5e5;
+  --bs-muted: #f5f5f5;
+  --bs-muted-color: #737373;
+  --bs-card-bg: #fafafa;
+  --bs-card-border-color: #f0f0f0;
+  --bs-input-border-color: #a3a3a3;
+  --bs-shadow: rgba(0,0,0,0.1);
+  --bs-table-hover-bg: #fef0f7; /* pinkish hover for table rows */
 }
 
-/* Headings */
-h1 {
-  font-size: 1.8rem;
-  margin-bottom: 8px;
+/* Body */
+body {
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-.lead {
-  color: #666;
-  margin-bottom: 20px;
+/* Links */
+a {
+  color: var(--bs-primary);
 }
-
-/* Textarea */
-textarea {
-  width: 100%;
-  height: 180px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  padding: 12px;
-  font-size: 15px;
-  resize: vertical;
-  outline: none;
-  transition: border .2s;
+a:hover {
+  color: var(--bs-primary-hover);
+  text-decoration: none;
 }
-textarea:focus {border-color: #0078ff;}
 
 /* Buttons */
-.row {
-  margin-top: 12px;
-  display: flex;
-  gap: 10px;
+.btn-primary {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
 }
-button {
-  padding: 10px 18px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  color: #fff;
-  background: #0078ff;
-  transition: opacity .2s, transform .1s;
+.btn-primary:hover {
+  background-color: var(--bs-primary-hover);
+  border-color: var(--bs-primary-hover);
 }
-button:hover {opacity:.9;}
-button:active {transform: scale(.97);}
-button.secondary {
-  background: #ccc;
-  color: #333;
+.btn-danger {
+  background-color: var(--bs-danger);
+  border-color: var(--bs-danger);
+}
+.btn-danger:hover {
+  background-color: var(--bs-danger-hover);
+  border-color: var(--bs-danger-hover);
 }
 
-/* Formula cards */
-.formula {
-  margin: 16px 0;
-  border-radius: 12px;
-  padding: 16px 20px;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+/* Forms */
+.form-control:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb),0.25);
 }
 
-/* Grade colors (left border only) */
-.easy {border-left: 6px solid #2ecc71;}
-.medium {border-left: 6px solid #f1c40f;}
-.hard {border-left: 6px solid #e67e22;}
-.very-hard {border-left: 6px solid #e74c3c;}
-
-/* Score box */
-.score-box {
-  display: inline-block;
-  margin: 4px 0;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: #f5f5f5;
-  color: #111;
+/* Cards */
+.card {
+  background-color: var(--bs-card-bg);
+  border-color: var(--bs-card-border-color);
+  box-shadow: 0 2px 8px rgba(var(--bs-primary-rgb),0.2);
+}
+.card:hover {
+  box-shadow: 0 4px 16px rgba(var(--bs-primary-rgb),0.35);
 }
 
-/* Calculation & notes */
-.calc {
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 0.9rem;
-  color: #333;
-  margin-top: 6px;
-  line-height: 1.4;
+/* Tables */
+.table {
+  border-color: var(--bs-border-color);
+}
+.table-hover tbody tr:hover {
+  background-color: var(--bs-table-hover-bg);
 }
 
-.note {
-  font-size: 0.85rem;
-  color: #666;
-  margin-top: 4px;
-  font-style: italic;
+/* Pagination */
+.page-item.active .page-link {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+.page-link {
+  color: var(--bs-body-color);
+}
+.page-link:hover {
+  background-color: var(--bs-muted);
+  border-color: var(--bs-border-color);
 }
 
-/* Normalized text */
-#normalized {
-  background: #f9fafb;
-  padding: 14px;
-  border-radius: 10px;
-  font-family: monospace;
-  color: #333;
-  white-space: pre-wrap;
+/* Toasts */
+.toast {
+  border-color: var(--bs-border-color);
+  background-color: var(--bs-card-bg);
+  box-shadow: 0 4px 12px var(--bs-shadow);
+}
+.toast.show {
+  transform: translateX(0);
+}
+
+/* Modals */
+.modal-content {
+  background-color: var(--bs-body-bg);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(var(--bs-primary-rgb),0.2);
+}
+
+/* Headers */
+.header,
+.navbar {
+  background-color: var(--bs-body-bg) !important;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* Utility overrides */
+.text-muted {
+  color: var(--bs-muted-color) !important;
+}
+.bg-light {
+  background-color: var(--bs-muted) !important;
 }
