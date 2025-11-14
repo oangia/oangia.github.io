@@ -13,7 +13,7 @@ export class AuthGuard {
     constructor(app, options = {}) {
         this.app = app;
         this.config = {
-            loginUrl: './auth/auto-generated.html',
+            loginUrl: './auth/login.html',
             onAuthenticated: null,
             ...options
         };
