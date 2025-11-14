@@ -121,52 +121,21 @@ export class FirebaseAuthUI {
                 width: 100%;
             }
 
-            .form-group {
-                margin-bottom: 15px;
-            }
-
-            .form-group label {
-                display: block;
-                margin-bottom: 8px;
-                color: #333;
-                font-weight: 500;
-                font-size: 14px;
-            }
-
-            .form-group input {
-                width: 100%;
-                padding: 12px 15px;
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                font-size: 14px;
-                transition: all 0.3s;
-            }
-
-            .form-group input:focus {
-                outline: none;
+            /* Custom styles for Bootstrap overrides */
+            .form-control:focus {
                 border-color: #14b8a6;
-            }
-
-            .btn {
-                width: 100%;
-                padding: 12px;
-                border: none;
-                border-radius: 8px;
-                font-size: 16px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.3s;
-                margin-top: 10px;
+                box-shadow: 0 0 0 0.25rem rgba(20, 184, 166, 0.25);
             }
 
             .btn-primary {
                 background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
-                color: white;
+                border: none;
             }
 
             .btn-primary:hover {
                 transform: translateY(-2px);
                 box-shadow: 0 5px 15px rgba(20, 184, 166, 0.4);
+                background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
             }
 
             .btn-social {
@@ -213,39 +182,16 @@ export class FirebaseAuthUI {
                 padding: 0 15px;
             }
 
-            .auth-social-buttons {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .auth-links {
-                text-align: center;
-                margin-top: 15px;
-            }
-
             .auth-links a {
                 color: #14b8a6;
                 text-decoration: none;
                 font-size: 14px;
                 font-weight: 500;
-                display: block;
-                margin-top: 10px;
             }
 
             .auth-links a:hover {
                 text-decoration: underline;
-            }
-
-            .auth-dashboard {
-                text-align: center;
-            }
-
-            .user-info {
-                background: #f5f5f5;
-                padding: 15px;
-                border-radius: 10px;
-                margin-bottom: 15px;
+                color: #10b981;
             }
 
             .user-avatar {
@@ -262,9 +208,6 @@ export class FirebaseAuthUI {
                 font-weight: bold;
             }
 
-            .hidden {
-                display: none;
-            }
 
             .auth-toggle-btn {
                 background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
@@ -300,7 +243,7 @@ export class FirebaseAuthUI {
                 justify-content: center;
                 align-items: center;
                 z-index: 10000;
-                padding: 20px;
+                padding: 1rem;
             }
 
             .auth-modal-content {
@@ -309,51 +252,22 @@ export class FirebaseAuthUI {
                 box-shadow: 0 20px 60px rgba(0,0,0,0.3);
                 max-width: 450px;
                 width: 100%;
-                max-height: 90vh;
-                overflow-y: auto;
+                height: 100%;
+                max-height: 100vh;
+                display: flex;
+                flex-direction: column;
                 position: relative;
             }
 
             .auth-modal-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
+                flex-shrink: 0;
                 padding: 20px;
                 border-bottom: 1px solid #e0e0e0;
-                position: sticky;
-                top: 0;
-                background: white;
-                border-radius: 20px 20px 0 0;
-                z-index: 1;
-            }
-
-            .auth-modal-header h2 {
-                margin: 0;
-                color: #333;
-                font-size: 24px;
-            }
-
-            .auth-modal-close {
-                background: none;
-                border: none;
-                font-size: 32px;
-                color: #999;
-                cursor: pointer;
-                padding: 0;
-                width: 32px;
-                height: 32px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                line-height: 1;
-                transition: color 0.3s;
-            }
-
-            .auth-modal-close:hover {
-                color: #333;
             }
 
             .auth-modal-body {
+                flex: 1;
+                overflow-y: auto;
                 padding: 20px;
             }
         `;
@@ -373,20 +287,20 @@ export class FirebaseAuthUI {
     generateToggleMode() {
         if (!this.container) return;
 
-        // Generate button only
+        // Generate button only with Bootstrap
         this.container.innerHTML = `
-            <button id="auth-toggle-btn" class="auth-toggle-btn">Show Login</button>
+            <button id="auth-toggle-btn" class="btn w-100 auth-toggle-btn">Show Login</button>
         `;
 
-        // Create modal overlay
+        // Create modal overlay with Bootstrap
         const modal = document.createElement('div');
         modal.id = 'auth-modal-overlay';
         modal.className = 'auth-modal-overlay';
         modal.innerHTML = `
             <div class="auth-modal-content">
-                <div class="auth-modal-header">
-                    <h2>Login</h2>
-                    <button id="auth-modal-close" class="auth-modal-close">&times;</button>
+                <div class="auth-modal-header d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">Login</h2>
+                    <button id="auth-modal-close" type="button" class="btn-close" aria-label="Close"></button>
                 </div>
                 <div class="auth-modal-body">
                     ${this.getUIHTML()}
@@ -450,30 +364,30 @@ export class FirebaseAuthUI {
 
         return `
             <div class="auth-ui">
-                <div id="auth-message" class="auth-message"></div>
+                <div id="auth-message" class="auth-message mb-3"></div>
 
                 <!-- Login Form -->
                 <div id="auth-login-form" class="auth-form">
                     ${hasEmail ? `
                         <form id="auth-login-form-element">
-                            <div class="form-group">
-                                <label for="auth-email">Email</label>
-                                <input type="email" id="auth-email" required placeholder="Enter your email">
+                            <div class="mb-3">
+                                <label for="auth-email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="auth-email" required placeholder="Enter your email">
                             </div>
-                            <div class="form-group">
-                                <label for="auth-password">Password</label>
-                                <input type="password" id="auth-password" required placeholder="Enter your password">
+                            <div class="mb-3">
+                                <label for="auth-password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="auth-password" required placeholder="Enter your password">
                             </div>
-                            <button type="submit" class="btn btn-primary">Sign In</button>
+                            <button type="submit" class="btn btn-primary w-100">Sign In</button>
                         </form>
                     ` : ''}
 
                     ${(hasGoogle || hasFacebook) ? `
-                        <div class="auth-divider"><span>OR</span></div>
-                        <div class="auth-social-buttons">
+                        <div class="auth-divider my-3"><span>OR</span></div>
+                        <div class="auth-social-buttons d-flex flex-column gap-2">
                             ${hasGoogle ? `
-                                <button id="auth-google-btn" class="btn btn-social btn-google">
-                                    <svg width="18" height="18" viewBox="0 0 18 18">
+                                <button id="auth-google-btn" type="button" class="btn btn-social btn-google w-100">
+                                    <svg width="18" height="18" viewBox="0 0 18 18" class="me-2">
                                         <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18Z"/>
                                         <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2.01c-.71.48-1.62.75-2.7.75-2.08 0-3.84-1.4-4.47-3.3H1.87v2.07A7.97 7.97 0 0 0 8.98 17Z"/>
                                         <path fill="#FBBC05" d="M4.51 10.5a4.8 4.8 0 0 1 0-3.07V5.36H1.87a7.97 7.97 0 0 0 0 7.17l2.64-2.07Z"/>
@@ -483,8 +397,8 @@ export class FirebaseAuthUI {
                                 </button>
                             ` : ''}
                             ${hasFacebook ? `
-                                <button id="auth-facebook-btn" class="btn btn-social btn-facebook">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#4267B2">
+                                <button id="auth-facebook-btn" type="button" class="btn btn-social btn-facebook w-100">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#4267B2" class="me-2">
                                         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                                     </svg>
                                     Continue with Facebook
@@ -494,32 +408,32 @@ export class FirebaseAuthUI {
                     ` : ''}
 
                     ${showRegister || showForgotPassword ? `
-                        <div class="auth-links">
-                            ${showRegister ? `<a href="#" id="auth-show-register">Don't have an account? Sign up</a>` : ''}
-                            ${showForgotPassword ? `<a href="#" id="auth-show-forgot">Forgot password?</a>` : ''}
+                        <div class="auth-links text-center mt-3">
+                            ${showRegister ? `<a href="#" id="auth-show-register" class="d-block mb-2">Don't have an account? Sign up</a>` : ''}
+                            ${showForgotPassword ? `<a href="#" id="auth-show-forgot" class="d-block">Forgot password?</a>` : ''}
                         </div>
                     ` : ''}
                 </div>
 
                 <!-- Register Form -->
                 ${showRegister ? `
-                    <div id="auth-register-form" class="auth-form hidden">
+                    <div id="auth-register-form" class="auth-form d-none">
                         <form id="auth-register-form-element">
-                            <div class="form-group">
-                                <label for="auth-register-email">Email</label>
-                                <input type="email" id="auth-register-email" required placeholder="Enter your email">
+                            <div class="mb-3">
+                                <label for="auth-register-email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="auth-register-email" required placeholder="Enter your email">
                             </div>
-                            <div class="form-group">
-                                <label for="auth-register-password">Password</label>
-                                <input type="password" id="auth-register-password" required placeholder="Create a password">
+                            <div class="mb-3">
+                                <label for="auth-register-password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="auth-register-password" required placeholder="Create a password">
                             </div>
-                            <div class="form-group">
-                                <label for="auth-register-confirm">Confirm Password</label>
-                                <input type="password" id="auth-register-confirm" required placeholder="Confirm your password">
+                            <div class="mb-3">
+                                <label for="auth-register-confirm" class="form-label">Confirm Password</label>
+                                <input type="password" class="form-control" id="auth-register-confirm" required placeholder="Confirm your password">
                             </div>
-                            <button type="submit" class="btn btn-primary">Create Account</button>
+                            <button type="submit" class="btn btn-primary w-100">Create Account</button>
                         </form>
-                        <div class="auth-links">
+                        <div class="auth-links text-center mt-3">
                             <a href="#" id="auth-back-to-login">Already have an account? Sign in</a>
                         </div>
                     </div>
@@ -527,28 +441,28 @@ export class FirebaseAuthUI {
 
                 <!-- Forgot Password Form -->
                 ${showForgotPassword ? `
-                    <div id="auth-forgot-form" class="auth-form hidden">
+                    <div id="auth-forgot-form" class="auth-form d-none">
                         <form id="auth-forgot-form-element">
-                            <div class="form-group">
-                                <label for="auth-forgot-email">Email</label>
-                                <input type="email" id="auth-forgot-email" required placeholder="Enter your email">
+                            <div class="mb-3">
+                                <label for="auth-forgot-email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="auth-forgot-email" required placeholder="Enter your email">
                             </div>
-                            <button type="submit" class="btn btn-primary">Reset Password</button>
+                            <button type="submit" class="btn btn-primary w-100">Reset Password</button>
                         </form>
-                        <div class="auth-links">
+                        <div class="auth-links text-center mt-3">
                             <a href="#" id="auth-back-to-login-forgot">Back to Sign In</a>
                         </div>
                     </div>
                 ` : ''}
 
                 <!-- Dashboard -->
-                <div id="auth-dashboard" class="auth-dashboard hidden">
-                    <div class="user-info">
-                        <div class="user-avatar" id="auth-user-avatar">U</div>
-                        <h3 id="auth-user-name">User Name</h3>
-                        <p id="auth-user-email">user@example.com</p>
+                <div id="auth-dashboard" class="auth-dashboard d-none text-center">
+                    <div class="user-info bg-light p-3 rounded mb-3">
+                        <div class="user-avatar mx-auto mb-2" id="auth-user-avatar">U</div>
+                        <h3 id="auth-user-name" class="h5 mb-1">User Name</h3>
+                        <p id="auth-user-email" class="text-muted mb-0">user@example.com</p>
                     </div>
-                    <button id="auth-logout-btn" class="btn btn-primary">Sign Out</button>
+                    <button id="auth-logout-btn" type="button" class="btn btn-primary w-100">Sign Out</button>
                 </div>
             </div>
         `;
@@ -749,25 +663,25 @@ export class FirebaseAuthUI {
     showLoginForm() {
         this.hideAllForms();
         const loginForm = document.getElementById('auth-login-form');
-        if (loginForm) loginForm.classList.remove('hidden');
+        if (loginForm) loginForm.classList.remove('d-none');
     }
 
     showRegisterForm() {
         this.hideAllForms();
         const registerForm = document.getElementById('auth-register-form');
-        if (registerForm) registerForm.classList.remove('hidden');
+        if (registerForm) registerForm.classList.remove('d-none');
     }
 
     showForgotPasswordForm() {
         this.hideAllForms();
         const forgotForm = document.getElementById('auth-forgot-form');
-        if (forgotForm) forgotForm.classList.remove('hidden');
+        if (forgotForm) forgotForm.classList.remove('d-none');
     }
 
     showDashboard(user) {
         this.hideAllForms();
         const dashboard = document.getElementById('auth-dashboard');
-        if (dashboard) dashboard.classList.remove('hidden');
+        if (dashboard) dashboard.classList.remove('d-none');
 
         const userName = document.getElementById('auth-user-name');
         const userEmail = document.getElementById('auth-user-email');
@@ -785,7 +699,7 @@ export class FirebaseAuthUI {
         const forms = ['auth-login-form', 'auth-register-form', 'auth-forgot-form', 'auth-dashboard'];
         forms.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.classList.add('hidden');
+            if (el) el.classList.add('d-none');
         });
     }
 
