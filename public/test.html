@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User CRUD</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <h2 class="mb-4 text-center">User Management</h2>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <form id="userForm" class="row g-2">
+          <input type="hidden" id="userId" />
+          <div class="col-md-4">
+            <input type="text" id="name" class="form-control" placeholder="Name" required />
+          </div>
+          <div class="col-md-4">
+            <input type="email" id="email" class="form-control" placeholder="Email" required />
+          </div>
+          <div class="col-md-4">
+            <button class="btn btn-primary w-100" type="submit">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <table class="table table-bordered table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th class="text-center" style="width:120px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="userTable"></tbody>
+    </table>
+
+    <nav>
+      <ul class="pagination justify-content-center" id="pagination"></ul>
+    </nav>
+  </div>
+
+  <script>
+    const API_URL = "https://agent52-534394830199.asia-southeast1.run.app/api/users";
+    let currentPage = 1;
+    const limit = 5;
+
+    async function loadUsers(page = 1) {
+      currentPage = page;
+      const res = await fetch(`${API_URL}?page=${page}&limit=${limit}`);
+      const data = await res.json();
+      const tbody = document.getElementById("userTable");
+      tbody.innerHTML = "";
+
+      (data.data || []).forEach(u => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${u.id}</td>
+          <td>${u.name}</td>
+          <td>${u.email}</td>
+          <td class="text-center">
+            <button class="btn btn-sm btn-warning me-1" onclick="editUser(${u.id}, '${u.name}', '${u.email}')">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      renderPagination(data);
+    }
+
+    function renderPagination(data) {
+      const pagination = document.getElementById("pagination");
+      pagination.innerHTML = "";
+
+      const totalPages = data.last_page || 1;
+
+      for (let i = 1; i <= totalPages; i++) {
+        const li = document.createElement("li");
+        li.className = `page-item ${i === currentPage ? "active" : ""}`;
+        li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+        li.onclick = () => loadUsers(i);
+        pagination.appendChild(li);
+      }
+    }
+
+    document.getElementById("userForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const id = document.getElementById("userId").value;
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const method = id ? "PUT" : "POST";
+      const url = id ? `${API_URL}/${id}` : API_URL;
+
+      await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email })
+      });
+
+      document.getElementById("userForm").reset();
+      document.getElementById("userId").value = "";
+      loadUsers(currentPage);
+    });
+
+    function editUser(id, name, email) {
+      document.getElementById("userId").value = id;
+      document.getElementById("name").value = name;
+      document.getElementById("email").value = email;
+    }
+
+    async function deleteUser(id) {
+      if (!confirm("Delete this user?")) return;
+      await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+      loadUsers(currentPage);
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

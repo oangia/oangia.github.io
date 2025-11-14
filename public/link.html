@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+body{background:#111;color:#eee;padding:20px;font-family:sans-serif}
+textarea,#output,input{width:100%;background:#222;color:#eee;border:1px solid #444;padding:10px}
+textarea{height:150px;margin-top:5px}
+button{margin-top:10px;padding:6px 14px;background:#444;color:#fff;border:none;cursor:pointer}
+button:hover{background:#666}
+.img{display:block;margin-top:10px}
+img{display:block;margin-bottom:10px;border:1px solid #333;border-radius:4px;background:#000}
+.text-list{margin-top:10px;white-space:pre-wrap;word-break:break-all}
+label{margin-right:10px;cursor:pointer}
+</style>
+</head>
+<body>
+
+<div>
+  <label><input type="radio" name="mode" value="image" checked> Image</label>
+  <label><input type="radio" name="mode" value="text"> Text</label>
+</div>
+
+<input type="text" id="urlInput" placeholder="Optional: Enter URL to fetch HTML">
+<label><input type="checkbox" id="useProxy"> Use CORS proxy</label>
+<textarea id="htmlInput" placeholder="Or paste HTML here"></textarea>
+<button id="runBtn">Run</button>
+<div id="output"></div>
+
+<script>
+const output=document.getElementById('output');
+const runBtn=document.getElementById('runBtn');
+
+function extractUrlsFromHtml(html) {
+  return [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(m=>m[1]);
+}
+
+function displayResults(all) {
+  const mode=document.querySelector('input[name="mode"]:checked').value;
+  if(!all.length){ output.innerHTML='No URLs found'; return; }
+
+  if(mode==='image'){
+    output.innerHTML=`<div class="img">${all.map(s=>`<img src="${s}" onerror="this.style.display='none'">`).join('')}</div>`;
+    document.querySelectorAll('#output img').forEach(img=>{
+      img.onload=()=>{if(img.naturalWidth<100||img.naturalHeight<100)img.style.display='none';};
+    });
+  } else {
+    output.innerHTML=`<div class="text-list">${all.join('\n')}</div>`;
+  }
+}
+
+async function runManualHtml() {
+  const manual=document.getElementById('htmlInput').value.trim();
+  if(!manual){ output.innerHTML='Paste HTML in the textarea!'; return; }
+  const urls = extractUrlsFromHtml(manual);
+  displayResults(urls);
+}
+
+async function runUrlFetch() {
+  const url=document.getElementById('urlInput').value.trim();
+  if(!url){ output.innerHTML='Enter a URL!'; return; }
+  try {
+    let fetchUrl = url;
+    if(document.getElementById('useProxy').checked){
+      fetchUrl = 'https://cors-anywhere.herokuapp.com/' + url;
+    }
+    const res=await fetch(fetchUrl);
+    const html=await res.text();
+    const urls = extractUrlsFromHtml(html);
+    displayResults(urls);
+  } catch(err) {
+    output.innerHTML='Error fetching URL: '+err;
+    console.error(err);
+  }
+}
+
+// Run button decides which function to call
+runBtn.onclick = async () => {
+  const url = document.getElementById('urlInput').value.trim();
+  const manual = document.getElementById('htmlInput').value.trim();
+
+  if(url) await runUrlFetch();
+  else if(manual) await runManualHtml();
+  else output.innerHTML='Enter a URL or paste HTML!';
+};
+</script>
+
+</body>
+</html>

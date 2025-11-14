@@ -1,0 +1,120 @@
+/* Reset & body */
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #f4f6f8;
+  margin: 0;
+  padding: 32px;
+  color: #222;
+}
+
+/* Card container */
+.card {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  padding: 32px;
+}
+
+/* Headings */
+h1 {
+  font-size: 1.8rem;
+  margin-bottom: 8px;
+}
+
+.lead {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+/* Textarea */
+textarea {
+  width: 100%;
+  height: 180px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 15px;
+  resize: vertical;
+  outline: none;
+  transition: border .2s;
+}
+textarea:focus {border-color: #0078ff;}
+
+/* Buttons */
+.row {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+}
+button {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #fff;
+  background: #0078ff;
+  transition: opacity .2s, transform .1s;
+}
+button:hover {opacity:.9;}
+button:active {transform: scale(.97);}
+button.secondary {
+  background: #ccc;
+  color: #333;
+}
+
+/* Formula cards */
+.formula {
+  margin: 16px 0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+/* Grade colors (left border only) */
+.easy {border-left: 6px solid #2ecc71;}
+.medium {border-left: 6px solid #f1c40f;}
+.hard {border-left: 6px solid #e67e22;}
+.very-hard {border-left: 6px solid #e74c3c;}
+
+/* Score box */
+.score-box {
+  display: inline-block;
+  margin: 4px 0;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #f5f5f5;
+  color: #111;
+}
+
+/* Calculation & notes */
+.calc {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  color: #333;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.note {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Normalized text */
+#normalized {
+  background: #f9fafb;
+  padding: 14px;
+  border-radius: 10px;
+  font-family: monospace;
+  color: #333;
+  white-space: pre-wrap;
+}

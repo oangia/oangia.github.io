@@ -1,0 +1,57 @@
+{
+  "manifest_version": 2,
+  "name": "Ulti Ext",
+  "version": "1.0",
+  "description": "My ultimate extension",
+  "browser_action": {
+    "default_icon": {
+      "48": "icon.ico"
+    },
+    "default_title": "Don't touch me",
+    "default_popup": "popup/popup.html"
+  },
+  "icons": {
+    "48": "icon.ico"
+  },
+  "permissions": [
+    "webRequest",
+    "tabs",
+    "<all_urls>",
+    "scripting"
+  ],
+  "background": {
+    "scripts": [
+    	"log/requests-service.js", 
+    	"translation/service.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["log/content.js"]
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["translation/translate.js"]
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["ads/ab.js"]
+    },
+    {
+      "matches": ["<all_urls>"],
+      "css": ["dark-mode/style.css"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["dark-mode/dark.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://docs.google.com/*"],
+      "js": ["dark-mode/ggdocs.js"],
+      "run_at": "document_end"
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kiểm tra Readability Đầy đủ</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="card">
+    <h1>Kiểm tra Readability</h1>
+    <textarea id="input" placeholder="Dán văn bản ở đây...">Learning to code is an essential skill in todays world. It allows people to create software automate tasks and solve complex problems efficiently. Beginners may feel overwhelmed at first but with consistent practice even challenging concepts become manageable. Programming languages vary in syntax and complexity yet the fundamental logic remains similar across most languages. Understanding algorithms data structures and design patterns is crucial for building reliable and scalable applications. Moreover coding fosters critical thinking problem solving and creativity. Online tutorials coding bootcamps and practice projects provide ample opportunities for learners to improve and gain confidence in their abilities.</textarea>
+    <div class="row">
+      <button id="analyze">Phân tích</button>
+      <button id="clear" class="secondary">Xóa</button>
+    </div>
+
+    <div id="output" style="display:none">
+      <div id="results">
+        <!-- Các card công thức sẽ được JS chèn vào đây -->
+      </div>
+      <div class="list" style="display:none">
+        <h3>Văn bản chuẩn hóa</h3>
+        <pre id="normalized"></pre>
+      </div>
+    </div>
+  </div>
+<script src="extract.js"></script>
+<script src="formula.js"></script>
+<script>
+document.getElementById('analyze').addEventListener('click', () => {
+  //const text = document.getElementById('input').value.trim();
+  const text = "Learning to code is an essential skill in todays world. It allows people to create software automate tasks and solve complex problems efficiently. Beginners may feel overwhelmed at first but with consistent practice even challenging concepts become manageable. Programming languages vary in syntax and complexity yet the fundamental logic remains similar across most languages. Understanding algorithms data structures and design patterns is crucial for building reliable and scalable applications. Moreover coding fosters critical thinking problem solving and creativity. Online tutorials coding bootcamps and practice projects provide ample opportunities for learners to improve and gain confidence in their abilities.";
+  if (!text) { alert('Vui lòng nhập văn bản'); return; }
+
+  // --- File extract.js: trích xuất dữ liệu ---
+  const normalized = normalizeText(text);
+  const sentences = splitSentences(normalized);
+  const words = splitWords(normalized);
+  const chars = countChars(normalized);
+  const syllables = words.reduce((sum, w) => sum + syllablesInWord(w), 0);
+  const complexWords = words.filter(w => w.length >= 8).length;
+
+  // Linsear Write: đếm từ dễ/hard (dễ <3 âm tiết, khó >=3)
+  let easyWords = 0, hardWords = 0;
+  words.forEach(w => (syllablesInWord(w) >= 3 ? hardWords++ : easyWords++));
+
+  //const data = {chars, wordsCount: words.length, sentencesCount: sentences.length, syllables, complexWords, easyWords, hardWords};
+  const data = {chars: 623, letters: 616, wordsCount: 98, sentencesCount: 7, syllables: 201, oneSyllable: 35, complexWords:26, easyWords: 72, hardWords: 26};
+  // --- File formulas.js: tính tất cả công thức ---
+  const results = [
+    calculateARI(data),
+    calculateFlesch(data),
+    calculateGFI(data),
+    calculateFK(data),
+    
+    calculateCLI(data),
+    calculateSMOG(data),
+    calculateLinsearWrite(data),
+    calculateFORCAST(data)
+  ];
+const test = []
+console.log(results);
+
+	console.log(calculateAverageReading(results));
+
+  // Tính Average Reading Level
+  results.unshift(calculateAverageReading(results));
+
+  // --- Hiển thị HTML ---
+  const output = document.getElementById('results');
+  output.innerHTML = '';
+  document.getElementById('output').style.display = 'block';
+
+  results.forEach(res => {
+    const div = document.createElement('div');
+    div.className = 'formula';
+    if (res.name == "Average Reading Level Consensus") {
+	div.style = "border-color: " + res.color + ";";
+    }
+    div.innerHTML = `
+      <h3>${res.name}</h3>
+      <div class="score-box" style="background:${res.color};color:#fff;">
+        Score: <b>${res.score.toFixed(2)}</b>
+      </div>
+      <div>Reading Difficulty: <b>${res.difficulty}</b></div>
+      <div>Grade Level: <b>${res.grade}</b> | Age Range: <b>${res.age}</b></div>
+      <div class="calc"><b>Calculation:</b><br>${res.formulaHTML}</div>
+    `;
+    output.appendChild(div);
+  });
+
+  // --- show văn bản chuẩn hóa ---
+  //document.getElementById('normalized').textContent = normalized;
+});
+
+// --- Xóa văn bản ---
+document.getElementById('clear').addEventListener('click', () => {
+  document.getElementById('input').value = '';
+  document.getElementById('output').style.display = 'none';
+});
+
+</script>
+</body>
+</html>
