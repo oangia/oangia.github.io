@@ -5,7 +5,7 @@ import { AuthUI } from './AuthUI.js';
 import { AuthStyles } from './AuthStyles.js';
 import { AuthHTML } from './AuthHTML.js';
 
-export class AuthAuthenticate {
+export class AuthAuthenticator {
     constructor(app, options = {}) {
         this.app = app;
         const defaultConfig = {
