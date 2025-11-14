@@ -252,6 +252,13 @@ export class FirebaseAuthUI {
                 align-items: center;
                 z-index: 10000;
                 padding: 1rem;
+                opacity: 0;
+                transition: opacity 0.3s ease-in-out;
+            }
+
+            .auth-modal-overlay.show {
+                display: flex;
+                opacity: 1;
             }
 
             .auth-modal-content {
@@ -265,6 +272,14 @@ export class FirebaseAuthUI {
                 display: flex;
                 flex-direction: column;
                 position: relative;
+                transform: scale(0.9) translateY(-20px);
+                opacity: 0;
+                transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            }
+
+            .auth-modal-overlay.show .auth-modal-content {
+                transform: scale(1) translateY(0);
+                opacity: 1;
             }
 
             .auth-modal-header {
@@ -296,8 +311,7 @@ export class FirebaseAuthUI {
     attachToExistingForms() {
         if (!this.container) return;
 
-        // Find existing form elements by common IDs, names, or data attributes
-        // Try multiple selectors for flexibility
+        // Find existing forms - just attach to forms, get values from form elements
         const allForms = Array.from(this.container.querySelectorAll('form'));
         const loginForm = allForms.find(form => 
             form.id?.toLowerCase().includes('login') || 
@@ -320,27 +334,7 @@ export class FirebaseAuthUI {
             form.getAttribute('data-auth') === 'reset'
         );
         
-        // Find inputs - try multiple selectors
-        const allEmailInputs = Array.from(this.container.querySelectorAll('input[type="email"]'));
-        const allPasswordInputs = Array.from(this.container.querySelectorAll('input[type="password"]'));
-        
-        const emailInput = allEmailInputs.find(el => 
-            el.id?.toLowerCase().includes('email') || 
-            el.name?.toLowerCase().includes('email') ||
-            el.placeholder?.toLowerCase().includes('email')
-        ) || allEmailInputs[0];
-        
-        const passwordInput = allPasswordInputs.find(el => 
-            el.id?.toLowerCase().includes('password') && 
-            !el.id?.toLowerCase().includes('confirm')
-        ) || allPasswordInputs[0];
-        
-        const confirmPasswordInput = allPasswordInputs.find(el => 
-            el.id?.toLowerCase().includes('confirm') || 
-            el.name?.toLowerCase().includes('confirm')
-        );
-        
-        // Find buttons
+        // Find buttons (for social login and logout)
         const allButtons = Array.from(this.container.querySelectorAll('button'));
         const googleBtn = allButtons.find(btn => 
             btn.id?.toLowerCase().includes('google') ||
@@ -364,17 +358,11 @@ export class FirebaseAuthUI {
                              el.id?.toLowerCase().includes('message')
                          );
         
-        // Store references
+        // Store form references only - we'll get inputs from forms directly
         this.elements = {
             loginForm,
             registerForm,
             forgotForm,
-            loginEmail: emailInput,
-            loginPassword: passwordInput,
-            registerEmail: emailInput,
-            registerPassword: passwordInput,
-            registerConfirmPassword: confirmPasswordInput,
-            forgotEmail: emailInput,
             googleLoginBtn: googleBtn,
             facebookLoginBtn: facebookBtn,
             logoutBtn,
@@ -385,21 +373,21 @@ export class FirebaseAuthUI {
         if (loginForm) {
             loginForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                this.handleLogin();
+                this.handleLoginFromForm(loginForm);
             });
         }
 
         if (registerForm) {
             registerForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                this.handleRegister();
+                this.handleRegisterFromForm(registerForm);
             });
         }
 
         if (forgotForm) {
             forgotForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                this.handleForgotPassword();
+                this.handleForgotPasswordFromForm(forgotForm);
             });
         }
 
@@ -418,6 +406,101 @@ export class FirebaseAuthUI {
         // Set up message element if found
         if (messageEl) {
             this.messageElement = messageEl;
+        }
+    }
+
+    // Get form values directly from form element
+    getFormValues(form) {
+        const formData = new FormData(form);
+        const values = {};
+        for (const [key, value] of formData.entries()) {
+            values[key] = value;
+        }
+        return values;
+    }
+
+    // Get email from form
+    getEmailFromForm(form) {
+        const emailInput = form.querySelector('input[type="email"]');
+        return emailInput?.value || this.getFormValues(form).email || this.getFormValues(form).mail;
+    }
+
+    // Get password from form
+    getPasswordFromForm(form) {
+        const passwordInput = form.querySelector('input[type="password"]:not([id*="confirm"]):not([name*="confirm"])');
+        return passwordInput?.value || this.getFormValues(form).password || this.getFormValues(form).pwd;
+    }
+
+    // Get confirm password from form
+    getConfirmPasswordFromForm(form) {
+        const confirmInput = form.querySelector('input[type="password"][id*="confirm"], input[type="password"][name*="confirm"]');
+        return confirmInput?.value || this.getFormValues(form).confirmPassword || this.getFormValues(form).confirm;
+    }
+
+    async handleLoginFromForm(form) {
+        if (!this.config.enableEmail) return;
+
+        const email = this.getEmailFromForm(form);
+        const password = this.getPasswordFromForm(form);
+
+        if (!email || !password) {
+            this.showMessage('Please fill in all fields', 'error');
+            return;
+        }
+
+        try {
+            const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
+            this.showMessage('Successfully logged in!', 'success');
+            if (this.config.callbacks?.onLogin) {
+                this.config.callbacks.onLogin(userCredential.user);
+            }
+        } catch (error) {
+            this.showMessage(this.getErrorMessage(error.code), 'error');
+        }
+    }
+
+    async handleRegisterFromForm(form) {
+        if (!this.config.enableEmail) return;
+
+        const email = this.getEmailFromForm(form);
+        const password = this.getPasswordFromForm(form);
+        const confirmPassword = this.getConfirmPasswordFromForm(form);
+
+        if (!email || !password) {
+            this.showMessage('Please fill in all fields', 'error');
+            return;
+        }
+
+        if (confirmPassword && password !== confirmPassword) {
+            this.showMessage('Passwords do not match!', 'error');
+            return;
+        }
+
+        try {
+            const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
+            this.showMessage('Account created successfully!', 'success');
+            if (this.config.callbacks?.onRegister) {
+                this.config.callbacks.onRegister(userCredential.user);
+            }
+        } catch (error) {
+            this.showMessage(this.getErrorMessage(error.code), 'error');
+        }
+    }
+
+    async handleForgotPasswordFromForm(form) {
+        if (!this.config.enableEmail) return;
+
+        const email = this.getEmailFromForm(form);
+        if (!email) {
+            this.showMessage('Please enter your email', 'error');
+            return;
+        }
+
+        try {
+            await sendPasswordResetEmail(this.auth, email);
+            this.showMessage('Password reset email sent! Check your inbox.', 'success');
+        } catch (error) {
+            this.showMessage(this.getErrorMessage(error.code), 'error');
         }
     }
 
@@ -489,16 +572,30 @@ export class FirebaseAuthUI {
     showModal() {
         const modalOverlay = document.getElementById('auth-modal-overlay');
         if (modalOverlay) {
+            // Prevent background scrolling
+            document.body.style.overflow = 'hidden';
+            
+            // Show overlay first
             modalOverlay.style.display = 'flex';
-            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            
+            // Trigger fade in animation
+            requestAnimationFrame(() => {
+                modalOverlay.classList.add('show');
+            });
         }
     }
 
     hideModal() {
         const modalOverlay = document.getElementById('auth-modal-overlay');
         if (modalOverlay) {
-            modalOverlay.style.display = 'none';
-            document.body.style.overflow = ''; // Restore scrolling
+            // Remove show class to trigger fade out
+            modalOverlay.classList.remove('show');
+            
+            // Hide after animation completes
+            setTimeout(() => {
+                modalOverlay.style.display = 'none';
+                document.body.style.overflow = ''; // Restore scrolling
+            }, 300); // Match transition duration
         }
     }
 
@@ -697,12 +794,9 @@ export class FirebaseAuthUI {
     async handleLogin() {
         if (!this.config.enableEmail) return;
 
-        // Try to get from generated form first, then from existing form
-        const emailInput = document.getElementById('auth-email') || this.elements?.loginEmail;
-        const passwordInput = document.getElementById('auth-password') || this.elements?.loginPassword;
-        
-        const email = emailInput?.value;
-        const password = passwordInput?.value;
+        // Get from generated form
+        const email = document.getElementById('auth-email')?.value;
+        const password = document.getElementById('auth-password')?.value;
 
         if (!email || !password) return;
 
@@ -720,14 +814,10 @@ export class FirebaseAuthUI {
     async handleRegister() {
         if (!this.config.enableEmail) return;
 
-        // Try to get from generated form first, then from existing form
-        const emailInput = document.getElementById('auth-register-email') || this.elements?.registerEmail;
-        const passwordInput = document.getElementById('auth-register-password') || this.elements?.registerPassword;
-        const confirmPasswordInput = document.getElementById('auth-register-confirm') || this.elements?.registerConfirmPassword;
-        
-        const email = emailInput?.value;
-        const password = passwordInput?.value;
-        const confirmPassword = confirmPasswordInput?.value;
+        // Get from generated form
+        const email = document.getElementById('auth-register-email')?.value;
+        const password = document.getElementById('auth-register-password')?.value;
+        const confirmPassword = document.getElementById('auth-register-confirm')?.value;
 
         if (!email || !password || !confirmPassword) return;
 
@@ -750,9 +840,8 @@ export class FirebaseAuthUI {
     async handleForgotPassword() {
         if (!this.config.enableEmail) return;
 
-        // Try to get from generated form first, then from existing form
-        const emailInput = document.getElementById('auth-forgot-email') || this.elements?.forgotEmail;
-        const email = emailInput?.value;
+        // Get from generated form
+        const email = document.getElementById('auth-forgot-email')?.value;
         if (!email) return;
 
         try {
