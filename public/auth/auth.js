@@ -4,54 +4,58 @@ import { AuthFormHandler } from './AuthFormHandler.js';
 import { AuthUI } from './AuthUI.js';
 import { AuthStyles } from './AuthStyles.js';
 import { AuthHTML } from './AuthHTML.js';
-
+import { AuthGuard } from './AuthGuard.js';
 /**
  * Auth - Main authentication class that combines all components
  * 
  * @param {Object} app - Firebase app instance
+ * @param {string} action - authenticate or guard
  * @param {Object} options - Configuration options
  */
 export class Auth {
-    constructor(app, options = {}) {
+    constructor(app, action, options = {}) {
         this.app = app;
-        
-        // Default config values
-        const defaultConfig = {
-            mode: 'direct', // 'direct' or 'toggle'
-            containerId: null,
-            enableEmail: true,
-            enableGoogle: true,
-            enableFacebook: true,
-            showRegister: true,
-            showForgotPassword: true,
-            loginUrl: '/auth/login.html',
-            redirectUrl: null, // URL to redirect after login or if already logged in
-            callbacks: {
-                onLogin: null,
-                onRegister: null,
-                onGoogleLogin: null,
-                onFacebookLogin: null,
-                onLogout: null,
-                onAuthStateChange: null
-            }
-        };
-        // Merge user options with defaults
-        this.config = {
-            ...defaultConfig,
-            ...options,
-            callbacks: {
-                ...defaultConfig.callbacks,
-                ...(options.callbacks || {})
-            }
-        };
-        
-        // Initialize core components
-        this.core = new AuthCore(app);
-        this.ui = new AuthUI(this.config.containerId, this.config);
-        this.message = new AuthMessage();
-        this.formHandler = new AuthFormHandler(this.core, this.message, this.config);
-        
-        this.init();
+        if (action == 'guard') {
+            new AuthGuard(app, options);
+        }
+        if (action == 'authenticate') {
+            const defaultConfig = {
+                mode: 'direct', // 'direct' or 'toggle'
+                containerId: null,
+                enableEmail: true,
+                enableGoogle: true,
+                enableFacebook: true,
+                showRegister: true,
+                showForgotPassword: true,
+                loginUrl: '/auth/login.html',
+                redirectUrl: null, // URL to redirect after login or if already logged in
+                callbacks: {
+                    onLogin: null,
+                    onRegister: null,
+                    onGoogleLogin: null,
+                    onFacebookLogin: null,
+                    onLogout: null,
+                    onAuthStateChange: null
+                }
+            };
+            // Merge user options with defaults
+            this.config = {
+                ...defaultConfig,
+                ...options,
+                callbacks: {
+                    ...defaultConfig.callbacks,
+                    ...(options.callbacks || {})
+                }
+            };
+            
+            // Initialize core components
+            this.core = new AuthCore(app);
+            this.ui = new AuthUI(this.config.containerId, this.config);
+            this.message = new AuthMessage();
+            this.formHandler = new AuthFormHandler(this.core, this.message, this.config);
+            
+            this.init();
+        }
     }
 
     init() {

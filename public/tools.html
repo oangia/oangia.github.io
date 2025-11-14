@@ -177,16 +177,15 @@ const firebaseConfig = {
 };
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { Auth } from './auth.js';
+import { Auth } from './auth/auth.js';
+import { authConfig } from './auth/authConfig.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const filesCol = collection(db, "files");
 
 // Simple auth protection - just config
-const authGuard = new Auth(app, {
-  loginUrl: './auth/login.html'
-});
+const authGuard = new Auth(app, 'guard', authConfig);
 
 let currentFileName = null;
 

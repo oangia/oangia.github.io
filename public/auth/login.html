@@ -43,7 +43,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js';
         import { Auth } from './auth.js';
-
+        import { authConfig } from './authConfig.js';
         // Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyB0TxR5HpNJ8Ph7rnrHqXNMAmBWo1dw5Nw",
@@ -57,29 +57,19 @@
 
         // Initialize Firebase App
         const app = initializeApp(firebaseConfig);
-
         // Initialize Auth - will generate form automatically
-        const auth = new Auth(app, {
-            mode: 'direct', // 'direct' or 'toggle'
-            containerId: 'auth-container',
-            enableEmail: true,
-            enableGoogle: true,
-            enableFacebook: true,
-            showRegister: true,
-            showForgotPassword: true,
-            redirectUrl: '../tools.html', // Redirect after login or if already logged in
-            callbacks: {
-                onLogin: (user) => {
-                    console.log('User logged in:', user);
-                },
-                onRegister: (user) => {
-                    console.log('User registered:', user);
-                },
-                onLogout: () => {
-                    console.log('User logged out');
-                }
+        authConfig.callbacks = {
+            onLogin: (user) => {
+                console.log('User logged in:', user);
+            },
+            onRegister: (user) => {
+                console.log('User registered:', user);
+            },
+            onLogout: () => {
+                console.log('User logged out');
             }
-        });
+        }
+        const auth = new Auth(app, 'authenticate', authConfig);
     </script>
 </body>
 </html>
