@@ -16,7 +16,8 @@ export class Auth {
     constructor(app, containerId, options = {}) {
         this.app = app;
         this.containerId = containerId;
-        this.config = {
+        // Default config values
+        const defaultConfig = {
             mode: 'direct', // 'direct' or 'toggle'
             enableEmail: true,
             enableGoogle: true,
@@ -24,8 +25,24 @@ export class Auth {
             showRegister: true,
             showForgotPassword: true,
             redirectUrl: null, // URL to redirect after login or if already logged in
-            callbacks: {},
-            ...options
+            callbacks: {
+                onLogin: null,
+                onRegister: null,
+                onGoogleLogin: null,
+                onFacebookLogin: null,
+                onLogout: null,
+                onAuthStateChange: null
+            }
+        };
+
+        // Merge user options with defaults
+        this.config = {
+            ...defaultConfig,
+            ...options,
+            callbacks: {
+                ...defaultConfig.callbacks,
+                ...(options.callbacks || {})
+            }
         };
         
         // Initialize core components
@@ -106,7 +123,7 @@ export class Auth {
                 const result = await this.core.login(email, password);
                 if (result.success) {
                     this.message.show('Successfully logged in!', 'success');
-                    if (this.config.callbacks?.onLogin) {
+                    if (this.config.callbacks.onLogin) {
                         this.config.callbacks.onLogin(result.user);
                     }
                     // Redirect if URL is set
@@ -143,7 +160,7 @@ export class Auth {
                 const result = await this.core.register(email, password);
                 if (result.success) {
                     this.message.show('Account created successfully!', 'success');
-                    if (this.config.callbacks?.onRegister) {
+                    if (this.config.callbacks.onRegister) {
                         this.config.callbacks.onRegister(result.user);
                     }
                     // Redirect if URL is set
@@ -295,7 +312,7 @@ export class Auth {
             }
         }
 
-        if (this.config.callbacks?.onAuthStateChange) {
+        if (this.config.callbacks.onAuthStateChange) {
             this.config.callbacks.onAuthStateChange(user);
         }
     }

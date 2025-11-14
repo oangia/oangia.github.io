@@ -50,7 +50,7 @@ export class AuthFormHandler {
         const result = await this.authCore.login(email, password);
         if (result.success) {
             this.message.show('Successfully logged in!', 'success');
-            if (this.config.callbacks?.onLogin) {
+            if (this.config.callbacks.onLogin) {
                 this.config.callbacks.onLogin(result.user);
             }
             // Redirect if URL is set
@@ -84,7 +84,7 @@ export class AuthFormHandler {
         const result = await this.authCore.register(email, password);
         if (result.success) {
             this.message.show('Account created successfully!', 'success');
-            if (this.config.callbacks?.onRegister) {
+            if (this.config.callbacks.onRegister) {
                 this.config.callbacks.onRegister(result.user);
             }
             // Redirect if URL is set
@@ -121,7 +121,7 @@ export class AuthFormHandler {
         const result = await this.authCore.loginWithGoogle();
         if (result.success) {
             this.message.show('Successfully logged in with Google!', 'success');
-            if (this.config.callbacks?.onGoogleLogin) {
+            if (this.config.callbacks.onGoogleLogin) {
                 this.config.callbacks.onGoogleLogin(result.user);
             }
             // Redirect if URL is set
@@ -141,7 +141,7 @@ export class AuthFormHandler {
         const result = await this.authCore.loginWithFacebook();
         if (result.success) {
             this.message.show('Successfully logged in with Facebook!', 'success');
-            if (this.config.callbacks?.onFacebookLogin) {
+            if (this.config.callbacks.onFacebookLogin) {
                 this.config.callbacks.onFacebookLogin(result.user);
             }
             // Redirect if URL is set
@@ -159,7 +159,7 @@ export class AuthFormHandler {
         const result = await this.authCore.logout();
         if (result.success) {
             this.message.show('Successfully logged out!', 'success');
-            if (this.config.callbacks?.onLogout) {
+            if (this.config.callbacks.onLogout) {
                 this.config.callbacks.onLogout();
             }
         } else {

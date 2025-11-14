@@ -110,6 +110,12 @@
 </head>
 <body>
 
+<!-- User info and logout button -->
+<div class="user-info" id="user-info" style="display: none;">
+  <span id="user-email"></span>
+  <button class="btn btn-sm btn-danger" id="logout-btn">Logout</button>
+</div>
+
 <button class="btn btn-primary floating-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#crud-offcanvas" aria-controls="crud-offcanvas">
   <i class="bi bi-gear-fill"></i>
 </button>
@@ -171,10 +177,45 @@ const firebaseConfig = {
 };
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { AuthCore } from './auth/AuthCore.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const filesCol = collection(db, "files");
+
+// Initialize auth protection
+const authCore = new AuthCore(app);
+const loginPageUrl = './auth/auto-generated.html';
+
+// Check authentication state
+authCore.onAuthStateChange((user) => {
+  if (!user) {
+    // Not logged in, redirect to login page
+    window.location.href = loginPageUrl;
+    return;
+  }
+  
+  // User is logged in, show user info
+  const userInfoEl = document.getElementById('user-info');
+  const userEmailEl = document.getElementById('user-email');
+  if (userInfoEl && userEmailEl) {
+    userEmailEl.textContent = user.email || 'User';
+    userInfoEl.style.display = 'flex';
+  }
+});
+
+// Logout button handler
+const logoutBtn = document.getElementById('logout-btn');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', async () => {
+    const result = await authCore.logout();
+    if (result.success) {
+      window.location.href = loginPageUrl;
+    } else {
+      alert('Failed to logout. Please try again.');
+    }
+  });
+}
 
 let currentFileName = null;
 
