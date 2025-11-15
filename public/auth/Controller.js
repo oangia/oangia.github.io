@@ -23,7 +23,7 @@ export class Controller {
                 return;
             }
             this.loggedIn(user);
-            if (this.config.callbacks.onAuthStateChange) {
+            if (this.config.callbacks && this.config.callbacks.onAuthStateChange) {
                 this.config.callbacks.onAuthStateChange(user);
             }
         });
