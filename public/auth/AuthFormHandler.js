@@ -2,15 +2,15 @@
  * AuthFormHandler - Handles form submissions and value extraction
  */
 export class AuthFormHandler {
-    constructor(authCore, messageHandler, config) {
+    constructor(authCore, messageHandler, options) {
         this.authCore = authCore;
         this.message = messageHandler;
-        this.config = config;
+        this.options = options;
         
     }
 
     async handleLogin(form) {
-        if (!this.config.enableEmail) return;
+        if (!this.options.enableEmail) return;
 
         const email = this.getEmailFromForm(form);
         const password = this.getPasswordFromForm(form);
@@ -23,13 +23,13 @@ export class AuthFormHandler {
         const result = await this.authCore.login(email, password);
         if (result.success) {
             this.message.show('Successfully logged in!', 'success');
-            if (this.config.callbacks.onLogin) {
-                this.config.callbacks.onLogin(result.user);
+            if (this.options.callbacks.onLogin) {
+                this.options.callbacks.onLogin(result.user);
             }
             // Redirect if URL is set
-            if (this.config.redirectUrl) {
+            if (this.options.redirectUrl) {
                 setTimeout(() => {
-                    window.location.href = this.config.redirectUrl;
+                    window.location.href = this.options.redirectUrl;
                 }, 1000);
             }
         } else {
@@ -38,7 +38,7 @@ export class AuthFormHandler {
     }
 
     async handleRegister(form) {
-        if (!this.config.enableEmail) return;
+        if (!this.options.enableEmail) return;
 
         const email = this.getEmailFromForm(form);
         const password = this.getPasswordFromForm(form);
@@ -57,13 +57,13 @@ export class AuthFormHandler {
         const result = await this.authCore.register(email, password);
         if (result.success) {
             this.message.show('Account created successfully!', 'success');
-            if (this.config.callbacks.onRegister) {
-                this.config.callbacks.onRegister(result.user);
+            if (this.options.callbacks.onRegister) {
+                this.options.callbacks.onRegister(result.user);
             }
             // Redirect if URL is set
-            if (this.config.redirectUrl) {
+            if (this.options.redirectUrl) {
                 setTimeout(() => {
-                    window.location.href = this.config.redirectUrl;
+                    window.location.href = this.options.redirectUrl;
                 }, 1000);
             }
         } else {
@@ -72,7 +72,7 @@ export class AuthFormHandler {
     }
 
     async handleForgotPassword(form) {
-        if (!this.config.enableEmail) return;
+        if (!this.options.enableEmail) return;
 
         const email = this.getEmailFromForm(form);
         if (!email) {
@@ -89,18 +89,18 @@ export class AuthFormHandler {
     }
 
     async handleGoogleLogin() {
-        if (!this.config.enableGoogle) return;
+        if (!this.options.enableGoogle) return;
 
         const result = await this.authCore.loginWithGoogle();
         if (result.success) {
             this.message.show('Successfully logged in with Google!', 'success');
-            if (this.config.callbacks.onGoogleLogin) {
-                this.config.callbacks.onGoogleLogin(result.user);
+            if (this.options.callbacks.onGoogleLogin) {
+                this.options.callbacks.onGoogleLogin(result.user);
             }
             // Redirect if URL is set
-            if (this.config.redirectUrl) {
+            if (this.options.redirectUrl) {
                 setTimeout(() => {
-                    window.location.href = this.config.redirectUrl;
+                    window.location.href = this.options.redirectUrl;
                 }, 1000);
             }
         } else {
@@ -109,18 +109,18 @@ export class AuthFormHandler {
     }
 
     async handleFacebookLogin() {
-        if (!this.config.enableFacebook) return;
+        if (!this.options.enableFacebook) return;
 
         const result = await this.authCore.loginWithFacebook();
         if (result.success) {
             this.message.show('Successfully logged in with Facebook!', 'success');
-            if (this.config.callbacks.onFacebookLogin) {
-                this.config.callbacks.onFacebookLogin(result.user);
+            if (this.options.callbacks.onFacebookLogin) {
+                this.options.callbacks.onFacebookLogin(result.user);
             }
             // Redirect if URL is set
-            if (this.config.redirectUrl) {
+            if (this.options.redirectUrl) {
                 setTimeout(() => {
-                    window.location.href = this.config.redirectUrl;
+                    window.location.href = this.options.redirectUrl;
                 }, 1000);
             }
         } else {
@@ -132,8 +132,8 @@ export class AuthFormHandler {
         const result = await this.authCore.logout();
         if (result.success) {
             this.message.show('Successfully logged out!', 'success');
-            if (this.config.callbacks.onLogout) {
-                this.config.callbacks.onLogout();
+            if (this.options.callbacks.onLogout) {
+                this.options.callbacks.onLogout();
             }
         } else {
             this.message.show(this.getErrorMessage(result.error), 'error');

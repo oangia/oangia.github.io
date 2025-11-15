@@ -14,7 +14,7 @@ export class Authenticator {
         this.action = action;
         this.options = options;
 
-        this.ui = new AuthUI(this.firebase, this.config);
+        this.ui = new AuthUI(this.firebase, this.options);
         this.onAuthStateChange();
     }
 
@@ -25,8 +25,8 @@ export class Authenticator {
                 return;
             }
             this.loggedIn(user);
-            if (this.config.callbacks && this.config.callbacks.onAuthStateChange) {
-                this.config.callbacks.onAuthStateChange(user);
+            if (this.options.callbacks && this.options.callbacks.onAuthStateChange) {
+                this.options.callbacks.onAuthStateChange(user);
             }
         });
     }
@@ -37,7 +37,7 @@ export class Authenticator {
     }
 
     loggedIn(user) {
-        if (this.action == 'authentication' && this.config.redirectUrl && !this._redirected) {
+        if (this.action == 'authentication' && this.options.redirectUrl && !this._redirected) {
             this._redirected = true;
             return this.redirectToAdmin();
         }
@@ -45,10 +45,10 @@ export class Authenticator {
     }
 
     redirectToLogin() {
-        window.location.href = this.config.loginUrl;
+        window.location.href = this.options.loginUrl;
     }
 
     redirectToAdmin() {
-        window.location.href = this.config.redirectUrl;
+        window.location.href = this.options.redirectUrl;
     }
 }

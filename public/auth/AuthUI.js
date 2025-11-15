@@ -7,13 +7,13 @@ import { AuthFormHandler } from './AuthFormHandler.js';
  * AuthUI - Handles UI generation and form attachment
  */
 export class AuthUI {
-    constructor(firebase, config) {
+    constructor(firebase, options) {
         this.firebase = firebase;
-        this.config = config;
+        this.options = options;
         this.container = null;
         this.modal = new AuthModal();
         this.message = new AuthMessage();
-        this.formHandler = new AuthFormHandler(this.firebase, this.message, this.config);
+        this.formHandler = new AuthFormHandler(this.firebase, this.message, this.options);
     }
 
     loggedIn(user) {
@@ -37,21 +37,21 @@ export class AuthUI {
             userEmailEl.textContent = user.email || 'User';
             userInfoEl.style.display = 'flex';
         }
-        const logoutBtn = document.getElementById(this.config.logoutBtnId);
+        const logoutBtn = document.getElementById(this.options.logoutBtnId);
         if (logoutBtn) {
             logoutBtn.addEventListener('click', async () => {
                 const result = await this.firebase.logout();
                 if (result.success) {
-                    window.location.href = this.config.loginUrl;
+                    window.location.href = this.options.loginUrl;
                 }
             });
         }
     }
 
     loggedOut() {
-        this.container = document.getElementById(this.config.containerId);
+        this.container = document.getElementById(this.options.containerId);
         if (!this.container) {
-            console.error(`Container with ID "${this.config.containerId}" not found`);
+            console.error(`Container with ID "${this.options.containerId}" not found`);
             return false;
         }
         const hasExistingForms = this.hasExistingForms();
@@ -69,7 +69,7 @@ export class AuthUI {
             const htmlContent = AuthHTML.generate(this.config);
             
             // Generate UI based on mode
-            if (this.config.mode === 'toggle') {
+            if (this.options.mode === 'toggle') {
                 this.generateToggleMode(htmlContent);
             } else {
                 this.generateDirectMode(htmlContent);
@@ -106,13 +106,13 @@ export class AuthUI {
                 const result = await this.firebase.login(email, password);
                 if (result.success) {
                     this.message.show('Successfully logged in!', 'success');
-                    if (this.config.callbacks.onLogin) {
-                        this.config.callbacks.onLogin(result.user);
+                    if (this.options.callbacks.onLogin) {
+                        this.options.callbacks.onLogin(result.user);
                     }
                     // Redirect if URL is set
-                    if (this.config.redirectUrl) {
+                    if (this.options.redirectUrl) {
                         setTimeout(() => {
-                            window.location.href = this.config.redirectUrl;
+                            window.location.href = this.options.redirectUrl;
                         }, 1000);
                     }
                 } else {
@@ -143,13 +143,13 @@ export class AuthUI {
                 const result = await this.firebase.register(email, password);
                 if (result.success) {
                     this.message.show('Account created successfully!', 'success');
-                    if (this.config.callbacks.onRegister) {
-                        this.config.callbacks.onRegister(result.user);
+                    if (this.options.callbacks.onRegister) {
+                        this.options.callbacks.onRegister(result.user);
                     }
                     // Redirect if URL is set
-                    if (this.config.redirectUrl) {
+                    if (this.options.redirectUrl) {
                         setTimeout(() => {
-                            window.location.href = this.config.redirectUrl;
+                            window.location.href = this.options.redirectUrl;
                         }, 1000);
                     }
                 } else {
