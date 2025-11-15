@@ -2,6 +2,7 @@ import { AuthModal } from './AuthModal.js';
 import { AuthMessage } from './AuthMessage.js';
 import { AuthStyles } from './AuthStyles.js';
 import { AuthHTML } from './AuthHTML.js';
+import { AuthFormHandler } from './AuthFormHandler.js';
 /**
  * AuthUI - Handles UI generation and form attachment
  */
