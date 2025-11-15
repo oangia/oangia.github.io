@@ -18,14 +18,9 @@ export class Firestore {
     this.db = getFirestore(app);
   }
 
-  async getAll(collectionName, orderByField = 'createdAt', orderDirection = 'desc') {
+  async getAll(collectionName) {
     try {
-      const q = query(
-        collection(this.db, collectionName),
-        orderBy(orderByField, orderDirection)
-      );
-
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocs(collection(this.db, collectionName));
       return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (error) {
       console.error(`Error getting ${collectionName}:`, error);
