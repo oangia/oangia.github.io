@@ -2,8 +2,8 @@
  * AuthFormHandler - Handles form submissions and value extraction
  */
 export class AuthFormHandler {
-    constructor(authCore, messageHandler, options) {
-        this.authCore = authCore;
+    constructor(firebase, messageHandler, options) {
+        this.firebase = firebase;
         this.message = messageHandler;
         this.options = options;
     }
@@ -19,7 +19,7 @@ export class AuthFormHandler {
             return;
         }
 
-        const result = await this.authCore.login(email, password);
+        const result = await this.firebase.login(email, password);
         if (result.success) {
             this.message.show('Successfully logged in!', 'success');
             if (this.options.callbacks.onLogin) {
@@ -53,7 +53,7 @@ export class AuthFormHandler {
             return;
         }
 
-        const result = await this.authCore.register(email, password);
+        const result = await this.firebase.register(email, password);
         if (result.success) {
             this.message.show('Account created successfully!', 'success');
             if (this.options.callbacks.onRegister) {
@@ -79,7 +79,7 @@ export class AuthFormHandler {
             return;
         }
 
-        const result = await this.authCore.resetPassword(email);
+        const result = await this.firebase.resetPassword(email);
         if (result.success) {
             this.message.show('Password reset email sent! Check your inbox.', 'success');
         } else {
@@ -90,7 +90,7 @@ export class AuthFormHandler {
     async handleGoogleLogin() {
         if (!this.options.enableGoogle) return;
 
-        const result = await this.authCore.loginWithGoogle();
+        const result = await this.firebase.loginWithGoogle();
         if (result.success) {
             this.message.show('Successfully logged in with Google!', 'success');
             if (this.options.callbacks.onGoogleLogin) {
@@ -110,7 +110,7 @@ export class AuthFormHandler {
     async handleFacebookLogin() {
         if (!this.options.enableFacebook) return;
 
-        const result = await this.authCore.loginWithFacebook();
+        const result = await this.firebase.loginWithFacebook();
         if (result.success) {
             this.message.show('Successfully logged in with Facebook!', 'success');
             if (this.options.callbacks.onFacebookLogin) {
@@ -140,7 +140,7 @@ export class AuthFormHandler {
     }
 
     async handleLogout() {
-        const result = await this.authCore.logout();
+        const result = await this.firebase.logout();
         if (result.success) {
             this.message.show('Successfully logged out!', 'success');
             if (this.options.callbacks.onLogout) {
