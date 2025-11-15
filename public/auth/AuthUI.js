@@ -1,7 +1,4 @@
-import { AuthModal } from './AuthModal.js';
-import { AuthMessage } from './AuthMessage.js';
-import { AuthStyles } from './AuthStyles.js';
-import { AuthHTML } from './AuthHTML.js';
+import { AuthHTML, AuthStyles, AuthMessage, AuthModal } from './AuthHTML.js';
 import { AuthFormHandler } from './AuthFormHandler.js';
 /**
  * AuthUI - Handles UI generation and form attachment
@@ -18,9 +15,11 @@ export class AuthUI {
 
     loggedIn(user) {
         this.hideAllForms();
-        const dashboard = document.getElementById('auth-dashboard');
-        if (dashboard) dashboard.classList.remove('d-none');
-        this.getModal().hide();
+        this.updateLoggedInUI(user);
+        this.formHandler.listenToLogout();
+    }
+
+    updateLoggedInUI() {
         const userName = document.getElementById('auth-user-name');
         const userEmail = document.getElementById('auth-user-email');
         const userAvatar = document.getElementById('auth-user-avatar');
@@ -37,26 +36,11 @@ export class AuthUI {
             userEmailEl.textContent = user.email || 'User';
             userInfoEl.style.display = 'flex';
         }
-        const logoutBtn = document.getElementById(this.options.logoutBtnId);
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', async () => {
-                const result = await this.firebase.logout();
-                if (result.success) {
-                    window.location.href = this.options.loginUrl;
-                }
-            });
-        }
     }
 
     loggedOut() {
         this.container = document.getElementById(this.options.containerId);
-        if (!this.container) {
-            console.error(`Container with ID "${this.options.containerId}" not found`);
-            return false;
-        }
-        const hasExistingForms = this.hasExistingForms();
-        
-        if (hasExistingForms) {
+        if (this.hasExistingForms()) {
             // Use existing forms - attach event listeners only
             const { messageEl } = this.attachToExistingForms(this.formHandler);
             if (messageEl) {
@@ -83,8 +67,6 @@ export class AuthUI {
             if (messageEl) {
                 this.message.setElement(messageEl);
             }
-        }
-        if (!this.hasExistingForms()) {
             this.showLoginForm();
         }
     }
@@ -259,6 +241,9 @@ export class AuthUI {
             const el = document.getElementById(id);
             if (el) el.classList.add('d-none');
         });
+        const dashboard = document.getElementById('auth-dashboard');
+        if (dashboard) dashboard.classList.remove('d-none');
+        this.getModal().hide();
     }
 
     // Get form values directly from form element

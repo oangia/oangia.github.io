@@ -6,7 +6,6 @@ export class AuthFormHandler {
         this.authCore = authCore;
         this.message = messageHandler;
         this.options = options;
-        
     }
 
     async handleLogin(form) {
@@ -125,6 +124,18 @@ export class AuthFormHandler {
             }
         } else {
             this.message.show(this.getErrorMessage(result.error), 'error');
+        }
+    }
+
+    async listenToLogout() {
+        const logoutBtn = document.getElementById(this.options.logoutBtnId);
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                const result = await this.firebase.logout();
+                if (result.success) {
+                    window.location.href = this.options.loginUrl;
+                }
+            });
         }
     }
 

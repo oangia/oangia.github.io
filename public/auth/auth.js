@@ -10,45 +10,33 @@ import { AuthUI } from './AuthUI.js';
 export class Authenticator {
     constructor(app, action, options = {}) {
         this.firebase = new FAuth(app);
-
         this.action = action;
         this.options = options;
-
+        // init UI
         this.ui = new AuthUI(this.firebase, this.options);
+        // check login state
         this.onAuthStateChange();
     }
 
     onAuthStateChange() {
         this.firebase.onAuthStateChange((user) => {
             if (!user) {
-                this.loggedOut();
+                //logged out
+                if (this.action == 'guard') {
+                    window.location.href = this.options.loginUrl;
+                }
+                this.ui.loggedOut();
                 return;
             }
-            this.loggedIn(user);
+            if (this.action == 'authentication' && this.options.redirectUrl && !this._redirected) {
+                this._redirected = true;
+                window.location.href = this.options.redirectUrl;
+                return;
+            }
+            this.ui.loggedIn(user);
             if (this.options.callbacks && this.options.callbacks.onAuthStateChange) {
                 this.options.callbacks.onAuthStateChange(user);
             }
         });
-    }
-
-    loggedOut() {
-        if (this.action == 'guard') {this.returnToLogin();}
-        this.ui.loggedOut();
-    }
-
-    loggedIn(user) {
-        if (this.action == 'authentication' && this.options.redirectUrl && !this._redirected) {
-            this._redirected = true;
-            return this.redirectToAdmin();
-        }
-        this.ui.loggedIn(user);
-    }
-
-    redirectToLogin() {
-        window.location.href = this.options.loginUrl;
-    }
-
-    redirectToAdmin() {
-        window.location.href = this.options.redirectUrl;
     }
 }
