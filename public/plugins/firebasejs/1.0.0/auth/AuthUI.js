@@ -245,32 +245,7 @@ export class AuthUI {
     }
 
     // Get form values directly from form element
-    getFormValues(form) {
-        const formData = new FormData(form);
-        const values = {};
-        for (const [key, value] of formData.entries()) {
-            values[key] = value;
-        }
-        return values;
-    }
-
-    // Get email from form
-    getEmailFromForm(form) {
-        const emailInput = form.querySelector('input[type="email"]');
-        return emailInput?.value || this.getFormValues(form).email || this.getFormValues(form).mail;
-    }
-
-    // Get password from form
-    getPasswordFromForm(form) {
-        const passwordInput = form.querySelector('input[type="password"]:not([id*="confirm"]):not([name*="confirm"])');
-        return passwordInput?.value || this.getFormValues(form).password || this.getFormValues(form).pwd;
-    }
-
-    // Get confirm password from form
-    getConfirmPasswordFromForm(form) {
-        const confirmInput = form.querySelector('input[type="password"][id*="confirm"], input[type="password"][name*="confirm"]');
-        return confirmInput?.value || this.getFormValues(form).confirmPassword || this.getFormValues(form).confirm;
-    }
+    
 
     hasExistingForms() {
         if (!this.container) return false;
