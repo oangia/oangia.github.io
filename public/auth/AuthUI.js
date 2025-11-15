@@ -66,7 +66,7 @@ export class AuthUI {
             // Generate new forms
             AuthStyles.inject();
             
-            const htmlContent = AuthHTML.generate(this.config);
+            const htmlContent = AuthHTML.generate(this.options);
             
             // Generate UI based on mode
             if (this.options.mode === 'toggle') {
