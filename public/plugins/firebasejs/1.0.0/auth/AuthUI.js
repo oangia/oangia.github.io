@@ -241,8 +241,6 @@ export class AuthUI {
             const el = document.getElementById(id);
             if (el) el.classList.add('d-none');
         });
-        const dashboard = document.getElementById('auth-dashboard');
-        if (dashboard) dashboard.classList.remove('d-none');
         this.getModal().hide();
     }
 
