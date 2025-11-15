@@ -245,8 +245,6 @@ export class AuthUI {
     }
 
     // Get form values directly from form element
-    
-
     hasExistingForms() {
         if (!this.container) return false;
         

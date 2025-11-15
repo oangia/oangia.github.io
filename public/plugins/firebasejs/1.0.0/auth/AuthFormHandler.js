@@ -29,9 +29,7 @@ export class AuthFormHandler {
             }
             // Redirect if URL is set
             if (this.options.redirectUrl) {
-                setTimeout(() => {
-                    window.location.href = this.options.redirectUrl;
-                }, 1000);
+                window.location.href = this.options.redirectUrl;
             }
         } else {
             this.message.show(this.getErrorMessage(result.error), 'error');
