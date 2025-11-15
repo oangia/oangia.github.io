@@ -17,11 +17,11 @@ export class AuthUI {
     }
 
     loginForm() {
-        const hasExistingForms = this.ui.hasExistingForms();
+        const hasExistingForms = this.hasExistingForms();
         
         if (hasExistingForms) {
             // Use existing forms - attach event listeners only
-            const { messageEl } = this.ui.attachToExistingForms(this.formHandler);
+            const { messageEl } = this.attachToExistingForms(this.formHandler);
             if (messageEl) {
                 this.message.setElement(messageEl);
             }
@@ -33,9 +33,9 @@ export class AuthUI {
             
             // Generate UI based on mode
             if (this.config.mode === 'toggle') {
-                this.ui.generateToggleMode(htmlContent);
+                this.generateToggleMode(htmlContent);
             } else {
-                this.ui.generateDirectMode(htmlContent);
+                this.generateDirectMode(htmlContent);
             }
             
             // Attach event listeners to generated forms
@@ -47,7 +47,7 @@ export class AuthUI {
                 this.message.setElement(messageEl);
             }
         }
-        if (!this.ui.hasExistingForms()) {
+        if (!this.hasExistingForms()) {
             this.formHandker.showLoginForm();
         }
     }
@@ -275,7 +275,7 @@ export class AuthUI {
         }
         // Close modal if user is logged in (in toggle mode)
         if (this.config.mode === 'toggle') {
-            this.ui.getModal().hide();
+            this.getModal().hide();
         }
     }
 
