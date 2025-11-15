@@ -1,4 +1,15 @@
-import { getFirestore } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 export class FirebaseService {
   constructor(app) {
@@ -7,16 +18,13 @@ export class FirebaseService {
 
   async getAll(collectionName, orderByField = 'createdAt', orderDirection = 'desc') {
     try {
-      const snapshot = await this.db
-        .collection(collectionName)
-        .orderBy(orderByField, orderDirection)
-        .get();
-      
-      const items = [];
-      snapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() });
-      });
-      return items;
+      const q = query(
+        collection(this.db, collectionName),
+        orderBy(orderByField, orderDirection)
+      );
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (error) {
       console.error(`Error getting ${collectionName}:`, error);
       throw error;
@@ -25,11 +33,10 @@ export class FirebaseService {
 
   async getOne(collectionName, id) {
     try {
-      const doc = await this.db.collection(collectionName).doc(id).get();
-      if (doc.exists) {
-        return { id: doc.id, ...doc.data() };
-      }
-      throw new Error('Document not found');
+      const ref = doc(this.db, collectionName, id);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) throw new Error("Document not found");
+      return { id: snap.id, ...snap.data() };
     } catch (error) {
       console.error(`Error getting document from ${collectionName}:`, error);
       throw error;
@@ -38,9 +45,9 @@ export class FirebaseService {
 
   async create(collectionName, data) {
     try {
-      const docRef = await this.db.collection(collectionName).add({
+      const docRef = await addDoc(collection(this.db, collectionName), {
         ...data,
-        createdAt: Date.now()
+        createdAt: Date.now(),
       });
       return { id: docRef.id, ...data };
     } catch (error) {
@@ -51,9 +58,10 @@ export class FirebaseService {
 
   async update(collectionName, id, data) {
     try {
-      await this.db.collection(collectionName).doc(id).update({
+      const ref = doc(this.db, collectionName, id);
+      await updateDoc(ref, {
         ...data,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       });
       return { id, ...data };
     } catch (error) {
@@ -64,7 +72,8 @@ export class FirebaseService {
 
   async delete(collectionName, id) {
     try {
-      await this.db.collection(collectionName).doc(id).delete();
+      const ref = doc(this.db, collectionName, id);
+      await deleteDoc(ref);
       return true;
     } catch (error) {
       console.error(`Error deleting document from ${collectionName}:`, error);
