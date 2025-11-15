@@ -594,7 +594,7 @@ const elements = {
 };
 
 // 3. Configure Posts Collection (only collection-specific logic)
-const postsConfig = {
+/*const postsConfig = {
   firebaseService,
   collectionName: 'posts',
   instanceId: 'manager',
@@ -693,4 +693,81 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => manager.initialize());
 } else {
   manager.initialize();
-}
+}*/
+
+const usersConfig = {
+  firebaseService,
+  collectionName: 'users', // Changed from 'posts'
+  instanceId: 'manager',
+  orderBy: 'createdAt', // Changed from 'publishDate'
+  orderDirection: 'desc',
+  pageSize: 10,
+  firstInputField: 'nameInput', // Changed from 'titleInput'
+
+  // Define columns for users table
+  columns: [
+    {
+      render: (user) => {
+        const escapeHtml = (text) => {
+          const div = document.createElement('div');
+          div.textContent = text;
+          return div.innerHTML;
+        };
+        return `
+          <td class="td-title">
+            <strong>${escapeHtml(user.name)}</strong>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+              ${user.email}
+            </div>
+          </td>
+        `;
+      }
+    },
+    {
+      render: (user) => {
+        return `<td>${user.role || 'User'}</td>`;
+      }
+    },
+    {
+      render: (user) => {
+        return `
+          <td style="text-align: center;">
+            ${new Date(user.createdAt).toLocaleDateString()}
+          </td>
+        `;
+      }
+    }
+  ],
+
+  // Modal texts
+  createModalTitle: 'Create User',
+  editModalTitle: 'Edit User',
+  createSubmitText: 'Create User',
+  editSubmitText: 'Update User',
+  createSuccessMessage: 'User created successfully',
+  updateSuccessMessage: 'User updated successfully',
+  deleteSuccessMessage: 'User deleted successfully',
+
+  // Form handling for users
+  onOpenCreate: (elements) => {
+    // Set any default values when creating a new user
+  },
+
+  onOpenEdit: (user, elements) => {
+    elements.nameInput.value = user.name;
+    elements.emailInput.value = user.email;
+    elements.roleInput.value = user.role || '';
+  },
+
+  getFormData: (elements) => ({
+    name: elements.nameInput.value.trim(),
+    email: elements.emailInput.value.trim(),
+    role: elements.roleInput.value.trim()
+  }),
+
+  validateForm: (data) => data.name && data.email
+};
+
+// Keep the same initialization
+const manager = new CollectionManager(elements, usersConfig);
+manager.initialize();
