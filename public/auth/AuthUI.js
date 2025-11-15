@@ -1,6 +1,5 @@
 import { AuthModal } from './AuthModal.js';
 import { AuthMessage } from './AuthMessage.js';
-import { AuthUI } from './AuthUI.js';
 import { AuthStyles } from './AuthStyles.js';
 import { AuthHTML } from './AuthHTML.js';
 /**
