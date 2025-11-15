@@ -21,9 +21,11 @@ export class AuthFormHandler {
 
         const result = await this.firebase.login(email, password);
         if (result.success) {
+            if (! this.options.redirectUrl) {
             this.message.show('Successfully logged in!', 'success');
-            if (this.options.callbacks && this.options.callbacks.onLogin) {
-                this.options.callbacks.onLogin(result.user);
+                if (this.options.callbacks && this.options.callbacks.onLogin) {
+                    this.options.callbacks.onLogin(result.user);
+                }
             }
             // Redirect if URL is set
             if (this.options.redirectUrl) {
