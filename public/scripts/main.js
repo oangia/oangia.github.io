@@ -210,7 +210,7 @@ class UIManager {
 
   closeModal() {
     this.elements.modalOverlay.classList.remove('show');
-    this.elements.postForm?.reset();
+    this.elements.form?.reset();
   }
 
   openDeleteModal() {
@@ -305,20 +305,20 @@ class CollectionManager {
 
   initEventListeners() {
     // Create buttons
-    document.getElementById('btnCreate')?.addEventListener('click', this.openCreateModal);
-    document.getElementById('btnCreateEmpty')?.addEventListener('click', this.openCreateModal);
+    this.elements.btnCreate?.addEventListener('click', this.openCreateModal);
+    this.elements.btnCreateEmpty?.addEventListener('click', this.openCreateModal);
 
     // Modal close buttons
-    document.getElementById('btnCloseModal')?.addEventListener('click', this.closeModal);
-    document.getElementById('btnCancel')?.addEventListener('click', this.closeModal);
+    this.elements.btnCloseModal?.addEventListener('click', this.closeModal);
+    this.elements.btnCancel?.addEventListener('click', this.closeModal);
 
     // Delete modal buttons
-    document.getElementById('btnCloseDelete')?.addEventListener('click', this.closeDeleteModal);
-    document.getElementById('btnCancelDelete')?.addEventListener('click', this.closeDeleteModal);
-    document.getElementById('btnConfirmDelete')?.addEventListener('click', this.confirmDelete);
+    this.elements.btnCloseDelete?.addEventListener('click', this.closeDeleteModal);
+    this.elements.btnCancelDelete?.addEventListener('click', this.closeDeleteModal);
+    this.elements.btnConfirmDelete?.addEventListener('click', this.confirmDelete);
 
     // Form submission
-    this.elements.postForm?.addEventListener('submit', this.handleFormSubmit);
+    this.elements.form?.addEventListener('submit', this.handleFormSubmit);
 
     // Pagination controls
     this.elements.btnFirst?.addEventListener('click', this.goToFirstPage);
@@ -455,13 +455,17 @@ class CollectionManager {
   openCreateModal() {
     this.currentEditId = null;
     this.uiManager.openModal(
-      this.config.createModalTitle || 'Create Item',
-      this.config.createSubmitText || 'Create'
+      this.config.modalTitles?.create || 'Create Item',
+      this.config.buttonTexts?.create || 'Create'
     );
     
-    this.elements.postForm?.reset();
+    this.elements.form?.reset();
     this.config.onOpenCreate?.(this.elements);
-    this.config.firstInputField && this.elements[this.config.firstInputField]?.focus();
+    
+    // Focus first input if specified
+    if (this.config.firstInputField && this.elements[this.config.firstInputField]) {
+      this.elements[this.config.firstInputField].focus();
+    }
   }
 
   async openEditModal(id) {
@@ -470,12 +474,16 @@ class CollectionManager {
 
       this.currentEditId = id;
       this.uiManager.openModal(
-        this.config.editModalTitle || 'Edit Item',
-        this.config.editSubmitText || 'Update'
+        this.config.modalTitles?.edit || 'Edit Item',
+        this.config.buttonTexts?.edit || 'Update'
       );
 
       this.config.onOpenEdit?.(item, this.elements);
-      this.config.firstInputField && this.elements[this.config.firstInputField]?.focus();
+      
+      // Focus first input if specified
+      if (this.config.firstInputField && this.elements[this.config.firstInputField]) {
+        this.elements[this.config.firstInputField].focus();
+      }
     } catch (error) {
       console.error('Error fetching item:', error);
       this.uiManager.showToast('Error loading item');
@@ -503,7 +511,7 @@ class CollectionManager {
     const data = this.config.getFormData(this.elements);
 
     if (!this.config.validateForm(data)) {
-      this.uiManager.showToast('Please fill in all required fields');
+      this.uiManager.showToast(this.config.messages?.validationError || 'Please fill in all required fields');
       return;
     }
 
@@ -512,17 +520,17 @@ class CollectionManager {
 
       if (this.currentEditId) {
         await this.firebaseService.update(this.collectionName, this.currentEditId, data);
-        this.uiManager.showToast(this.config.updateSuccessMessage || 'Item updated successfully');
+        this.uiManager.showToast(this.config.messages?.updateSuccess || 'Item updated successfully');
       } else {
         await this.firebaseService.create(this.collectionName, data);
-        this.uiManager.showToast(this.config.createSuccessMessage || 'Item created successfully');
+        this.uiManager.showToast(this.config.messages?.createSuccess || 'Item created successfully');
       }
 
       this.closeModal();
       await this.fetchItems();
     } catch (error) {
       console.error('Error saving item:', error);
-      this.uiManager.showToast('Error saving item: ' + error.message);
+      this.uiManager.showToast((this.config.messages?.saveError || 'Error saving item') + ': ' + error.message);
     } finally {
       this.elements.btnSubmit.disabled = false;
     }
@@ -533,12 +541,12 @@ class CollectionManager {
 
     try {
       await this.firebaseService.delete(this.collectionName, this.deleteItemId);
-      this.uiManager.showToast(this.config.deleteSuccessMessage || 'Item deleted successfully');
+      this.uiManager.showToast(this.config.messages?.deleteSuccess || 'Item deleted successfully');
       this.closeDeleteModal();
       await this.fetchItems();
     } catch (error) {
       console.error('Error deleting item:', error);
-      this.uiManager.showToast('Error deleting item: ' + error.message);
+      this.uiManager.showToast((this.config.messages?.deleteError || 'Error deleting item') + ': ' + error.message);
     }
   }
 
@@ -566,7 +574,7 @@ const firebaseService = new FirebaseService({
   measurementId: "G-J9RZWL9DZ5"
 });
 
-// 2. Get HTML Elements (belongs to the HTML structure)
+// 2. Get HTML Elements
 const elements = {
   loading: document.getElementById('loading'),
   emptyState: document.getElementById('emptyState'),
@@ -574,15 +582,18 @@ const elements = {
   tableBody: document.getElementById('tableBody'),
   modalOverlay: document.getElementById('modalOverlay'),
   deleteModal: document.getElementById('deleteModal'),
-  postForm: document.getElementById('postForm'),
+  form: document.getElementById('postForm'),
   modalTitle: document.getElementById('modalTitle'),
   submitText: document.getElementById('submitText'),
   toast: document.getElementById('toast'),
   toastMessage: document.getElementById('toastMessage'),
-  titleInput: document.getElementById('title'),
-  contentInput: document.getElementById('content'),
-  featuredImageInput: document.getElementById('featuredImage'),
-  publishDateInput: document.getElementById('publishDate'),
+  btnCreate: document.getElementById('btnCreate'),
+  btnCreateEmpty: document.getElementById('btnCreateEmpty'),
+  btnCloseModal: document.getElementById('btnCloseModal'),
+  btnCancel: document.getElementById('btnCancel'),
+  btnCloseDelete: document.getElementById('btnCloseDelete'),
+  btnCancelDelete: document.getElementById('btnCancelDelete'),
+  btnConfirmDelete: document.getElementById('btnConfirmDelete'),
   btnSubmit: document.getElementById('btnSubmit'),
   paginationInfo: document.getElementById('paginationInfo'),
   pageNumbers: document.getElementById('pageNumbers'),
@@ -590,11 +601,16 @@ const elements = {
   btnPrev: document.getElementById('btnPrev'),
   btnNext: document.getElementById('btnNext'),
   btnLast: document.getElementById('btnLast'),
-  pageSize: document.getElementById('pageSize')
+  pageSize: document.getElementById('pageSize'),
+  // Form fields
+  titleInput: document.getElementById('title'),
+  contentInput: document.getElementById('content'),
+  featuredImageInput: document.getElementById('featuredImage'),
+  publishDateInput: document.getElementById('publishDate')
 };
 
-// 3. Configure Posts Collection (only collection-specific logic)
-/*const postsConfig = {
+// 3. Configure Posts Collection
+const postsConfig = {
   firebaseService,
   collectionName: 'posts',
   instanceId: 'manager',
@@ -603,6 +619,25 @@ const elements = {
   pageSize: 10,
   firstInputField: 'titleInput',
 
+  // UI Text Configuration
+  modalTitles: {
+    create: 'Create Post',
+    edit: 'Edit Post'
+  },
+  buttonTexts: {
+    create: 'Create Post',
+    edit: 'Update Post'
+  },
+  messages: {
+    createSuccess: 'Post created successfully',
+    updateSuccess: 'Post updated successfully',
+    deleteSuccess: 'Post deleted successfully',
+    validationError: 'Please fill in all required fields',
+    saveError: 'Error saving post',
+    deleteError: 'Error deleting post'
+  },
+
+  // Table columns
   columns: [
     {
       render: (post) => {
@@ -652,14 +687,7 @@ const elements = {
     }
   ],
 
-  createModalTitle: 'Create Post',
-  editModalTitle: 'Edit Post',
-  createSubmitText: 'Create Post',
-  editSubmitText: 'Update Post',
-  createSuccessMessage: 'Post created successfully',
-  updateSuccessMessage: 'Post updated successfully',
-  deleteSuccessMessage: 'Post deleted successfully',
-
+  // Form handlers
   onOpenCreate: (elements) => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -693,81 +721,4 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => manager.initialize());
 } else {
   manager.initialize();
-}*/
-
-const usersConfig = {
-  firebaseService,
-  collectionName: 'users', // Changed from 'posts'
-  instanceId: 'manager',
-  orderBy: 'createdAt', // Changed from 'publishDate'
-  orderDirection: 'desc',
-  pageSize: 10,
-  firstInputField: 'nameInput', // Changed from 'titleInput'
-
-  // Define columns for users table
-  columns: [
-    {
-      render: (user) => {
-        const escapeHtml = (text) => {
-          const div = document.createElement('div');
-          div.textContent = text;
-          return div.innerHTML;
-        };
-        return `
-          <td class="td-title">
-            <strong>${escapeHtml(user.name)}</strong>
-            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
-              ${user.email}
-            </div>
-          </td>
-        `;
-      }
-    },
-    {
-      render: (user) => {
-        return `<td>${user.role || 'User'}</td>`;
-      }
-    },
-    {
-      render: (user) => {
-        return `
-          <td style="text-align: center;">
-            ${new Date(user.createdAt).toLocaleDateString()}
-          </td>
-        `;
-      }
-    }
-  ],
-
-  // Modal texts
-  createModalTitle: 'Create User',
-  editModalTitle: 'Edit User',
-  createSubmitText: 'Create User',
-  editSubmitText: 'Update User',
-  createSuccessMessage: 'User created successfully',
-  updateSuccessMessage: 'User updated successfully',
-  deleteSuccessMessage: 'User deleted successfully',
-
-  // Form handling for users
-  onOpenCreate: (elements) => {
-    // Set any default values when creating a new user
-  },
-
-  onOpenEdit: (user, elements) => {
-    elements.nameInput.value = user.name;
-    elements.emailInput.value = user.email;
-    elements.roleInput.value = user.role || '';
-  },
-
-  getFormData: (elements) => ({
-    name: elements.nameInput.value.trim(),
-    email: elements.emailInput.value.trim(),
-    role: elements.roleInput.value.trim()
-  }),
-
-  validateForm: (data) => data.name && data.email
-};
-
-// Keep the same initialization
-const manager = new CollectionManager(elements, usersConfig);
-manager.initialize();
+}
