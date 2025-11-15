@@ -273,11 +273,12 @@ class UIManager {
 // COLLECTION MANAGER - Main controller for managing collections
 // ============================================================================
 class CollectionManager {
-  constructor(config) {
+  constructor(elements, config) {
+    this.elements = elements;
     this.config = config;
     this.firebaseService = config.firebaseService;
     this.collectionName = config.collectionName;
-    this.uiManager = new UIManager(config.elements);
+    this.uiManager = new UIManager(elements);
     this.pagination = new PaginationManager({ pageSize: config.pageSize || 10 });
     this.currentEditId = null;
     this.deleteItemId = null;
@@ -286,7 +287,6 @@ class CollectionManager {
     this.initEventListeners();
   }
 
-  // Bind all methods to this instance so they can be called from onclick handlers
   bindMethods() {
     this.openCreateModal = this.openCreateModal.bind(this);
     this.openEditModal = this.openEditModal.bind(this);
@@ -304,8 +304,6 @@ class CollectionManager {
   }
 
   initEventListeners() {
-    const { elements } = this.config;
-
     // Create buttons
     document.getElementById('btnCreate')?.addEventListener('click', this.openCreateModal);
     document.getElementById('btnCreateEmpty')?.addEventListener('click', this.openCreateModal);
@@ -320,17 +318,17 @@ class CollectionManager {
     document.getElementById('btnConfirmDelete')?.addEventListener('click', this.confirmDelete);
 
     // Form submission
-    elements.postForm?.addEventListener('submit', this.handleFormSubmit);
+    this.elements.postForm?.addEventListener('submit', this.handleFormSubmit);
 
     // Pagination controls
-    elements.btnFirst?.addEventListener('click', this.goToFirstPage);
-    elements.btnPrev?.addEventListener('click', this.goToPrevPage);
-    elements.btnNext?.addEventListener('click', this.goToNextPage);
-    elements.btnLast?.addEventListener('click', this.goToLastPage);
-    elements.pageSize?.addEventListener('change', this.changePageSize);
+    this.elements.btnFirst?.addEventListener('click', this.goToFirstPage);
+    this.elements.btnPrev?.addEventListener('click', this.goToPrevPage);
+    this.elements.btnNext?.addEventListener('click', this.goToNextPage);
+    this.elements.btnLast?.addEventListener('click', this.goToLastPage);
+    this.elements.pageSize?.addEventListener('change', this.changePageSize);
 
     // Page number clicks (using event delegation)
-    elements.pageNumbers?.addEventListener('click', (e) => {
+    this.elements.pageNumbers?.addEventListener('click', (e) => {
       if (e.target.classList.contains('btn-page')) {
         const page = parseInt(e.target.dataset.page);
         this.goToPage(page);
@@ -338,14 +336,14 @@ class CollectionManager {
     });
 
     // Modal overlay clicks
-    elements.modalOverlay?.addEventListener('click', (e) => {
-      if (e.target === elements.modalOverlay) {
+    this.elements.modalOverlay?.addEventListener('click', (e) => {
+      if (e.target === this.elements.modalOverlay) {
         this.closeModal();
       }
     });
 
-    elements.deleteModal?.addEventListener('click', (e) => {
-      if (e.target === elements.deleteModal) {
+    this.elements.deleteModal?.addEventListener('click', (e) => {
+      if (e.target === this.elements.deleteModal) {
         this.closeDeleteModal();
       }
     });
@@ -449,7 +447,7 @@ class CollectionManager {
   }
 
   changePageSize() {
-    const newSize = this.config.elements.pageSize.value;
+    const newSize = this.elements.pageSize.value;
     this.pagination.setPageSize(newSize);
     this.renderCurrentPage();
   }
@@ -461,9 +459,9 @@ class CollectionManager {
       this.config.createSubmitText || 'Create'
     );
     
-    this.config.elements.postForm?.reset();
-    this.config.onOpenCreate?.(this.config.elements);
-    this.config.elements.titleInput?.focus();
+    this.elements.postForm?.reset();
+    this.config.onOpenCreate?.(this.elements);
+    this.config.firstInputField && this.elements[this.config.firstInputField]?.focus();
   }
 
   async openEditModal(id) {
@@ -476,8 +474,8 @@ class CollectionManager {
         this.config.editSubmitText || 'Update'
       );
 
-      this.config.onOpenEdit?.(item, this.config.elements);
-      this.config.elements.titleInput?.focus();
+      this.config.onOpenEdit?.(item, this.elements);
+      this.config.firstInputField && this.elements[this.config.firstInputField]?.focus();
     } catch (error) {
       console.error('Error fetching item:', error);
       this.uiManager.showToast('Error loading item');
@@ -502,7 +500,7 @@ class CollectionManager {
   async handleFormSubmit(e) {
     e.preventDefault();
 
-    const data = this.config.getFormData(this.config.elements);
+    const data = this.config.getFormData(this.elements);
 
     if (!this.config.validateForm(data)) {
       this.uiManager.showToast('Please fill in all required fields');
@@ -510,7 +508,7 @@ class CollectionManager {
     }
 
     try {
-      this.config.elements.btnSubmit.disabled = true;
+      this.elements.btnSubmit.disabled = true;
 
       if (this.currentEditId) {
         await this.firebaseService.update(this.collectionName, this.currentEditId, data);
@@ -526,7 +524,7 @@ class CollectionManager {
       console.error('Error saving item:', error);
       this.uiManager.showToast('Error saving item: ' + error.message);
     } finally {
-      this.config.elements.btnSubmit.disabled = false;
+      this.elements.btnSubmit.disabled = false;
     }
   }
 
@@ -554,7 +552,7 @@ class CollectionManager {
 }
 
 // ============================================================================
-// INITIALIZATION - Only Firebase config and collection setup
+// INITIALIZATION
 // ============================================================================
 
 // 1. Initialize Firebase Service
@@ -568,40 +566,42 @@ const firebaseService = new FirebaseService({
   measurementId: "G-J9RZWL9DZ5"
 });
 
-// 2. Configure Posts Collection
+// 2. Get HTML Elements (belongs to the HTML structure)
+const elements = {
+  loading: document.getElementById('loading'),
+  emptyState: document.getElementById('emptyState'),
+  tableContainer: document.getElementById('tableContainer'),
+  tableBody: document.getElementById('tableBody'),
+  modalOverlay: document.getElementById('modalOverlay'),
+  deleteModal: document.getElementById('deleteModal'),
+  postForm: document.getElementById('postForm'),
+  modalTitle: document.getElementById('modalTitle'),
+  submitText: document.getElementById('submitText'),
+  toast: document.getElementById('toast'),
+  toastMessage: document.getElementById('toastMessage'),
+  titleInput: document.getElementById('title'),
+  contentInput: document.getElementById('content'),
+  featuredImageInput: document.getElementById('featuredImage'),
+  publishDateInput: document.getElementById('publishDate'),
+  btnSubmit: document.getElementById('btnSubmit'),
+  paginationInfo: document.getElementById('paginationInfo'),
+  pageNumbers: document.getElementById('pageNumbers'),
+  btnFirst: document.getElementById('btnFirst'),
+  btnPrev: document.getElementById('btnPrev'),
+  btnNext: document.getElementById('btnNext'),
+  btnLast: document.getElementById('btnLast'),
+  pageSize: document.getElementById('pageSize')
+};
+
+// 3. Configure Posts Collection (only collection-specific logic)
 const postsConfig = {
   firebaseService,
   collectionName: 'posts',
-  instanceId: 'manager', // Used for onclick handlers
+  instanceId: 'manager',
   orderBy: 'publishDate',
   orderDirection: 'desc',
   pageSize: 10,
-
-  elements: {
-    loading: document.getElementById('loading'),
-    emptyState: document.getElementById('emptyState'),
-    tableContainer: document.getElementById('tableContainer'),
-    tableBody: document.getElementById('tableBody'),
-    modalOverlay: document.getElementById('modalOverlay'),
-    deleteModal: document.getElementById('deleteModal'),
-    postForm: document.getElementById('postForm'),
-    modalTitle: document.getElementById('modalTitle'),
-    submitText: document.getElementById('submitText'),
-    toast: document.getElementById('toast'),
-    toastMessage: document.getElementById('toastMessage'),
-    titleInput: document.getElementById('title'),
-    contentInput: document.getElementById('content'),
-    featuredImageInput: document.getElementById('featuredImage'),
-    publishDateInput: document.getElementById('publishDate'),
-    btnSubmit: document.getElementById('btnSubmit'),
-    paginationInfo: document.getElementById('paginationInfo'),
-    pageNumbers: document.getElementById('pageNumbers'),
-    btnFirst: document.getElementById('btnFirst'),
-    btnPrev: document.getElementById('btnPrev'),
-    btnNext: document.getElementById('btnNext'),
-    btnLast: document.getElementById('btnLast'),
-    pageSize: document.getElementById('pageSize')
-  },
+  firstInputField: 'titleInput',
 
   columns: [
     {
@@ -686,8 +686,8 @@ const postsConfig = {
   validateForm: (data) => data.title && data.content
 };
 
-// 3. Create instance and initialize
-const manager = new CollectionManager(postsConfig);
+// 4. Create instance and initialize
+const manager = new CollectionManager(elements, postsConfig);
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => manager.initialize());
