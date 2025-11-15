@@ -483,9 +483,3 @@ export class CollectionManager {
     return this.fetchItems();
   }
 }
-
-// ============================================================================
-// INITIALIZATION
-// ============================================================================
-
-// 1. Initialize Firebase Service

@@ -1,6 +1,8 @@
+import { getFirestore } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
 export class FirebaseService {
   constructor(app) {
-    this.db = app.firestore();
+    this.db = getFirestore(app);
   }
 
   async getAll(collectionName, orderByField = 'createdAt', orderDirection = 'desc') {
