@@ -167,7 +167,6 @@
 <script type="module">
 import { app } from "https://oangia.github.io/plugins/firebasejs/1.0.0/config.js";
 import { Authenticator } from 'https://oangia.github.io/plugins/firebasejs/1.0.0/auth.js';
-import { authConfig } from './auth/authConfig.js';
 const authGuard = new Authenticator(app, 'guard', {
   loginUrl: './login.html',
   logoutBtnId: 'logout-btn'
