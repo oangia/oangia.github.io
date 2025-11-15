@@ -73,8 +73,28 @@ function splitWords(text) {
 
 function countLetters(text) {
   // Count only letters (a-z, A-Z and unicode letters)
-  const matches = text.match(/[\p{L}]/gu);
+  const matches = text.match(/[a-zA-Z]/g);
   return matches ? matches.length : 0;
+}
+
+function countCharsWithSpaces(text) {
+  return text.length;
+}
+
+function countCharsWithoutSpaces(text) {
+  return text.replace(/\s/g, '').length;
+}
+
+function getAverageWordLength(words) {
+  if (words.length === 0) return 0;
+  const totalChars = words.reduce((sum, word) => sum + word.length, 0);
+  return totalChars / words.length;
+}
+
+function getLongestWord(words) {
+  if (words.length === 0) return { word: '', length: 0 };
+  const longest = words.reduce((max, word) => word.length > max.length ? word : max, '');
+  return { word: longest, length: longest.length };
 }
 
 function toNFDLower(s) {
@@ -310,6 +330,10 @@ document.getElementById('analyze').addEventListener('click', () => {
   const sentences = splitSentences(normalized);
   const words = splitWords(normalized);
   const letters = countLetters(normalized);
+  const charsWithSpaces = countCharsWithSpaces(normalized);
+  const charsWithoutSpaces = countCharsWithoutSpaces(normalized);
+  const avgWordLength = getAverageWordLength(words);
+  const longestWord = getLongestWord(words);
   
   const syllablesPerWord = words.map(w => syllablesInWord(w));
   const syllables = syllablesPerWord.reduce((sum, s) => sum + s, 0);
@@ -372,13 +396,17 @@ document.getElementById('analyze').addEventListener('click', () => {
 
   // Display stats
   document.getElementById('stats').innerHTML = `
-    <strong>Text Statistics:</strong><br>
-    Words: <b>${data.wordsCount}</b> | 
-    Sentences: <b>${data.sentencesCount}</b> | 
-    Letters: <b>${data.letters}</b> | 
-    Syllables: <b>${data.syllables}</b><br>
-    Complex Words (3+ syllables): <b>${data.complexWords}</b> | 
-    One-Syllable Words: <b>${data.oneSyllable}</b>
+    <strong>Text Statistics:</strong><br><br>
+    <strong>Total # of words:</strong> <b>${data.wordsCount}</b><br>
+    <strong>Average word length:</strong> <b>${avgWordLength.toFixed(1)} characters</b><br>
+    <strong>Longest word in text:</strong> <b>${longestWord.word}</b> (${longestWord.length} characters)<br>
+    <strong>Character Count (including whitespace):</strong> <b>${charsWithSpaces} chars</b><br>
+    <strong>Character Count (excluding whitespace):</strong> <b>${charsWithoutSpaces} chars</b><br>
+    <strong>Total # of letter characters (A-Z only):</strong> <b>${letters} chars</b><br>
+    <strong>Sentences:</strong> <b>${data.sentencesCount}</b> | 
+    <strong>Syllables:</strong> <b>${data.syllables}</b> | 
+    <strong>Complex Words (3+ syllables):</strong> <b>${data.complexWords}</b> | 
+    <strong>One-Syllable Words:</strong> <b>${data.oneSyllable}</b>
   `;
 });
 
