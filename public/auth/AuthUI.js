@@ -17,7 +17,7 @@ export class AuthUI {
     }
 
     loginForm() {
-        init();
+        this.init();
         const hasExistingForms = this.hasExistingForms();
         
         if (hasExistingForms) {
