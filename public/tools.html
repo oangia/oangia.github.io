@@ -190,54 +190,56 @@ const modalFileNameEl = fileModalEl.querySelector('#file-name');
 const modalFileContentEl = fileModalEl.querySelector('#file-content');
 const modalTitleEl = fileModalEl.querySelector('#file-modal-label');
 
-filesEl.innerHTML = "";
-filesCol.forEach(data => {
-  const tr = document.createElement("tr");
+const loadFiles = async () => {
+  filesEl.innerHTML = "";
+  filesCol.forEach(data => {
+    const tr = document.createElement("tr");
 
-  const nameTd = document.createElement("td");
-  nameTd.textContent = data.name;
-  tr.appendChild(nameTd);
+    const nameTd = document.createElement("td");
+    nameTd.textContent = data.name;
+    tr.appendChild(nameTd);
 
-  const actionsTd = document.createElement("td");
+    const actionsTd = document.createElement("td");
 
-  const runBtn = document.createElement("button");
-  runBtn.textContent = "Run";
-  runBtn.className = "btn btn-sm btn-success me-1";
-  runBtn.onclick = () => {
-      runCode(data.code);
-      const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('crud-offcanvas'));
-      offcanvas.hide();
-  }
-
-  const editBtn = document.createElement("button");
-  editBtn.textContent = "Edit";
-  editBtn.className = "btn btn-sm btn-primary me-1";
-  editBtn.onclick = () => {
-    currentFileName = data.name;
-    modalTitleEl.textContent = "Edit File";
-    modalFileNameEl.value = data.name;
-    modalFileContentEl.value = data.code;
-    fileModal.show();
-  };
-
-  const deleteBtn = document.createElement("button");
-  deleteBtn.textContent = "Delete";
-  deleteBtn.className = "btn btn-sm btn-danger";
-  deleteBtn.onclick = async () => {
-    if (confirm("Delete this file?")) {
-      await deleteDoc(doc(db, "files", data.name));
-      if (currentFileName === data.name) {
-        currentFileName = null;
-        iframeEl.srcdoc = '';
-      }
-      loadFiles();
+    const runBtn = document.createElement("button");
+    runBtn.textContent = "Run";
+    runBtn.className = "btn btn-sm btn-success me-1";
+    runBtn.onclick = () => {
+        runCode(data.code);
+        const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('crud-offcanvas'));
+        offcanvas.hide();
     }
-  };
 
-  actionsTd.append(runBtn, editBtn, deleteBtn);
-  tr.appendChild(actionsTd);
-  filesEl.appendChild(tr);
-});
+    const editBtn = document.createElement("button");
+    editBtn.textContent = "Edit";
+    editBtn.className = "btn btn-sm btn-primary me-1";
+    editBtn.onclick = () => {
+      currentFileName = data.name;
+      modalTitleEl.textContent = "Edit File";
+      modalFileNameEl.value = data.name;
+      modalFileContentEl.value = data.code;
+      fileModal.show();
+    };
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "Delete";
+    deleteBtn.className = "btn btn-sm btn-danger";
+    deleteBtn.onclick = async () => {
+      if (confirm("Delete this file?")) {
+        await deleteDoc(doc(db, "files", data.name));
+        if (currentFileName === data.name) {
+          currentFileName = null;
+          iframeEl.srcdoc = '';
+        }
+        loadFiles();
+      }
+    };
+
+    actionsTd.append(runBtn, editBtn, deleteBtn);
+    tr.appendChild(actionsTd);
+    filesEl.appendChild(tr);
+  });
+}
 
 const runCode = (code) => {
   const docFrame = iframeEl.contentDocument || iframeEl.contentWindow.document;
