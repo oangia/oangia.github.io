@@ -197,7 +197,7 @@ class UIManager {
 // ============================================================================
 // COLLECTION MANAGER - Main controller for managing collections
 // ============================================================================
-class CollectionManager {
+export class CollectionManager {
   constructor(elements, config) {
     this.elements = elements;
     this.config = config;

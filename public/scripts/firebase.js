@@ -1,4 +1,4 @@
-class FirebaseService {
+export class FirebaseService {
   constructor(app) {
     this.db = app.firestore();
   }
