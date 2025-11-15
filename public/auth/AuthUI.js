@@ -48,7 +48,7 @@ export class AuthUI {
             }
         }
         if (!this.hasExistingForms()) {
-            this.formHandker.showLoginForm();
+            this.showLoginForm();
         }
     }
 
