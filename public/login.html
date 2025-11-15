@@ -41,7 +41,7 @@
 
     <script type="module">
         import { app } from "https://oangia.github.io/plugins/firebasejs/1.0.0/config.js";
-        import { Authenticator } from './auth.js';
+        import { Authenticator } from 'https://oangia.github.io/plugins/firebasejs/1.0.0/auth.js';
         const auth = new Authenticator(app, 'authenticate', {
             mode: 'direct', // 'direct' or 'toggle'
             containerId: 'auth-container',
@@ -50,8 +50,8 @@
             enableFacebook: true,
             showRegister: true,
             showForgotPassword: true,
-            redirectUrl: '../tools.html',
-            loginUrl: './auth/login.html',
+            redirectUrl: './tools.html',
+            loginUrl: './login.html',
             logoutBtnId: 'logout-btn'
         });
     </script>
