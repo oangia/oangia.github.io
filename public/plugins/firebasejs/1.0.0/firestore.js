@@ -5,6 +5,7 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -13,11 +14,12 @@ import {
   startAfter,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-export class Firestore {
+export class FirebaseService {
   constructor(app) {
     this.db = getFirestore(app);
   }
 
+  // Get all documents
   async getAll(collectionName) {
     try {
       const snapshot = await getDocs(collection(this.db, collectionName));
@@ -40,27 +42,48 @@ export class Firestore {
     }
   }
 
+  // Create document with auto ID
   async create(collectionName, data) {
     try {
+      const timestamp = Date.now();
       const docRef = await addDoc(collection(this.db, collectionName), {
         ...data,
-        createdAt: Date.now(),
+        createdAt: timestamp,
+        updatedAt: timestamp
       });
-      return { id: docRef.id, ...data };
+      return { id: docRef.id, ...data, createdAt: timestamp, updatedAt: timestamp };
     } catch (error) {
       console.error(`Error creating document in ${collectionName}:`, error);
       throw error;
     }
   }
 
+  // Create or overwrite document with custom ID
+  async createWithId(collectionName, id, data) {
+    try {
+      const timestamp = Date.now();
+      const ref = doc(this.db, collectionName, id);
+      await setDoc(ref, {
+        ...data,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+      return { id, ...data, createdAt: timestamp, updatedAt: timestamp };
+    } catch (error) {
+      console.error(`Error creating document with ID in ${collectionName}:`, error);
+      throw error;
+    }
+  }
+
   async update(collectionName, id, data) {
     try {
+      const timestamp = Date.now();
       const ref = doc(this.db, collectionName, id);
       await updateDoc(ref, {
         ...data,
-        updatedAt: Date.now(),
+        updatedAt: timestamp
       });
-      return { id, ...data };
+      return { id, ...data, updatedAt: timestamp };
     } catch (error) {
       console.error(`Error updating document in ${collectionName}:`, error);
       throw error;
@@ -103,7 +126,6 @@ export class Firestore {
       }
 
       const snap = await getDocs(q);
-
       const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const lastDoc = snap.docs[snap.docs.length - 1] || null;
 

@@ -174,8 +174,7 @@ const authGuard = new Authenticator(app, 'guard', {
 
 import { Firestore } from "https://oangia.github.io/plugins/firebasejs/1.0.0/firestore.js";
 const firestore = new Firestore(app);
-import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-const db = getFirestore(app);
+
 const filesCol = await firestore.getAll("files");
 
 // Simple auth protection - just config
@@ -226,7 +225,7 @@ const loadFiles = async () => {
     deleteBtn.className = "btn btn-sm btn-danger";
     deleteBtn.onclick = async () => {
       if (confirm("Delete this file?")) {
-        await deleteDoc(doc(db, "files", data.name));
+        await firestore.delete('files', data.name);
         if (currentFileName === data.name) {
           currentFileName = null;
           iframeEl.srcdoc = '';
@@ -263,12 +262,12 @@ document.getElementById('save-file-btn').onclick = async () => {
   if (!name) return alert("Enter file name");
 
   if (currentFileName && name !== currentFileName) {
-    await setDoc(doc(db, "files", name), { name, code });
-    await deleteDoc(doc(db, "files", currentFileName));
+    await firestore.createWithId('files', name, {name, code});
+    await firestore.delete('files', currentFileName);
   } else if (currentFileName) {
-    await updateDoc(doc(db, "files", currentFileName), { code });
+    await firestore.update('files', currentFileName, {code});
   } else {
-    await setDoc(doc(db, "files", name), { name, code });
+    await firestore.createWithId('files', name, {name, code});
   }
   
   currentFileName = name;
