@@ -4,17 +4,45 @@ import { AuthModal } from './AuthModal.js';
  * AuthUI - Handles UI generation and form attachment
  */
 export class AuthUI {
-    constructor(containerId, config) {
-        this.containerId = containerId;
+    constructor(firebase, config) {
+        this.firebase = firebase;
         this.config = config;
         this.container = null;
         this.modal = new AuthModal();
     }
 
+    toggleLoggedIn(user) {
+        if (!this.hasExistingForms()) {
+            this.showDashboard(user);
+        }
+        // Close modal if user is logged in (in toggle mode)
+        if (this.config.mode === 'toggle') {
+            this.ui.getModal().hide();
+        }
+    }
+
+    authenticated(user) {
+        const userInfoEl = document.getElementById('user-info');
+        const userEmailEl = document.getElementById('user-email');
+        if (userInfoEl && userEmailEl) {
+            userEmailEl.textContent = user.email || 'User';
+            userInfoEl.style.display = 'flex';
+        }
+        const logoutBtn = document.getElementById(this.config.logoutBtnId);
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                const result = await this.firebase.logout();
+                if (result.success) {
+                    window.location.href = this.config.loginUrl;
+                }
+            });
+        }
+    }
+
     init() {
-        this.container = document.getElementById(this.containerId);
+        this.container = document.getElementById(this.config.containerId);
         if (!this.container) {
-            console.error(`Container with ID "${this.containerId}" not found`);
+            console.error(`Container with ID "${this.config.containerId}" not found`);
             return false;
         }
         return true;

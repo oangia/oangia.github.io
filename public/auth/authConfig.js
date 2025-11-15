@@ -7,5 +7,6 @@ export const authConfig = {
     showRegister: true,
     showForgotPassword: true,
     redirectUrl: '../tools.html',
-    loginUrl: './auth/login.html'
+    loginUrl: './auth/login.html',
+    logoutBtnId: 'logout-btn'
 }
