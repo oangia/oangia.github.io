@@ -42,20 +42,17 @@
     <script type="module">
         import { app } from "https://oangia.github.io/plugins/firebasejs/1.0.0/config.js";
         import { Authenticator } from './auth.js';
-        import { authConfig } from './authConfig.js';
         const auth = new Authenticator(app, 'authenticate', {
-            ...authConfig,
-            callbacks: {
-                onLogin: (user) => {
-                    console.log('User logged in:', user);
-                },
-                onRegister: (user) => {
-                    console.log('User registered:', user);
-                },
-                onLogout: () => {
-                    console.log('User logged out');
-                }
-            }
+            mode: 'direct', // 'direct' or 'toggle'
+            containerId: 'auth-container',
+            enableEmail: true,
+            enableGoogle: true,
+            enableFacebook: true,
+            showRegister: true,
+            showForgotPassword: true,
+            redirectUrl: '../tools.html',
+            loginUrl: './auth/login.html',
+            logoutBtnId: 'logout-btn'
         });
     </script>
 </body>

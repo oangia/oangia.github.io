@@ -19,7 +19,7 @@ export class AuthUI {
         this.formHandler.listenToLogout();
     }
 
-    updateLoggedInUI() {
+    updateLoggedInUI(user) {
         const userName = document.getElementById('auth-user-name');
         const userEmail = document.getElementById('auth-user-email');
         const userAvatar = document.getElementById('auth-user-avatar');
