@@ -16,8 +16,44 @@ export class AuthUI {
         this.formHandler = new AuthFormHandler(this.firebase, this.message, this.config);
     }
 
-    loginForm() {
-        this.init();
+    loggedIn(user) {
+        this.hideAllForms();
+        const dashboard = document.getElementById('auth-dashboard');
+        if (dashboard) dashboard.classList.remove('d-none');
+        this.getModal().hide();
+        const userName = document.getElementById('auth-user-name');
+        const userEmail = document.getElementById('auth-user-email');
+        const userAvatar = document.getElementById('auth-user-avatar');
+
+        if (userName) userName.textContent = user.displayName || 'User';
+        if (userEmail) userEmail.textContent = user.email;
+        if (userAvatar) {
+            const initial = (user.displayName || user.email).charAt(0).toUpperCase();
+            userAvatar.textContent = initial;
+        }
+        const userInfoEl = document.getElementById('user-info');
+        const userEmailEl = document.getElementById('user-email');
+        if (userInfoEl && userEmailEl) {
+            userEmailEl.textContent = user.email || 'User';
+            userInfoEl.style.display = 'flex';
+        }
+        const logoutBtn = document.getElementById(this.config.logoutBtnId);
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                const result = await this.firebase.logout();
+                if (result.success) {
+                    window.location.href = this.config.loginUrl;
+                }
+            });
+        }
+    }
+
+    loggedOut() {
+        this.container = document.getElementById(this.config.containerId);
+        if (!this.container) {
+            console.error(`Container with ID "${this.config.containerId}" not found`);
+            return false;
+        }
         const hasExistingForms = this.hasExistingForms();
         
         if (hasExistingForms) {
@@ -217,23 +253,6 @@ export class AuthUI {
         if (forgotForm) forgotForm.classList.remove('d-none');
     }
 
-    showDashboard(user) {
-        this.hideAllForms();
-        const dashboard = document.getElementById('auth-dashboard');
-        if (dashboard) dashboard.classList.remove('d-none');
-
-        const userName = document.getElementById('auth-user-name');
-        const userEmail = document.getElementById('auth-user-email');
-        const userAvatar = document.getElementById('auth-user-avatar');
-
-        if (userName) userName.textContent = user.displayName || 'User';
-        if (userEmail) userEmail.textContent = user.email;
-        if (userAvatar) {
-            const initial = (user.displayName || user.email).charAt(0).toUpperCase();
-            userAvatar.textContent = initial;
-        }
-    }
-
     hideAllForms() {
         const forms = ['auth-login-form', 'auth-register-form', 'auth-forgot-form', 'auth-dashboard'];
         forms.forEach(id => {
@@ -268,43 +287,6 @@ export class AuthUI {
     getConfirmPasswordFromForm(form) {
         const confirmInput = form.querySelector('input[type="password"][id*="confirm"], input[type="password"][name*="confirm"]');
         return confirmInput?.value || this.getFormValues(form).confirmPassword || this.getFormValues(form).confirm;
-    }
-
-    toggleLoggedIn(user) {
-        if (!this.hasExistingForms()) {
-            this.showDashboard(user);
-        }
-        // Close modal if user is logged in (in toggle mode)
-        if (this.config.mode === 'toggle') {
-            this.getModal().hide();
-        }
-    }
-
-    authenticated(user) {
-        const userInfoEl = document.getElementById('user-info');
-        const userEmailEl = document.getElementById('user-email');
-        if (userInfoEl && userEmailEl) {
-            userEmailEl.textContent = user.email || 'User';
-            userInfoEl.style.display = 'flex';
-        }
-        const logoutBtn = document.getElementById(this.config.logoutBtnId);
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', async () => {
-                const result = await this.firebase.logout();
-                if (result.success) {
-                    window.location.href = this.config.loginUrl;
-                }
-            });
-        }
-    }
-
-    init() {
-        this.container = document.getElementById(this.config.containerId);
-        if (!this.container) {
-            console.error(`Container with ID "${this.config.containerId}" not found`);
-            return false;
-        }
-        return true;
     }
 
     hasExistingForms() {

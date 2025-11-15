@@ -41,9 +41,9 @@
 
     <script type="module">
         import { app } from "https://oangia.github.io/plugins/firebasejs/1.0.0/config.js";
-        import { Auth } from './auth.js';
+        import { Authenticator } from './auth.js';
         import { authConfig } from './authConfig.js';
-        const auth = new Auth(app, 'authenticate', {
+        const auth = new Authenticator(app, 'authenticate', {
             ...authConfig,
             callbacks: {
                 onLogin: (user) => {
