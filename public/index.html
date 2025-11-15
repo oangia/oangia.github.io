@@ -5,6 +5,32 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Kiểm tra Readability</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { padding: 2rem; background: #f5f5f5; }
+    .card { padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .formula { 
+      border: 2px solid #ddd; 
+      border-radius: 8px; 
+      padding: 1rem; 
+      margin-bottom: 1rem; 
+      background: white;
+    }
+    .formula h3 { font-size: 1.1rem; margin-bottom: 0.5rem; color: #333; }
+    .score-box { 
+      display: inline-block; 
+      padding: 0.5rem 1rem; 
+      border-radius: 4px; 
+      margin: 0.5rem 0; 
+      font-size: 1.1rem;
+    }
+    .calc { 
+      margin-top: 0.5rem; 
+      padding: 0.5rem; 
+      background: #f8f9fa; 
+      border-radius: 4px; 
+      font-size: 0.9rem;
+    }
+  </style>
 </head>
 <body>
 
@@ -21,51 +47,306 @@
   </div>
 
   <div id="output" style="display:none;">
-    <div id="results" class="mb-3">
-      <!-- Các card công thức sẽ được JS chèn vào đây -->
-    </div>
-    <div class="list" style="display:none;">
-      <h3>Văn bản chuẩn hóa</h3>
-      <pre id="normalized"></pre>
-    </div>
+    <div id="results" class="mb-3"></div>
+    <div id="stats" class="mb-3" style="background: #e3f2fd; padding: 1rem; border-radius: 4px;"></div>
   </div>
 </div>
 
-<script src="/scripts/extract.js"></script>
-<script src="/scripts/formula.js"></script>
 <script>
+function normalizeText(text) {
+  return text.normalize ? text.normalize('NFC') : text;
+}
+
+function splitSentences(text) {
+  return text
+    .split(/[.!?…]+\s+|\n+/g)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+}
+
+function splitWords(text) {
+  text = text.normalize('NFC');
+  text = text.replace(/[\u00A0\u200B\t\n\r]+/g, ' ');
+  const matches = text.match(/\b[\p{L}\p{N}]+(?:[''\-][\p{L}\p{N}]+)*\b/gu);
+  return matches ? matches : [];
+}
+
+function countLetters(text) {
+  // Count only letters (a-z, A-Z and unicode letters)
+  const matches = text.match(/[\p{L}]/gu);
+  return matches ? matches.length : 0;
+}
+
+function toNFDLower(s) {
+  try { return s.normalize('NFD').toLowerCase(); }
+  catch(e){ return s.toLowerCase(); }
+}
+
+const baseVowels = /[aăâeêioôơuưyáàảãạăắằẳẵặâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ]/i;
+
+function syllablesInWord(word) {
+  const s = toNFDLower(word);
+  let count = 0;
+  let inV = false;
+  
+  for(let i = 0; i < s.length; i++){
+    const ch = s[i];
+    if(baseVowels.test(ch)){
+      if(!inV){ 
+        count++; 
+        inV = true; 
+      }
+    } else { 
+      inV = false; 
+    }
+  }
+  
+  // Handle silent 'e' at end (English)
+  if(s.endsWith('e') && count > 1 && !s.match(/[aeiou]e$/)){
+    count--;
+  }
+  
+  return Math.max(count, 1);
+}
+
+// ARI
+function calculateARI({letters, wordsCount, sentencesCount}) {
+  const score = 4.71*(letters/wordsCount) + 0.5*(wordsCount/sentencesCount) - 21.43;
+  const grade = Math.ceil(Math.max(0, score));
+  let difficulty, color;
+  if(grade<6){ difficulty='Dễ đọc'; color='#2ecc71'; }
+  else if(grade<9){ difficulty='Trung bình'; color='#f1c40f'; }
+  else if(grade<12){ difficulty='Khó'; color='#e67e22'; }
+  else{ difficulty='Rất khó'; color='#e74c3c'; }
+
+  return {
+    name: 'Automated Readability Index',
+    score,
+    grade,
+    difficulty,
+    color,
+    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
+    formulaHTML: `<b>ARI</b> = 4.71×(<b>${letters}</b> letters / <b>${wordsCount}</b> words) + 0.5×(<b>${wordsCount}</b> words / <b>${sentencesCount}</b> sentences) - 21.43 = ${score.toFixed(2)}`
+  };
+}
+
+// Flesch Reading Ease
+function calculateFlesch({wordsCount, sentencesCount, syllables}) {
+  const score = 206.835 - 1.015*(wordsCount/sentencesCount) - 84.6*(syllables/wordsCount);
+  let difficulty, color, grade;
+  if(score>=90){ difficulty='Rất dễ (5th grade)'; color='#2ecc71'; grade='5'; }
+  else if(score>=80){ difficulty='Dễ (6th grade)'; color='#27ae60'; grade='6'; }
+  else if(score>=70){ difficulty='Khá dễ (7th grade)'; color='#f1c40f'; grade='7'; }
+  else if(score>=60){ difficulty='Trung bình (8-9th grade)'; color='#f39c12'; grade='8-9'; }
+  else if(score>=50){ difficulty='Khá khó (10-12th grade)'; color='#e67e22'; grade='10-12'; }
+  else if(score>=30){ difficulty='Khó (College)'; color='#d35400'; grade='13-16'; }
+  else{ difficulty='Rất khó (College graduate)'; color='#e74c3c'; grade='16+'; }
+
+  return {
+    name: 'Flesch Reading Ease',
+    score,
+    grade,
+    difficulty,
+    color,
+    age: '-',
+    formulaHTML: `<b>Flesch</b> = 206.835 - 1.015×(<b>${wordsCount}</b> words / <b>${sentencesCount}</b> sentences) - 84.6×(<b>${syllables}</b> syllables / <b>${wordsCount}</b> words) = ${score.toFixed(2)}`
+  };
+}
+
+// Gunning Fog Index
+function calculateGFI({wordsCount, sentencesCount, complexWords}) {
+  const score = 0.4*((wordsCount/sentencesCount) + 100*(complexWords/wordsCount));
+  const grade = Math.round(score);
+  let difficulty, color;
+  if(grade<6){ difficulty='Dễ đọc'; color='#2ecc71'; }
+  else if(grade<9){ difficulty='Trung bình'; color='#f1c40f'; }
+  else if(grade<12){ difficulty='Khó'; color='#e67e22'; }
+  else{ difficulty='Rất khó'; color='#e74c3c'; }
+
+  return {
+    name: 'Gunning Fog Index',
+    score,
+    grade,
+    difficulty,
+    color,
+    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
+    formulaHTML: `<b>GFI</b> = 0.4×((<b>${wordsCount}</b> words / <b>${sentencesCount}</b> sentences) + 100×(<b>${complexWords}</b> complex words / <b>${wordsCount}</b> words)) = ${score.toFixed(2)}`
+  };
+}
+
+// Flesch-Kincaid Grade Level
+function calculateFK({wordsCount, sentencesCount, syllables}) {
+  const score = 0.39*(wordsCount/sentencesCount) + 11.8*(syllables/wordsCount) - 15.59;
+  const grade = Math.ceil(Math.max(0, score));
+  let difficulty, color;
+  if(grade<6){ difficulty='Dễ đọc'; color='#2ecc71'; }
+  else if(grade<9){ difficulty='Trung bình'; color='#f1c40f'; }
+  else if(grade<12){ difficulty='Khó'; color='#e67e22'; }
+  else{ difficulty='Rất khó'; color='#e74c3c'; }
+
+  return {
+    name: 'Flesch-Kincaid Grade Level',
+    score,
+    grade,
+    difficulty,
+    color,
+    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
+    formulaHTML: `<b>FK</b> = 0.39×(<b>${wordsCount}</b> words / <b>${sentencesCount}</b> sentences) + 11.8×(<b>${syllables}</b> syllables / <b>${wordsCount}</b> words) - 15.59 = ${score.toFixed(2)}`
+  };
+}
+
+// Coleman-Liau Index
+function calculateCLI({letters, wordsCount, sentencesCount}) {
+  const L = (letters / wordsCount) * 100;
+  const S = (sentencesCount / wordsCount) * 100;
+  const score = 0.0588*L - 0.296*S - 15.8;
+  const grade = Math.ceil(Math.max(0, score));
+  let difficulty, color;
+  if(grade<6){ difficulty='Dễ đọc'; color='#2ecc71'; }
+  else if(grade<9){ difficulty='Trung bình'; color='#f1c40f'; }
+  else if(grade<12){ difficulty='Khó'; color='#e67e22'; }
+  else{ difficulty='Rất khó'; color='#e74c3c'; }
+
+  return {
+    name: 'Coleman-Liau Index',
+    score,
+    grade,
+    difficulty,
+    color,
+    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
+    formulaHTML: `<b>CLI</b> = 0.0588×L - 0.296×S - 15.8, where L=${L.toFixed(2)} (letters per 100 words), S=${S.toFixed(2)} (sentences per 100 words) = ${score.toFixed(2)}`
+  };
+}
+
+function calculateSMOG({sentencesCount, complexWords}) {
+  const score = 1.0430 * Math.sqrt(complexWords * (30 / sentencesCount)) + 3.1291;
+  const grade = Math.ceil(Math.max(0, score));
+  let difficulty, color;
+  if(grade<6){ difficulty='Dễ đọc'; color='#2ecc71'; }
+  else if(grade<9){ difficulty='Trung bình'; color='#f1c40f'; }
+  else if(grade<12){ difficulty='Khó'; color='#e67e22'; }
+  else{ difficulty='Rất khó'; color='#e74c3c'; }
+
+  return {
+    name: 'SMOG Index',
+    score,
+    grade,
+    difficulty,
+    color,
+    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
+    formulaHTML: `<b>SMOG</b> = 1.0430×√(<b>${complexWords}</b> complex words × 30 / <b>${sentencesCount}</b> sentences) + 3.1291 = ${score.toFixed(2)}`
+  };
+}
+
+function calculateLinsearWrite({sentencesCount, easyWords, hardWords}) {
+  const score = ((easyWords*1 + hardWords*3)/sentencesCount);
+  const adjusted = score > 20 ? score / 2 : (score - 2) / 2;
+  const grade = Math.ceil(Math.max(0, adjusted));
+  let difficulty, color;
+  if(grade<6){ difficulty='Dễ đọc'; color='#2ecc71'; }
+  else if(grade<9){ difficulty='Trung bình'; color='#f1c40f'; }
+  else if(grade<12){ difficulty='Khó'; color='#e67e22'; }
+  else{ difficulty='Rất khó'; color='#e74c3c'; }
+
+  return {
+    name: 'Linsear Write',
+    score: adjusted,
+    grade,
+    difficulty,
+    color,
+    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
+    formulaHTML: `<b>Linsear</b> = ((<b>${easyWords}</b> easy words×1 + <b>${hardWords}</b> hard words×3)/<b>${sentencesCount}</b> sentences) ${score > 20 ? '÷ 2' : '- 2) ÷ 2'} = ${adjusted.toFixed(2)}`
+  };
+}
+
+function calculateFORCAST({ wordsCount, oneSyllable }) {
+  const score = 20 - ((oneSyllable / wordsCount) * 150 / 10);
+  const grade = Math.ceil(Math.max(0, score));
+
+  let difficulty, color;
+  if (grade < 6) { difficulty = 'Dễ đọc'; color = '#2ecc71'; }
+  else if (grade < 9) { difficulty = 'Trung bình'; color = '#f1c40f'; }
+  else if (grade < 12) { difficulty = 'Khó'; color = '#e67e22'; }
+  else { difficulty = 'Rất khó'; color = '#e74c3c'; }
+
+  return {
+    name: 'FORCAST',
+    score,
+    grade,
+    difficulty,
+    color,
+    age: grade > 0 ? `${5+grade}-${6+grade}` : 'K-5',
+    formulaHTML: `<b>FORCAST</b> = 20 - ((<b>${oneSyllable}</b> / <b>${wordsCount}</b>) × 150 / 10) = ${score.toFixed(2)}`
+  };
+}
+
+function calculateAverageGrade(results) {
+  const gradesOnly = results.filter(r => typeof r.grade === 'number');
+  const avg = gradesOnly.reduce((sum,r)=>sum+r.grade,0)/gradesOnly.length;
+  const grade = Math.round(avg);
+  
+  let difficulty, color;
+  if(grade<6){ difficulty='Dễ đọc'; color='#2ecc71'; }
+  else if(grade<9){ difficulty='Trung bình'; color='#f1c40f'; }
+  else if(grade<12){ difficulty='Khó'; color='#e67e22'; }
+  else{ difficulty='Rất khó'; color='#e74c3c'; }
+  
+  return {
+    name: 'Consensus Grade Level',
+    score: avg,
+    grade,
+    difficulty,
+    color: '#3498db',
+    age: grade > 0 ? `${5+grade}-${6+grade}` : 'K-5',
+    formulaHTML: `<b>Average</b> = trung bình cấp lớp của các công thức = ${avg.toFixed(2)}`
+  };
+}
+
 document.getElementById('analyze').addEventListener('click', () => {
   const text = document.getElementById('input').value.trim();
   if (!text) { alert('Vui lòng nhập văn bản'); return; }
 
-  // --- File extract.js: trích xuất dữ liệu ---
   const normalized = normalizeText(text);
   const sentences = splitSentences(normalized);
   const words = splitWords(normalized);
-  const chars = countChars(normalized);
-  const syllables = words.reduce((sum, w) => sum + syllablesInWord(w), 0);
-  const complexWords = words.filter(w => w.length >= 8).length;
+  const letters = countLetters(normalized);
+  
+  const syllablesPerWord = words.map(w => syllablesInWord(w));
+  const syllables = syllablesPerWord.reduce((sum, s) => sum + s, 0);
+  const oneSyllable = syllablesPerWord.filter(s => s === 1).length;
+  
+  // Complex words = 3+ syllables (standard definition)
+  const complexWords = syllablesPerWord.filter(s => s >= 3).length;
+  
+  // Easy/Hard words for Linsear Write (< 3 syllables = easy, >= 3 = hard)
+  const easyWords = syllablesPerWord.filter(s => s < 3).length;
+  const hardWords = syllablesPerWord.filter(s => s >= 3).length;
 
-  let easyWords = 0, hardWords = 0;
-  words.forEach(w => (syllablesInWord(w) >= 3 ? hardWords++ : easyWords++));
+  const data = {
+    letters,
+    wordsCount: words.length,
+    sentencesCount: sentences.length,
+    syllables,
+    oneSyllable,
+    complexWords,
+    easyWords,
+    hardWords
+  };
 
-  const data = {chars: 623, letters: 616, wordsCount: 98, sentencesCount: 7, syllables: 201, oneSyllable: 35, complexWords:26, easyWords: 72, hardWords: 26};
-
-  // --- File formulas.js: tính tất cả công thức ---
   const results = [
-    calculateARI(data),
-    calculateFlesch(data),
-    calculateGFI(data),
     calculateFK(data),
+    calculateARI(data),
     calculateCLI(data),
+    calculateGFI(data),
     calculateSMOG(data),
     calculateLinsearWrite(data),
-    calculateFORCAST(data)
+    calculateFORCAST(data),
+    calculateFlesch(data)
   ];
 
-  results.unshift(calculateAverageReading(results));
+  const consensus = calculateAverageGrade(results);
+  results.unshift(consensus);
 
-  // --- Hiển thị HTML ---
   const output = document.getElementById('results');
   output.innerHTML = '';
   document.getElementById('output').style.display = 'block';
@@ -73,8 +354,9 @@ document.getElementById('analyze').addEventListener('click', () => {
   results.forEach(res => {
     const div = document.createElement('div');
     div.className = 'formula';
-    if (res.name === "Average Reading Level Consensus") {
+    if (res.name === "Consensus Grade Level") {
       div.style.borderColor = res.color;
+      div.style.borderWidth = '3px';
     }
     div.innerHTML = `
       <h3>${res.name}</h3>
@@ -83,10 +365,21 @@ document.getElementById('analyze').addEventListener('click', () => {
       </div>
       <div>Reading Difficulty: <b>${res.difficulty}</b></div>
       <div>Grade Level: <b>${res.grade}</b> | Age Range: <b>${res.age}</b></div>
-      <div class="calc"><b>Calculation:</b><br>${res.formulaHTML}</div>
+      <div class="calc">${res.formulaHTML}</div>
     `;
     output.appendChild(div);
   });
+
+  // Display stats
+  document.getElementById('stats').innerHTML = `
+    <strong>Text Statistics:</strong><br>
+    Words: <b>${data.wordsCount}</b> | 
+    Sentences: <b>${data.sentencesCount}</b> | 
+    Letters: <b>${data.letters}</b> | 
+    Syllables: <b>${data.syllables}</b><br>
+    Complex Words (3+ syllables): <b>${data.complexWords}</b> | 
+    One-Syllable Words: <b>${data.oneSyllable}</b>
+  `;
 });
 
 document.getElementById('clear').addEventListener('click', () => {
