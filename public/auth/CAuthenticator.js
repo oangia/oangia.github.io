@@ -11,7 +11,6 @@ export class CAuthenticator extends Controller {
     }
 
     loggedOut() {
-        const formHandler = new AuthFormHandler(this.firebase, this.config);
-        //this.ui.loginForm(formHandler);
+        this.ui.loginForm();
     }
 }
