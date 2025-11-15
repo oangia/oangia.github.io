@@ -172,9 +172,11 @@ const authGuard = new Authenticator(app, 'guard', {
   logoutBtnId: 'logout-btn'
 });
 
+import { Firestore } from "https://oangia.github.io/plugins/firebasejs/1.0.0/firestore.js";
+const firestore = new Firestore(app);
 import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 const db = getFirestore(app);
-const filesCol = collection(db, "files");
+const filesCol = await firestore.getAll(db, "files");
 
 // Simple auth protection - just config
 let currentFileName = null;
