@@ -171,7 +171,6 @@ const authGuard = new Authenticator(app, 'guard', {
   loginUrl: './login.html',
   logoutBtnId: 'logout-btn'
 });
-
 import { Firestore } from "https://oangia.github.io/plugins/firebasejs/1.0.0/firestore.js";
 const firestore = new Firestore(app);
 // Simple auth protection - just config
@@ -187,7 +186,7 @@ const modalFileContentEl = fileModalEl.querySelector('#file-content');
 const modalTitleEl = fileModalEl.querySelector('#file-modal-label');
 
 const loadFiles = async () => {
-  const filesCol = await firestore.getAll("files");
+  const filesCol = await firestore.readAll("files");
   filesEl.innerHTML = "";
   filesCol.forEach(data => {
     const tr = document.createElement("tr");

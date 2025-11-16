@@ -1,36 +1,46 @@
 import {
-  getFirestore,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  orderBy,
-  limit,
-  startAfter,
+  getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, query, orderBy, limit, startAfter,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 export class Firestore {
   constructor(app) {
     this.db = getFirestore(app);
   }
-
-  // Get all documents
-  async getAll(collectionName) {
+  
+  // Create document with auto ID
+  async create(collectionName, data) {
     try {
-      const snapshot = await getDocs(collection(this.db, collectionName));
-      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const time = this.now();
+      const docRef = await addDoc(collection(this.db, collectionName), {
+        ...data,
+        createdAt: time,
+        updatedAt: time
+      });
+      return { id: docRef.id, ...data, createdAt: time, updatedAt: time };
     } catch (error) {
-      console.error(`Error getting ${collectionName}:`, error);
+      console.error(`Error creating document in ${collectionName}:`, error);
       throw error;
     }
   }
 
-  async getOne(collectionName, id) {
+  // Create or overwrite document with custom ID
+  async createWithId(collectionName, id, data) {
+    try {
+      const time = this.now();
+      const ref = doc(this.db, collectionName, id);
+      await setDoc(ref, {
+        ...data,
+        createdAt: time,
+        updatedAt: time
+      });
+      return { id, ...data, createdAt: time, updatedAt: time };
+    } catch (error) {
+      console.error(`Error creating document with ID in ${collectionName}:`, error);
+      throw error;
+    }
+  }
+
+  async read(collectionName, id) {
     try {
       const ref = doc(this.db, collectionName, id);
       const snap = await getDoc(ref);
@@ -42,61 +52,13 @@ export class Firestore {
     }
   }
 
-  // Create document with auto ID
-  async create(collectionName, data) {
+  // Get all documents
+  async readAll(collectionName) {
     try {
-      const timestamp = Date.now();
-      const docRef = await addDoc(collection(this.db, collectionName), {
-        ...data,
-        createdAt: timestamp,
-        updatedAt: timestamp
-      });
-      return { id: docRef.id, ...data, createdAt: timestamp, updatedAt: timestamp };
+      const snapshot = await getDocs(collection(this.db, collectionName));
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (error) {
-      console.error(`Error creating document in ${collectionName}:`, error);
-      throw error;
-    }
-  }
-
-  // Create or overwrite document with custom ID
-  async createWithId(collectionName, id, data) {
-    try {
-      const timestamp = Date.now();
-      const ref = doc(this.db, collectionName, id);
-      await setDoc(ref, {
-        ...data,
-        createdAt: timestamp,
-        updatedAt: timestamp
-      });
-      return { id, ...data, createdAt: timestamp, updatedAt: timestamp };
-    } catch (error) {
-      console.error(`Error creating document with ID in ${collectionName}:`, error);
-      throw error;
-    }
-  }
-
-  async update(collectionName, id, data) {
-    try {
-      const timestamp = Date.now();
-      const ref = doc(this.db, collectionName, id);
-      await updateDoc(ref, {
-        ...data,
-        updatedAt: timestamp
-      });
-      return { id, ...data, updatedAt: timestamp };
-    } catch (error) {
-      console.error(`Error updating document in ${collectionName}:`, error);
-      throw error;
-    }
-  }
-
-  async delete(collectionName, id) {
-    try {
-      const ref = doc(this.db, collectionName, id);
-      await deleteDoc(ref);
-      return true;
-    } catch (error) {
-      console.error(`Error deleting document from ${collectionName}:`, error);
+      console.error(`Error getting ${collectionName}:`, error);
       throw error;
     }
   }
@@ -138,5 +100,35 @@ export class Firestore {
       console.error(`Error paginating ${collectionName}:`, error);
       throw error;
     }
+  }
+
+  async update(collectionName, id, data) {
+    try {
+      const time = this.now();
+      const ref = doc(this.db, collectionName, id);
+      await updateDoc(ref, {
+        ...data,
+        updatedAt: time
+      });
+      return { id, ...data, updatedAt: time };
+    } catch (error) {
+      console.error(`Error updating document in ${collectionName}:`, error);
+      throw error;
+    }
+  }
+
+  async delete(collectionName, id) {
+    try {
+      const ref = doc(this.db, collectionName, id);
+      await deleteDoc(ref);
+      return true;
+    } catch (error) {
+      console.error(`Error deleting document from ${collectionName}:`, error);
+      throw error;
+    }
+  }
+
+  now() {
+    return Date.now()/1e3|0
   }
 }
