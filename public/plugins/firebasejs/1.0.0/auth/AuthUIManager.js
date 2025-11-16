@@ -1,5 +1,5 @@
-import { AuthHTML, AuthModal } from './AuthHTML.js';
-import { AuthStyles } from './AuthStyles.js';
+import { AuthModal } from './AuthModal.js';
+import { FormGenerator } from './FormGenerator.js';
 /**
  * AuthUIManager - Handles UI rendering and updates
  * Responsible for displaying user information and UI state
@@ -37,12 +37,10 @@ export class AuthUIManager {
      */
     generateAuthUI(container, navigator, eventBinder) {
         if (!container) return;
-
         // Inject styles
-        AuthStyles.inject();
-        
+        FormGenerator.inject();
         // Generate HTML content
-        const htmlContent = AuthHTML.generate(this.options);
+        const htmlContent = FormGenerator.generate(this.options);
         
         // Generate UI based on mode
         if (this.options.mode === 'toggle') {
