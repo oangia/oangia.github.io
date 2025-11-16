@@ -165,14 +165,11 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script type="module">
-import { app } from "https://oangia.github.io/plugins/firebasejs/1.0.0/config.js";
-import { Authenticator } from 'https://oangia.github.io/plugins/firebasejs/1.0.0/auth.js';
-import { Firestore } from "https://oangia.github.io/plugins/firebasejs/1.0.0/firestore.js";
-const authGuard = new Authenticator(app, 'guard', {
+import { createFirestoreWithAuth } from "https://oangia.github.io/plugins/firebasejs/1.0.0/firestore-auth.js";
+const firestore = createFirestoreWithAuth('guard', {
   loginUrl: './login.html',
   logoutBtnId: 'logout-btn'
 });
-const firestore = new Firestore(app);
 // Simple auth protection - just config
 let currentFileName = null;
 

@@ -3,8 +3,9 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 export class Firestore {
-  constructor(app) {
+  constructor(app, auth = null) {
     this.db = getFirestore(app);
+    this.auth = auth;
   }
   
   // Create document with auto ID

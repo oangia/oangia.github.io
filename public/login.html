@@ -325,9 +325,8 @@
     </div>
 
     <script type="module">
-        import { app } from "https://oangia.github.io/plugins/firebasejs/1.0.0/config.js";
-        import { Authenticator } from 'https://oangia.github.io/plugins/firebasejs/1.0.0/auth.js';
-        const auth = new Authenticator(app, 'authenticate', {
+        import { getAuthenticator } from "https://oangia.github.io/plugins/firebasejs/1.0.0/firestore.js";
+        const auth = getAuthenticator('authenticate', {
             mode: 'direct', // 'direct' or 'toggle'
             containerId: 'auth-container',
             enableEmail: true,
