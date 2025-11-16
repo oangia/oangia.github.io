@@ -1,3 +1,5 @@
+import { AuthMessage } from './AuthMessage.js';
+
 /**
  * AuthFormHandler - Handles all form submissions and authentication actions
  * This class is responsible for:
@@ -8,11 +10,13 @@
  * - Managing callbacks and redirects
  */
 export class AuthFormHandler {
-    constructor(firebase, messageHandler, options) {
+    constructor(firebase, options) {
         this.firebase = firebase;
-        this.message = messageHandler;
         this.options = options;
         this.lastResult = null;
+        
+        // Handler creates and owns its message instance
+        this.message = new AuthMessage(this.options.containerId);
     }
 
     async handleLogin(form) {
