@@ -33,8 +33,7 @@ export class Authenticator {
                 this.ui.loggedOut();
                 return;
             }
-            if (this.action == 'authentication' && this.options.redirectUrl && !this._redirected) {
-                this._redirected = true;
+            if (this.action == 'authentication' && this.options.redirectUrl) {
                 window.location.href = this.options.redirectUrl;
                 return;
             }
