@@ -236,11 +236,6 @@ export class AuthUI {
     }
 
     hideAllForms() {
-        const forms = ['auth-login-form', 'auth-register-form', 'auth-forgot-form', 'auth-dashboard'];
-        forms.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.add('d-none');
-        });
         this.getModal().hide();
     }
 

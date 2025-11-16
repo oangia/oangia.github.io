@@ -19,21 +19,14 @@ import { AuthUI } from './auth/AuthUI.js';
  */
 export class Authenticator {
     constructor(app, action, options = {}) {
-        this.app = app;
+        this.auth = getAuth(app);
         this.action = action;
         this.options = options;
-        this.init();
         // init UI
         this.ui = new AuthUI(this, this.options);
         // check login state
-        this.listenToAuthStateChanged();
-    }
-
-    listenToAuthStateChanged(callback) {
         onAuthStateChanged(this.auth, (user) => {
-            this.user = user;
             if (!user) {
-                //logged out
                 if (this.action == 'guard') {
                     window.location.href = this.options.loginUrl;
                 }
@@ -46,36 +39,7 @@ export class Authenticator {
                 return;
             }
             this.ui.loggedIn(user);
-            if (this.options.callbacks && this.options.callbacks.onAuthStateChange) {
-                this.options.callbacks.onAuthStateChange(user);
-            }
-            if (callback) callback(user);
         });
-    }
-
-    init() {
-        this.auth = null;
-        this.user = null;
-        try {
-            // Ensure auth is initialized - retry if needed
-            if (!this.app) {
-                console.error('Firebase app not provided');
-                return false;
-            }
-            
-            this.auth = getAuth(this.app);
-            
-            // Verify auth was created successfully
-            if (!this.auth) {
-                console.error('Failed to initialize Firebase Auth');
-                return false;
-            }
-            
-            return true;
-        } catch (error) {
-            console.error('Firebase Auth initialization error:', error);
-            return false;
-        }
     }
 
     async login(email, password) {
