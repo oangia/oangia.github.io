@@ -19,7 +19,7 @@ import { AuthUI } from './auth/AuthUI.js';
  */
 export class Authenticator {
     constructor(app, action, options = {}) {
-        this.firebase = new FAuth(app);
+        this.app = app;
         this.action = action;
         this.options = options;
         this.init();
