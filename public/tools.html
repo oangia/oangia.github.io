@@ -167,11 +167,11 @@
 <script type="module">
 import { app } from "https://oangia.github.io/plugins/firebasejs/1.0.0/config.js";
 import { Authenticator } from 'https://oangia.github.io/plugins/firebasejs/1.0.0/auth.js';
+import { Firestore } from "https://oangia.github.io/plugins/firebasejs/1.0.0/firestore.js";
 const authGuard = new Authenticator(app, 'guard', {
   loginUrl: './login.html',
   logoutBtnId: 'logout-btn'
 });
-import { Firestore } from "https://oangia.github.io/plugins/firebasejs/1.0.0/firestore.js";
 const firestore = new Firestore(app);
 // Simple auth protection - just config
 let currentFileName = null;
