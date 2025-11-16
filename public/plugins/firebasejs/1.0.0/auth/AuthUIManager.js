@@ -14,24 +14,6 @@ export class AuthUIManager {
      * Update UI for logged in user
      */
     updateLoggedInUI(user) {
-        const userName = document.getElementById('auth-user-name');
-        const userEmail = document.getElementById('auth-user-email');
-        const userAvatar = document.getElementById('auth-user-avatar');
-
-        if (userName) {
-            userName.textContent = user.displayName || 'User';
-        }
-        
-        if (userEmail) {
-            userEmail.textContent = user.email;
-        }
-        
-        if (userAvatar) {
-            const initial = (user.displayName || user.email).charAt(0).toUpperCase();
-            userAvatar.textContent = initial;
-        }
-        
-        // Update alternative user info display if exists
         const userInfoEl = document.getElementById('user-info');
         const userEmailEl = document.getElementById('user-email');
         if (userInfoEl && userEmailEl) {

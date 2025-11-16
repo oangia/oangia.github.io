@@ -33,13 +33,6 @@ export class AuthUI {
      */
     loggedOut() {
         const container = document.getElementById(this.options.containerId);
-        
-        if (this.uiManager.hasExistingForms(container)) {
-            // Use existing forms - attach event listeners only
-            this.eventBinder.attachExistingFormListeners(container);
-        } else {
-            // Generate new forms
-            this.uiManager.generateAuthUI(container, this.navigator, this.eventBinder);
-        }
+        this.eventBinder.attachExistingFormListeners(container);
     }
 }
