@@ -1,11 +1,18 @@
 /**
- * AuthFormHandler - Handles form submissions and value extraction
+ * AuthFormHandler - Handles all form submissions and authentication actions
+ * This class is responsible for:
+ * - Extracting form values
+ * - Validating inputs
+ * - Calling Firebase authentication methods
+ * - Handling success/error responses
+ * - Managing callbacks and redirects
  */
 export class AuthFormHandler {
     constructor(firebase, messageHandler, options) {
         this.firebase = firebase;
         this.message = messageHandler;
         this.options = options;
+        this.lastResult = null;
     }
 
     async handleLogin(form) {
@@ -20,10 +27,12 @@ export class AuthFormHandler {
         }
 
         const result = await this.firebase.login(email, password);
+        this.lastResult = result;
+        
         if (result.success) {
-            if (! this.options.redirectUrl) {
-            this.message.show('Successfully logged in!', 'success');
-                if (this.options.callbacks && this.options.callbacks.onLogin) {
+            if (!this.options.redirectUrl) {
+                this.message.show('Successfully logged in!', 'success');
+                if (this.options.callbacks?.onLogin) {
                     this.options.callbacks.onLogin(result.user);
                 }
             }
@@ -54,9 +63,11 @@ export class AuthFormHandler {
         }
 
         const result = await this.firebase.register(email, password);
+        this.lastResult = result;
+        
         if (result.success) {
             this.message.show('Account created successfully!', 'success');
-            if (this.options.callbacks.onRegister) {
+            if (this.options.callbacks?.onRegister) {
                 this.options.callbacks.onRegister(result.user);
             }
             // Redirect if URL is set
@@ -80,20 +91,26 @@ export class AuthFormHandler {
         }
 
         const result = await this.firebase.resetPassword(email);
+        this.lastResult = result;
+        
         if (result.success) {
             this.message.show('Password reset email sent! Check your inbox.', 'success');
         } else {
             this.message.show(this.getErrorMessage(result.error), 'error');
         }
+        
+        return result;
     }
 
     async handleGoogleLogin() {
         if (!this.options.enableGoogle) return;
 
         const result = await this.firebase.loginWithGoogle();
+        this.lastResult = result;
+        
         if (result.success) {
             this.message.show('Successfully logged in with Google!', 'success');
-            if (this.options.callbacks.onGoogleLogin) {
+            if (this.options.callbacks?.onGoogleLogin) {
                 this.options.callbacks.onGoogleLogin(result.user);
             }
             // Redirect if URL is set
@@ -111,9 +128,11 @@ export class AuthFormHandler {
         if (!this.options.enableFacebook) return;
 
         const result = await this.firebase.loginWithFacebook();
+        this.lastResult = result;
+        
         if (result.success) {
             this.message.show('Successfully logged in with Facebook!', 'success');
-            if (this.options.callbacks.onFacebookLogin) {
+            if (this.options.callbacks?.onFacebookLogin) {
                 this.options.callbacks.onFacebookLogin(result.user);
             }
             // Redirect if URL is set
@@ -127,30 +146,27 @@ export class AuthFormHandler {
         }
     }
 
-    async listenToLogout() {
-        const logoutBtn = document.getElementById(this.options.logoutBtnId);
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', async () => {
-                const result = await this.firebase.logout();
-                if (result.success) {
-                    window.location.href = this.options.loginUrl;
-                }
-            });
-        }
-    }
-
     async handleLogout() {
         const result = await this.firebase.logout();
+        this.lastResult = result;
+        
         if (result.success) {
             this.message.show('Successfully logged out!', 'success');
-            if (this.options.callbacks.onLogout) {
+            if (this.options.callbacks?.onLogout) {
                 this.options.callbacks.onLogout();
+            }
+            // Redirect to login URL if specified
+            if (this.options.loginUrl) {
+                setTimeout(() => {
+                    window.location.href = this.options.loginUrl;
+                }, 1000);
             }
         } else {
             this.message.show(this.getErrorMessage(result.error), 'error');
         }
     }
 
+    // Form value extraction methods
     getFormValues(form) {
         const formData = new FormData(form);
         const values = {};
@@ -160,24 +176,22 @@ export class AuthFormHandler {
         return values;
     }
 
-    // Get email from form
     getEmailFromForm(form) {
         const emailInput = form.querySelector('input[type="email"]');
         return emailInput?.value || this.getFormValues(form).email || this.getFormValues(form).mail;
     }
 
-    // Get password from form
     getPasswordFromForm(form) {
         const passwordInput = form.querySelector('input[type="password"]:not([id*="confirm"]):not([name*="confirm"])');
         return passwordInput?.value || this.getFormValues(form).password || this.getFormValues(form).pwd;
     }
 
-    // Get confirm password from form
     getConfirmPasswordFromForm(form) {
         const confirmInput = form.querySelector('input[type="password"][id*="confirm"], input[type="password"][name*="confirm"]');
         return confirmInput?.value || this.getFormValues(form).confirmPassword || this.getFormValues(form).confirm;
     }
 
+    // Error message mapping
     getErrorMessage(code) {
         const defaultMessages = {
             'auth/email-already-in-use': 'This email is already registered.',
@@ -196,5 +210,9 @@ export class AuthFormHandler {
         
         return defaultMessages[code] || 'An error occurred. Please try again.';
     }
-}
 
+    // Utility method to get last operation result
+    getLastResult() {
+        return this.lastResult;
+    }
+}

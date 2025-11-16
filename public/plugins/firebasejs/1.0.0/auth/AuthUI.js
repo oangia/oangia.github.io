@@ -1,7 +1,9 @@
 import { AuthHTML, AuthStyles, AuthMessage, AuthModal } from './AuthHTML.js';
 import { AuthFormHandler } from './AuthFormHandler.js';
+
 /**
- * AuthUI - Handles UI generation and form attachment
+ * AuthUI - Handles UI generation, display and navigation
+ * All form actions are delegated to AuthFormHandler
  */
 export class AuthUI {
     constructor(firebase, options) {
@@ -16,7 +18,16 @@ export class AuthUI {
     loggedIn(user) {
         this.hideAllForms();
         this.updateLoggedInUI(user);
-        this.formHandler.listenToLogout();
+        this.attachLogoutListener();
+    }
+
+    attachLogoutListener() {
+        const logoutBtn = document.getElementById(this.options.logoutBtnId);
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.formHandler.handleLogout();
+            });
+        }
     }
 
     updateLoggedInUI(user) {
@@ -30,6 +41,7 @@ export class AuthUI {
             const initial = (user.displayName || user.email).charAt(0).toUpperCase();
             userAvatar.textContent = initial;
         }
+        
         const userInfoEl = document.getElementById('user-info');
         const userEmailEl = document.getElementById('user-email');
         if (userInfoEl && userEmailEl) {
@@ -42,7 +54,7 @@ export class AuthUI {
         this.container = document.getElementById(this.options.containerId);
         if (this.hasExistingForms()) {
             // Use existing forms - attach event listeners only
-            const { messageEl } = this.attachToExistingForms(this.formHandler);
+            const { messageEl } = this.attachToExistingForms();
             if (messageEl) {
                 this.message.setElement(messageEl);
             }
@@ -75,68 +87,18 @@ export class AuthUI {
         // Login form
         const loginForm = document.getElementById('auth-login-form-element');
         if (loginForm) {
-            loginForm.addEventListener('submit', async (e) => {
+            loginForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                const email = document.getElementById('auth-email')?.value;
-                const password = document.getElementById('auth-password')?.value;
-                
-                if (!email || !password) {
-                    this.message.show('Please fill in all fields', 'error');
-                    return;
-                }
-                
-                const result = await this.firebase.login(email, password);
-                if (result.success) {
-                    this.message.show('Successfully logged in!', 'success');
-                    if (this.options.callbacks && this.options.callbacks.onLogin) {
-                        this.options.callbacks.onLogin(result.user);
-                    }
-                    // Redirect if URL is set
-                    if (this.options.redirectUrl) {
-                        setTimeout(() => {
-                            window.location.href = this.options.redirectUrl;
-                        }, 1000);
-                    }
-                } else {
-                    this.message.show(this.formHandler.getErrorMessage(result.error), 'error');
-                }
+                this.formHandler.handleLogin(loginForm);
             });
         }
 
         // Register form
         const registerForm = document.getElementById('auth-register-form-element');
         if (registerForm) {
-            registerForm.addEventListener('submit', async (e) => {
+            registerForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                const email = document.getElementById('auth-register-email')?.value;
-                const password = document.getElementById('auth-register-password')?.value;
-                const confirmPassword = document.getElementById('auth-register-confirm')?.value;
-                
-                if (!email || !password || !confirmPassword) {
-                    this.message.show('Please fill in all fields', 'error');
-                    return;
-                }
-                
-                if (password !== confirmPassword) {
-                    this.message.show('Passwords do not match!', 'error');
-                    return;
-                }
-                
-                const result = await this.firebase.register(email, password);
-                if (result.success) {
-                    this.message.show('Account created successfully!', 'success');
-                    if (this.options.callbacks.onRegister) {
-                        this.options.callbacks.onRegister(result.user);
-                    }
-                    // Redirect if URL is set
-                    if (this.options.redirectUrl) {
-                        setTimeout(() => {
-                            window.location.href = this.options.redirectUrl;
-                        }, 1000);
-                    }
-                } else {
-                    this.message.show(this.formHandler.getErrorMessage(result.error), 'error');
-                }
+                this.formHandler.handleRegister(registerForm);
             });
         }
 
@@ -145,19 +107,11 @@ export class AuthUI {
         if (forgotForm) {
             forgotForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const email = document.getElementById('auth-forgot-email')?.value;
-                
-                if (!email) {
-                    this.message.show('Please enter your email', 'error');
-                    return;
-                }
-                
-                const result = await this.firebase.resetPassword(email);
-                if (result.success) {
-                    this.message.show('Password reset email sent! Check your inbox.', 'success');
+                await this.formHandler.handleForgotPassword(forgotForm);
+                // Show login form after successful password reset
+                const result = await this.formHandler.getLastResult();
+                if (result?.success) {
                     setTimeout(() => this.showLoginForm(), 2000);
-                } else {
-                    this.message.show(this.formHandler.getErrorMessage(result.error), 'error');
                 }
             });
         }
@@ -165,25 +119,31 @@ export class AuthUI {
         // Social login buttons
         const googleBtn = document.getElementById('auth-google-btn');
         if (googleBtn) {
-            googleBtn.addEventListener('click', async () => {
-                await this.formHandler.handleGoogleLogin();
+            googleBtn.addEventListener('click', () => {
+                this.formHandler.handleGoogleLogin();
             });
         }
 
         const facebookBtn = document.getElementById('auth-facebook-btn');
         if (facebookBtn) {
-            facebookBtn.addEventListener('click', async () => {
-                await this.formHandler.handleFacebookLogin();
+            facebookBtn.addEventListener('click', () => {
+                this.formHandler.handleFacebookLogin();
             });
         }
 
         // Logout button
         const logoutBtn = document.getElementById('auth-logout-btn');
         if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => this.formHandler.handleLogout());
+            logoutBtn.addEventListener('click', () => {
+                this.formHandler.handleLogout();
+            });
         }
 
         // Navigation links
+        this.attachNavigationLinks();
+    }
+
+    attachNavigationLinks() {
         const showRegister = document.getElementById('auth-show-register');
         if (showRegister) {
             showRegister.addEventListener('click', (e) => {
@@ -236,10 +196,15 @@ export class AuthUI {
     }
 
     hideAllForms() {
-        this.getModal().hide();
+        const forms = ['auth-login-form', 'auth-register-form', 'auth-forgot-form', 'auth-dashboard'];
+        forms.forEach(formId => {
+            const form = document.getElementById(formId);
+            if (form && !form.classList.contains('d-none')) {
+                form.classList.add('d-none');
+            }
+        });
     }
 
-    // Get form values directly from form element
     hasExistingForms() {
         if (!this.container) return false;
         
@@ -250,11 +215,60 @@ export class AuthUI {
         return hasForm || hasInputs || hasButtons;
     }
 
-    attachToExistingForms(formHandler) {
+    attachToExistingForms() {
         if (!this.container) return {};
 
         // Find existing forms
+        const forms = this.findExistingForms();
+        const buttons = this.findExistingButtons();
+        const messageEl = this.findMessageElement();
+
+        // Attach event listeners using FormHandler
+        if (forms.loginForm) {
+            forms.loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.formHandler.handleLogin(forms.loginForm);
+            });
+        }
+
+        if (forms.registerForm) {
+            forms.registerForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.formHandler.handleRegister(forms.registerForm);
+            });
+        }
+
+        if (forms.forgotForm) {
+            forms.forgotForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.formHandler.handleForgotPassword(forms.forgotForm);
+            });
+        }
+
+        if (buttons.googleBtn) {
+            buttons.googleBtn.addEventListener('click', () => {
+                this.formHandler.handleGoogleLogin();
+            });
+        }
+
+        if (buttons.facebookBtn) {
+            buttons.facebookBtn.addEventListener('click', () => {
+                this.formHandler.handleFacebookLogin();
+            });
+        }
+
+        if (buttons.logoutBtn) {
+            buttons.logoutBtn.addEventListener('click', () => {
+                this.formHandler.handleLogout();
+            });
+        }
+
+        return { messageEl };
+    }
+
+    findExistingForms() {
         const allForms = Array.from(this.container.querySelectorAll('form'));
+        
         const loginForm = allForms.find(form => 
             form.id?.toLowerCase().includes('login') || 
             form.id?.toLowerCase().includes('signin') ||
@@ -275,66 +289,39 @@ export class AuthUI {
             form.getAttribute('data-auth') === 'forgot' ||
             form.getAttribute('data-auth') === 'reset'
         );
-        
-        // Find buttons
+
+        return { loginForm, registerForm, forgotForm };
+    }
+
+    findExistingButtons() {
         const allButtons = Array.from(this.container.querySelectorAll('button'));
+        
         const googleBtn = allButtons.find(btn => 
             btn.id?.toLowerCase().includes('google') ||
             btn.getAttribute('data-auth') === 'google' ||
             btn.getAttribute('data-provider') === 'google'
         );
+        
         const facebookBtn = allButtons.find(btn => 
             btn.id?.toLowerCase().includes('facebook') ||
             btn.getAttribute('data-auth') === 'facebook' ||
             btn.getAttribute('data-provider') === 'facebook'
         );
+        
         const logoutBtn = allButtons.find(btn => 
             btn.id?.toLowerCase().includes('logout') ||
             btn.getAttribute('data-auth') === 'logout' ||
             btn.getAttribute('data-action') === 'logout'
         );
-        
-        // Find message element
-        const messageEl = this.container.querySelector('[data-auth="message"], .alert, .message') ||
-                         Array.from(this.container.querySelectorAll('[id*="message"]')).find(el => 
-                             el.id?.toLowerCase().includes('message')
-                         );
 
-        // Attach event listeners
-        if (loginForm) {
-            loginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                formHandler.handleLogin(loginForm);
-            });
-        }
+        return { googleBtn, facebookBtn, logoutBtn };
+    }
 
-        if (registerForm) {
-            registerForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                formHandler.handleRegister(registerForm);
-            });
-        }
-
-        if (forgotForm) {
-            forgotForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                formHandler.handleForgotPassword(forgotForm);
-            });
-        }
-
-        if (googleBtn) {
-            googleBtn.addEventListener('click', () => formHandler.handleGoogleLogin());
-        }
-
-        if (facebookBtn) {
-            facebookBtn.addEventListener('click', () => formHandler.handleFacebookLogin());
-        }
-
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => formHandler.handleLogout());
-        }
-
-        return { messageEl };
+    findMessageElement() {
+        return this.container.querySelector('[data-auth="message"], .alert, .message') ||
+               Array.from(this.container.querySelectorAll('[id*="message"]')).find(el => 
+                   el.id?.toLowerCase().includes('message')
+               );
     }
 
     generateDirectMode(htmlContent) {
@@ -366,4 +353,3 @@ export class AuthUI {
         return this.modal;
     }
 }
-
