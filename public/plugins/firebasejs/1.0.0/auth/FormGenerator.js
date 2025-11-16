@@ -1,7 +1,7 @@
 /**
  * AuthHTML - Generates HTML for auth forms
  */
-export class AuthHTML {
+export class FormGenerator {
     static generate(config) {
         const hasEmail = config.enableEmail;
         const hasGoogle = config.enableGoogle;
