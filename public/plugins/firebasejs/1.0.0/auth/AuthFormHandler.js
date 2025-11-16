@@ -14,8 +14,6 @@ export class AuthFormHandler {
         this.firebase = firebase;
         this.options = options;
         this.lastResult = null;
-        
-        // Handler creates and owns its message instance
         this.message = new AuthMessage(this.options.containerId);
     }
 
