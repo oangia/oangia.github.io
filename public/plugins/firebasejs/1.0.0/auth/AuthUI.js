@@ -33,6 +33,7 @@ export class AuthUI {
      */
     loggedOut() {
         const container = document.getElementById(this.options.containerId);
+        this.navigator.attachNavigationListeners();
         this.eventBinder.attachExistingFormListeners(container);
     }
 }
