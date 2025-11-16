@@ -1,5 +1,4 @@
 import { AuthFormHandler } from './AuthFormHandler.js';
-import { AuthNavigator } from './AuthNavigator.js';
 import { AuthUIManager } from './AuthUIManager.js';
 import { AuthEventBinder } from './AuthEventBinder.js';
 
@@ -15,9 +14,8 @@ export class AuthUI {
         
         // Initialize components
         this.formHandler = new AuthFormHandler(this.firebase, this.options);
-        this.navigator = new AuthNavigator();
         this.uiManager = new AuthUIManager(this.options);
-        this.eventBinder = new AuthEventBinder(this.formHandler, this.navigator);
+        this.eventBinder = new AuthEventBinder(this.formHandler);
     }
 
     /**
@@ -33,7 +31,6 @@ export class AuthUI {
      */
     loggedOut() {
         const container = document.getElementById(this.options.containerId);
-        this.navigator.attachNavigationListeners();
         this.eventBinder.attachExistingFormListeners(container);
     }
 }

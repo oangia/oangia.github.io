@@ -1,11 +1,12 @@
+import { AuthNavigator } from './AuthNavigator.js';
 /**
  * AuthEventBinder - Handles event listener attachment
  * Binds UI events to form handler actions
  */
 export class AuthEventBinder {
-    constructor(formHandler, navigator) {
+    constructor(formHandler) {
         this.formHandler = formHandler;
-        this.navigator = navigator;
+        this.navigator = new AuthNavigator();
     }
 
     /**
@@ -25,7 +26,7 @@ export class AuthEventBinder {
      */
     attachExistingFormListeners(container) {
         if (!container) return;
-
+        this.navigator.attachNavigationListeners();
         const forms = this.findExistingForms(container);
         const buttons = this.findExistingButtons(container);
 
