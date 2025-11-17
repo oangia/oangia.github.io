@@ -29,7 +29,12 @@ Andrew, Tristan Tate: maslow - talk, sell, agree and turn any no into them being
 Nhat Huynh: Be a man worth respect - useful, excellent, make people feel good (music, talking).
 
 # Task
-- Html editor in tools
+- Readibility formulas
+- Google analytic
+- Navigation
+- Simple front end library
+
+
 
 TEXT DIFFICULTY
 Hard Words: 26 (36%)
