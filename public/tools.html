@@ -4,135 +4,51 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Code Runner</title>
+
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
 <style>
-  body, html { height:100%; margin:0; overflow: hidden; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
   #code-runner { width: 100%; height: 100%; border: none; }
-  .floating-btn {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 1050;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-  }
-  .modal.fade .modal-dialog {
-      max-width: 90vw;
-      width: 90vw;
-  }
-  .modal-dialog {
-      margin: 1rem auto;
-  }
-  .modal-content {
-      max-height: calc(100vh - 2rem);
-      height: calc(100vh - 2rem);
-      display: flex;
-      flex-direction: column;
-  }
-  .modal-header {
-      flex-shrink: 0;
-      border-bottom: 1px solid #dee2e6;
-  }
-  .modal-body {
-      overflow: visible;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      flex: 1;
-      min-height: 0;
-      padding: 1.5rem;
-  }
-  .modal-footer {
-      flex-shrink: 0;
-      border-top: 1px solid #dee2e6;
-  }
-  #file-name {
-      flex-shrink: 0;
-      padding: 0.75rem;
-      font-size: 1rem;
-  }
-  #file-content {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      padding: 1rem;
-      font-size: 0.95rem;
-      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-      resize: none;
-  }
-  #auth-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-  }
-  #auth-container {
-      background: white;
-      padding: 2rem;
-      border-radius: 10px;
-      max-width: 400px;
-      width: 90%;
-  }
-  .user-info {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: white;
-      padding: 10px 15px;
-      border-radius: 5px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-  }
-  .user-info span {
-      font-size: 14px;
-      color: #333;
-  }
-  .user-info button {
-      padding: 5px 10px;
-      font-size: 12px;
-  }
+  .modal-dialog { max-width: 90vw !important; width: 90vw; margin: 1rem auto; }
+  .modal-content { height: calc(100vh - 2rem); }
+  #file-content { min-height: 0; overflow-y: auto; height: 100%; resize: none; }
 </style>
 </head>
-<body>
 
-<!-- User info and logout button -->
-<div class="user-info" id="user-info" style="display: none;">
-  <span id="user-email"></span>
-  <button class="btn btn-sm btn-danger" id="logout-btn">Logout</button>
+<body class="position-relative">
+
+<!-- User info -->
+<div id="user-info" class="position-fixed top-0 end-0 m-3 bg-white shadow-sm rounded d-flex align-items-center gap-2 px-3 py-2" style="display:none;">
+  <span id="user-email" class="small text-dark"></span>
+  <button id="logout-btn" class="btn btn-sm btn-danger">Logout</button>
 </div>
 
-<button class="btn btn-primary floating-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#crud-offcanvas" aria-controls="crud-offcanvas">
-  <i class="bi bi-gear-fill"></i>
+<!-- Floating settings button -->
+<button class="btn btn-primary rounded-circle position-fixed bottom-0 end-0 m-4 p-0 d-flex align-items-center justify-content-center"
+        style="width:60px; height:60px;" 
+        data-bs-toggle="offcanvas" 
+        data-bs-target="#crud-offcanvas">
+  <i class="bi bi-gear-fill fs-3"></i>
 </button>
 
-<div class="offcanvas offcanvas-start" tabindex="-1" id="crud-offcanvas" aria-labelledby="crud-offcanvas-label">
+<!-- Offcanvas -->
+<div class="offcanvas offcanvas-start" id="crud-offcanvas">
   <div class="offcanvas-header">
-    <h5 class="offcanvas-title" id="crud-offcanvas-label">Files</h5>
-    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    <h5 class="offcanvas-title">Files</h5>
+    <button class="btn-close" data-bs-dismiss="offcanvas"></button>
   </div>
+
   <div class="offcanvas-body">
-    <button class="btn btn-success mb-3" id="add-new-file-btn">Add New File</button>
+    <button id="add-new-file-btn" class="btn btn-success mb-3 w-100">Add New File</button>
+
     <div class="table-responsive">
       <table class="table table-bordered table-hover">
-        <thead>
+        <thead class="table-light">
           <tr>
             <th>Name</th>
-            <th>Actions</th>
+            <th style="width:120px;">Actions</th>
           </tr>
         </thead>
         <tbody id="files"></tbody>
@@ -141,72 +57,78 @@
   </div>
 </div>
 
-<div class="modal fade" id="file-modal" tabindex="-1" aria-labelledby="file-modal-label" aria-hidden="true">
+<!-- Modal -->
+<div class="modal fade" id="file-modal" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content">
+    <div class="modal-content d-flex flex-column">
+      
       <div class="modal-header">
-        <h5 class="modal-title" id="file-modal-label">Add/Edit File</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 id="file-modal-label" class="modal-title">Add/Edit File</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
-        <input type="text" id="file-name" class="form-control mb-2" placeholder="File name">
-        <textarea id="file-content" class="form-control" placeholder="Write code here..."></textarea>
+
+      <div class="modal-body d-flex flex-column gap-2 p-3 flex-grow-1">
+        <input id="file-name" class="form-control" placeholder="File name">
+        <textarea id="file-content" class="form-control flex-grow-1" placeholder="Write code here..."></textarea>
       </div>
+
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary" id="save-file-btn">Save</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button id="save-file-btn" class="btn btn-primary">Save</button>
       </div>
+
     </div>
   </div>
 </div>
 
+<!-- Iframe Code Runner -->
 <iframe id="code-runner"></iframe>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://oangia.github.io/plugins/log.js"></script>
+
 <script type="module">
 import { getFirestoreWithAuth } from "https://oangia.github.io/firebase/1.0.0/firebase.js";
-const firestore = getFirestoreWithAuth('guard', {
-  loginUrl: './login.html',
-  logoutBtnId: 'logout-btn'
+
+const firestore = getFirestoreWithAuth("guard", {
+  loginUrl: "./login.html",
+  logoutBtnId: "logout-btn"
 });
-// Simple auth protection - just config
+
 let currentFileName = null;
 
 const filesEl = document.getElementById("files");
 const iframeEl = document.getElementById("code-runner");
-const fileModalEl = document.getElementById('file-modal');
+const fileModalEl = document.getElementById("file-modal");
 const fileModal = new bootstrap.Modal(fileModalEl);
 
-const modalFileNameEl = fileModalEl.querySelector('#file-name');
-const modalFileContentEl = fileModalEl.querySelector('#file-content');
-const modalTitleEl = fileModalEl.querySelector('#file-modal-label');
+const modalFileNameEl = document.getElementById("file-name");
+const modalFileContentEl = document.getElementById("file-content");
+const modalTitleEl = document.getElementById("file-modal-label");
 
 const loadFiles = async () => {
   const filesCol = await firestore.readAll("files");
   filesEl.innerHTML = "";
+
   filesCol.forEach(data => {
     const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${data.name}</td>
+      <td class="d-flex gap-1">
+        <button class="btn btn-sm btn-success">Run</button>
+        <button class="btn btn-sm btn-primary">Edit</button>
+        <button class="btn btn-sm btn-danger">Delete</button>
+      </td>
+    `;
 
-    const nameTd = document.createElement("td");
-    nameTd.textContent = data.name;
-    tr.appendChild(nameTd);
+    const [ runBtn, editBtn, delBtn ] = tr.querySelectorAll("button");
 
-    const actionsTd = document.createElement("td");
-
-    const runBtn = document.createElement("button");
-    runBtn.textContent = "Run";
-    runBtn.className = "btn btn-sm btn-success me-1";
     runBtn.onclick = () => {
-        runCode(data.code);
-        const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('crud-offcanvas'));
-        offcanvas.hide();
-    }
+      runCode(data.code);
+      bootstrap.Offcanvas.getInstance(document.getElementById('crud-offcanvas')).hide();
+    };
 
-    const editBtn = document.createElement("button");
-    editBtn.textContent = "Edit";
-    editBtn.className = "btn btn-sm btn-primary me-1";
     editBtn.onclick = () => {
       currentFileName = data.name;
       modalTitleEl.textContent = "Edit File";
@@ -215,56 +137,48 @@ const loadFiles = async () => {
       fileModal.show();
     };
 
-    const deleteBtn = document.createElement("button");
-    deleteBtn.textContent = "Delete";
-    deleteBtn.className = "btn btn-sm btn-danger";
-    deleteBtn.onclick = async () => {
+    delBtn.onclick = async () => {
       if (confirm("Delete this file?")) {
-        await firestore.delete('files', data.name);
-        if (currentFileName === data.name) {
-          currentFileName = null;
-          iframeEl.srcdoc = '';
-        }
+        await firestore.delete("files", data.name);
+        if (currentFileName === data.name) iframeEl.srcdoc = "";
         loadFiles();
       }
     };
 
-    actionsTd.append(runBtn, editBtn, deleteBtn);
-    tr.appendChild(actionsTd);
     filesEl.appendChild(tr);
   });
-}
-
-const runCode = (code) => {
-  const docFrame = iframeEl.contentDocument || iframeEl.contentWindow.document;
-  docFrame.open();
-  docFrame.write(code);
-  docFrame.close();
 };
 
-document.getElementById('add-new-file-btn').onclick = () => {
-    currentFileName = null;
-    modalTitleEl.textContent = 'Add New File';
-    modalFileNameEl.value = '';
-    modalFileContentEl.value = '';
-    fileModal.show();
+const runCode = code => {
+  const doc = iframeEl.contentDocument;
+  doc.open();
+  doc.write(code);
+  doc.close();
 };
 
-document.getElementById('save-file-btn').onclick = async () => {
+document.getElementById("add-new-file-btn").onclick = () => {
+  currentFileName = null;
+  modalTitleEl.textContent = "Add New File";
+  modalFileNameEl.value = "";
+  modalFileContentEl.value = "";
+  fileModal.show();
+};
+
+document.getElementById("save-file-btn").onclick = async () => {
   const name = modalFileNameEl.value.trim();
   const code = modalFileContentEl.value;
 
   if (!name) return alert("Enter file name");
 
   if (currentFileName && name !== currentFileName) {
-    await firestore.createWithId('files', name, {name, code});
-    await firestore.delete('files', currentFileName);
+    await firestore.createWithId("files", name, { name, code });
+    await firestore.delete("files", currentFileName);
   } else if (currentFileName) {
-    await firestore.update('files', currentFileName, {code});
+    await firestore.update("files", currentFileName, { code });
   } else {
-    await firestore.createWithId('files', name, {name, code});
+    await firestore.createWithId("files", name, { name, code });
   }
-  
+
   currentFileName = name;
   loadFiles();
   fileModal.hide();
@@ -272,5 +186,6 @@ document.getElementById('save-file-btn').onclick = async () => {
 
 loadFiles();
 </script>
+
 </body>
 </html>
