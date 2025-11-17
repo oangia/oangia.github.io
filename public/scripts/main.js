@@ -398,8 +398,6 @@ function showToast(message) {
 // Event listeners
 document.getElementById('btnCreate').addEventListener('click', openCreateModal);
 document.getElementById('btnCreateEmpty').addEventListener('click', openCreateModal);
-document.getElementById('btnCloseModal').addEventListener('click', closeModal);
-document.getElementById('btnCancel').addEventListener('click', closeModal);
 document.getElementById('btnCloseDelete').addEventListener('click', closeDeleteModal);
 document.getElementById('btnCancelDelete').addEventListener('click', closeDeleteModal);
 document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
