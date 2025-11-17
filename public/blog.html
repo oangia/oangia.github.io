@@ -8,7 +8,7 @@
   
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  
+  <link href="/styles/app.css" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -16,105 +16,6 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  
-  <style>
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f9fafb;
-    }
-
-    .header {
-      background: white;
-      border-bottom: 1px solid #e5e7eb;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .logo {
-      font-size: 24px;
-      font-weight: 700;
-      color: #111827;
-      text-decoration: none;
-    }
-
-    .admin-link {
-      background: #f3f4f6;
-      color: #374151;
-      text-decoration: none;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-
-    .admin-link:hover {
-      background: #e5e7eb;
-    }
-
-    .post-card {
-      background: white;
-      transition: all 0.3s;
-      cursor: pointer;
-    }
-
-    .post-card:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-      transform: translateY(-2px);
-    }
-
-    .post-image {
-      width: 100%;
-      height: 200px;
-      object-fit: cover;
-      background: #f3f4f6;
-    }
-
-    .post-image.placeholder {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #9ca3af;
-      font-size: 14px;
-    }
-
-    .post-view .post-image {
-      height: 400px;
-    }
-
-    .post-body {
-      white-space: pre-wrap;
-    }
-
-    .read-more {
-      color: #2563eb;
-      font-weight: 500;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .read-more:hover {
-      color: #1d4ed8;
-    }
-
-    .back-button {
-      color: #6b7280;
-      text-decoration: none;
-      font-weight: 500;
-      transition: color 0.2s;
-    }
-
-    .back-button:hover {
-      color: #111827;
-    }
-
-    @media (max-width: 768px) {
-      .post-view .post-image {
-        height: 250px;
-      }
-    }
-  </style>
 </head>
 <body>
   <header class="header py-3">
