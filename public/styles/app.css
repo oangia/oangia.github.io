@@ -264,7 +264,7 @@ body { background: #f5f5f5; }
       .card { border: none !important; box-shadow: none !important; background: transparent !important; }
     }
 
-.container { background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); padding: 30px; max-width: 450px; width: 100%; }
+#login { background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); padding: 10px; max-width: 450px; width: 100%; }
 h1 { text-align: center; color: #333; margin-bottom: 30px; }
 .auth-ui { width: 100%; }
 .auth-message { padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; display: none; }
