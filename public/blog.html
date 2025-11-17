@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Blog</title>
   <link rel="icon" type="image/png" href="/favicon.png">
+  
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,36 +18,18 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: #f9fafb;
-      color: #1f2937;
-      line-height: 1.6;
     }
 
     .header {
       background: white;
       border-bottom: 1px solid #e5e7eb;
-      padding: 20px 0;
       position: sticky;
       top: 0;
       z-index: 100;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .header-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
     }
 
     .logo {
@@ -54,12 +40,9 @@
     }
 
     .admin-link {
-      padding: 8px 16px;
       background: #f3f4f6;
       color: #374151;
       text-decoration: none;
-      border-radius: 6px;
-      font-size: 14px;
       font-weight: 500;
       transition: all 0.2s;
     }
@@ -68,63 +51,14 @@
       background: #e5e7eb;
     }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 40px 24px;
-    }
-
-    .loading {
-      text-align: center;
-      padding: 60px 20px;
-      color: #6b7280;
-      font-size: 16px;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 80px 20px;
-    }
-
-    .empty-state svg {
-      width: 80px;
-      height: 80px;
-      color: #d1d5db;
-      margin-bottom: 16px;
-    }
-
-    .empty-state h2 {
-      font-size: 24px;
-      color: #374151;
-      margin-bottom: 8px;
-    }
-
-    .empty-state p {
-      color: #6b7280;
-      font-size: 16px;
-    }
-
-    /* List View */
-    .blog-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 24px;
-      margin-bottom: 40px;
-    }
-
     .post-card {
       background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       transition: all 0.3s;
       cursor: pointer;
-      display: flex;
-      flex-direction: column;
     }
 
     .post-card:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
       transform: translateY(-2px);
     }
 
@@ -143,39 +77,17 @@
       font-size: 14px;
     }
 
-    .post-content {
-      padding: 20px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
+    .post-view .post-image {
+      height: 400px;
     }
 
-    .post-date {
-      font-size: 13px;
-      color: #6b7280;
-      margin-bottom: 8px;
-    }
-
-    .post-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: #111827;
-      margin-bottom: 12px;
-      line-height: 1.3;
-    }
-
-    .post-excerpt {
-      color: #4b5563;
-      font-size: 14px;
-      line-height: 1.6;
-      margin-bottom: 16px;
-      flex: 1;
+    .post-body {
+      white-space: pre-wrap;
     }
 
     .read-more {
       color: #2563eb;
       font-weight: 500;
-      font-size: 14px;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
@@ -186,25 +98,10 @@
       color: #1d4ed8;
     }
 
-    /* Single Post View */
-    .post-view {
-      background: white;
-      border-radius: 12px;
-      padding: 40px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      max-width: 800px;
-      margin: 0 auto;
-    }
-
     .back-button {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
       color: #6b7280;
       text-decoration: none;
-      font-size: 14px;
       font-weight: 500;
-      margin-bottom: 24px;
       transition: color 0.2s;
     }
 
@@ -212,49 +109,7 @@
       color: #111827;
     }
 
-    .post-view .post-image {
-      width: 100%;
-      height: 400px;
-      border-radius: 8px;
-      margin-bottom: 32px;
-    }
-
-    .post-view .post-date {
-      font-size: 14px;
-      margin-bottom: 12px;
-    }
-
-    .post-view .post-title {
-      font-size: 36px;
-      font-weight: 700;
-      margin-bottom: 24px;
-      line-height: 1.2;
-    }
-
-    .post-view .post-body {
-      font-size: 16px;
-      line-height: 1.8;
-      color: #374151;
-      white-space: pre-wrap;
-    }
-
-    .hidden {
-      display: none;
-    }
-
     @media (max-width: 768px) {
-      .blog-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .post-view {
-        padding: 24px;
-      }
-
-      .post-view .post-title {
-        font-size: 28px;
-      }
-
       .post-view .post-image {
         height: 250px;
       }
@@ -262,32 +117,38 @@
   </style>
 </head>
 <body>
-  <header class="header">
-    <div class="header-content">
-      <a href="#" class="logo" onclick="showListView(); return false;">My Blog</a>
-      <a href="admin.html" class="admin-link">Admin Panel</a>
+  <header class="header py-3">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center">
+        <a href="#" class="logo" onclick="showListView(); return false;">My Blog</a>
+        <a href="admin.html" class="admin-link btn btn-sm px-3 py-2 rounded">Admin Panel</a>
+      </div>
     </div>
   </header>
 
-  <div class="container">
-    <div id="loading" class="loading">Loading posts...</div>
+  <div class="container py-5">
+    <div id="loading" class="text-center py-5 text-secondary">
+      Loading posts...
+    </div>
 
-    <div id="emptyState" class="empty-state hidden">
-      <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <div id="emptyState" class="text-center py-5 d-none">
+      <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-secondary mb-3">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
         <polyline points="14 2 14 8 20 8"></polyline>
         <line x1="16" y1="13" x2="8" y2="13"></line>
         <line x1="16" y1="17" x2="8" y2="17"></line>
       </svg>
-      <h2>No posts yet</h2>
-      <p>Check back soon for new content!</p>
+      <h2 class="h4 text-dark mb-2">No posts yet</h2>
+      <p class="text-secondary">Check back soon for new content!</p>
     </div>
 
     <!-- List View -->
-    <div id="listView" class="blog-grid hidden"></div>
+    <div id="listView" class="row g-4 d-none"></div>
 
     <!-- Single Post View -->
-    <div id="postView" class="post-view hidden"></div>
+    <div id="postView" class="d-none">
+      <div class="bg-white rounded-3 shadow-sm p-4 p-md-5" style="max-width: 800px; margin: 0 auto;"></div>
+    </div>
   </div>
 
   <script>
@@ -319,9 +180,9 @@
     // Fetch all posts
     async function fetchPosts() {
       try {
-        elements.loading.classList.remove('hidden');
-        elements.emptyState.classList.add('hidden');
-        elements.listView.classList.add('hidden');
+        elements.loading.classList.remove('d-none');
+        elements.emptyState.classList.add('d-none');
+        elements.listView.classList.add('d-none');
 
         const snapshot = await db.collection(COLLECTION_NAME)
           .orderBy('publishDate', 'desc')
@@ -335,24 +196,24 @@
           });
         });
 
-        elements.loading.classList.add('hidden');
+        elements.loading.classList.add('d-none');
 
         if (allPosts.length === 0) {
-          elements.emptyState.classList.remove('hidden');
+          elements.emptyState.classList.remove('d-none');
         } else {
           renderPostList();
         }
       } catch (error) {
         console.error('Error fetching posts:', error);
-        elements.loading.classList.add('hidden');
-        elements.emptyState.classList.remove('hidden');
+        elements.loading.classList.add('d-none');
+        elements.emptyState.classList.remove('d-none');
       }
     }
 
     // Render post list
     function renderPostList() {
-      elements.listView.classList.remove('hidden');
-      elements.postView.classList.add('hidden');
+      elements.listView.classList.remove('d-none');
+      elements.postView.classList.add('d-none');
 
       elements.listView.innerHTML = allPosts.map(post => {
         const date = new Date(post.publishDate).toLocaleDateString('en-US', {
@@ -365,18 +226,20 @@
         const hasImage = post.featuredImage && post.featuredImage.trim() !== '';
 
         return `
-          <div class="post-card" onclick="showPost('${post.id}')">
-            ${hasImage 
-              ? `<img src="${escapeHtml(post.featuredImage)}" alt="${escapeHtml(post.title)}" class="post-image">`
-              : `<div class="post-image placeholder">No image</div>`
-            }
-            <div class="post-content">
-              <div class="post-date">${date}</div>
-              <h2 class="post-title">${escapeHtml(post.title)}</h2>
-              <p class="post-excerpt">${escapeHtml(excerpt)}</p>
-              <a href="#" class="read-more" onclick="showPost('${post.id}'); return false;">
-                Read more →
-              </a>
+          <div class="col-12 col-md-6 col-lg-4">
+            <div class="post-card card h-100 shadow-sm rounded-3 overflow-hidden" onclick="showPost('${post.id}')">
+              ${hasImage 
+                ? `<img src="${escapeHtml(post.featuredImage)}" alt="${escapeHtml(post.title)}" class="post-image card-img-top">`
+                : `<div class="post-image placeholder card-img-top">No image</div>`
+              }
+              <div class="card-body d-flex flex-column">
+                <div class="small text-secondary mb-2">${date}</div>
+                <h2 class="h5 fw-semibold text-dark mb-3">${escapeHtml(post.title)}</h2>
+                <p class="text-secondary small mb-3 flex-grow-1">${escapeHtml(excerpt)}</p>
+                <a href="#" class="read-more small" onclick="showPost('${post.id}'); return false;">
+                  Read more →
+                </a>
+              </div>
             </div>
           </div>
         `;
@@ -389,8 +252,8 @@
       if (!post) return;
 
       currentPostId = postId;
-      elements.listView.classList.add('hidden');
-      elements.postView.classList.remove('hidden');
+      elements.listView.classList.add('d-none');
+      elements.postView.classList.remove('d-none');
 
       const date = new Date(post.publishDate).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -400,17 +263,17 @@
       
       const hasImage = post.featuredImage && post.featuredImage.trim() !== '';
 
-      elements.postView.innerHTML = `
-        <a href="#" class="back-button" onclick="showListView(); return false;">
+      elements.postView.querySelector('div').innerHTML = `
+        <a href="#" class="back-button d-inline-flex align-items-center gap-2 mb-4 small" onclick="showListView(); return false;">
           ← Back to all posts
         </a>
         ${hasImage 
-          ? `<img src="${escapeHtml(post.featuredImage)}" alt="${escapeHtml(post.title)}" class="post-image">`
+          ? `<img src="${escapeHtml(post.featuredImage)}" alt="${escapeHtml(post.title)}" class="post-image rounded-3 mb-4">`
           : ''
         }
-        <div class="post-date">${date}</div>
-        <h1 class="post-title">${escapeHtml(post.title)}</h1>
-        <div class="post-body">${escapeHtml(post.content)}</div>
+        <div class="small text-secondary mb-3">${date}</div>
+        <h1 class="display-5 fw-bold text-dark mb-4">${escapeHtml(post.title)}</h1>
+        <div class="post-body fs-6 lh-lg text-dark">${escapeHtml(post.content)}</div>
       `;
 
       window.scrollTo(0, 0);
@@ -419,7 +282,7 @@
     // Show list view
     function showListView() {
       currentPostId = null;
-      elements.postView.classList.add('hidden');
+      elements.postView.classList.add('d-none');
       renderPostList();
       window.scrollTo(0, 0);
     }
