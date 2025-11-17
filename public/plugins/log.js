@@ -1,6 +1,36 @@
 (function () {
-  function init() {
-    const panel = document.createElement("div");
+  let panel = null;
+  const buffer = [];
+
+  // Save original console.log
+  const originalLog = console.log;
+
+  // Override console.log immediately
+  console.log = function (...args) {
+    originalLog.apply(console, args);
+
+    const msg = args
+      .map(a => typeof a === "object" ? JSON.stringify(a) : String(a))
+      .join(" ");
+
+    if (panel) {
+      // UI exists → print instantly
+      addMessage(msg);
+    } else {
+      // UI not ready → store in buffer
+      buffer.push(msg);
+    }
+  };
+
+  function addMessage(msg) {
+    const line = document.createElement("div");
+    line.textContent = msg;
+    panel.appendChild(line);
+    panel.scrollTop = panel.scrollHeight;
+  }
+
+  function initPanel() {
+    panel = document.createElement("div");
     panel.id = "console-viewer";
     panel.style.position = "fixed";
     panel.style.left = "0";
@@ -18,26 +48,15 @@
 
     document.body.appendChild(panel);
 
-    const originalLog = console.log;
-
-    console.log = function (...args) {
-      originalLog.apply(console, args);
-
-      const msg = args
-        .map(a => typeof a === "object" ? JSON.stringify(a) : String(a))
-        .join(" ");
-
-      const line = document.createElement("div");
-      line.textContent = msg;
-      panel.appendChild(line);
-
-      panel.scrollTop = panel.scrollHeight;
-    };
+    // Flush any stored messages
+    buffer.forEach(addMessage);
+    buffer.length = 0;
   }
 
+  // Build panel only when DOM is ready
   if (document.readyState === "complete" || document.readyState === "interactive") {
-    init();
+    initPanel();
   } else {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", initPanel);
   }
 })();
