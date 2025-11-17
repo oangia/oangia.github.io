@@ -5,34 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Blog</title>
   <link rel="icon" type="image/png" href="/favicon.png">
-  
+
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
-<body>
-  <header class="header py-3">
-    <div class="container">
-      <div class="d-flex justify-content-between align-items-center">
-        <a href="#" class="logo" onclick="showListView(); return false;">My Blog</a>
-        <a href="admin.html" class="admin-link btn btn-sm px-3 py-2 rounded">Admin Panel</a>
-      </div>
+<body class="bg-light">
+
+  <!-- Header -->
+  <header class="py-3 border-bottom bg-white">
+    <div class="container d-flex justify-content-between align-items-center">
+      <a href="#" class="fs-4 fw-bold text-dark text-decoration-none" onclick="showListView(); return false;">My Blog</a>
+      <a href="admin.html" class="btn btn-sm btn-outline-primary px-3 py-2 rounded">Admin Panel</a>
     </div>
   </header>
 
-  <div class="container py-5">
-    <div id="loading" class="text-center py-5 text-secondary">
+  <main class="container py-5">
+    <!-- Loading state -->
+    <div id="loading" class="text-center text-secondary py-5">
       Loading posts...
     </div>
 
+    <!-- Empty state -->
     <div id="emptyState" class="text-center py-5 d-none">
-      <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-secondary mb-3">
+      <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" fill="none" stroke="currentColor" stroke-width="1.5" class="text-secondary mb-3">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
         <polyline points="14 2 14 8 20 8"></polyline>
         <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -47,9 +49,9 @@
 
     <!-- Single Post View -->
     <div id="postView" class="d-none">
-      <div class="bg-white rounded-3 shadow-sm p-4 p-md-5" style="max-width: 800px; margin: 0 auto;"></div>
+      <article class="bg-white rounded-3 shadow-sm p-4 p-md-5 mx-auto" style="max-width: 800px;"></article>
     </div>
-  </div>
+  </main>
 
   <script>
     // Initialize Firebase
@@ -77,7 +79,6 @@
       postView: document.getElementById('postView')
     };
 
-    // Fetch all posts
     async function fetchPosts() {
       try {
         elements.loading.classList.remove('d-none');
@@ -90,10 +91,7 @@
 
         allPosts = [];
         snapshot.forEach((doc) => {
-          allPosts.push({
-            id: doc.id,
-            ...doc.data()
-          });
+          allPosts.push({ id: doc.id, ...doc.data() });
         });
 
         elements.loading.classList.add('d-none');
@@ -110,35 +108,25 @@
       }
     }
 
-    // Render post list
     function renderPostList() {
       elements.listView.classList.remove('d-none');
       elements.postView.classList.add('d-none');
 
       elements.listView.innerHTML = allPosts.map(post => {
-        const date = new Date(post.publishDate).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-        
+        const date = new Date(post.publishDate).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
         const excerpt = post.content.substring(0, 150) + (post.content.length > 150 ? '...' : '');
         const hasImage = post.featuredImage && post.featuredImage.trim() !== '';
 
         return `
           <div class="col-12 col-md-6 col-lg-4">
-            <div class="post-card card h-100 shadow-sm rounded-3 overflow-hidden" onclick="showPost('${post.id}')">
-              ${hasImage 
-                ? `<img src="${escapeHtml(post.featuredImage)}" alt="${escapeHtml(post.title)}" class="post-image card-img-top">`
-                : `<div class="post-image placeholder card-img-top">No image</div>`
-              }
+            <div class="card h-100 shadow-sm rounded-3 overflow-hidden cursor-pointer" onclick="showPost('${post.id}')">
+              ${hasImage ? `<img src="${escapeHtml(post.featuredImage)}" alt="${escapeHtml(post.title)}" class="card-img-top">`
+                         : `<div class="bg-light d-flex align-items-center justify-content-center card-img-top" style="height:150px;">No image</div>`}
               <div class="card-body d-flex flex-column">
                 <div class="small text-secondary mb-2">${date}</div>
                 <h2 class="h5 fw-semibold text-dark mb-3">${escapeHtml(post.title)}</h2>
                 <p class="text-secondary small mb-3 flex-grow-1">${escapeHtml(excerpt)}</p>
-                <a href="#" class="read-more small" onclick="showPost('${post.id}'); return false;">
-                  Read more →
-                </a>
+                <a href="#" class="small text-primary mt-auto" onclick="showPost('${post.id}'); return false;">Read more →</a>
               </div>
             </div>
           </div>
@@ -146,7 +134,6 @@
       }).join('');
     }
 
-    // Show individual post
     function showPost(postId) {
       const post = allPosts.find(p => p.id === postId);
       if (!post) return;
@@ -155,31 +142,20 @@
       elements.listView.classList.add('d-none');
       elements.postView.classList.remove('d-none');
 
-      const date = new Date(post.publishDate).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      
+      const date = new Date(post.publishDate).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
       const hasImage = post.featuredImage && post.featuredImage.trim() !== '';
 
-      elements.postView.querySelector('div').innerHTML = `
-        <a href="#" class="back-button d-inline-flex align-items-center gap-2 mb-4 small" onclick="showListView(); return false;">
-          ← Back to all posts
-        </a>
-        ${hasImage 
-          ? `<img src="${escapeHtml(post.featuredImage)}" alt="${escapeHtml(post.title)}" class="post-image rounded-3 mb-4">`
-          : ''
-        }
+      elements.postView.querySelector('article').innerHTML = `
+        <a href="#" class="d-inline-flex align-items-center gap-2 mb-4 small text-decoration-none" onclick="showListView(); return false;">← Back to all posts</a>
+        ${hasImage ? `<img src="${escapeHtml(post.featuredImage)}" alt="${escapeHtml(post.title)}" class="img-fluid rounded-3 mb-4">` : ''}
         <div class="small text-secondary mb-3">${date}</div>
         <h1 class="display-5 fw-bold text-dark mb-4">${escapeHtml(post.title)}</h1>
-        <div class="post-body fs-6 lh-lg text-dark">${escapeHtml(post.content)}</div>
+        <div class="fs-6 lh-lg text-dark">${escapeHtml(post.content)}</div>
       `;
 
       window.scrollTo(0, 0);
     }
 
-    // Show list view
     function showListView() {
       currentPostId = null;
       elements.postView.classList.add('d-none');
@@ -193,7 +169,6 @@
       return div.innerHTML;
     }
 
-    // Initialize
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', fetchPosts);
     } else {
