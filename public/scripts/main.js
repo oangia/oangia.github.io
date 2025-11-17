@@ -398,8 +398,6 @@ function showToast(message) {
 // Event listeners
 document.getElementById('btnCreate').addEventListener('click', openCreateModal);
 document.getElementById('btnCreateEmpty').addEventListener('click', openCreateModal);
-document.getElementById('btnCloseDelete').addEventListener('click', closeDeleteModal);
-document.getElementById('btnCancelDelete').addEventListener('click', closeDeleteModal);
 document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
 elements.postForm.addEventListener('submit', handleFormSubmit);
 
@@ -409,17 +407,6 @@ elements.btnNext.addEventListener('click', goToNextPage);
 elements.btnLast.addEventListener('click', goToLastPage);
 elements.pageSize.addEventListener('change', changePageSize);
 
-elements.modalOverlay.addEventListener('click', (e) => {
-  if (e.target === elements.modalOverlay) {
-    closeModal();
-  }
-});
-
-elements.deleteModal.addEventListener('click', (e) => {
-  if (e.target === elements.deleteModal) {
-    closeDeleteModal();
-  }
-});
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {

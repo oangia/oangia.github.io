@@ -30,7 +30,7 @@
         <div id="difficulty" class="mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded border border-warning border-2"></div>
         <div id="sentence-stats" class="mb-2 mb-sm-3 p-2 p-sm-3 bg-success-subtle rounded"></div>
         <div id="paragraph-stats" class="mb-2 mb-sm-3 p-2 p-sm-3 bg-body-secondary rounded"></div>
-        <div id="word-stats" class="mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded" style="background: #fff8e1 !important;"></div>
+        <div id="word-stats" class="mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded" style="background: #372f15 !important;"></div>
         <div id="syllable-stats" class="mb-2 mb-sm-3 p-2 p-sm-3 rounded" style="background: #fce4ec;"></div>
         <div id="results" class="mb-2 mb-sm-3"></div>
       </div>
@@ -268,13 +268,13 @@ document.getElementById('analyze').addEventListener('click', () => {
       div.className += ' border-2';
     }
     div.innerHTML = `
-      <h3 class="fs-6 mb-2 text-dark">${res.name}</h3>
+      <h3 class="fs-6 mb-2">${res.name}</h3>
       <div class="score-box px-3 py-2 rounded mb-2 fs-6" style="background:${res.color};color:#fff;">
         Score: <b>${res.score.toFixed(2)}</b>
       </div>
       <div>Reading Difficulty: <b>${res.difficulty}</b></div>
       <div>Grade Level: <b>${res.grade}</b> | Age Range: <b>${res.age}</b></div>
-      <div class="mt-2 p-2 bg-light rounded small">${res.formulaHTML}</div>
+      <div class="mt-2 p-2 bg rounded small">${res.formulaHTML}</div>
     `;
     output.appendChild(div);
   });
