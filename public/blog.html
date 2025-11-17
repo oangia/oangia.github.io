@@ -150,7 +150,7 @@
         ${hasImage ? `<img src="${escapeHtml(post.featuredImage)}" alt="${escapeHtml(post.title)}" class="img-fluid rounded-3 mb-4">` : ''}
         <div class="small text-secondary mb-3">${date}</div>
         <h1 class="display-5 fw-bold mb-4">${escapeHtml(post.title)}</h1>
-        <div class="fs-6 lh-lg text-dark">${escapeHtml(post.content)}</div>
+        <div class="fs-6 lh-lg ">${escapeHtml(post.content)}</div>
       `;
 
       window.scrollTo(0, 0);
