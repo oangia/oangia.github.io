@@ -108,7 +108,7 @@ function countUniqueWords(words) {
 
 function categorizeSentences(sentences) {
   const sCount = 10;
-  const mCount = 25;
+  const mCount = 21;
   const short = sentences.filter(s => splitWords(s).length <= sCount).length;
   const medium = sentences.filter(s => {
     const len = splitWords(s).length;
