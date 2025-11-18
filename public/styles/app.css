@@ -64,12 +64,6 @@ textarea::placeholder {
   color: var(--bs-body-color);
 }
 
-#output div {
-  background-color: #2a2b2e !important;
-  border-color: var(--bs-border-color) !important;
-  color: var(--bs-body-color);
-}
-
 h1,h2,h3,h4,h5,h6 {
   color: var(--bs-body-color);
 }

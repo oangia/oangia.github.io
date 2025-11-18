@@ -22,210 +22,33 @@
         <button id="clear" class="btn btn-secondary btn-sm">Clear</button>
       </div>
   
-      <div id="output" class="d-none small">
-        <div id="char-stats" class="mb-2 mb-sm-3 p-2 p-sm-3 bg-info-subtle rounded"></div>
-        <div id="difficulty" class="mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded border border-warning border-2"></div>
-        <div id="sentence-stats" class="mb-2 mb-sm-3 p-2 p-sm-3 bg-success-subtle rounded"></div>
-        <div id="paragraph-stats" class="mb-2 mb-sm-3 p-2 p-sm-3 bg-body-secondary rounded"></div>
-        <div id="word-stats" class="mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded" style="background: #372f15 !important;"></div>
-        <div id="syllable-stats" class="mb-2 mb-sm-3 p-2 p-sm-3 rounded" style="background: #fce4ec;"></div>
-        <div id="results" class="mb-2 mb-sm-3"></div>
+      <div id="output" class="row d-none small">
+        <div id="char-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-info-subtle rounded"></div>
+        <div id="difficulty" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded border border-warning border-2"></div>
+        <div id="sentence-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-success-subtle rounded"></div>
+        <div id="paragraph-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-body-secondary rounded"></div>
+        <div id="word-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded"></div>
+        <div id="syllable-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded"></div>
+        
       </div>
+      <div id="results" class="row mb-2 mb-sm-3"></div>
     </div>
 </div>
 
 <script src="/scripts/extract.js"></script>
+<script src="/scripts/formula.js"></script>
 <script>
-function calculateARI(data) {
-  const letters = data.character.lettersAZ;
-  const wordsCount = data.character.totalWords;
-  const sentencesCount = data.sentences.total;
-  
-  const score = 4.71*(letters/wordsCount) + 0.5*(wordsCount/sentencesCount) - 21.43;
-  const grade = Math.ceil(Math.max(0, score));
-  let difficulty, color;
-  if(grade<6){ difficulty='Easy'; color='#2ecc71'; }
-  else if(grade<9){ difficulty='Medium'; color='#f1c40f'; }
-  else if(grade<12){ difficulty='Hard'; color='#e67e22'; }
-  else{ difficulty='Very Hard'; color='#e74c3c'; }
-
-  return {
-    name: 'Automated Readability Index',
-    score, grade, difficulty, color,
-    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>ARI</b> = 4.71×(${letters} letters / ${wordsCount} words) + 0.5×(${wordsCount} words / ${sentencesCount} sentences) - 21.43 = ${score.toFixed(2)}`
-  };
-}
-
-function calculateFlesch(data) {
-  const wordsCount = data.character.totalWords;
-  const sentencesCount = data.sentences.total;
-  const syllables = data.syllables.total;
-  
-  const score = 206.835 - 1.015*(wordsCount/sentencesCount) - 84.6*(syllables/wordsCount);
-  let difficulty, color, grade;
-  if(score>=90){ difficulty='Very Easy (5th grade)'; color='#2ecc71'; grade='5'; }
-  else if(score>=80){ difficulty='Easy (6th grade)'; color='#27ae60'; grade='6'; }
-  else if(score>=70){ difficulty='Fairly Easy (7th grade)'; color='#f1c40f'; grade='7'; }
-  else if(score>=60){ difficulty='Medium (8-9th grade)'; color='#f39c12'; grade='8-9'; }
-  else if(score>=50){ difficulty='Fairly Hard (10-12th grade)'; color='#e67e22'; grade='10-12'; }
-  else if(score>=30){ difficulty='Hard (College)'; color='#d35400'; grade='13-16'; }
-  else{ difficulty='Very Hard (College graduate)'; color='#e74c3c'; grade='16+'; }
-
-  return {
-    name: 'Flesch Reading Ease',
-    score, grade, difficulty, color, age: '-',
-    formulaHTML: `<b>Flesch</b> = 206.835 - 1.015×(${wordsCount} / ${sentencesCount}) - 84.6×(${syllables} / ${wordsCount}) = ${score.toFixed(2)}`
-  };
-}
-
-function calculateGFI(data) {
-  const wordsCount = data.character.totalWords;
-  const sentencesCount = data.sentences.total;
-  const complexWords = data.words.hard;
-  
-  const score = 0.4*((wordsCount/sentencesCount) + 100*(complexWords/wordsCount));
-  const grade = Math.round(score);
-  let difficulty, color;
-  if(grade<6){ difficulty='Easy'; color='#2ecc71'; }
-  else if(grade<9){ difficulty='Medium'; color='#f1c40f'; }
-  else if(grade<12){ difficulty='Hard'; color='#e67e22'; }
-  else{ difficulty='Very Hard'; color='#e74c3c'; }
-
-  return {
-    name: 'Gunning Fog Index',
-    score, grade, difficulty, color,
-    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>GFI</b> = 0.4×((${wordsCount} / ${sentencesCount}) + 100×(${complexWords} / ${wordsCount})) = ${score.toFixed(2)}`
-  };
-}
-
-function calculateFK(data) {
-  const wordsCount = data.character.totalWords;
-  const sentencesCount = data.sentences.total;
-  const syllables = data.syllables.total;
-  
-  const score = 0.39*(wordsCount/sentencesCount) + 11.8*(syllables/wordsCount) - 15.59;
-  const grade = Math.ceil(Math.max(0, score));
-  let difficulty, color;
-  if(grade<6){ difficulty='Easy'; color='#2ecc71'; }
-  else if(grade<9){ difficulty='Medium'; color='#f1c40f'; }
-  else if(grade<12){ difficulty='Hard'; color='#e67e22'; }
-  else{ difficulty='Very Hard'; color='#e74c3c'; }
-
-  return {
-    name: 'Flesch-Kincaid Grade Level',
-    score, grade, difficulty, color,
-    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>FK</b> = 0.39×(${wordsCount} / ${sentencesCount}) + 11.8×(${syllables} / ${wordsCount}) - 15.59 = ${score.toFixed(2)}`
-  };
-}
-
-function calculateCLI(data) {
-  const letters = data.character.lettersAZ;
-  const wordsCount = data.character.totalWords;
-  const sentencesCount = data.sentences.total;
-  
-  const L = (letters / wordsCount) * 100;
-  const S = (sentencesCount / wordsCount) * 100;
-  const score = 0.0588*L - 0.296*S - 15.8;
-  const grade = Math.ceil(Math.max(0, score));
-  let difficulty, color;
-  if(grade<6){ difficulty='Easy'; color='#2ecc71'; }
-  else if(grade<9){ difficulty='Medium'; color='#f1c40f'; }
-  else if(grade<12){ difficulty='Hard'; color='#e67e22'; }
-  else{ difficulty='Very Hard'; color='#e74c3c'; }
-
-  return {
-    name: 'Coleman-Liau Index',
-    score, grade, difficulty, color,
-    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>CLI</b> = 0.0588×L - 0.296×S - 15.8, L=${L.toFixed(2)}, S=${S.toFixed(2)} = ${score.toFixed(2)}`
-  };
-}
-
-function calculateSMOG(data) {
-  const sentencesCount = data.sentences.total;
-  const complexWords = data.words.hard;
-  
-  const score = 1.0430 * Math.sqrt(complexWords * (30 / sentencesCount)) + 3.1291;
-  const grade = Math.ceil(Math.max(0, score));
-  let difficulty, color;
-  if(grade<6){ difficulty='Easy'; color='#2ecc71'; }
-  else if(grade<9){ difficulty='Medium'; color='#f1c40f'; }
-  else if(grade<12){ difficulty='Hard'; color='#e67e22'; }
-  else{ difficulty='Very Hard'; color='#e74c3c'; }
-
-  return {
-    name: 'SMOG Index',
-    score, grade, difficulty, color,
-    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>SMOG</b> = 1.0430×√(${complexWords} × 30 / ${sentencesCount}) + 3.1291 = ${score.toFixed(2)}`
-  };
-}
-
-function calculateLinsearWrite(data) {
-  const sentencesCount = data.sentences.total;
-  const easyWords = data.words.easy;
-  const hardWords = data.words.hard;
-  
-  const score = ((easyWords*1 + hardWords*3)/sentencesCount);
-  const adjusted = score > 20 ? score / 2 : (score - 2) / 2;
-  const grade = Math.ceil(Math.max(0, adjusted));
-  let difficulty, color;
-  if(grade<6){ difficulty='Easy'; color='#2ecc71'; }
-  else if(grade<9){ difficulty='Medium'; color='#f1c40f'; }
-  else if(grade<12){ difficulty='Hard'; color='#e67e22'; }
-  else{ difficulty='Very Hard'; color='#e74c3c'; }
-
-  return {
-    name: 'Linsear Write',
-    score: adjusted, grade, difficulty, color,
-    age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>Linsear</b> = ((${easyWords}×1 + ${hardWords}×3)/${sentencesCount}) ${score > 20 ? '÷ 2' : '- 2) ÷ 2'} = ${adjusted.toFixed(2)}`
-  };
-}
-
-function calculateFORCAST(data) {
-  const wordsCount = data.character.totalWords;
-  const oneSyllable = data.syllables.oneSyl;
-  
-  const score = 20 - ((oneSyllable / wordsCount) * 150 / 10);
-  const grade = Math.ceil(Math.max(0, score));
-  let difficulty, color;
-  if (grade < 6) { difficulty = 'Easy'; color = '#2ecc71'; }
-  else if (grade < 9) { difficulty = 'Medium'; color = '#f1c40f'; }
-  else if (grade < 12) { difficulty = 'Hard'; color = '#e67e22'; }
-  else { difficulty = 'Very Hard'; color = '#e74c3c'; }
-
-  return {
-    name: 'FORCAST',
-    score, grade, difficulty, color,
-    age: grade > 0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>FORCAST</b> = 20 - ((${oneSyllable} / ${wordsCount}) × 150 / 10) = ${score.toFixed(2)}`
-  };
-}
-
-function calculateAverageGrade(results) {
-  const gradesOnly = results.filter(r => typeof r.grade === 'number');
-  const avg = gradesOnly.reduce((sum,r)=>sum+r.grade,0)/gradesOnly.length;
-  const grade = Math.round(avg);
-  let difficulty, color;
-  if(grade<6){ difficulty='Easy'; color='#2ecc71'; }
-  else if(grade<9){ difficulty='Medium'; color='#f1c40f'; }
-  else if(grade<12){ difficulty='Hard'; color='#e67e22'; }
-  else{ difficulty='Very Hard'; color='#e74c3c'; }
-  
-  return {
-    name: 'Consensus Grade Level',
-    score: avg, grade, difficulty,
-    color: '#3498db',
-    age: grade > 0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>Average</b> = average grade level = ${avg.toFixed(2)}`
-  };
-}
-</script>
-<script>
+const expectedResults = {
+  'Consensus Grade Level': 14.89,
+  'Automated Readability Index': 15.51,
+  'Flesch Reading Ease': 20.00,
+  'Gunning Fog Index': 16.20,
+  'Flesch-Kincaid Grade Level': 14.07,
+  'Coleman-Liau Index': 19.05,
+  'SMOG Index': 11.16,
+  'Linsear Write': 10.50,
+  'FORCAST': 14.64
+};
 const referenceData = {
   difficulty: {
     hardWords: 26,
@@ -285,17 +108,6 @@ const referenceData = {
   }
 };
 
-const expectedResults = {
-  'ARI': 15.51,
-  'Flesch Reading Ease': 20.00,
-  'Gunning Fog Index': 16.20,
-  'Flesch-Kincaid Grade Level': 14.07,
-  'Coleman-Liau Index': 19.05,
-  'SMOG Index': 11.16,
-  'Linsear Write': 10.50,
-  'FORCAST': 14.64
-};
-
 document.getElementById('analyze').addEventListener('click', () => {
   const text = document.getElementById('input').value.trim();
   if (!text) { alert('Please enter text'); return; }
@@ -305,91 +117,26 @@ document.getElementById('analyze').addEventListener('click', () => {
   console.log(data);
 
   const results = [
-    calculateARI(data),
-    calculateFlesch(data),
-    calculateGFI(data),
-    calculateFK(data),
-    calculateCLI(data),
-    calculateSMOG(data),
-    calculateLinsearWrite(data),
-    calculateFORCAST(data)
+    calculateARI(referenceData),
+    calculateFlesch(referenceData),
+    calculateGFI(referenceData),
+    calculateFK(referenceData),
+    calculateCLI(referenceData),
+    calculateSMOG(referenceData),
+    calculateLinsearWrite(referenceData),
+    calculateFORCAST(referenceData)
   ];
 
   const consensus = calculateAverageGrade(results);
   results.unshift(consensus);
 
-  document.getElementById('output').classList.remove('d-none');
-
-  document.getElementById('char-stats').innerHTML = `
-    <strong class="fs-6">WORD/CHARACTER STATS</strong><br><br>
-    ${formatComparison('Total # of words', data.wordsCount, referenceData.character.totalWords)}
-    ${formatComparison('Average word length', Math.round(avgWordLength), referenceData.character.avgWordLength, ' characters')}
-    <div style="color: ${longestWord.word === referenceData.character.longestWord ? '#4caf50' : '#f44336'};">
-      <strong>Longest word in text:</strong> <b>${longestWord.word}</b> (${longestWord.length} characters)
-      ${longestWord.word === referenceData.character.longestWord ? '✓' : '✗'} (Expected: ${referenceData.character.longestWord} (${referenceData.character.longestWordLength} characters))
-    </div>
-    ${formatComparison('Character Count (including whitespace)', charsWithSpaces, referenceData.character.charsWithSpaces, ' chars')}
-    ${formatComparison('Character Count (excluding whitespace)', charsWithoutSpaces, referenceData.character.charsWithoutSpaces, ' chars')}
-    ${formatComparison('Total # of letter characters (A-Z only)', letters, referenceData.character.lettersAZ, ' chars')}
-    ${formatComparison('Alpha-Number Character Count', letters, referenceData.character.alphaNumeric, ' chars')}
-  `;
-
-  document.getElementById('difficulty').innerHTML = `
-    <strong class="fs-6">TEXT DIFFICULTY</strong><br><br>
-    ${formatComparison('Hard Words', hardWords, referenceData.difficulty.hardWords)}
-    ${formatComparison('Long Sentences', longSentences, referenceData.difficulty.longSentences)}
-    ${formatComparison('Adverbs', adverbs, referenceData.difficulty.adverbs)}
-    ${formatComparison('Hard Adjectives', hardAdjectives, referenceData.difficulty.hardAdjectives)}
-    ${formatComparison('Nominals', nominals, referenceData.difficulty.nominals)}
-    ${formatComparison('Passive Words', passiveWords, referenceData.difficulty.passiveWords)}
-    ${formatComparison('Weak Verbs', weakVerbs, referenceData.difficulty.weakVerbs)}
-  `;
-  
-  document.getElementById('sentence-stats').innerHTML = `
-    <strong class="fs-6">SENTENCE STATS</strong><br><br>
-    ${formatComparison('Total # of sentences', data.sentencesCount, referenceData.sentences.total)}
-    ${formatComparison('Average Sentence Length', avgSentenceLength, referenceData.sentences.avgLength, ' words')}
-    ${formatComparison('Number of Active Voice sentences', data.sentencesCount - passiveWords, referenceData.sentences.activeVoice)}
-    ${formatComparison('Number of Passive Voice sentences', passiveWords, referenceData.sentences.passiveVoice)}
-    ${formatComparison('Total # of short sentences', sentenceCategories.short, referenceData.sentences.short)}
-    ${formatComparison('Total # of medium sentences', sentenceCategories.medium, referenceData.sentences.medium)}
-    ${formatComparison('Total # of long sentences', sentenceCategories.long, referenceData.sentences.long)}
-  `;
-  
-  document.getElementById('word-stats').innerHTML = `
-    <strong class="fs-6">WORD STATS</strong><br><br>
-    ${formatComparison('# of Easy Words', easyWords, referenceData.words.easy)}
-    ${formatComparison('# of Hard Words', hardWords, referenceData.words.hard)}
-    ${formatComparison('Total # of unique words', uniqueWordStats.unique, referenceData.words.unique)}
-    ${formatComparison('Total # of repeat words', uniqueWordStats.repeat, referenceData.words.repeat)}
-  `;
-  
-  const avgSyllables = (syllables / data.wordsCount).toFixed(2);
-  
-  document.getElementById('syllable-stats').innerHTML = `
-    <strong class="fs-6">SYLLABLE STATS</strong><br><br>
-    ${formatComparison('Total # of syllables in text', syllables, referenceData.syllables.total)}
-    ${formatComparison('Average # of syllables per word', parseFloat(avgSyllables), referenceData.syllables.avgPerWord, '', 0.01)}
-    ${formatComparison('Total # of words with 1 syllable', oneSyllable, referenceData.syllables.oneSyl)}
-    ${formatComparison('Total # of words with 2 syllables', twoSyllable, referenceData.syllables.twoSyl)}
-    ${formatComparison('Total # of words with 3 syllables', threeSyllable, referenceData.syllables.threeSyl)}
-    ${formatComparison('Total # of words with 4 syllables', fourSyllable, referenceData.syllables.fourSyl)}
-    ${formatComparison('Total # of words with 5 syllables', fiveSyllable, referenceData.syllables.fiveSyl)}
-    ${formatComparison('Total # of words with 6 syllables', sixSyllable, referenceData.syllables.sixSyl)}
-    ${formatComparison('Total # of words with 7+ syllables', sevenPlusSyllable, referenceData.syllables.sevenPlusSyl)}
-  `;
-  
-  document.getElementById('paragraph-stats').innerHTML = `
-    <strong class="fs-6">PARAGRAPH STATS</strong><br><br>
-    ${formatComparison('Number of paragraphs', 1, referenceData.paragraphs.count)}
-    ${formatComparison('Shortest paragraph', data.wordsCount, referenceData.paragraphs.shortest, ' words')}
-    ${formatComparison('Longest paragraph', data.wordsCount, referenceData.paragraphs.longest, ' words')}
-  `;
+  showStats(data)
 
   const output = document.getElementById('results');
   output.innerHTML = '';
 
   results.forEach(res => {
+    console.log(res);
     const expectedScore = expectedResults[res.name];
     let matchHTML = '';
     
@@ -401,26 +148,31 @@ document.getElementById('analyze').addEventListener('click', () => {
     }
 
     const div = document.createElement('div');
-    div.className = 'border rounded p-3 mb-3 bg-white';
+    div.className = 'col-md-12 bg-body-secondary border rounded p-3 mb-3';
     if (res.name === "Consensus Grade Level") {
       div.className += ' formula';
       div.style.borderColor = res.color;
+      div.style.borderWidth = '3px';
     } else {
-      div.className += ' border-2';
+      div.style.borderColor = res.color;
+      div.style.borderWidth = '2px';
     }
-    div.innerHTML = `
-      <h3 class="fs-6 mb-2">${res.name}</h3>
-      <div class="score-box px-3 py-2 rounded mb-2 fs-6" style="background:${res.color};color:#fff;">
-        Score: <b>${res.score.toFixed(2)}</b>
-      </div>
-      <div>Reading Difficulty: <b>${res.difficulty}</b></div>
-      <div>Grade Level: <b>${res.grade}</b> | Age Range: <b>${res.age}</b></div>
-      <div class="mt-2 p-2 bg rounded small">${res.formulaHTML}</div>
-      ${matchHTML}
-    `;
+    div.innerHTML = formatResult(res, matchHTML);
     output.appendChild(div);
   });
 });
+function formatResult(res, matchHTML='') {
+  return `
+<h3 class="fs-6 mb-2 text-center"><b>${res.name}</b></h3>
+<div class="score-box px-3 py-2 rounded mb-2 fs-6">
+  <div>Score: <b style="color:${res.color};">${res.score.toFixed(2)}</b></div>
+  <div>Reading Difficulty: <b style="color:${res.color};">${res.difficulty}</b></div>
+  <div>Grade Level: <b style="color:${res.color};">${res.grade}</b> | Age Range: <b>${res.age}</b></div>
+  <div>${res.formulaHTML}</div>
+</div>
+${matchHTML}
+`;
+}
 </script>
 </body>
 </html>

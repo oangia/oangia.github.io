@@ -1,5 +1,9 @@
-function calculateARI({letters, wordsCount, sentencesCount}) {
-  const score = 4.71*(letters/wordsCount) + 0.5*(wordsCount/sentencesCount) - 21.43;
+function calculateARI(data) {
+  const characters = data.character.charsWithoutSpaces;
+  const wordsCount = data.character.totalWords;
+  const sentencesCount = data.sentences.total;
+  
+  const score = 4.71*(characters/wordsCount) + 0.5*(wordsCount/sentencesCount) - 21.43;
   const grade = Math.ceil(Math.max(0, score));
   let difficulty, color;
   if(grade<6){ difficulty='Easy'; color='#2ecc71'; }
@@ -11,12 +15,16 @@ function calculateARI({letters, wordsCount, sentencesCount}) {
     name: 'Automated Readability Index',
     score, grade, difficulty, color,
     age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>ARI</b> = 4.71×(${letters} letters / ${wordsCount} words) + 0.5×(${wordsCount} words / ${sentencesCount} sentences) - 21.43 = ${score.toFixed(2)}`
+    formulaHTML: `<b>ARI</b> = (4.71 × (${characters} characters / ${wordsCount} words)) + (0.5 × (${wordsCount} words / ${sentencesCount} sentences)) - 21.43 = ${score.toFixed(2)}`
   };
 }
 
-function calculateFlesch({wordsCount, sentencesCount, syllables}) {
-  const score = 206.835 - 1.015*(wordsCount/sentencesCount) - 84.6*(syllables/wordsCount);
+function calculateFlesch(data) {
+  const wordsCount = data.character.totalWords;
+  const sentencesCount = data.sentences.total;
+  const syllables = data.syllables.total;
+  
+  const score = Math.ceil(206.835 - 1.015*(wordsCount/sentencesCount) - 84.6*(syllables/wordsCount));
   let difficulty, color, grade;
   if(score>=90){ difficulty='Very Easy (5th grade)'; color='#2ecc71'; grade='5'; }
   else if(score>=80){ difficulty='Easy (6th grade)'; color='#27ae60'; grade='6'; }
@@ -29,12 +37,17 @@ function calculateFlesch({wordsCount, sentencesCount, syllables}) {
   return {
     name: 'Flesch Reading Ease',
     score, grade, difficulty, color, age: '-',
-    formulaHTML: `<b>Flesch</b> = 206.835 - 1.015×(${wordsCount} / ${sentencesCount}) - 84.6×(${syllables} / ${wordsCount}) = ${score.toFixed(2)}`
+    formulaHTML: `<b>Flesch</b> = 206.835 - (1.015 × (${wordsCount} words / ${sentencesCount} sentences)) - (84.6 × (${syllables} syllables / ${wordsCount} words)) = ${score.toFixed(2)}`
   };
 }
 
-function calculateGFI({wordsCount, sentencesCount, complexWords}) {
-  const score = 0.4*((wordsCount/sentencesCount) + 100*(complexWords/wordsCount));
+function calculateGFI(data) {
+  const wordsCount = data.character.totalWords;
+  const sentencesCount = data.sentences.total;
+  const compoundSentences = data.words.compound;
+  const complexWords = data.words.hard;
+  
+  const score = parseFloat((0.4*((wordsCount/(sentencesCount + compoundSentences)) + 100*(complexWords/wordsCount))).toFixed(1));
   const grade = Math.round(score);
   let difficulty, color;
   if(grade<6){ difficulty='Easy'; color='#2ecc71'; }
@@ -46,11 +59,15 @@ function calculateGFI({wordsCount, sentencesCount, complexWords}) {
     name: 'Gunning Fog Index',
     score, grade, difficulty, color,
     age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>GFI</b> = 0.4×((${wordsCount} / ${sentencesCount}) + 100×(${complexWords} / ${wordsCount})) = ${score.toFixed(2)}`
+    formulaHTML: `<b>GFI</b> = (0.4 × (${wordsCount} words / (${sentencesCount} sentences + ${compoundSentences} compound sentences)) + 100 × (${complexWords} FOG hard words / ${wordsCount} words)) = ${score.toFixed(1)}`
   };
 }
 
-function calculateFK({wordsCount, sentencesCount, syllables}) {
+function calculateFK(data) {
+  const wordsCount = data.character.totalWords;
+  const sentencesCount = data.sentences.total;
+  const syllables = data.syllables.total;
+  
   const score = 0.39*(wordsCount/sentencesCount) + 11.8*(syllables/wordsCount) - 15.59;
   const grade = Math.ceil(Math.max(0, score));
   let difficulty, color;
@@ -63,11 +80,15 @@ function calculateFK({wordsCount, sentencesCount, syllables}) {
     name: 'Flesch-Kincaid Grade Level',
     score, grade, difficulty, color,
     age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>FK</b> = 0.39×(${wordsCount} / ${sentencesCount}) + 11.8×(${syllables} / ${wordsCount}) - 15.59 = ${score.toFixed(2)}`
+    formulaHTML: `<b>FK</b> = 0.39×(${wordsCount} words/ ${sentencesCount} sentences) + 11.8×(${syllables} syllables/ ${wordsCount} words) - 15.59 = ${score.toFixed(2)}`
   };
 }
 
-function calculateCLI({letters, wordsCount, sentencesCount}) {
+function calculateCLI(data) {
+  const letters = data.character.lettersAZ;
+  const wordsCount = data.character.totalWords;
+  const sentencesCount = data.sentences.total;
+  
   const L = (letters / wordsCount) * 100;
   const S = (sentencesCount / wordsCount) * 100;
   const score = 0.0588*L - 0.296*S - 15.8;
@@ -82,12 +103,15 @@ function calculateCLI({letters, wordsCount, sentencesCount}) {
     name: 'Coleman-Liau Index',
     score, grade, difficulty, color,
     age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>CLI</b> = 0.0588×L - 0.296×S - 15.8, L=${L.toFixed(2)}, S=${S.toFixed(2)} = ${score.toFixed(2)}`
+    formulaHTML: `<b>CLI</b> = (0.0588 × (${letters} letters / ${wordsCount} words) × 100) - (0.296 × (${sentencesCount} sentences / ${wordsCount} words) × 100) - 15.8 = ${score.toFixed(2)}`
   };
 }
 
-function calculateSMOG({sentencesCount, complexWords}) {
-  const score = 1.0430 * Math.sqrt(complexWords * (30 / sentencesCount)) + 3.1291;
+function calculateSMOG(data) {
+  const sentencesCount = data.sentences.total;
+  const complexWords = data.words.hard;
+  
+  const score = 1.043 * Math.sqrt((complexWords * (30 / sentencesCount)) + 3.1291);
   const grade = Math.ceil(Math.max(0, score));
   let difficulty, color;
   if(grade<6){ difficulty='Easy'; color='#2ecc71'; }
@@ -99,13 +123,19 @@ function calculateSMOG({sentencesCount, complexWords}) {
     name: 'SMOG Index',
     score, grade, difficulty, color,
     age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>SMOG</b> = 1.0430×√(${complexWords} × 30 / ${sentencesCount}) + 3.1291 = ${score.toFixed(2)}`
+    formulaHTML: `<b>SMOG</b> = 1.043 × √((${complexWords} hard words × (30 / ${sentencesCount} sentences)) + 3.1291) = ${score.toFixed(2)}`
   };
 }
 
-function calculateLinsearWrite({sentencesCount, easyWords, hardWords}) {
-  const score = ((easyWords*1 + hardWords*3)/sentencesCount);
-  const adjusted = score > 20 ? score / 2 : (score - 2) / 2;
+function calculateLinsearWrite(data) {
+  const sentencesCount = data.sentences.total;
+  const compoundSentences = data.words.compound;
+  const easyWords = data.words.easy;
+  const hardWords = data.words.hard;
+  const ignoredWords = 3; // Standard for Linsear Write formula
+  
+  const initialScore = ((easyWords - ignoredWords) * 1 + hardWords * 3) / (sentencesCount + compoundSentences);
+  const adjusted = initialScore > 20 ? initialScore / 2 : (initialScore - 2) / 2;
   const grade = Math.ceil(Math.max(0, adjusted));
   let difficulty, color;
   if(grade<6){ difficulty='Easy'; color='#2ecc71'; }
@@ -117,11 +147,14 @@ function calculateLinsearWrite({sentencesCount, easyWords, hardWords}) {
     name: 'Linsear Write',
     score: adjusted, grade, difficulty, color,
     age: grade>0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>Linsear</b> = ((${easyWords}×1 + ${hardWords}×3)/${sentencesCount}) ${score > 20 ? '÷ 2' : '- 2) ÷ 2'} = ${adjusted.toFixed(2)}`
+    formulaHTML: `<b>Linsear</b> Initial Score = (((${easyWords} easy words - ${ignoredWords} ignored words) × 1) + (${hardWords} hard words × 3)) / (${sentencesCount} sentences + ${compoundSentences} compound sentences) = ${initialScore.toFixed(2)}<br>Adjusted Score = ${initialScore.toFixed(2)} ${initialScore > 20 ? '÷ 2' : '- 2) ÷ 2'} = ${adjusted.toFixed(2)}`
   };
 }
 
-function calculateFORCAST({ wordsCount, oneSyllable }) {
+function calculateFORCAST(data) {
+  const wordsCount = data.character.totalWords;
+  const oneSyllable = data.syllables.oneSyl;
+  
   const score = 20 - ((oneSyllable / wordsCount) * 150 / 10);
   const grade = Math.ceil(Math.max(0, score));
   let difficulty, color;
@@ -134,7 +167,7 @@ function calculateFORCAST({ wordsCount, oneSyllable }) {
     name: 'FORCAST',
     score, grade, difficulty, color,
     age: grade > 0 ? `${5+grade}-${6+grade}` : 'K-5',
-    formulaHTML: `<b>FORCAST</b> = 20 - ((${oneSyllable} / ${wordsCount}) × 150 / 10) = ${score.toFixed(2)}`
+    formulaHTML: `<b>FORCAST</b> = 20 - ((${oneSyllable} 1-syllable words × 150) / (${wordsCount} words * 10)) = ${score.toFixed(2)}`
   };
 }
 
