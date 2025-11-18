@@ -49,27 +49,18 @@ function toNFDLower(s) {
 const baseVowels = /[aăâeêioôơuưyáàảãạăắằẳẵặâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ]/i;
 
 function syllablesInWord(word) {
-  const s = toNFDLower(word);
-  let count = 0;
-  let inV = false;
-  
-  for(let i = 0; i < s.length; i++){
-    const ch = s[i];
-    if(baseVowels.test(ch)){
-      if(!inV){ 
-        count++; 
-        inV = true; 
-      }
-    } else { 
-      inV = false; 
-    }
-  }
-  
-  if(s.endsWith('e') && count > 1 && !s.match(/[aeiou]e$/)){
-    count--;
-  }
-  
-  return Math.max(count, 1);
+  word = word.toLowerCase();
+  if (word.length <= 3) return 1; // e.g. "the", "are"
+
+  // Remove non-letters
+  word = word.replace(/[^a-z]/g, "");
+
+  // Remove trailing 'e'
+  word = word.replace(/e$/i, "");
+
+  // Count vowel groups
+  const matches = word.match(/[aeiouy]+/g);
+  return matches ? matches.length : 1;
 }
 
 function countAdverbs(words) {
