@@ -3,7 +3,8 @@
 - Google analytic
 - Navigation
 - Simple front end library
-
+- Change color of grade
+- Change formulas to back end
 
 Ideas
 Title
