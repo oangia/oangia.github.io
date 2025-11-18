@@ -1,4 +1,4 @@
-class MiniRouter {
+export class MiniRouter {
     constructor({ root }) {
         this.routes = [];
         this.root = root;
