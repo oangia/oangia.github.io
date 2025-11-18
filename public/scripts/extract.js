@@ -91,13 +91,6 @@ function countPassiveVoice(text) {
   return matches ? matches.length : 0;
 }
 
-function countLongSentences(sentences) {
-  return sentences.filter(s => {
-    const sentWords = splitWords(s);
-    return sentWords.length >= 20;
-  }).length;
-}
-
 const adjectiveSuffixes = /(?:able|ible|al|ful|ic|ical|ive|less|ous|ious|eous|ent|ant|ary)$/i;
 function countHardAdjectives(words) {
   return words.filter(w => {
@@ -154,16 +147,18 @@ function analyzeText(text) {
   const sixSyllable = syllablesPerWord.filter(s => s === 6).length;
   const sevenPlusSyllable = syllablesPerWord.filter(s => s >= 7).length;
   
+  const sentenceCategories = categorizeSentences(sentences);
+
   const hardWords = syllablesPerWord.filter(s => s >= 3).length;
   const easyWords = syllablesPerWord.filter(s => s < 3).length;
   const adverbs = countAdverbs(words);
-  const longSentences = countLongSentences(sentences);
+  const longSentences = sentenceCategories.long;
   const hardAdjectives = countHardAdjectives(words);
   const nominals = countNominalizations(words);
   const passiveWords = countPassiveVoice(normalized);
   const weakVerbs = countWeakVerbs(words);
   
-  const sentenceCategories = categorizeSentences(sentences);
+  
   const avgSentenceLength = sentences.length > 0 ? Math.round(words.length / sentences.length) : 0;
   const uniqueWordStats = countUniqueWords(words);
   
