@@ -154,8 +154,8 @@ function analyzeText(text) {
   const sixSyllable = syllablesPerWord.filter(s => s === 6).length;
   const sevenPlusSyllable = syllablesPerWord.filter(s => s >= 7).length;
   
-  const hardWords = syllablesPerWord.filter(s => s >= 4).length;
-  const easyWords = syllablesPerWord.filter(s => s < 4).length;
+  const hardWords = syllablesPerWord.filter(s => s >= 3).length;
+  const easyWords = syllablesPerWord.filter(s => s < 3).length;
   const adverbs = countAdverbs(words);
   const longSentences = countLongSentences(sentences);
   const hardAdjectives = countHardAdjectives(words);
