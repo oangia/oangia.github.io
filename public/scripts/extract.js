@@ -122,6 +122,16 @@ function countUniqueWords(words) {
   return { unique, repeat };
 }
 
+function categorizeSentences(sentences) {
+  const short = sentences.filter(s => splitWords(s).length <= 10).length;
+  const medium = sentences.filter(s => {
+    const len = splitWords(s).length;
+    return len > 10 && len < 20;
+  }).length;
+  const long = sentences.filter(s => splitWords(s).length >= 20).length;
+  return { short, medium, long };
+}
+
 function analyzeText(text) {
   const normalized = normalizeText(text);
   const sentences = splitSentences(normalized);
@@ -219,4 +229,25 @@ function analyzeText(text) {
       sevenPlusSyl: sevenPlusSyllable
     }
   };
+}
+
+// utils
+document.getElementById('clear').addEventListener('click', () => {
+  document.getElementById('input').value = '';
+  document.getElementById('output').classList.add('d-none');
+});
+
+function compareValue(calculated, reference, tolerance = 0) {
+  const match = Math.abs(calculated - reference) <= tolerance;
+  const color = match ? '#4caf50' : '#f44336';
+  const icon = match ? '✓' : '✗';
+  return { match, color, icon };
+}
+
+function formatComparison(label, calculated, reference, unit = '', tolerance = 0) {
+  const comp = compareValue(calculated, reference, tolerance);
+  return `<div style="color: ${comp.color};">
+    <strong>${label}:</strong> <b>${calculated}${unit}</b> 
+    ${comp.icon} (Expected: ${reference}${unit})
+  </div>`;
 }
