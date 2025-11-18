@@ -33,6 +33,26 @@ export class MiniRouter {
         this._handleRoute(path);
     }
 
+    _runScripts(container) {
+        const scripts = container.querySelectorAll("script");
+        scripts.forEach(oldScript => {
+            const newScript = document.createElement("script");
+
+            // Copy inline script
+            if (oldScript.textContent) {
+                newScript.textContent = oldScript.textContent;
+            }
+
+            // Copy src script
+            if (oldScript.src) {
+                newScript.src = oldScript.src;
+            }
+
+            // Replace old script
+            oldScript.parentNode.replaceChild(newScript, oldScript);
+        });
+    }
+
     async _handleRoute(path) {
         for (const route of this.routes) {
             const match = path.match(route.regex);
@@ -49,7 +69,7 @@ export class MiniRouter {
 
             // Render
             this.root.innerHTML = this._injectParams(html, params);
-
+            this._runScripts(this.root);
             return;
         }
 
