@@ -121,3 +121,102 @@ function countUniqueWords(words) {
   const repeat = words.length - unique;
   return { unique, repeat };
 }
+
+function analyzeText(text) {
+  const normalized = normalizeText(text);
+  const sentences = splitSentences(normalized);
+  const words = splitWords(normalized);
+  const letters = countLetters(normalized);
+  const charsWithSpaces = countCharsWithSpaces(normalized);
+  const charsWithoutSpaces = countCharsWithoutSpaces(normalized);
+  const avgWordLength = getAverageWordLength(words);
+  const longestWord = getLongestWord(words);
+  
+  const syllablesPerWord = words.map(w => syllablesInWord(w));
+  const syllables = syllablesPerWord.reduce((sum, s) => sum + s, 0);
+  const oneSyllable = syllablesPerWord.filter(s => s === 1).length;
+  const twoSyllable = syllablesPerWord.filter(s => s === 2).length;
+  const threeSyllable = syllablesPerWord.filter(s => s === 3).length;
+  const fourSyllable = syllablesPerWord.filter(s => s === 4).length;
+  const fiveSyllable = syllablesPerWord.filter(s => s === 5).length;
+  const sixSyllable = syllablesPerWord.filter(s => s === 6).length;
+  const sevenPlusSyllable = syllablesPerWord.filter(s => s >= 7).length;
+  
+  const hardWords = syllablesPerWord.filter(s => s >= 3).length;
+  const easyWords = syllablesPerWord.filter(s => s < 3).length;
+  const adverbs = countAdverbs(words);
+  const longSentences = countLongSentences(sentences);
+  const hardAdjectives = countHardAdjectives(words);
+  const nominals = countNominalizations(words);
+  const passiveWords = countPassiveVoice(normalized);
+  const weakVerbs = countWeakVerbs(words);
+  
+  const sentenceCategories = categorizeSentences(sentences);
+  const avgSentenceLength = sentences.length > 0 ? Math.round(words.length / sentences.length) : 0;
+  const uniqueWordStats = countUniqueWords(words);
+  
+  // Count paragraphs (split by double newlines or more)
+  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+  const paragraphWordCounts = paragraphs.map(p => splitWords(p).length);
+  const shortestParagraph = paragraphWordCounts.length > 0 ? Math.min(...paragraphWordCounts) : 0;
+  const longestParagraph = paragraphWordCounts.length > 0 ? Math.max(...paragraphWordCounts) : 0;
+  
+  return {
+    difficulty: {
+      hardWords: hardWords,
+      longSentences: longSentences,
+      adverbs: adverbs,
+      hardAdjectives: hardAdjectives,
+      nominals: nominals,
+      passiveWords: passiveWords,
+      weakVerbs: weakVerbs
+    },
+    character: {
+      totalWords: words.length,
+      avgWordLength: Math.round(avgWordLength),
+      longestWord: longestWord.word,
+      longestWordLength: longestWord.length,
+      charsWithSpaces: charsWithSpaces,
+      charsWithoutSpaces: charsWithoutSpaces,
+      lettersAZ: letters,
+      alphaNumeric: letters // Assuming same as letters for now
+    },
+    sentences: {
+      total: sentences.length,
+      lineCount: 0, // You'll need to implement this based on your needs
+      totalLines: sentences.length,
+      avgLength: avgSentenceLength,
+      activeVoice: sentences.length - passiveWords,
+      passiveVoice: passiveWords,
+      short: sentenceCategories.short,
+      medium: sentenceCategories.medium,
+      long: sentenceCategories.long
+    },
+    paragraphs: {
+      count: paragraphs.length,
+      shortest: shortestParagraph,
+      longest: longestParagraph
+    },
+    words: {
+      easy: easyWords,
+      hard: hardWords,
+      compound: 0, // You'll need to implement compound word detection
+      cardinal: 0, // You'll need to implement number word detection
+      properNoun: 0, // You'll need to implement proper noun detection
+      abbreviated: 0, // You'll need to implement abbreviation detection
+      unique: uniqueWordStats.unique,
+      repeat: uniqueWordStats.repeat
+    },
+    syllables: {
+      total: syllables,
+      avgPerWord: parseFloat((syllables / words.length).toFixed(2)),
+      oneSyl: oneSyllable,
+      twoSyl: twoSyllable,
+      threeSyl: threeSyllable,
+      fourSyl: fourSyllable,
+      fiveSyl: fiveSyllable,
+      sixSyl: sixSyllable,
+      sevenPlusSyl: sevenPlusSyllable
+    }
+  };
+}
