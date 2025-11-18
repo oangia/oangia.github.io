@@ -20,7 +20,7 @@ import { MiniRouter } from "./MiniRouter.js";
 const router = new MiniRouter({
     root: document.getElementById("app")
 });
-
+window.router = router;
 // Static views
 router.on("/", "/views/home.html");
 router.on("/about", "/views/about.html");
