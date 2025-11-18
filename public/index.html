@@ -8,7 +8,7 @@
   <link href="/styles/app.css" rel="stylesheet"/>
 </head>
 <body>
-<div id="app"></div>
+<div id="app" class="container-fluid container-md"></div>
 
 <button onclick="router.navigate('/')">Home</button>
 <button onclick="router.navigate('/about')">About</button>
@@ -22,7 +22,7 @@ const router = new MiniRouter({
 });
 window.router = router;
 // Static views
-router.on("/", "/views/home.html");
+router.on("/", "/views/index.html");
 router.on("/about", "/views/about.html");
 
 // Dynamic view
