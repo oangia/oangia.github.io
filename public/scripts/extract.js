@@ -123,12 +123,14 @@ function countUniqueWords(words) {
 }
 
 function categorizeSentences(sentences) {
-  const short = sentences.filter(s => splitWords(s).length <= 10).length;
+  const sCount = 10;
+  const mCount = 25;
+  const short = sentences.filter(s => splitWords(s).length <= sCount).length;
   const medium = sentences.filter(s => {
     const len = splitWords(s).length;
-    return len > 10 && len < 20;
+    return len > sCount && len < mCount;
   }).length;
-  const long = sentences.filter(s => splitWords(s).length >= 20).length;
+  const long = sentences.filter(s => splitWords(s).length >= mCount).length;
   return { short, medium, long };
 }
 
@@ -152,8 +154,8 @@ function analyzeText(text) {
   const sixSyllable = syllablesPerWord.filter(s => s === 6).length;
   const sevenPlusSyllable = syllablesPerWord.filter(s => s >= 7).length;
   
-  const hardWords = syllablesPerWord.filter(s => s >= 3).length;
-  const easyWords = syllablesPerWord.filter(s => s < 3).length;
+  const hardWords = syllablesPerWord.filter(s => s >= 4).length;
+  const easyWords = syllablesPerWord.filter(s => s < 4).length;
   const adverbs = countAdverbs(words);
   const longSentences = countLongSentences(sentences);
   const hardAdjectives = countHardAdjectives(words);
