@@ -1,3 +1,10 @@
+# Task
+- Readibility formulas
+- Google analytic
+- Navigation
+- Simple front end library
+
+
 Ideas
 Title
 Thumbnail
@@ -27,14 +34,6 @@ John Frusciante: make people feel good - musician.
 Elon Musk: try to be useful, make a great product that people love - engineer.
 Andrew, Tristan Tate: maslow - talk, sell, agree and turn any no into them being curious get people attention.
 Nhat Huynh: Be a man worth respect - useful, excellent, make people feel good (music, talking).
-
-# Task
-- Readibility formulas
-- Google analytic
-- Navigation
-- Simple front end library
-
-
 
 TEXT DIFFICULTY
 Hard Words: 26 (36%)
