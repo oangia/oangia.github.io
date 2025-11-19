@@ -1,9 +1,6 @@
 # Task
-- Readibility formulas
 - Google analytic
-- Navigation
-- Simple front end library
-- Change color of grade
+- Simple front end library / Navigation
 - Change formulas to back end
 
 Ideas

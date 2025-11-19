@@ -8,28 +8,48 @@
   <link href="/styles/app.css" rel="stylesheet"/>
 </head>
 <body>
-<div id="app" class="container-fluid container-md"></div>
-
-<button onclick="router.navigate('/')">Home</button>
-<button onclick="router.navigate('/about')">About</button>
-<button onclick="router.navigate('/user/123')">User 123</button>
-
-<script type="module">
-import { MiniRouter } from "./MiniRouter.js";
-
-const router = new MiniRouter({
-    root: document.getElementById("app")
-});
-window.router = router;
-// Static views
-router.on("/", "/views/index.html");
-router.on("/about", "/views/about.html");
-
-// Dynamic view
-router.on("/user/:id", "/views/user.html");
-
-// Load initial
-router.navigate(window.location.pathname);
-</script>
+  <div class="p-sm-3">
+    <h1 class="mb-2 mb-sm-3 fs-5 fs-sm-3">Readability Checker</h1>
+  
+    <div class="mb-2 mb-sm-3">
+      <textarea id="input" class="form-control form-control-sm" rows="6" placeholder="Paste your text here...">Learning to code is an essential skill in todays world. It allows people to create software automate tasks and solve complex problems efficiently. Beginners may feel overwhelmed at first but with consistent practice even challenging concepts become manageable. Programming languages vary in syntax and complexity yet the fundamental logic remains similar across most languages. Understanding algorithms data structures and design patterns is crucial for building reliable and scalable applications. Moreover coding fosters critical thinking problem solving and creativity. Online tutorials coding bootcamps and practice projects provide ample opportunities for learners to improve and gain confidence in their abilities.</textarea>
+    </div>
+  
+    <div class="mb-2 mb-sm-3 d-flex gap-2">
+      <button id="analyze" class="btn btn-primary btn-sm">Analyze</button>
+      <button id="clear" class="btn btn-secondary btn-sm">Clear</button>
+    </div>
+  
+    <div id="output" class="row d-none small">
+      <div id="char-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-info-subtle rounded"></div>
+      <div id="difficulty" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded border border-warning border-2"></div>
+      <div id="sentence-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-success-subtle rounded"></div>
+      <div id="paragraph-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-body-secondary rounded"></div>
+      <div id="word-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded"></div>
+      <div id="syllable-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded"></div>
+      
+    </div>
+    <div id="results" class="row mb-2 mb-sm-3"></div>
+  </div>
+  </div>
+  <script src="/scripts/extract.js"></script>
+  <script src="/scripts/formula.js"></script>
+  <script>
+  document.getElementById('analyze').addEventListener('click', () => {
+    const text = document.getElementById('input').value.trim();
+    if (!text) { alert('Please enter text'); return; }
+    const textAnalyzer = new TextAnalyzer();
+    const formulas = new ReadabilityEngine();
+    const data = textAnalyzer.analyze(text);
+    //showStats(data)
+    const results = formulas.calculate(data);
+    const view = new View();
+    view.showResults('results', results);
+  });
+  document.getElementById('clear').addEventListener('click', () => {
+    document.getElementById('input').value = '';
+    document.getElementById('output').classList.add('d-none');
+  });
+  </script>
 </body>
 </html>
