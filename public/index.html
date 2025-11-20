@@ -113,7 +113,6 @@
     const results = loopup.calculate(text, data.readability);
     showResults('results', results);
     Loading.end();
-    Message.success("Success");
   });
   document.getElementById('clear').addEventListener('click', () => {
     document.getElementById('input').value = '';
