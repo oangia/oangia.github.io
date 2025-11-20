@@ -4,6 +4,10 @@
 - Secure for server: only allow limited requests from ip, cookie.
 - Thêm home, show some ideas
 
+- YouTube Video Idea Generator
+- YouTube Channel Analyzer.
+
+
 Ideas / Spy other
 Title/Thumbnail
 Script
