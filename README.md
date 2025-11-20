@@ -1,18 +1,12 @@
 # Task
 - Main feature, input a paragraph -> response the score of readability
-- Google analytic
-- Secure for server / only allow request from my web, second only allow limited requests from ip, cookie.
-- Validate, not under 100 characters, back
-- Thêm home, show some ideas
 - Fix small detail in formulas
-- Write test function for API
+- Secure for server: only allow limited requests from ip, cookie.
+- Thêm home, show some ideas
 
-Ideas
-Title
-Thumbnail
+Ideas / Spy other
+Title/Thumbnail
 Script
-
-Spy other
 
 # Technology
 ## Database
