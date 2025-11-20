@@ -32,19 +32,88 @@
     <div id="results" class="row mb-2 mb-sm-3"></div>
   </div>
   </div>
-  <script src="/scripts/extract.js"></script>
+  <script type="module">
+    import { getFirestore } from "https://oangia.github.io/firebase/1.0.0/firebase.js";
+    const firestore = getFirestore();
+    window.firestore = firestore;
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
   <script src="/scripts/formula.js"></script>
+  <script src="/plugins/utils.js"></script>
   <script>
-  document.getElementById('analyze').addEventListener('click', () => {
+    class ApiHandler {
+      constructor(baseUrl) {
+        this.baseUrl = baseUrl;
+        this.privateKey = null;
+        this.publicKey = null;
+      }
+
+      // Generate ephemeral RSA key pair
+      async generateKeyPair() {
+        const pair = await crypto.subtle.generateKey(
+          {
+            name: "RSA-OAEP",
+            modulusLength: 4096,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256"
+          },
+          true,
+          ["encrypt", "decrypt"]
+        );
+        this.privateKey = pair.privateKey;
+        this.publicKey = pair.publicKey;
+      }
+
+      // Export public key in Base64
+      async exportPublicKey() {
+        const raw = await crypto.subtle.exportKey("spki", this.publicKey);
+        return btoa(String.fromCharCode(...new Uint8Array(raw)));
+      }
+
+      // Decrypt server response (Base64)
+      async decryptResponse(cipherBase64) {
+        const bytes = Uint8Array.from(atob(cipherBase64), c => c.charCodeAt(0));
+        const decrypted = await crypto.subtle.decrypt(
+          { name: "RSA-OAEP" },
+          this.privateKey,
+          bytes
+        );
+        return JSON.parse(new TextDecoder().decode(decrypted));
+      }
+
+      // Send data + public key, get decrypted response
+      async post(data) {
+        await this.generateKeyPair();
+        const pubKey = await this.exportPublicKey();
+
+        const response = await fetch(this.baseUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, pub: pubKey })
+        });
+        const res = await response.json();
+        const result = await this.decryptResponse(res.r);
+        // Clear keys
+        this.privateKey = null;
+        this.publicKey = null;
+
+        return {readability: result.r};
+      }
+    }
+  </script>
+  <script>
+  document.getElementById('analyze').addEventListener('click', async () => {
     const text = document.getElementById('input').value.trim();
     if (!text) { alert('Please enter text'); return; }
-    const textAnalyzer = new TextAnalyzer();
-    const formulas = new ReadabilityEngine();
-    const data = textAnalyzer.analyze(text);
-    //showStats(data)
-    const results = formulas.calculate(data);
-    const view = new View();
-    view.showResults('results', results);
+    Loading.start(); // default spinner
+    const loopup = new ReadabilityLookup();
+    const api = new ApiHandler("https://oangia.pythonanywhere.com/");
+    const requestData = { text: text };
+    const data = await api.post(requestData);
+    const results = loopup.calculate(text, data.readability);
+    showResults('results', results);
+    Loading.end();
+    Message.success("Success");
   });
   document.getElementById('clear').addEventListener('click', () => {
     document.getElementById('input').value = '';

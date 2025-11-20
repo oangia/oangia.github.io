@@ -1,4 +1,10 @@
-
+/*const textAnalyzer = new TextAnalyzer();
+    const formulas = new ReadabilityEngine();
+    const data = textAnalyzer.analyze(text);
+    showStats(data, textAnalyzer.REFERENCE_DATA);
+    const results = formulas.calculate(data);
+    const view = new View();
+    view.showResults('results', results);*/
 class TextAnalyzer {
   REFERENCE_DATA = {
     difficulty: {
@@ -58,8 +64,7 @@ class TextAnalyzer {
       sevenPlusSyl: 0
     }
   };
-  constructor(referenceData) {
-    this.referenceData = referenceData;
+  constructor() {
     this.weakVerbsSet = new Set(['is', 'are', 'was', 'were', 'be', 'been', 'being', 'am', 'has', 'have', 'had']);
     this.adjectiveSuffixes = /(?:able|ible|al|ful|ic|ical|ive|less|ous|ious|eous|ent|ant|ary)$/i;
     this.nominalizationPatterns = /(?:tion|sion|ment|ness|ity|ance|ence)$/i;
@@ -287,7 +292,7 @@ function formatComparison(label, calculated, reference, unit = '', tolerance = 0
   </div>`;
 }
 
-function showStats(data) {
+function showStats(data, referenceData) {
   document.getElementById('output').classList.remove('d-none');
 
   document.getElementById('char-stats').innerHTML = `

@@ -1,7 +1,12 @@
 # Task
+- Main feature, input a paragraph -> response the score of readability
 - Google analytic
 - Simple front end library / Navigation
 - Change formulas to back end
+- Secure for server / only allow request from my web, second only allow limited requests from ip, cookie.
+- Save log of requests
+- Validate, not under 100 characters, back and front end
+- Them loading
 
 Ideas
 Title
