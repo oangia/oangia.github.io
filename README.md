@@ -5,6 +5,7 @@
 - Validate, not under 100 characters, back and front end
 - Thêm home, show some ideas
 - Fix small detail in formulas
+- Write test function for API
 
 Ideas
 Title
