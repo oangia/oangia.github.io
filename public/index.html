@@ -104,8 +104,13 @@
   <script>
   document.getElementById('analyze').addEventListener('click', async () => {
     const text = document.getElementById('input').value.trim();
-    if (!text) { alert('Please enter text'); return; }
-    Loading.start(); // default spinner
+    if (!Validator.minLength(text, 100)) { 
+      return Message.error('Input text must least be 100 characters long.', 5000); 
+    }
+    if (!Validator.maxLength(text, 1000)) { 
+      return Message.error('Input text must not exceed 1000 characters.', 5000); 
+    }
+    Loading.start();
     const loopup = new ReadabilityLookup();
     const api = new ApiHandler("https://oangia.pythonanywhere.com/");
     const requestData = { text: text };
