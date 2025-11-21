@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Readability Checker</title>
+  <title>Readability Checker - Agent52</title>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-J9RZWL9DZ5"></script>
   <script>
@@ -21,7 +21,7 @@
     <div class="container d-flex align-items-center justify-content-between py-2">
       <a href="/" class="d-flex align-items-center text-decoration-none">
         <!--<img src="logo.png" alt="Logo" height="40" class="me-2">-->
-        <span class="fs-5 fw-bold">Agent 52</span>
+        <span class="fs-5 fw-bold">Agent52</span>
       </a>
       <nav>
         <ul class="nav">
@@ -42,7 +42,7 @@
       <h1 class="mb-2 mb-sm-3 fs-5 fs-sm-3">Readability Checker</h1>
     
       <div class="mb-2 mb-sm-3">
-        <textarea id="input" class="form-control form-control-sm" rows="6" placeholder="Paste your text here...">Learning to code is an essential skill in todays world. It allows people to create software automate tasks and solve complex problems efficiently. Beginners may feel overwhelmed at first but with consistent practice even challenging concepts become manageable. Programming languages vary in syntax and complexity yet the fundamental logic remains similar across most languages. Understanding algorithms data structures and design patterns is crucial for building reliable and scalable applications. Moreover coding fosters critical thinking problem solving and creativity. Online tutorials coding bootcamps and practice projects provide ample opportunities for learners to improve and gain confidence in their abilities.</textarea>
+        <textarea id="input" class="form-control form-control-sm" rows="6" placeholder="Paste your text here..."></textarea>
       </div>
     
       <div class="mb-2 mb-sm-3 d-flex gap-2">
@@ -65,80 +65,49 @@
 
   <!-- Footer -->
   <footer class="border-top py-3 mt-4">
-    <div class="container text-center small text-muted">
-      Agent 52 &copy; 2025
+    <div class="container d-flex justify-content-between align-items-center small text-muted">
+      <div>
+        Agent52 &copy; 2025
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <!-- Facebook SVG -->
+        <a href="https://www.facebook.com/profile.php?id=61584214284643 data-bs-toggle="tooltip" data-bs-placement="top" title="Facebook" target="_blank" style="width:24px; height:24px;">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+            <circle cx="12" cy="12" r="12" fill="#1877F2"/>
+            <path d="M15.12 12.07h-2.12v7h-3v-7H8V9.57h2v-1.5c0-1.72 1.05-2.63 2.57-2.63h1.5v2.63h-1c-.48 0-.57.23-.57.57v1.43h2.14l-.28 2.5z" fill="#fff"/>
+          </svg>
+        </a>
+  
+        <!-- Email SVG -->
+        <a href="mailto:blogphp.biz@gmail.com" data-bs-toggle="tooltip" data-bs-placement="top" title="blogphp.biz@gmail.com" style="width:24px; height:24px;cursor:none;">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+            <!-- Circle background -->
+            <circle cx="12" cy="12" r="12" fill="#ffffff"/>
+          
+            <!-- Gmail logo scaled to fit the 24x24 circle -->
+            <g transform="translate(-5 -2) scale(0.18)">
+              <path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6"/>
+              <path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15"/>
+              <path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2"/>
+              <path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92"/>
+              <path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2"/>
+            </g>
+          </svg>          
+          
+        </a>
+      </div>
     </div>
   </footer>
   <script src="/plugins/utils.js"></script>
   <script type="module">
-    import { getFirestore } from "https://oangia.github.io/firebase/1.0.0/firebase.js";
-    const firestore = getFirestore();
+    import { getFirestoreDB } from "https://oangia.github.io/firebase/1.0.0/firebase.js";
+    const firestore = getFirestoreDB();
     window.firestore = firestore;
   </script>
   <script src="/scripts/formula.js"></script>
   <script>
-    class ApiHandler {
-      constructor(baseUrl) {
-        this.baseUrl = baseUrl;
-        this.privateKey = null;
-        this.publicKey = null;
-      }
-
-      // Generate ephemeral RSA key pair
-      async generateKeyPair() {
-        const pair = await crypto.subtle.generateKey(
-          {
-            name: "RSA-OAEP",
-            modulusLength: 4096,
-            publicExponent: new Uint8Array([1, 0, 1]),
-            hash: "SHA-256"
-          },
-          true,
-          ["encrypt", "decrypt"]
-        );
-        this.privateKey = pair.privateKey;
-        this.publicKey = pair.publicKey;
-      }
-
-      // Export public key in Base64
-      async exportPublicKey() {
-        const raw = await crypto.subtle.exportKey("spki", this.publicKey);
-        return btoa(String.fromCharCode(...new Uint8Array(raw)));
-      }
-
-      // Decrypt server response (Base64)
-      async decryptResponse(cipherBase64) {
-        const bytes = Uint8Array.from(atob(cipherBase64), c => c.charCodeAt(0));
-        const decrypted = await crypto.subtle.decrypt(
-          { name: "RSA-OAEP" },
-          this.privateKey,
-          bytes
-        );
-        return JSON.parse(new TextDecoder().decode(decrypted));
-      }
-
-      // Send data + public key, get decrypted response
-      async post(data) {
-        await this.generateKeyPair();
-        const pubKey = await this.exportPublicKey();
-
-        const response = await fetch(this.baseUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...data, pub: pubKey })
-        });
-        const res = await response.json();
-        const result = await this.decryptResponse(res.r);
-        // Clear keys
-        this.privateKey = null;
-        this.publicKey = null;
-
-        return {readability: result.r};
-      }
-    }
-  </script>
-  <script>
-  document.getElementById('analyze').addEventListener('click', async () => {
+  Event.onClick('analyze', async () => {
     const text = document.getElementById('input').value.trim();
     if (!Validator.minLength(text, 100)) { 
       return Message.error('Input text must least be 100 characters long.', 5000); 
@@ -147,15 +116,14 @@
       return Message.error('Input text must not exceed 1000 characters.', 5000); 
     }
     Loading.start();
-    const loopup = new ReadabilityLookup();
-    const api = new ApiHandler("https://oangia.pythonanywhere.com/");
-    const requestData = { text: text };
-    const data = await api.post(requestData);
-    const results = loopup.calculate(text, data.readability);
+    const data = await (new ApiHandler("https://oangia.pythonanywhere.com/")).post({ 
+      text: text 
+    });
+    const results = (new ReadabilityLookup()).calculate(text, data.formulas);
     showResults('results', results);
     Loading.end();
   });
-  document.getElementById('clear').addEventListener('click', () => {
+  Event.onClick('clear', () => {
     document.getElementById('input').value = '';
     document.getElementById('output').classList.add('d-none');
   });

@@ -1,96 +1,10 @@
-class ReadabilityEngine {
-  EXPECTED_RESULTS = {
-    'Consensus Grade Level': 14.89,
-    'Automated Readability Index': 15.51,
-    'Flesch Reading Ease': 20.00,
-    'Gunning Fog Index': 16.20,
-    'Flesch-Kincaid Grade Level': 14.07,
-    'Coleman-Liau Index': 19.05,
-    'SMOG Index': 11.16,
-    'Linsear Write': 10.50,
-    'FORCAST': 14.64
-  };
-
-  calculateARI(data) {
-    const chars = data.character.charsWithoutSpaces;
-    const words = data.character.totalWords;
-    const sentences = data.sentences.total;
-    return 4.71 * (chars / words) + 0.5 * (words / sentences) - 21.43;
-  }
-
-  calculateFlesch(data) {
-    const words = data.character.totalWords;
-    const sentences = data.sentences.total;
-    const syllables = data.syllables.total;
-    return 206.835 - 1.015 * (words / sentences) - 84.6 * (syllables / words);
-  }
-
-  calculateGFI(data) {
-    const words = data.character.totalWords;
-    const sentences = data.sentences.total;
-    const compound = data.words.compound;
-    const complex = data.words.hard;
-    return 0.4 * ((words / (sentences + compound)) + 100 * (complex / words));
-  }
-
-  calculateFK(data) {
-    const words = data.character.totalWords;
-    const sentences = data.sentences.total;
-    const syllables = data.syllables.total;
-    return 0.39 * (words / sentences) + 11.8 * (syllables / words) - 15.59;
-  }
-
-  calculateCLI(data) {
-    const letters = data.character.lettersAZ;
-    const words = data.character.totalWords;
-    const sentences = data.sentences.total;
-    const L = (letters / words) * 100;
-    const S = (sentences / words) * 100;
-    return 0.0588 * L - 0.296 * S - 15.8;
-  }
-
-  calculateSMOG(data) {
-    const sentences = data.sentences.total;
-    const complex = data.words.hard;
-    return 1.043 * Math.sqrt((complex * (30 / sentences)) + 3.1291);
-  }
-
-  calculateLinsearWrite(data) {
-    const sentences = data.sentences.total;
-    const compound = data.words.compound;
-    const easy = data.words.easy;
-    const hard = data.words.hard;
-    const ignored = 3;
-    const initial = ((easy - ignored) * 1 + hard * 3) / (sentences + compound);
-    return initial > 20 ? initial / 2 : (initial - 2) / 2;
-  }
-
-  calculateFORCAST(data) {
-    const words = data.character.totalWords;
-    const oneSyl = data.syllables.oneSyl;
-    return 20 - ((oneSyl / words) * 150 / 10);
-  }
-
-  calculateAll(data) {
-    return {
-      ARI: this.calculateARI(data),
-      Flesch: this.calculateFlesch(data),
-      GFI: this.calculateGFI(data),
-      FK: this.calculateFK(data),
-      CLI: this.calculateCLI(data),
-      SMOG: this.calculateSMOG(data),
-      Linsear: this.calculateLinsearWrite(data),
-      FORCAST: this.calculateFORCAST(data)
-    };
-  }
-}
+const REFERENCE_DATA={difficulty:{hardWords:26,longSentences:0,adverbs:3,hardAdjectives:9,nominals:1,passiveWords:0,weakVerbs:2},character:{totalWords:98,avgWordLength:6,longestWord:"Understanding",longestWordLength:13,charsWithSpaces:720,charsWithoutSpaces:623,lettersAZ:616,alphaNumeric:616},sentences:{total:7,lineCount:0,totalLines:7,avgLength:14,activeVoice:7,passiveVoice:0,short:2,medium:5,long:0},paragraphs:{count:1,shortest:98,longest:98},words:{easy:72,hard:26,compound:0,cardinal:0,properNoun:0,abbreviated:0,unique:75,repeat:15},syllables:{total:201,avgPerWord:2.05,oneSyl:35,twoSyl:37,threeSyl:14,fourSyl:10,fiveSyl:2,sixSyl:0,sevenPlusSyl:0}};
+const EXPECTED_RESULTS={"The Average":14.89,"Automated Readability Index":15.51,"Flesch Reading Ease":20,"Gunning Fog Index":16.2,"Flesch-Kincaid Grade Level":14.07,"Coleman-Liau Index":19.05,"SMOG Index":11.16,"Linsear Write":10.5,Forcast:14.64};
+class TextAnalyzer{constructor(){this.weakVerbsSet=new Set(["is","are","was","were","be","been","being","am","has","have","had"]),this.adjectiveSuffixes=/(?:able|ible|al|ful|ic|ical|ive|less|ous|ious|eous|ent|ant|ary)$/i,this.nominalizationPatterns=/(?:tion|sion|ment|ness|ity|ance|ence)$/i}normalizeText(e){return e.normalize?e.normalize("NFC"):e}splitSentences(e){return e.split(/[.!?…]+\s+|\n+/g).map((e=>e.trim())).filter((e=>e.length>0))}splitWords(e){return(e=(e=e.normalize("NFC")).replace(/[\u00A0\u200B\t\n\r]+/g," ")).match(/\b[\p{L}\p{N}]+(?:[''\-][\p{L}\p{N}]+)*\b/gu)||[]}countLetters(e){const t=e.match(/[a-zA-Z]/g);return t?t.length:0}countCharsWithSpaces(e){return e.length}countCharsWithoutSpaces(e){return e.replace(/\s/g,"").length}getAverageWordLength(e){return e.length?e.reduce(((e,t)=>e+t.length),0)/e.length:0}getLongestWord(e){if(!e.length)return{word:"",length:0};const t=e.reduce(((e,t)=>t.length>e.length?t:e),"");return{word:t,length:t.length}}toNFDLower(e){try{return e.normalize("NFD").toLowerCase()}catch{return e.toLowerCase()}}syllablesInWord(e){let t=e.toLowerCase().replace(/[^a-z]/g,"");if(["reliable"].includes(t))return 4;if(t.length<=3)return 1;let n=0,s=t;s.match(/le$/)&&n++,s.match(/(ted|ded)$/)&&n++,s.match(/(thm|thms)$/)&&n++,s.match(/(ses|zes|ches|shes|ges|ces)$/)&&n++,s.includes("rial")&&n++,s.includes("creat")&&n++,s=s.replace(/(e|ed|es)$/i,"");n+=(s.match(/aa|ae|ai|ao|au|ay|ea|ee|ei|eo|eu|ey|ia|ie|ii|io|iu|iy|oa|oe|oi|oo|ou|oy|ua|ue|ui|uo|uu|uy|ya|ye|yi|yo|yu|yy/g)||[]).length,s=s.replace(/aa|ae|ai|ao|au|ay|ea|ee|ei|eo|eu|ey|ia|ie|ii|io|iu|iy|oa|oe|oi|oo|ou|oy|ua|ue|ui|uo|uu|uy|ya|ye|yi|yo|yu|yy/g,"");return n+=(s.match(/[aeiouy]/g)||[]).length,n>0?n:1}countAdverbs(e){return e.filter((e=>/ly$/.test(e.toLowerCase())&&e.length>4)).length}countWeakVerbs(e){return e.filter((e=>this.weakVerbsSet.has(e.toLowerCase()))).length}countPassiveVoice(e){const t=e.match(/\b(is|are|was|were|be|been|being)\s+\w+ed\b/gi);return t?t.length:0}countHardAdjectives(e){return e.filter((e=>this.syllablesInWord(e)>=3&&this.adjectiveSuffixes.test(e.toLowerCase()))).length}#e(e){return e.filter((e=>this.nominalizationPatterns.test(e.toLowerCase())&&e.length>5)).length}#t(e){const t={};e.forEach((e=>{const n=e.toLowerCase();t[n]=(t[n]||0)+1}));return{unique:e.filter((e=>1===t[e.toLowerCase()])).length,repeat:e.length-new Set(e.map((e=>e.toLowerCase()))).size}}#n(e){return{short:e.filter((e=>this.splitWords(e).length<=10)).length,medium:e.filter((e=>{const t=this.splitWords(e).length;return t>10&&t<21})).length,long:e.filter((e=>this.splitWords(e).length>=21)).length}}analyze(e){const t=this.normalizeText(e),n=this.splitSentences(t),s=this.splitWords(t),r=this.countLetters(t),i=this.countCharsWithSpaces(t),o=this.countCharsWithoutSpaces(t),a=this.getAverageWordLength(s),l=this.getLongestWord(s),h=s.map((e=>this.syllablesInWord(e))),u=h.reduce(((e,t)=>e+t),0),c=this.#n(n),g=e.split(/\n\s*\n/).filter((e=>e.trim().length>0)),d=g.map((e=>this.splitWords(e).length));return{difficulty:{hardWords:h.filter((e=>e>=3)).length,longSentences:c.long,adverbs:this.countAdverbs(s),hardAdjectives:this.countHardAdjectives(s),nominals:this.#e(s),passiveWords:this.countPassiveVoice(t),weakVerbs:this.countWeakVerbs(s)},character:{totalWords:s.length,avgWordLength:Math.round(a),longestWord:l.word,longestWordLength:l.length,charsWithSpaces:i,charsWithoutSpaces:o,lettersAZ:r,alphaNumeric:r},sentences:{total:n.length,lineCount:0,totalLines:n.length,avgLength:n.length?Math.round(s.length/n.length):0,activeVoice:n.length-this.countPassiveVoice(t),passiveVoice:this.countPassiveVoice(t),short:c.short,medium:c.medium,long:c.long},paragraphs:{count:g.length,shortest:d.length?Math.min(...d):0,longest:d.length?Math.max(...d):0},words:{easy:h.filter((e=>e<3)).length,hard:h.filter((e=>e>=3)).length,compound:0,cardinal:0,properNoun:0,abbreviated:0,unique:this.#t(s).unique,repeat:this.#t(s).repeat},syllables:{total:u,avgPerWord:parseFloat((u/s.length).toFixed(2)),oneSyl:h.filter((e=>1===e)).length,twoSyl:h.filter((e=>2===e)).length,threeSyl:h.filter((e=>3===e)).length,fourSyl:h.filter((e=>4===e)).length,fiveSyl:h.filter((e=>5===e)).length,sixSyl:h.filter((e=>6===e)).length,sevenPlusSyl:h.filter((e=>e>=7)).length}}}}
 
 class ReadabilityLookup {
   constructor() {
-    // ------------------------
-    // ARI table
-    // ------------------------
-    this.ARI_TABLE = [
+    this.GRADE_LEVEL = [
       { min: -Infinity, max: 0.99, grade: "Kindergarten", level: "Extremely Easy", ages: "5–6 yrs" },
       { min: 1, max: 1.99, grade: "1st Grade", level: "Extremely Easy", ages: "6–7 yrs" },
       { min: 2, max: 2.99, grade: "2nd Grade", level: "Very Easy", ages: "7–8 yrs" },
@@ -107,10 +21,7 @@ class ReadabilityLookup {
       { min: 13, max: Infinity, grade: "College", level: "Very Difficult", ages: "18–22 yrs" }
     ];
 
-    // ------------------------
-    // FRE table
-    // ------------------------
-    this.FRE_TABLE = [
+    this.READING_SCALE = [
       { min: 140, max: 200, grade: "Kindergarten", level: "Extremely Easy", ages: "5–6 yrs", gradeRange: 0 },
       { min: 130, max: 139, grade: "1st Grade", level: "Very Easy", ages: "6–7 yrs", gradeRange: 1 },
       { min: 120, max: 129, grade: "2nd Grade", level: "Very Easy", ages: "7–8 yrs", gradeRange: 2 },
@@ -150,44 +61,44 @@ class ReadabilityLookup {
     let g = Number(gradeRange);
     if (isNaN(g) || g < 0) g = 0;
 
-    if (g < 6) return this.interpolate('#2ECC71', '#1ABC9C', g / 5);
-    if (g < 10) return this.interpolate('#F7DC6F', '#F1C40F', (g - 6) / 3);
-    if (g < 13) return this.interpolate('#E67E22', '#D35400', (g - 10) / 2);
-    return '#C0392B';
+    if (g < 6) return this.interpolate('#7DCEA0', '#48C9B0', g / 5);   // lighter greens
+    if (g < 10) return this.interpolate('#F9E79F', '#F4D03F', (g - 6) / 3); // lighter yellows
+    if (g < 13) return this.interpolate('#F5B041', '#EB984E', (g - 10) / 2); // softer oranges
+    return '#EC7063'; // lighter red
   }
 
-  lookupScore(score, table, formulaName) {
+  lookupScore(score, data, table, formulaName) {
     const info = table.find(row => score >= row.min && score <= row.max) || {};
     info.color = this.getColor(info.gradeRange ?? score);
 
     let formulaHTML;
     switch (formulaName) {
-      case 'ARI':
-        formulaHTML = `<b>ARI</b> = 4.71×(chars/words) + 0.5×(words/sentences) - 21.43 = ${score}`;
+      case 'Automated Readability Index':
+        formulaHTML = `<b>ARI</b> = (4.71 * ( <span class="data">${data.character.charsWithoutSpaces}</span> characters / <span class="data">${data.character.totalWords}</span> words)) + (0.5 * (<span class="data">${data.character.totalWords}</span> words / <span class="data">${data.sentences.total}</span> sentences)) - 21.43 = ${score}`;
         break;
-      case 'FRE':
-        formulaHTML = `<b>FRE</b> = 206.835 - 1.015×(words/sentences) - 84.6×(syllables/words) = ${score}`;
+      case 'Flesch Reading Ease':
+        formulaHTML = `<b>FRE</b> = 206.835 - (1.015 * (<span class="data">${data.character.totalWords}</span> words / <span class="data">${data.sentences.total}</span> sentences)) - (84.6 * <span class="data">${data.syllables.total}</span> syllables / <span class="data">${data.character.totalWords}</span> words) = ${score}`;
         break;
-      case 'GFI':
-        formulaHTML = `<b>GFI</b> = 0.4 × (words/(sentences+compound) + 100×(complex/words)) = ${score}`;
+      case 'Gunning Fog Index':
+        formulaHTML = `<b>GFI</b> = (0.4 * (<span class="data">${data.character.totalWords}</span> words / (<span class="data">${data.sentences.total}</span> sentences + <span class="data">0</span> compound sentences)) + 100 * (<span class="data">${data.words.hard}</span> FOG hard words / <span class="data">${data.character.totalWords}</span> words)) = ${score}`;
         break;
-      case 'FK':
-        formulaHTML = `<b>FK</b> = 0.39×(words/sentences) + 11.8×(syllables/words) - 15.59 = ${score}`;
+      case 'Flesch-Kincaid Grade Level':
+        formulaHTML = `<b>FK</b> = (0.39 * (<span class="data">${data.character.totalWords}</span> words / <span class="data">${data.sentences.total}</span> sentences)) + (11.8 * (<span class="data">${data.syllables.total}</span> syllables / <span class="data">${data.character.totalWords}</span> words)) - 15.59 = ${score}`;
         break;
-      case 'CLI':
-        formulaHTML = `<b>CLI</b> = 0.0588×(letters/words×100) - 0.296×(sentences/words×100) - 15.8 = ${score}`;
+      case 'Coleman-Liau Readability Index':
+        formulaHTML = `<b>CLI</b> = (0.0588 * (<span class="data">${data.character.lettersAZ}</span> letters / <span class="data">${data.character.totalWords}</span> words) * 100) - (0.296 * (<span class="data">${data.sentences.total}</span> sentences / <span class="data">${data.character.totalWords}</span> words) * 100) - 15.8 = ${score}`;
         break;
-      case 'SMOG':
-        formulaHTML = `<b>SMOG</b> = 1.043 × √(complex*(30/sentences) + 3.1291) = ${score}`;
+      case 'The SMOG Index':
+        formulaHTML = `<b>SMOG</b> = 1.043 * Sqrt((<span class="data">${data.words.hard}</span> hard words * (30 / <span class="data">${data.sentences.total}</span> sentences)) + 3.1291) = ${score}`;
         break;
-      case 'Linsear':
-        formulaHTML = `<b>Linsear</b> = ((easy-3)*1 + hard*3)/(sentences+compound) adjusted = ${score}`;
+      case 'Linsear Write Grade Level Formula':
+        formulaHTML = `<b>Linsear</b> = (((<span class="data">${data.words.easy}</span> easy words - <span class="data">3</span> ignored words) * 1) + (<span class="data">${data.words.hard}</span> hard words * 3)) / (<span class="data">${data.sentences.total}</span> sentences + <span class="data">0</span> compound sentences) / 2 = ${score}`;
         break;
-      case 'FORCAST':
-        formulaHTML = `<b>FORCAST</b> = 20 - ((oneSyl*150)/(words*10)) = ${score}`;
+      case 'FORCAST Readability Formula':
+        formulaHTML = `<b>FORCAST</b> = 20 - ((<span class="data">${data.syllables.oneSyl}</span> 1-syllable words * 150) / (<span class="data">${data.character.totalWords}</span> words * 10)) = ${score}`;
         break;
       default:
-        formulaHTML = `${score}`;
+        formulaHTML = ``;
     }
 
     return {
@@ -198,36 +109,37 @@ class ReadabilityLookup {
     };
   }
 
-  lookupARI(score) { return this.lookupScore(score, this.ARI_TABLE, 'ARI'); }
-  lookupFRE(score) { return this.lookupScore(score, this.FRE_TABLE, 'FRE'); }
-  lookupGFI(score) { return this.lookupScore(score, this.ARI_TABLE, 'GFI'); }
-  lookupFK(score) { return this.lookupScore(score, this.ARI_TABLE, 'FK'); }
-  lookupCLI(score) { return this.lookupScore(score, this.ARI_TABLE, 'CLI'); }
-  lookupSMOG(score) { return this.lookupScore(score, this.ARI_TABLE, 'SMOG'); }
-  lookupLinsear(score) { return this.lookupScore(score, this.ARI_TABLE, 'Linsear'); }
-  lookupFORCAST(score) { return this.lookupScore(score, this.ARI_TABLE, 'FORCAST'); }
+  lookupARI(score, data) { return this.lookupScore(score, data, this.GRADE_LEVEL, 'Automated Readability Index'); }
+  lookupFRE(score, data) { return this.lookupScore(score, data, this.READING_SCALE, 'Flesch Reading Ease'); }
+  lookupGFI(score, data) { return this.lookupScore(score, data, this.GRADE_LEVEL, 'Gunning Fog Index'); }
+  lookupFK(score, data) { return this.lookupScore(score, data, this.GRADE_LEVEL, 'Flesch-Kincaid Grade Level'); }
+  lookupCLI(score, data) { return this.lookupScore(score, data, this.GRADE_LEVEL, 'Coleman-Liau Readability Index'); }
+  lookupSMOG(score, data) { return this.lookupScore(score, data, this.GRADE_LEVEL, 'The SMOG Index'); }
+  lookupLinsear(score, data) { return this.lookupScore(score, data, this.GRADE_LEVEL, 'Linsear Write Grade Level Formula'); }
+  lookupFORCAST(score, data) { return this.lookupScore(score, data, this.GRADE_LEVEL, 'FORCAST Readability Formula'); }
 
-  calculateAverage(results) {
+  calculateAverage(results, data) {
     let total = 0;
     results.forEach(item => {
       total += item.gradeRange !== undefined ? Number(item.gradeRange) : Number(item.score);
     });
     const avg = total / results.length;
-    return this.lookupScore(avg, this.ARI_TABLE, 'Consensus Grade Level');
+    return this.lookupScore(avg, data, this.GRADE_LEVEL, 'The Average');
   }
 
   calculate(text, readability) {
+    const data = (new TextAnalyzer()).analyze(text);
     const results = [
-      this.lookupARI(readability[0]),
-      this.lookupFRE(readability[1]),
-      this.lookupGFI(readability[2]),
-      this.lookupFK(readability[3]),
-      this.lookupCLI(readability[4]),
-      this.lookupSMOG(readability[5]),
-      this.lookupLinsear(readability[6]),
-      this.lookupFORCAST(readability[7])
+      this.lookupARI(readability[0], data),
+      this.lookupFRE(Math.ceil(readability[1]), data),
+      this.lookupGFI(readability[2], data),
+      this.lookupFK(readability[3], data),
+      this.lookupCLI(readability[4], data),
+      this.lookupSMOG(readability[5], data),
+      this.lookupLinsear(readability[6], data),
+      this.lookupFORCAST(readability[7], data)
     ];
-    const consensus = this.calculateAverage(results);
+    const consensus = this.calculateAverage(results, data);
     results.unshift(consensus);
     firestore.createWithId('readability', md5(text.trim()), {text, score:results[0].score});
     return results;
@@ -239,22 +151,12 @@ function showResults(outputId, results) {
   output.innerHTML = '';
   
   results.forEach(res => {
-    /*const expectedScore = expectedResults[res.name];
-    let matchHTML = '';
-    
-    if (expectedScore !== undefined) {
-      const comp = compareValue(res.score, expectedScore, 0.01);
-      matchHTML = `<div style="color: ${comp.color}; margin-top: 8px;">
-        Formula Result: <b>${res.score}</b> ${comp.icon} Expected: <b>${expectedScore.toFixed(2)}</b>
-      </div>`;
-    }*/
-    
     const div = document.createElement('div');
     div.className = 'col-md-12 bg-body-secondary border rounded p-3 mb-3';
-    if (res.name === "Consensus Grade Level") {
+    if (res.name === "The Average") {
       div.className += ' formula';
-      div.style.borderColor = res.color;
-      div.style.borderWidth = '3px';
+      div.style.setProperty('border-color', res.color, 'important');
+      div.style.setProperty('border-width', '3px', 'important');
     } else {
       div.style.borderColor = res.color;
       div.style.borderWidth = '2px';
@@ -267,9 +169,10 @@ function formatResult(res, matchHTML='') {
   return `
   <h3 class="fs-6 mb-2 text-center"><b>${res.name}</b></h3>
   <div class="score-box px-3 py-2 rounded mb-2 fs-6">
-  <div>Score: <b style="color:${res.color};">${res.score}</b></div>
+  <div>Score: <b style="color:${res.color};">${res.score.toFixed(2)}</b></div>
   <div>Reading Difficulty: <b style="color:${res.color};">${res.level}</b></div>
-  <div>Grade Level: <b style="color:${res.color};">${res.grade}</b> | Age Range: <b>${res.ages}</b></div>
+  <div>Grade Level: <b style="color:${res.color};">${res.grade}</b></div>
+  <div>Age Range: <b>${res.ages}</b></div>
   <div>${res.formulaHTML}</div>
   </div>
   ${matchHTML}

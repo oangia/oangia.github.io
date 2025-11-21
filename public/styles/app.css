@@ -86,3 +86,6 @@ input::placeholder {
   color: #888 !important;
   opacity: 1; /* ensure full visibility */
 }
+.data {
+  color:red
+}

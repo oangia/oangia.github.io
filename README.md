@@ -1,13 +1,10 @@
 # Task
-- Main feature, input a paragraph -> response the score of readability
-- Fix small detail in formulas
-- Secure for server: only allow limited requests from ip, cookie.
-- Thêm home, show some ideas
-
+- Promote the web
+# To do list
 - YouTube Video Idea Generator
 - YouTube Channel Analyzer.
-
-
+- Secure for server: only allow limited requests from ip, cookie.
+- Fix small detail in formulas
 
 Ideas / Spy other
 Title/Thumbnail
