@@ -1,69 +1,62 @@
-/*const textAnalyzer = new TextAnalyzer();
-    const formulas = new ReadabilityEngine();
-    const data = textAnalyzer.analyze(text);
-    showStats(data, textAnalyzer.REFERENCE_DATA);
-    const results = formulas.calculate(data);
-    const view = new View();
-    view.showResults('results', results);*/
+const REFERENCE_DATA = {
+  difficulty: {
+    hardWords: 26,
+    longSentences: 0,
+    adverbs: 3,
+    hardAdjectives: 9,
+    nominals: 1,
+    passiveWords: 0,
+    weakVerbs: 2
+  },
+    character: {
+    totalWords: 98,
+    avgWordLength: 6,
+    longestWord: "Understanding",
+    longestWordLength: 13,
+    charsWithSpaces: 720,
+    charsWithoutSpaces: 623,
+    lettersAZ: 616,
+    alphaNumeric: 616
+  },
+  sentences: {
+    total: 7,
+    lineCount: 0,
+    totalLines: 7,
+    avgLength: 14,
+    activeVoice: 7,
+    passiveVoice: 0,
+    short: 2,
+    medium: 5,
+    long: 0
+  },
+  paragraphs: {
+    count: 1,
+    shortest: 98,
+    longest: 98
+  },
+  words: {
+    easy: 72,
+    hard: 26,
+    compound: 0,
+    cardinal: 0,
+    properNoun: 0,
+    abbreviated: 0,
+    unique: 75,
+    repeat: 15
+  },
+  syllables: {
+    total: 201,
+    avgPerWord: 2.05,
+    oneSyl: 35,
+    twoSyl: 37,
+    threeSyl: 14,
+    fourSyl: 10,
+    fiveSyl: 2,
+    sixSyl: 0,
+    sevenPlusSyl: 0
+  }
+};
 class TextAnalyzer {
-  REFERENCE_DATA = {
-    difficulty: {
-      hardWords: 26,
-      longSentences: 0,
-      adverbs: 3,
-      hardAdjectives: 9,
-      nominals: 1,
-      passiveWords: 0,
-      weakVerbs: 2
-    },
-      character: {
-      totalWords: 98,
-      avgWordLength: 6,
-      longestWord: "Understanding",
-      longestWordLength: 13,
-      charsWithSpaces: 720,
-      charsWithoutSpaces: 623,
-      lettersAZ: 616,
-      alphaNumeric: 616
-    },
-    sentences: {
-      total: 7,
-      lineCount: 0,
-      totalLines: 7,
-      avgLength: 14,
-      activeVoice: 7,
-      passiveVoice: 0,
-      short: 2,
-      medium: 5,
-      long: 0
-    },
-    paragraphs: {
-      count: 1,
-      shortest: 98,
-      longest: 98
-    },
-    words: {
-      easy: 72,
-      hard: 26,
-      compound: 0,
-      cardinal: 0,
-      properNoun: 0,
-      abbreviated: 0,
-      unique: 75,
-      repeat: 15
-    },
-    syllables: {
-      total: 201,
-      avgPerWord: 2.05,
-      oneSyl: 35,
-      twoSyl: 37,
-      threeSyl: 14,
-      fourSyl: 10,
-      fiveSyl: 2,
-      sixSyl: 0,
-      sevenPlusSyl: 0
-    }
-  };
   constructor() {
     this.weakVerbsSet = new Set(['is', 'are', 'was', 'were', 'be', 'been', 'being', 'am', 'has', 'have', 'had']);
     this.adjectiveSuffixes = /(?:able|ible|al|ful|ic|ical|ive|less|ous|ious|eous|ent|ant|ary)$/i;

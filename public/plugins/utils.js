@@ -2,88 +2,14 @@ class Validator{static isEmpty(t){return!t||!t.trim()}static isEmail(t){return/^
 class Message{static el=null;static timeout=null;static create(){if(this.el)return;const t=document.createElement("div");t.className="message-floating",Object.assign(t.style,{position:"fixed",top:"20px",right:"20px",zIndex:9999,minWidth:"200px",padding:"12px 16px",borderRadius:"6px",boxShadow:"0 2px 8px rgba(0,0,0,0.2)",color:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",opacity:0,transition:"opacity 0.3s"});const e=document.createElement("span");e.innerHTML="&times;",Object.assign(e.style,{marginLeft:"12px",fontWeight:"bold",cursor:"pointer"}),e.addEventListener("click",(()=>this.hide())),t.appendChild(e),document.body.appendChild(t),this.el=t}static show(t,e="info",s=3e3){this.create(),this.el.firstChild&&this.el.firstChild!==this.el.lastChild&&this.el.removeChild(this.el.firstChild);const i=document.createElement("span");switch(i.textContent=t,this.el.insertBefore(i,this.el.lastChild),e){case"success":this.el.style.backgroundColor="#28a745";break;case"error":this.el.style.backgroundColor="#dc3545";break;case"warning":this.el.style.backgroundColor="#ffc107",this.el.style.color="#000";break;default:this.el.style.backgroundColor="#17a2b8"}this.el.style.display="flex",requestAnimationFrame((()=>this.el.style.opacity=1)),clearTimeout(this.timeout),this.timeout=setTimeout((()=>this.hide()),s)}static hide(){this.el&&(this.el.style.opacity=0,setTimeout((()=>this.el&&(this.el.style.display="none")),300))}static success(t,e=3e3){this.show(t,"success",e)}static error(t,e=3e3){this.show(t,"error",e)}static warning(t,e=3e3){this.show(t,"warning",e)}static info(t,e=3e3){this.show(t,"info",e)}}
 class FormDetector{constructor(){this.fields={},this.detect()}isEmail(s){return/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)}isUsername(s){return/^[a-zA-Z0-9_]{3,20}$/.test(s)}isPassword(s){return s.length>=6||/[!@#$%^&*()\-_=+{};:,<.>]/.test(s)}isPhone(s){return/^\+?\d{8,15}$/.test(s.replace(/\s+/g,""))}detect(){this.fields={};document.querySelectorAll("input").forEach((s=>{const e=(s.value||"").trim();if(!e)return;const t=(s.name||s.id||"").toLowerCase()||e;let i="other";this.isEmail(e)?i="email":this.isPhone(e)?i="phone":this.isPassword(e)?i="password":this.isUsername(e)&&(i="username");const r=t||i;this.fields[r]?Array.isArray(this.fields[r])?this.fields[r].push(e):this.fields[r]=[this.fields[r],e]:this.fields[r]=e}))}get(s){return this.fields[s]||null}getAll(){return this.fields}}
 
-class Loading {
-  static start() {
-    if (document.getElementById('loading-overlay')) return;
-
-    const overlay = document.createElement('div');
-    overlay.id = 'loading-overlay';
-    Object.assign(overlay.style, {
-      position: 'fixed',
-      top: '0',
-      left: '0',
-      width: '100%',
-      height: '100%',
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: '9999'
-    });
-
-    const ripple = document.createElement('div');
-    ripple.className = 'ripple-loader';
-    overlay.appendChild(ripple);
-    document.body.appendChild(overlay);
-
-    if (!document.getElementById('loading-style')) {
-      const styleEl = document.createElement('style');
-      styleEl.id = 'loading-style';
-      styleEl.innerHTML = `
-        .ripple-loader {
-          position: relative;
-          width: 80px;
-          height: 80px;
-        }
-
-        /* First ripple: green */
-        .ripple-loader::before {
-          content: "";
-          position: absolute;
-          border: 4px solid #10a37f;
-          border-radius: 50%;
-          width: 100%;
-          height: 100%;
-          top: 0;
-          left: 0;
-          animation: ripple 1s infinite ease-out;
-        }
-
-        /* Second ripple: red, hidden initially */
-        .ripple-loader::after {
-          content: "";
-          position: absolute;
-          border: 4px solid #d20962;
-          border-radius: 50%;
-          width: 100%;
-          height: 100%;
-          top: 0;
-          left: 0;
-          opacity: 0; /* hide initially */
-          animation: ripple 1s infinite ease-out;
-          animation-delay: 0.5s; /* staggered start */
-        }
-
-        @keyframes ripple {
-          0% {
-            transform: scale(0.2);
-            opacity: 1;
-          }
-          100% {
-            transform: scale(1.8);
-            opacity: 0;
-          }
-        }
-      `;
-      document.head.appendChild(styleEl);
-    }
-  }
-
-  static end() {
-    const overlay = document.getElementById('loading-overlay');
-    if (overlay) overlay.remove();
-  }
-}
-
+class Cookie{static set(e,t,o=7){const n=new Date;n.setTime(n.getTime()+24*o*60*60*1e3),document.cookie=`${e}=${encodeURIComponent(t)};expires=${n.toUTCString()};path=/`}static get(e){const t=e+"=",o=document.cookie.split(";");for(let e of o)if((e=e.trim()).startsWith(t))return decodeURIComponent(e.substring(t.length));return null}static delete(e){document.cookie=`${e}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`}}
+class Url{static get(a){return new URLSearchParams(window.location.search).get(a)}static has(a){return new URLSearchParams(window.location.search).has(a)}static getAll(){return Object.fromEntries(new URLSearchParams(window.location.search))}}
+class Loading{static start(){if(document.getElementById("loading-overlay"))return;const n=document.createElement("div");n.id="loading-overlay",Object.assign(n.style,{position:"fixed",top:"0",left:"0",width:"100%",height:"100%",backgroundColor:"rgba(0,0,0,0.5)",display:"flex",justifyContent:"center",alignItems:"center",zIndex:"9999"});const e=document.createElement("div");if(e.className="ripple-loader",n.appendChild(e),document.body.appendChild(n),!document.getElementById("loading-style")){const n=document.createElement("style");n.id="loading-style",n.innerHTML='\n        .ripple-loader {\n          position: relative;\n          width: 80px;\n          height: 80px;\n        }\n\n        /* First ripple: green */\n        .ripple-loader::before {\n          content: "";\n          position: absolute;\n          border: 4px solid #10a37f;\n          border-radius: 50%;\n          width: 100%;\n          height: 100%;\n          top: 0;\n          left: 0;\n          animation: ripple 1s infinite ease-out;\n        }\n\n        /* Second ripple: red, hidden initially */\n        .ripple-loader::after {\n          content: "";\n          position: absolute;\n          border: 4px solid #d20962;\n          border-radius: 50%;\n          width: 100%;\n          height: 100%;\n          top: 0;\n          left: 0;\n          opacity: 0; /* hide initially */\n          animation: ripple 1s infinite ease-out;\n          animation-delay: 0.5s; /* staggered start */\n        }\n\n        @keyframes ripple {\n          0% {\n            transform: scale(0.2);\n            opacity: 1;\n          }\n          100% {\n            transform: scale(1.8);\n            opacity: 0;\n          }\n        }\n      ',document.head.appendChild(n)}}static end(){const n=document.getElementById("loading-overlay");n&&n.remove()}}
+class BlogEditor{constructor(t){if(this.container=document.getElementById(t),!this.container)throw new Error("Container not found");this.container.style="padding:5px",this.init()}init(){const t=document.createElement("div");t.className="toolbar",this.container.appendChild(t),this.toolbar=t;const e=document.createElement("div");e.id="editor",e.contentEditable=!0,e.innerHTML="",e.style.minHeight="300px",e.style.border="1px solid #ccc",e.style.padding="10px",e.style.borderRadius="4px",e.style.overflowY="auto",this.container.appendChild(e),this.editor=e;const i=document.createElement("textarea");i.id="html-view",i.style.minHeight="300px",i.style.width="100%",i.style.display="none",i.style.fontFamily="monospace",i.style.whiteSpace="pre-wrap",i.style.border="1px solid #ccc",i.style.borderRadius="4px",i.style.padding="10px",this.container.appendChild(i),this.htmlView=i;const n=document.createElement("style");n.innerHTML="\n        .toolbar { margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }\n        .toolbar button { padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; background: #f9f9f9; cursor: pointer; display: flex; align-items: center; justify-content: center; }\n        .toolbar button:hover { background: #e0e0e0; }\n        .toolbar svg { width: 16px; height: 16px; fill: #333; }\n        .toolbar .separator { margin: 0 4px; color: #888; user-select: none; }\n      ",document.head.appendChild(n),this.pluginGroups=[[BoldPlugin,ItalicPlugin,UnderlinePlugin,TextColorPlugin,BgColorPlugin],[AlignLeftPlugin,AlignCenterPlugin,AlignRightPlugin,AlignJustifyPlugin],[UnorderedListPlugin,OrderedListPlugin],[LinkPlugin,ImagePlugin],[HTMLViewPlugin]],this.pluginGroups.forEach(((t,e)=>{if(t.forEach((t=>(new t).init(this))),e<this.pluginGroups.length-1){const t=document.createElement("span");t.className="separator",t.innerText="|",this.toolbar.appendChild(t)}}))}format(t,e=null){document.execCommand(t,!1,e)}toggleView(){"none"!==this.editor.style.display?(this.htmlView.value=this.editor.innerHTML,this.editor.style.display="none",this.htmlView.style.display="block"):(this.editor.innerHTML=this.htmlView.value,this.htmlView.style.display="none",this.editor.style.display="block")}getContent(){return"none"!==this.editor.style.display?this.editor.innerHTML:this.htmlView.value}}class Plugin{init(t){}createButton(t,e,i){const n=document.createElement("button");n.type="button",n.innerHTML=e,n.addEventListener("click",i),t.toolbar.appendChild(n)}}class TextColorPlugin extends Plugin{init(t){const e=document.createElement("input");e.type="color",e.title="Text Color",e.style.width="28px",e.style.height="28px",e.style.padding="0",e.style.border="1px solid #ccc",e.style.borderRadius="4px",e.addEventListener("input",(e=>{t.format("foreColor",e.target.value)})),t.toolbar.appendChild(e)}}class BgColorPlugin extends Plugin{init(t){const e=document.createElement("input");e.type="color",e.title="Background Color",e.style.width="28px",e.style.height="28px",e.style.padding="0",e.style.border="1px solid #ccc",e.style.borderRadius="4px",e.addEventListener("input",(e=>{t.format("hiliteColor",e.target.value)})),t.toolbar.appendChild(e)}}class BoldPlugin extends Plugin{init(t){this.createButton(t,"<b>B</b>",(()=>t.format("bold")))}}class ItalicPlugin extends Plugin{init(t){this.createButton(t,"<i>I</i>",(()=>t.format("italic")))}}class UnderlinePlugin extends Plugin{init(t){this.createButton(t,"<u>U</u>",(()=>t.format("underline")))}}class AlignLeftPlugin extends Plugin{init(t){this.createButton(t,'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="2"/><rect x="3" y="10" width="12" height="2"/><rect x="3" y="15" width="18" height="2"/><rect x="3" y="20" width="12" height="2"/></svg>',(()=>t.format("justifyLeft")))}}class AlignCenterPlugin extends Plugin{init(t){this.createButton(t,'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="2"/><rect x="6" y="10" width="12" height="2"/><rect x="3" y="15" width="18" height="2"/><rect x="6" y="20" width="12" height="2"/></svg>',(()=>t.format("justifyCenter")))}}class AlignRightPlugin extends Plugin{init(t){this.createButton(t,'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="2"/><rect x="9" y="10" width="12" height="2"/><rect x="3" y="15" width="18" height="2"/><rect x="9" y="20" width="12" height="2"/></svg>',(()=>t.format("justifyRight")))}}class AlignJustifyPlugin extends Plugin{init(t){this.createButton(t,'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="2"/><rect x="3" y="10" width="18" height="2"/><rect x="3" y="15" width="18" height="2"/><rect x="3" y="20" width="18" height="2"/></svg>',(()=>t.format("justifyFull")))}}class UnorderedListPlugin extends Plugin{init(t){this.createButton(t,"&bull; List",(()=>t.format("insertUnorderedList")))}}class OrderedListPlugin extends Plugin{init(t){this.createButton(t,"1. List",(()=>t.format("insertOrderedList")))}}class LinkPlugin extends Plugin{init(t){this.createButton(t,"Link",(()=>{const e=prompt("Enter link URL");e&&t.format("createLink",e)}))}}class ImagePlugin extends Plugin{init(t){this.createButton(t,"Image",(()=>{const e=prompt("Enter image URL");e&&t.format("insertImage",e)}))}}class HTMLViewPlugin extends Plugin{init(t){this.createButton(t,"HTML View",(()=>t.toggleView()))}}
 // logs
-//let panel=null;const buffer=[],originalLog=console.log;function addMessage(e){const n=document.createElement("div");n.textContent=e,panel.appendChild(n),panel.scrollTop=panel.scrollHeight}function initPanel(){panel=document.createElement("div"),panel.id="console-viewer",panel.style.position="fixed",panel.style.left="0",panel.style.right="0",panel.style.bottom="0",panel.style.maxHeight="30vh",panel.style.overflowY="auto",panel.style.background="#111",panel.style.color="#0f0",panel.style.fontFamily="monospace",panel.style.fontSize="14px",panel.style.padding="8px",panel.style.borderTop="2px solid #333",panel.style.zIndex="99999",document.body.appendChild(panel),buffer.forEach(addMessage),buffer.length=0}console.log=function(...e){originalLog.apply(console,e);const n=e.map((e=>"object"==typeof e?JSON.stringify(e):String(e))).join(" ");panel?addMessage(n):buffer.push(n)},"complete"===document.readyState||"interactive"===document.readyState?initPanel():document.addEventListener("DOMContentLoaded",initPanel);
+class ConsoleViewer{static panel=null;static buffer=[];static originalLog=console.log;static override(){console.log=(...e)=>{ConsoleViewer.originalLog.apply(console,e);const o=e.map((e=>"object"==typeof e?JSON.stringify(e):String(e))).join(" ");ConsoleViewer.buffer.push(o),ConsoleViewer.updatePanel()}}static init(){ConsoleViewer.panel||(ConsoleViewer.panel=document.createElement("div"),ConsoleViewer.panel.id="console-viewer",ConsoleViewer.panel.style.position="fixed",ConsoleViewer.panel.style.left="0",ConsoleViewer.panel.style.right="0",ConsoleViewer.panel.style.bottom="0",ConsoleViewer.panel.style.maxHeight="30vh",ConsoleViewer.panel.style.overflowY="auto",ConsoleViewer.panel.style.background="#111",ConsoleViewer.panel.style.color="#0f0",ConsoleViewer.panel.style.fontFamily="monospace",ConsoleViewer.panel.style.fontSize="14px",ConsoleViewer.panel.style.padding="8px",ConsoleViewer.panel.style.borderTop="2px solid #333",ConsoleViewer.panel.style.zIndex="99999",document.body.appendChild(ConsoleViewer.panel),ConsoleViewer.updatePanel())}static updatePanel(){if(ConsoleViewer.panel){ConsoleViewer.panel.innerHTML="";for(const e of ConsoleViewer.buffer){const o=document.createElement("div");o.textContent=e,ConsoleViewer.panel.appendChild(o)}ConsoleViewer.panel.scrollTop=ConsoleViewer.panel.scrollHeight}}static setup(){ConsoleViewer.override(),"complete"===document.readyState||"interactive"===document.readyState?ConsoleViewer.init():document.addEventListener("DOMContentLoaded",(()=>ConsoleViewer.init()))}}
+if (Url.has("debug")) {
+  ConsoleViewer.setup();
+}
+//md5
+!function(n){"use strict";function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}function f(n,t,r,e,o,u){return d((u=d(d(t,n),d(e,u)))<<o|u>>>32-o,r)}function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}function g(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}function v(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}function c(n,t){var r,e,o,u;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;for(var c=1732584193,f=-271733879,i=-1732584194,a=271733878,h=0;h<n.length;h+=16)c=l(r=c,e=f,o=i,u=a,n[h],7,-680876936),a=l(a,c,f,i,n[h+1],12,-389564586),i=l(i,a,c,f,n[h+2],17,606105819),f=l(f,i,a,c,n[h+3],22,-1044525330),c=l(c,f,i,a,n[h+4],7,-176418897),a=l(a,c,f,i,n[h+5],12,1200080426),i=l(i,a,c,f,n[h+6],17,-1473231341),f=l(f,i,a,c,n[h+7],22,-45705983),c=l(c,f,i,a,n[h+8],7,1770035416),a=l(a,c,f,i,n[h+9],12,-1958414417),i=l(i,a,c,f,n[h+10],17,-42063),f=l(f,i,a,c,n[h+11],22,-1990404162),c=l(c,f,i,a,n[h+12],7,1804603682),a=l(a,c,f,i,n[h+13],12,-40341101),i=l(i,a,c,f,n[h+14],17,-1502002290),c=g(c,f=l(f,i,a,c,n[h+15],22,1236535329),i,a,n[h+1],5,-165796510),a=g(a,c,f,i,n[h+6],9,-1069501632),i=g(i,a,c,f,n[h+11],14,643717713),f=g(f,i,a,c,n[h],20,-373897302),c=g(c,f,i,a,n[h+5],5,-701558691),a=g(a,c,f,i,n[h+10],9,38016083),i=g(i,a,c,f,n[h+15],14,-660478335),f=g(f,i,a,c,n[h+4],20,-405537848),c=g(c,f,i,a,n[h+9],5,568446438),a=g(a,c,f,i,n[h+14],9,-1019803690),i=g(i,a,c,f,n[h+3],14,-187363961),f=g(f,i,a,c,n[h+8],20,1163531501),c=g(c,f,i,a,n[h+13],5,-1444681467),a=g(a,c,f,i,n[h+2],9,-51403784),i=g(i,a,c,f,n[h+7],14,1735328473),c=v(c,f=g(f,i,a,c,n[h+12],20,-1926607734),i,a,n[h+5],4,-378558),a=v(a,c,f,i,n[h+8],11,-2022574463),i=v(i,a,c,f,n[h+11],16,1839030562),f=v(f,i,a,c,n[h+14],23,-35309556),c=v(c,f,i,a,n[h+1],4,-1530992060),a=v(a,c,f,i,n[h+4],11,1272893353),i=v(i,a,c,f,n[h+7],16,-155497632),f=v(f,i,a,c,n[h+10],23,-1094730640),c=v(c,f,i,a,n[h+13],4,681279174),a=v(a,c,f,i,n[h],11,-358537222),i=v(i,a,c,f,n[h+3],16,-722521979),f=v(f,i,a,c,n[h+6],23,76029189),c=v(c,f,i,a,n[h+9],4,-640364487),a=v(a,c,f,i,n[h+12],11,-421815835),i=v(i,a,c,f,n[h+15],16,530742520),c=m(c,f=v(f,i,a,c,n[h+2],23,-995338651),i,a,n[h],6,-198630844),a=m(a,c,f,i,n[h+7],10,1126891415),i=m(i,a,c,f,n[h+14],15,-1416354905),f=m(f,i,a,c,n[h+5],21,-57434055),c=m(c,f,i,a,n[h+12],6,1700485571),a=m(a,c,f,i,n[h+3],10,-1894986606),i=m(i,a,c,f,n[h+10],15,-1051523),f=m(f,i,a,c,n[h+1],21,-2054922799),c=m(c,f,i,a,n[h+8],6,1873313359),a=m(a,c,f,i,n[h+15],10,-30611744),i=m(i,a,c,f,n[h+6],15,-1560198380),f=m(f,i,a,c,n[h+13],21,1309151649),c=m(c,f,i,a,n[h+4],6,-145523070),a=m(a,c,f,i,n[h+11],10,-1120210379),i=m(i,a,c,f,n[h+2],15,718787259),f=m(f,i,a,c,n[h+9],21,-343485551),c=d(c,r),f=d(f,e),i=d(i,o),a=d(a,u);return[c,f,i,a]}function i(n){for(var t="",r=32*n.length,e=0;e<r;e+=8)t+=String.fromCharCode(n[e>>5]>>>e%32&255);return t}function a(n){var t=[];for(t[(n.length>>2)-1]=void 0,e=0;e<t.length;e+=1)t[e]=0;for(var r=8*n.length,e=0;e<r;e+=8)t[e>>5]|=(255&n.charCodeAt(e/8))<<e%32;return t}function e(n){for(var t,r="0123456789abcdef",e="",o=0;o<n.length;o+=1)t=n.charCodeAt(o),e+=r.charAt(t>>>4&15)+r.charAt(15&t);return e}function r(n){return unescape(encodeURIComponent(n))}function o(n){return i(c(a(n=r(n)),8*n.length))}function u(n,t){return function(n,t){var r,e=a(n),o=[],u=[];for(o[15]=u[15]=void 0,16<e.length&&(e=c(e,8*n.length)),r=0;r<16;r+=1)o[r]=909522486^e[r],u[r]=1549556828^e[r];return t=c(o.concat(a(t)),512+8*t.length),i(c(u.concat(t),640))}(r(n),r(t))}function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}"function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t}(this);
