@@ -4,17 +4,19 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Readability Checker - Agent52</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="/styles/app.css" rel="stylesheet"/>
   <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-J9RZWL9DZ5"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2XYDFH3HWE"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
 
-    gtag('config', 'G-J9RZWL9DZ5');
+    gtag('config', 'G-2XYDFH3HWE', {
+      cookie_domain: 'auto'
+    });
   </script>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href="/styles/app.css" rel="stylesheet"/>
 </head>
 <body>
   <header class="border-bottom mb-3">
@@ -99,29 +101,26 @@
       </div>
     </div>
   </footer>
-  <script src="/plugins/utils.js"></script>
+  <script src="/scripts/utils.js"></script>
+  <script src="/scripts/formula.js"></script>
   <script type="module">
     import { getFirestoreDB } from "https://oangia.github.io/firebase/1.0.0/firebase.js";
     const firestore = getFirestoreDB();
     window.firestore = firestore;
   </script>
-  <script src="/scripts/formula.js"></script>
   <script>
   Event.onClick('analyze', async () => {
-    const text = document.getElementById('input').value.trim();
-    if (!Validator.minLength(text, 100)) { 
-      return Message.error('Input text must least be 100 characters long.', 5000); 
+    const text = dom.id('input');
+    if (! Validator.validate('Text', text,'required|string|min:100|max:1000')) {
+      return false;
     }
-    if (!Validator.maxLength(text, 1000)) { 
-      return Message.error('Input text must not exceed 1000 characters.', 5000); 
-    }
-    Loading.start();
-    const data = await (new ApiHandler("https://oangia.pythonanywhere.com/")).post({ 
-      text: text 
+    loading(async () => {
+      const data = await (new ApiHandler("https://oangia.pythonanywhere.com/")).post({ 
+        text: text 
+      });
+      const results = (new ReadabilityLookup()).calculate(text, data.formulas);
+      showResults('results', results);
     });
-    const results = (new ReadabilityLookup()).calculate(text, data.formulas);
-    showResults('results', results);
-    Loading.end();
   });
   Event.onClick('clear', () => {
     document.getElementById('input').value = '';
