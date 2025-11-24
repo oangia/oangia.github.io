@@ -1,3 +1,6 @@
+@extends('main.html')
+@section('title', 'Readability Checker - Agent52')
+@section('content')
 <div class="p-sm-3">
   <h1 class="mb-2 mb-sm-3 fs-5 fs-sm-3">Readability Checker</h1>
 
@@ -21,3 +24,31 @@
 
   <div id="results" class="row mb-2 mb-sm-3"></div>
 </div>
+@endsection
+
+@section('script')
+<script type="module">
+  import { getFirestoreDB } from "https://oangia.github.io/firebase/1.0.0/firebase.js";
+  const firestore = getFirestoreDB();
+  window.firestore = firestore;
+</script>
+<script>
+IEvent.onClick('analyze', async () => {
+  const text = dom.id('input');
+  if (! Validator.validate('Text', text,'required|string|min:100|max:1000')) {
+    return false;
+  }
+  loading(async () => {
+    const data = await (new ApiHandler("https://oangia.pythonanywhere.com/")).post({ 
+      text: text 
+    });
+    const results = (new ReadabilityLookup()).calculate(text, data.formulas);
+    showResults('results', results);
+  });
+});
+IEvent.onClick('clear', () => {
+  document.getElementById('input').value = '';
+  document.getElementById('output').classList.add('d-none');
+});
+</script>
+@endsection

@@ -77,29 +77,6 @@
     </div>
   </footer>
   <script src="/scripts/utils.js"></script>
-  <script type="module">
-    import { getFirestoreDB } from "https://oangia.github.io/firebase/1.0.0/firebase.js";
-    const firestore = getFirestoreDB();
-    window.firestore = firestore;
-  </script>
-  <script>
-  IEvent.onClick('analyze', async () => {
-    const text = dom.id('input');
-    if (! Validator.validate('Text', text,'required|string|min:100|max:1000')) {
-      return false;
-    }
-    loading(async () => {
-      const data = await (new ApiHandler("https://oangia.pythonanywhere.com/")).post({ 
-        text: text 
-      });
-      const results = (new ReadabilityLookup()).calculate(text, data.formulas);
-      showResults('results', results);
-    });
-  });
-  IEvent.onClick('clear', () => {
-    document.getElementById('input').value = '';
-    document.getElementById('output').classList.add('d-none');
-  });
-  </script>
+  {{script}}
 </body>
 </html>
