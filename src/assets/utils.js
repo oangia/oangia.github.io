@@ -255,7 +255,7 @@ function formatResult(res, matchHTML='') {
   return `
   <h3 class="fs-6 mb-2 text-center"><b>${res.name}</b></h3>
   <div class="score-box px-3 py-2 rounded mb-2 fs-6">
-  <div>Score: <b style="color:${res.color};">${res.score.toFixed(2)}</b></div>
+  <div>Score: <b style="color:${res.color};">${res.score}</b></div>
   <div>Reading Difficulty: <b style="color:${res.color};">${res.level}</b></div>
   <div>Grade Level: <b style="color:${res.color};">${res.grade}</b></div>
   <div>Age Range: <b>${res.ages}</b></div>
