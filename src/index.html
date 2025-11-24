@@ -10,7 +10,6 @@
 
   <div class="mb-2 mb-sm-3 d-flex gap-2">
     <button id="analyze" class="btn btn-primary btn-sm">Analyze</button>
-    <button id="clear" class="btn btn-secondary btn-sm">Clear</button>
   </div>
 
   <div id="output" class="row d-none small">
@@ -27,11 +26,6 @@
 @endsection
 
 @section('script')
-<script type="module">
-  import { getFirestoreDB } from "https://oangia.github.io/firebase/1.0.0/firebase.js";
-  const firestore = getFirestoreDB();
-  window.firestore = firestore;
-</script>
 <script>
 IEvent.onClick('analyze', async () => {
   const text = dom.id('input');
@@ -39,16 +33,12 @@ IEvent.onClick('analyze', async () => {
     return false;
   }
   loading(async () => {
-    const data = await (new ApiHandler("https://oangia.pythonanywhere.com/")).post({ 
-      text: text 
-    });
-    const results = (new ReadabilityLookup()).calculate(text, data.formulas);
+    const formulas = new ReadabilityEngine();
+    const data = (new TextAnalyzer()).analyze(text);
+    const result = formulas.calculate(data);
+    const results = (new ReadabilityLookup()).calculate(text, result);
     showResults('results', results);
   });
-});
-IEvent.onClick('clear', () => {
-  document.getElementById('input').value = '';
-  document.getElementById('output').classList.add('d-none');
 });
 </script>
 @endsection

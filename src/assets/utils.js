@@ -178,7 +178,6 @@ class ReadabilityLookup {
     ];
     const consensus = this.calculateAverage(results, data);
     results.unshift(consensus);
-    firestore.createWithId('readability', md5(text.trim()), {text, score:results[0].score});
     return results;
   }
 }
