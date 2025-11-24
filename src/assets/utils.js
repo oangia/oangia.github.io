@@ -6,7 +6,7 @@ class Loading{static start(){if(document.getElementById("loading-overlay"))retur
 async function loading(action = '') {
   if (action == '') {
     Loading.start();
-  } else {
+  } else if (typeof action == 'string') {
     Loading.end();
   }
   if (typeof action === "function") {

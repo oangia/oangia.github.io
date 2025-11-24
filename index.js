@@ -76,7 +76,6 @@ function copyFolder(src, dest) {
 }
 
 buildAll(srcDir);
-copyFolder(path.join(srcDir, "scripts"), path.join(outDir, "scripts"));
-copyFolder(path.join(srcDir, "styles"), path.join(outDir, "styles"));
+copyFolder(path.join(srcDir, "assets"), path.join(outDir, "assets"));
 
 console.log("Build complete!");
