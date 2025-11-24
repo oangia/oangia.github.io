@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{title}}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="/styles/app.css" rel="stylesheet"/>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2XYDFH3HWE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-2XYDFH3HWE', {
+      cookie_domain: 'auto'
+    });
+  </script>
+</head>
+<body>
+  <header class="border-bottom mb-3">
+    <div class="container-fluid container-md d-flex align-items-center justify-content-between py-2">
+      <a href="/" class="d-flex align-items-center text-decoration-none">
+        <!--<img src="logo.png" alt="Logo" height="40" class="me-2">-->
+        <span class="fs-5 fw-bold">Agent52</span>
+      </a>
+      <nav>
+        <ul class="nav">
+          <li class="nav-item">
+            <a class="nav-link" href="/">Home</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main content -->
+  <main class="container-fluid container-md">
+    about
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-top py-3 mt-4">
+    <div class="container d-flex justify-content-between align-items-center small text-muted">
+      <div>
+        Agent52 &copy; 2025
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <!-- Facebook SVG -->
+        <a href="https://www.facebook.com/profile.php?id=61584214284643" data-bs-toggle="tooltip" data-bs-placement="top" title="Facebook" target="_blank" style="width:24px; height:24px;">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+            <circle cx="12" cy="12" r="12" fill="#1877F2"/>
+            <path d="M15.12 12.07h-2.12v7h-3v-7H8V9.57h2v-1.5c0-1.72 1.05-2.63 2.57-2.63h1.5v2.63h-1c-.48 0-.57.23-.57.57v1.43h2.14l-.28 2.5z" fill="#fff"/>
+          </svg>
+        </a>
+  
+        <!-- Email SVG -->
+        <a href="mailto:blogphp.biz@gmail.com" data-bs-toggle="tooltip" data-bs-placement="top" title="blogphp.biz@gmail.com" style="width:24px; height:24px;cursor:none;">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+            <!-- Circle background -->
+            <circle cx="12" cy="12" r="12" fill="#ffffff"/>
+          
+            <!-- Gmail logo scaled to fit the 24x24 circle -->
+            <g transform="translate(-5 -2) scale(0.18)">
+              <path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6"/>
+              <path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15"/>
+              <path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2"/>
+              <path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92"/>
+              <path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2"/>
+            </g>
+          </svg>          
+          
+        </a>
+      </div>
+    </div>
+  </footer>
+  <script src="/scripts/utils.js"></script>
+  <script type="module">
+    import { getFirestoreDB } from "https://oangia.github.io/firebase/1.0.0/firebase.js";
+    const firestore = getFirestoreDB();
+    window.firestore = firestore;
+  </script>
+  <script>
+  IEvent.onClick('analyze', async () => {
+    const text = dom.id('input');
+    if (! Validator.validate('Text', text,'required|string|min:100|max:1000')) {
+      return false;
+    }
+    loading(async () => {
+      const data = await (new ApiHandler("https://oangia.pythonanywhere.com/")).post({ 
+        text: text 
+      });
+      const results = (new ReadabilityLookup()).calculate(text, data.formulas);
+      showResults('results', results);
+    });
+  });
+  IEvent.onClick('clear', () => {
+    document.getElementById('input').value = '';
+    document.getElementById('output').classList.add('d-none');
+  });
+  </script>
+</body>
+</html>

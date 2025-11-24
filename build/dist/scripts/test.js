@@ -1,0 +1,119 @@
+QUnit.test("add works", assert => {
+    const textAnalyzer = new TextAnalyzer();
+    const REFERENCE_DATA={difficulty:{hardWords:26,longSentences:0,adverbs:3,hardAdjectives:9,nominals:1,passiveWords:0,weakVerbs:2},character:{totalWords:98,avgWordLength:6,longestWord:"Understanding",longestWordLength:13,charsWithSpaces:720,charsWithoutSpaces:623,lettersAZ:616,alphaNumeric:616},sentences:{total:7,lineCount:0,totalLines:7,avgLength:14,activeVoice:7,passiveVoice:0,short:2,medium:5,long:0},paragraphs:{count:1,shortest:98,longest:98},words:{easy:72,hard:26,compound:0,cardinal:0,properNoun:0,abbreviated:0,unique:75,repeat:15},syllables:{total:201,avgPerWord:2.05,oneSyl:35,twoSyl:37,threeSyl:14,fourSyl:10,fiveSyl:2,sixSyl:0,sevenPlusSyl:0}};
+
+    const data = textAnalyzer.analyze("Learning to code is an essential skill in todays world. It allows people to create software automate tasks and solve complex problems efficiently. Beginners may feel overwhelmed at first but with consistent practice even challenging concepts become manageable. Programming languages vary in syntax and complexity yet the fundamental logic remains similar across most languages. Understanding algorithms data structures and design patterns is crucial for building reliable and scalable applications. Moreover coding fosters critical thinking problem solving and creativity. Online tutorials coding bootcamps and practice projects provide ample opportunities for learners to improve and gain confidence in their abilities.");
+    assert.equal(data, REFERENCE_DATA);
+
+    const EXPECTED_RESULTS={"The Average":14.89,"Automated Readability Index":15.51,"Flesch Reading Ease":20,"Gunning Fog Index":16.2,"Flesch-Kincaid Grade Level":14.07,"Coleman-Liau Index":19.05,"SMOG Index":11.16,"Linsear Write":10.5,Forcast:14.64};
+    const formulas = new ReadabilityEngine();
+    const result = formulas.calculate(data);
+    assert.equal(result, EXPECTED_RESULTS);
+});
+QUnit.module("Validator Tests");
+
+QUnit.test("isEmpty", function(assert) {
+    assert.ok(Validator.isEmpty(""), "Empty string returns true");
+    assert.ok(Validator.isEmpty("   "), "Whitespace returns true");
+    assert.notOk(Validator.isEmpty("abc"), "Non-empty string returns false");
+});
+
+QUnit.test("isEmail", function(assert) {
+    assert.ok(Validator.isEmail("test@example.com"), "Valid email returns true");
+    assert.notOk(Validator.isEmail("test.com"), "Invalid email returns false");
+});
+
+QUnit.test("minLength & maxLength", function(assert) {
+    assert.ok(Validator.minLength("abcd", 3), "Length >= 3 returns true");
+    assert.notOk(Validator.minLength("ab", 3), "Length < 3 returns false");
+    assert.ok(Validator.maxLength("abcd", 5), "Length <= 5 returns true");
+    assert.notOk(Validator.maxLength("abcdef", 5), "Length > 5 returns false");
+});
+
+QUnit.test("isNumber", function(assert) {
+    assert.ok(Validator.isNumber("12345"), "Digits only returns true");
+    assert.notOk(Validator.isNumber("12a45"), "Non-digit returns false");
+});
+
+QUnit.test("isStrongPassword", function(assert) {
+    assert.ok(Validator.isStrongPassword("Aa1!abcd"), "Strong password returns true");
+    assert.notOk(Validator.isStrongPassword("abc123"), "Weak password returns false");
+});
+
+QUnit.test("match", function(assert) {
+    assert.ok(Validator.match("abc", "abc"), "Matching strings return true");
+    assert.notOk(Validator.match("abc", "def"), "Non-matching strings return false");
+});
+
+QUnit.test("isPhone", function(assert) {
+    assert.ok(Validator.isPhone("12345678"), "Valid 8-digit phone returns true");
+    assert.notOk(Validator.isPhone("123"), "Too short phone returns false");
+    assert.notOk(Validator.isPhone("1234567890123456"), "Too long phone returns false");
+});
+
+QUnit.test("isUsername", function(assert) {
+    assert.ok(Validator.isUsername("user_123"), "Valid username returns true");
+    assert.notOk(Validator.isUsername("u"), "Too short username returns false");
+    assert.notOk(Validator.isUsername("user@name"), "Invalid characters return false");
+});
+
+QUnit.test("inRange", function(assert) {
+    assert.ok(Validator.inRange(5, 1, 10), "Number in range returns true");
+    assert.notOk(Validator.inRange(0, 1, 10), "Number below range returns false");
+    assert.notOk(Validator.inRange(11, 1, 10), "Number above range returns false");
+});
+
+QUnit.module("Message Tests", {
+    beforeEach: function() {
+      // reset container before each test
+      if(Message.container) {
+        Message.container.remove();
+        Message.container = null;
+      }
+    }
+  });
+
+  QUnit.test("createContainer creates container once", function(assert) {
+    Message.createContainer();
+    assert.ok(Message.container instanceof HTMLElement, "Container created");
+    const firstRef = Message.container;
+    Message.createContainer();
+    assert.strictEqual(Message.container, firstRef, "Container not recreated");
+  });
+
+  QUnit.test("getClassStyles returns correct styles", function(assert) {
+    const styles = Message.getClassStyles("danger");
+    assert.strictEqual(styles.borderColor, "#B63E5A");
+    assert.strictEqual(styles.background, "#E26868");
+    assert.strictEqual(styles.color, "#fff");
+
+    const defaultStyles = Message.getClassStyles("unknown");
+    assert.strictEqual(defaultStyles.borderColor, "#B4E1E4", "Unknown type returns info style");
+  });
+
+  QUnit.test("show adds message to container and removes after timeout", function(assert) {
+    const done = assert.async();
+    Message.show("Hello world", "success", 100); // short display
+  
+    const msgEl = Message.container.children[0];
+    assert.ok(msgEl, "Message element added");
+    assert.strictEqual(msgEl.innerHTML, "Hello world", "Message content is correct");
+  
+    // Wait for display + hide delay (100ms + 300ms)
+    setTimeout(() => {
+      assert.strictEqual(Message.container.children.length, 0, "Message element removed after timeout");
+      done();
+    }, 450); // 100 + 300 + 50 buffer
+  });
+  QUnit.test("hide sets opacity and removes element", function(assert) {
+    const done = assert.async();
+    Message.createContainer();
+    const div = document.createElement("div");
+    Message.container.appendChild(div);
+    Message.hide(div);
+    assert.strictEqual(div.style.opacity, "0", "Opacity set to 0");
+    setTimeout(()=>{
+      assert.notOk(document.body.contains(div), "Element removed from DOM");
+      done();
+    }, 350);
+  });
