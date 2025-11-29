@@ -1,0 +1,161 @@
+@extends('main.html')
+@section('title', 'Channel Analysis - Agent52')
+@section('content')
+<div class="container py-5">
+    <h1 class="mb-4">YouTube Channel Analysis</h1>
+
+    <div class="mb-3">
+        <label for="channelInput" class="form-label">Channel URL:</label>
+        <input type="text" class="form-control" id="channelInput" placeholder="https://www.youtube.com/@robarnold22">
+    </div>
+
+    <button class="btn btn-primary mb-4" id="analyzeBtn">Analyze Channel</button>
+
+    <div id="result" class="mt-3"></div>
+</div>
+@endsection
+
+@section('script')
+<script>
+function formatNumber(num) {
+    return num?.toLocaleString() || "0";
+}
+
+function formatDuration(seconds) {
+    if (!seconds) return "N/A";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return (h ? h + "h " : "") + (m ? m + "m " : "") + s + "s";
+}
+
+function analyzeChannelData(data) {
+    let totalVideos = 0, totalViews = 0, totalDuration = 0;
+    const playlists = [];
+    const videosList = [];
+
+    if (data.entries && data.entries.length) {
+        data.entries.forEach(pl => {
+            let playlistCount = 0;
+            if (pl.entries && pl.entries.length) {
+                pl.entries.forEach(video => {
+                    if (video._type === "url") {
+                        totalVideos++;
+                        totalViews += video.view_count || 0;
+                        totalDuration += video.duration || 0;
+                        videosList.push(video);
+                        playlistCount++;
+                    }
+                });
+            }
+            playlists.push({title: pl.title || "Unnamed Playlist", videos: playlistCount});
+        });
+    }
+
+    videosList.sort((a,b) => (b.view_count || 0) - (a.view_count || 0));
+    const topVideos = videosList.slice(0,3);
+
+    const avgViews = totalVideos ? Math.round(totalViews/totalVideos) : 0;
+    const avgDuration = totalVideos ? Math.round(totalDuration/totalVideos) : 0;
+
+    return { totalVideos, totalViews, avgViews, avgDuration, playlists, topVideos };
+}
+
+document.getElementById("analyzeBtn").addEventListener("click", async () => {
+    const channelUrl = document.getElementById("channelInput").value.trim();
+    if (!channelUrl) {
+        alert("Please enter a channel URL.");
+        return;
+    }
+    loading();
+
+    const payload = { action: "yt-channel", channel: channelUrl };
+
+    try {
+        const res = await fetch("https://agent52-534394830199.asia-southeast1.run.app/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        const analysis = analyzeChannelData(data);
+        const container = document.getElementById("result");
+        container.innerHTML = "";
+
+        // Basic info card
+        const basicCard = document.createElement("div");
+        basicCard.className = "card p-4 mb-4";
+        basicCard.innerHTML = `
+            <h3><a href="${data.webpage_url}" target="_blank">${data.title || data.channel}</a></h3>
+            <p><strong>Uploader:</strong> ${data.uploader || "N/A"}</p>
+            <p><strong>Followers:</strong> ${formatNumber(data.channel_follower_count)}</p>
+            <p><strong>Playlists:</strong> ${formatNumber(data.playlist_count || 0)}</p>
+            <p><strong>Tags:</strong> ${data.tags && data.tags.length ? data.tags.join(", ") : "None"}</p>
+        `;
+        container.appendChild(basicCard);
+
+        // Summary info card
+        const summaryCard = document.createElement("div");
+        summaryCard.className = "card p-4 mb-4";
+        summaryCard.innerHTML = `
+            <h4>Channel Summary</h4>
+            <p><strong>Total Videos:</strong> ${formatNumber(analysis.totalVideos)}</p>
+            <p><strong>Total Views:</strong> ${formatNumber(analysis.totalViews)}</p>
+            <p><strong>Average Views per Video:</strong> ${formatNumber(analysis.avgViews)}</p>
+            <p><strong>Average Duration:</strong> ${formatDuration(analysis.avgDuration)}</p>
+        `;
+        container.appendChild(summaryCard);
+
+        // Top 3 videos
+        if (analysis.topVideos.length) {
+            const topCard = document.createElement("div");
+            topCard.className = "card p-4 mb-4";
+            topCard.innerHTML = `<h4>Top 3 Videos by Views</h4>`;
+            analysis.topVideos.forEach(v => {
+                const videoDiv = document.createElement("div");
+                videoDiv.className = "d-flex align-items-start mb-3";
+
+                // Thumbnail
+                const thumb = document.createElement("img");
+                thumb.src = v.thumbnails?.[0]?.url || "";
+                thumb.className = "me-3";
+                thumb.style.width = "120px";
+                thumb.style.height = "auto";
+
+                // Video info
+                const infoDiv = document.createElement("div");
+                infoDiv.innerHTML = `
+                    <a href="${v.url}" target="_blank"><strong>${v.title}</strong></a>
+                    <p>Views: ${formatNumber(v.view_count)} | Duration: ${formatDuration(v.duration)}</p>
+                `;
+
+                videoDiv.appendChild(thumb);
+                videoDiv.appendChild(infoDiv);
+                topCard.appendChild(videoDiv);
+            });
+            container.appendChild(topCard);
+        }
+
+        // Playlist breakdown
+        if (analysis.playlists.length) {
+            const plCard = document.createElement("div");
+            plCard.className = "card p-4 mb-4";
+            plCard.innerHTML = `<h4>Playlists</h4><ul class="list-group list-group-flush">`;
+            analysis.playlists.forEach(pl => {
+                const li = document.createElement("li");
+                li.className = "list-group-item";
+                li.textContent = `${pl.title} — ${formatNumber(pl.videos)} videos`;
+                plCard.querySelector("ul").appendChild(li);
+            });
+            container.appendChild(plCard);
+        }
+
+    } catch (err) {
+        document.getElementById("result").textContent = "Error: " + err;
+    } finally {
+        loading('end');
+    }
+});
+</script>
+@endsection
