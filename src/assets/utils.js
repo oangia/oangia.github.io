@@ -1,5 +1,4 @@
-class Validator{static isEmpty(e){return!e||!e.trim()}static isEmail(e){return/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)}static minLength(e,r){return e.trim().length>=r}static maxLength(e,r){return e.trim().length<=r}static isNumber(e){return/^\d+$/.test(e.trim())}static isStrongPassword(e){return/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()\-_=+{};:,<.>]).{8,}$/.test(e)}static match(e,r){return e===r}static isPhone(e){return/^\d{8,15}$/.test(e.trim())}static isUsername(e){return/^[a-zA-Z0-9_]{3,20}$/.test(e.trim())}static inRange(e,r,t){return Number(e)>=r&&Number(e)<=t}static validate(e,r,t,s={}){const a=t.split("|");for(let t of a){let a;switch(t.includes(":")&&([t,a]=t.split(":"),isNaN(a)||(a=Number(a))),t){case"required":if(this.isEmpty(r))return Message.error(`${e} is required.`,5e3),!1;break;case"string":if("string"!=typeof r)return Message.error(`${e} must be a string.`,5e3),!1;break;case"email":if(!this.isEmail(r))return Message.error(`${e} must be a valid email address.`,5e3),!1;break;case"between":if(!a)break;const[t,i]=a.toString().split(",").map(Number);if(!this.minLength(r,t)||!this.maxLength(r,i))return Message.error(`${e} must be between ${t} and ${i} characters.`,5e3),!1;break;case"min":if(!this.minLength(r,a))return Message.error(`${e} must be at least ${a} characters.`,5e3),!1;break;case"max":if(!this.maxLength(r,a))return Message.error(`${e} must be at most ${a} characters.`,5e3),!1;break;case"strongPassword":if(!this.isStrongPassword(r))return Message.error(`${e} must include uppercase, lowercase, number, and special character.`,5e3),!1;break;case"username":if(!this.isUsername(r))return Message.error(`${e} can only contain letters, numbers, and underscores.`,5e3),!1;break;case"phone":if(!this.isPhone(r))return Message.error(`${e} must be a valid phone number.`,5e3),!1;break;case"match":if(!this.match(r,s[a]))return Message.error(`${e} must match ${a}.`,5e3),!1;break;case"inRange":if(!a)break;const[n,m]=a.toString().split(",").map(Number);if(!this.inRange(r,n,m))return Message.error(`${e} must be between ${n} and ${m}.`,5e3),!1;break;case"isNumber":if(!this.isNumber(r))return Message.error(`${e} must be a number.`,5e3),!1}}return!0}}
-class Message{static container=null;static createContainer(){if(this.container)return;const e=document.createElement("div");Object.assign(e.style,{position:"fixed",top:"20px",right:"20px",zIndex:9999,display:"flex",flexDirection:"column",gap:"8px",pointerEvents:"none"}),document.body.appendChild(e),this.container=e}static getClassStyles(e){const t={purple:{borderColor:"#694D9F",background:"#694D9F",color:"#fff"},info:{borderColor:"#B4E1E4",background:"#81c7e1",color:"#fff"},danger:{borderColor:"#B63E5A",background:"#E26868",color:"#fff"},warning:{borderColor:"#F3F3EB",background:"#E9CEAC",color:"#fff"},success:{borderColor:"#19B99A",background:"#20A286",color:"#fff"}};return t[e]||t.info}static show(e,t="info",o=5e3){this.createContainer();const s=document.createElement("div");Object.assign(s.style,this.getClassStyles(t)),s.innerHTML=e,Object.assign(s.style,{padding:"10px 16px",cursor:"pointer",borderRadius:"5px",opacity:0,pointerEvents:"auto",transition:"opacity 0.3s ease"}),s.addEventListener("click",(()=>this.hide(s))),this.container.appendChild(s),requestAnimationFrame((()=>{s.style.opacity=1})),setTimeout((()=>this.hide(s)),o)}static hide(e){e.style.opacity=0,setTimeout((()=>e.remove()),300)}static success(e,t=5e3){this.show(e,"success",t)}static error(e,t=5e3){this.show(e,"danger",t)}static warning(e,t=5e3){this.show(e,"warning",t)}static info(e,t=5e3){this.show(e,"info",t)}static purple(e,t=5e3){this.show(e,"purple",t)}}
+class Validator{static isEmpty(e){return!e||!e.trim()}static isEmail(e){return/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)}static minLength(e,r){return e.trim().length>=r}static maxLength(e,r){return e.trim().length<=r}static isNumber(e){return/^\d+$/.test(e.trim())}static isStrongPassword(e){return/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()\-_=+{};:,<.>]).{8,}$/.test(e)}static match(e,r){return e===r}static isPhone(e){return/^\d{8,15}$/.test(e.trim())}static isUsername(e){return/^[a-zA-Z0-9_]{3,20}$/.test(e.trim())}static inRange(e,r,t){return Number(e)>=r&&Number(e)<=t}static validate(e,r,t,s={}){const a=t.split("|");for(let t of a){let a;switch(t.includes(":")&&([t,a]=t.split(":"),isNaN(a)||(a=Number(a))),t){case"required":if(this.isEmpty(r))return alert(`${e} is required.`),!1;break;case"string":if("string"!=typeof r)return alert(`${e} must be a string.`),!1;break;case"email":if(!this.isEmail(r))return alert(`${e} must be a valid email address.`),!1;break;case"between":if(!a)break;const[t,i]=a.toString().split(",").map(Number);if(!this.minLength(r,t)||!this.maxLength(r,i))return alert(`${e} must be between ${t} and ${i} characters.`),!1;break;case"min":if(!this.minLength(r,a))return alert(`${e} must be at least ${a} characters.`),!1;break;case"max":if(!this.maxLength(r,a))return alert(`${e} must be at most ${a} characters.`),!1;break;case"strongPassword":if(!this.isStrongPassword(r))return alert(`${e} must include uppercase, lowercase, number, and special character.`),!1;break;case"username":if(!this.isUsername(r))return alert(`${e} can only contain letters, numbers, and underscores.`),!1;break;case"phone":if(!this.isPhone(r))return alert(`${e} must be a valid phone number.`),!1;break;case"match":if(!this.match(r,s[a]))return alert(`${e} must match ${a}.`),!1;break;case"inRange":if(!a)break;const[n,m]=a.toString().split(",").map(Number);if(!this.inRange(r,n,m))return alert(`${e} must be between ${n} and ${m}.`),!1;break;case"isNumber":if(!this.isNumber(r))return alert(`${e} must be a number.`),!1}}return!0}}
 class FormDetector{constructor(){this.fields={},this.detect()}isEmail(s){return/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)}isUsername(s){return/^[a-zA-Z0-9_]{3,20}$/.test(s)}isPassword(s){return s.length>=6||/[!@#$%^&*()\-_=+{};:,<.>]/.test(s)}isPhone(s){return/^\+?\d{8,15}$/.test(s.replace(/\s+/g,""))}detect(){this.fields={};document.querySelectorAll("input").forEach((s=>{const e=(s.value||"").trim();if(!e)return;const t=(s.name||s.id||"").toLowerCase()||e;let i="other";this.isEmail(e)?i="email":this.isPhone(e)?i="phone":this.isPassword(e)?i="password":this.isUsername(e)&&(i="username");const r=t||i;this.fields[r]?Array.isArray(this.fields[r])?this.fields[r].push(e):this.fields[r]=[this.fields[r],e]:this.fields[r]=e}))}get(s){return this.fields[s]||null}getAll(){return this.fields}}
 class Url{static get(a){return new URLSearchParams(window.location.search).get(a)}static has(a){return new URLSearchParams(window.location.search).has(a)}static getAll(){return Object.fromEntries(new URLSearchParams(window.location.search))}}
 class Loading{static start(){if(document.getElementById("loading-overlay"))return;const n=document.createElement("div");n.id="loading-overlay",Object.assign(n.style,{position:"fixed",top:"0",left:"0",width:"100%",height:"100%",backgroundColor:"rgba(0,0,0,0.5)",display:"flex",justifyContent:"center",alignItems:"center",zIndex:"9999"});const e=document.createElement("div");if(e.className="ripple-loader",n.appendChild(e),document.body.appendChild(n),!document.getElementById("loading-style")){const n=document.createElement("style");n.id="loading-style",n.innerHTML='\n        .ripple-loader {\n          position: relative;\n          width: 80px;\n          height: 80px;\n        }\n\n        /* First ripple: green */\n        .ripple-loader::before {\n          content: "";\n          position: absolute;\n          border: 4px solid #10a37f;\n          border-radius: 50%;\n          width: 100%;\n          height: 100%;\n          top: 0;\n          left: 0;\n          animation: ripple 1s infinite ease-out;\n        }\n\n        /* Second ripple: red, hidden initially */\n        .ripple-loader::after {\n          content: "";\n          position: absolute;\n          border: 4px solid #d20962;\n          border-radius: 50%;\n          width: 100%;\n          height: 100%;\n          top: 0;\n          left: 0;\n          opacity: 0; /* hide initially */\n          animation: ripple 1s infinite ease-out;\n          animation-delay: 0.5s; /* staggered start */\n        }\n\n        @keyframes ripple {\n          0% {\n            transform: scale(0.2);\n            opacity: 1;\n          }\n          100% {\n            transform: scale(1.8);\n            opacity: 0;\n          }\n        }\n      ',document.head.appendChild(n)}}static end(){const n=document.getElementById("loading-overlay");n&&n.remove()}}
@@ -24,12 +23,6 @@ class BlogEditor{constructor(t){if(this.container=document.getElementById(t),!th
 class ApiHandler{constructor(e){this.baseUrl=e,this.privateKey=null,this.publicKey=null}async generateKeyPair(){const e=await crypto.subtle.generateKey({name:"RSA-OAEP",modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:"SHA-256"},!0,["encrypt","decrypt"]);this.privateKey=e.privateKey,this.publicKey=e.publicKey}async exportPublicKey(){const e=await crypto.subtle.exportKey("spki",this.publicKey);return btoa(String.fromCharCode(...new Uint8Array(e)))}async decryptResponse(e){const t=Uint8Array.from(atob(e),(e=>e.charCodeAt(0))),a=await crypto.subtle.decrypt({name:"RSA-OAEP"},this.privateKey,t);return JSON.parse((new TextDecoder).decode(a))}async post(e){await this.generateKeyPair();const t=await this.exportPublicKey(),a=await fetch(this.baseUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...e,pub:t})}),i=await a.json(),r=await this.decryptResponse(i.f),s=await this.decryptResponse(i.i);return this.privateKey=null,this.publicKey=null,{formulas:r.fomulas,i:s.ip}}}// logs
 class ConsoleViewer{static panel=null;static buffer=[];static originalLog=console.log;static override(){console.log=(...e)=>{ConsoleViewer.originalLog.apply(console,e);const o=e.map((e=>"object"==typeof e?JSON.stringify(e):String(e))).join(" ");ConsoleViewer.buffer.push(o),ConsoleViewer.updatePanel()}}static init(){ConsoleViewer.panel||(ConsoleViewer.panel=document.createElement("div"),ConsoleViewer.panel.id="console-viewer",ConsoleViewer.panel.style.position="fixed",ConsoleViewer.panel.style.left="0",ConsoleViewer.panel.style.right="0",ConsoleViewer.panel.style.bottom="0",ConsoleViewer.panel.style.maxHeight="30vh",ConsoleViewer.panel.style.overflowY="auto",ConsoleViewer.panel.style.background="#111",ConsoleViewer.panel.style.color="#0f0",ConsoleViewer.panel.style.fontFamily="monospace",ConsoleViewer.panel.style.fontSize="14px",ConsoleViewer.panel.style.padding="8px",ConsoleViewer.panel.style.borderTop="2px solid #333",ConsoleViewer.panel.style.zIndex="99999",document.body.appendChild(ConsoleViewer.panel),ConsoleViewer.updatePanel())}static updatePanel(){if(ConsoleViewer.panel){ConsoleViewer.panel.innerHTML="";for(const e of ConsoleViewer.buffer){const o=document.createElement("div");o.textContent=e,ConsoleViewer.panel.appendChild(o)}ConsoleViewer.panel.scrollTop=ConsoleViewer.panel.scrollHeight}}static setup(){ConsoleViewer.override(),"complete"===document.readyState||"interactive"===document.readyState?ConsoleViewer.init():document.addEventListener("DOMContentLoaded",(()=>ConsoleViewer.init()))}}
 class IEvent{static onClick(t,e){document.addEventListener("click",(c=>{c.target.id===t&&(c.preventDefault?.(),e(c))}))}}
-class Dom{
-  id(_id) {
-    return document.getElementById(_id).value.trim();
-  }
-}
-const dom = new Dom();
 if (Url.has("debug")) {
   ConsoleViewer.setup();
 }
@@ -244,37 +237,23 @@ class ReadabilityLookup {
   }
 }
 
-function showResults(outputId, results) {
-  const output = document.getElementById(outputId);
-  output.innerHTML = '';
-  
-  results.forEach(res => {
-    const div = document.createElement('div');
-    div.className = 'col-md-12 bg-body-secondary border rounded p-3 mb-3';
-    if (res.name === "The Average") {
-      div.className += ' formula';
-      div.style.setProperty('border-color', res.color, 'important');
-      div.style.setProperty('border-width', '3px', 'important');
-    } else {
-      div.style.borderColor = res.color;
-      div.style.borderWidth = '2px';
-    }
-    div.innerHTML = formatResult(res);
-    output.appendChild(div);
-  });
-}
-function formatResult(res, matchHTML='') {
-  return `
-  <h3 class="fs-6 mb-2 text-center"><b>${res.name}</b></h3>
-  <div class="score-box px-3 py-2 rounded mb-2 fs-6">
-  <div>Score: <b style="color:${res.color};">${parseFloat(res.score).toFixed(2)}</b></div>
-  <div>Reading Difficulty: <b style="color:${res.color};">${res.level}</b></div>
-  <div>Grade Level: <b style="color:${res.color};">${res.grade}</b></div>
-  <div>Age Range: <b>${res.ages}</b></div>
-  <div>${res.formulaHTML}</div>
-  </div>
-  ${matchHTML}
-  `;
-}
-
 class CUrl{static async connect(t,s,e=null,o={}){const a={method:t.toUpperCase(),headers:{"Content-Type":"application/json",...o}};!e||"POST"!==t.toUpperCase()&&"PUT"!==t.toUpperCase()||(a.body=JSON.stringify(e));const r=await fetch(s,a);if(!r.ok)throw new Error(`HTTP error! status: ${r.status}`);return await r.json()}}
+const runController = async (controller, params = {}) => {
+  try {
+    loading();
+    await controller(params);
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loading('e');
+  }
+}
+const onClick = (elementId, controller, params = {}) => {
+  IEvent.onClick(elementId, async () => {
+    await runController(controller, params);
+  });
+};
+
+const onLoad = async (controller, params = {}) => {
+  await runController(controller, params);
+}

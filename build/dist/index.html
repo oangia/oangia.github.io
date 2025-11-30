@@ -48,15 +48,6 @@
     <button id="analyze" class="btn btn-primary btn-sm">Analyze</button>
   </div>
 
-  <div id="output" class="row d-none small">
-    <div id="char-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-info-subtle rounded"></div>
-    <div id="difficulty" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded border border-warning border-2"></div>
-    <div id="sentence-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-success-subtle rounded"></div>
-    <div id="paragraph-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-body-secondary rounded"></div>
-    <div id="word-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded"></div>
-    <div id="syllable-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded"></div>
-  </div>
-
   <div id="results" class="row mb-2 mb-sm-3"></div>
 </div>
   </main>
@@ -98,19 +89,51 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/assets/utils.js"></script>
   <script>
-IEvent.onClick('analyze', async () => {
-  const text = dom.id('input');
-  if (! Validator.validate('Text', text,'required|string|min:100|max:1000')) {
-    return false;
+onClick('analyze', async ({ extra }) => {
+  const text = document.getElementById("input").value.trim();
+  if (!Validator.validate('Text', text, 'required|min:100|max:1000')) {
+    return;
   }
-  loading(async () => {
-    const formulas = new ReadabilityEngine();
-    const data = (new TextAnalyzer()).analyze(text);
-    const result = formulas.calculate(data);
-    const results = (new ReadabilityLookup()).calculate(text, result);
-    showResults('results', results);
-  });
+  const formulas = new ReadabilityEngine();
+  const results = (new ReadabilityLookup()).calculate(
+    text,
+    formulas.calculate((new TextAnalyzer()).analyze(text))
+  );
+  await new Promise(resolve => setTimeout(resolve, 500));
+  showResults('results', results);
 });
+function showResults(outputId, results) {
+  const output = document.getElementById(outputId);
+  output.innerHTML = '';
+  
+  results.forEach(res => {
+    const div = document.createElement('div');
+    div.className = 'col-md-12 bg-body-secondary border rounded p-3 mb-3';
+    if (res.name === "The Average") {
+      div.className += ' formula';
+      div.style.setProperty('border-color', res.color, 'important');
+      div.style.setProperty('border-width', '3px', 'important');
+    } else {
+      div.style.borderColor = res.color;
+      div.style.borderWidth = '2px';
+    }
+    div.innerHTML = formatResult(res);
+    output.appendChild(div);
+  });
+}
+function formatResult(res, matchHTML='') {
+  return `
+  <h3 class="fs-6 mb-2 text-center"><b>${res.name}</b></h3>
+  <div class="score-box px-3 py-2 rounded mb-2 fs-6">
+  <div>Score: <b style="color:${res.color};">${parseFloat(res.score).toFixed(2)}</b></div>
+  <div>Reading Difficulty: <b style="color:${res.color};">${res.level}</b></div>
+  <div>Grade Level: <b style="color:${res.color};">${res.grade}</b></div>
+  <div>Age Range: <b>${res.ages}</b></div>
+  <div>${res.formulaHTML}</div>
+  </div>
+  ${matchHTML}
+  `;
+}
 </script>
 </body>
 </html>

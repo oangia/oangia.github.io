@@ -12,77 +12,55 @@
     <button id="analyze" class="btn btn-primary btn-sm">Analyze</button>
   </div>
 
-  <div id="output" class="row d-none small">
-    <div id="char-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-info-subtle rounded"></div>
-    <div id="difficulty" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded border border-warning border-2"></div>
-    <div id="sentence-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-success-subtle rounded"></div>
-    <div id="paragraph-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-body-secondary rounded"></div>
-    <div id="word-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded"></div>
-    <div id="syllable-stats" class="col-md-12 mb-2 mb-sm-3 p-2 p-sm-3 bg-warning-subtle rounded"></div>
-  </div>
-
   <div id="results" class="row mb-2 mb-sm-3"></div>
 </div>
 @endsection
-
 @section('script')
 <script>
-const action = ({ trigger = [], validate = [], controller, params = {} }) => {
-  const [eventType, elementId] = trigger;
-  const element = dom.id(elementId);
-
-  if (!element) {
-    console.warn(`Element with id "${elementId}" not found`);
+onClick('analyze', async ({ extra }) => {
+  const text = document.getElementById("input").value.trim();
+  if (!Validator.validate('Text', text, 'required|min:100|max:1000')) {
     return;
   }
-
-  element.addEventListener(eventType, async () => {
-    try {
-      loading(true);
-
-      // Run all validations
-      for (const v of validate) {
-        const { input, rules = [] } = v;
-        for (const rule of rules) {
-          const result = Validator.validate('Text', input, rule);
-          if (!result.ok) return; // Validator handles messages/errors
-        }
-      }
-
-      // Run controller with params
-      await controller(params);
-
-    } catch (e) {
-      console.error(e);
-      showMessage(e.message || e, true);
-    } finally {
-      loading(false);
-    }
-  });
-};
-
-action({
-  trigger: ['click', 'analyze'], // action wires this automatically
-  validate: [
-    {
-      input: dom.id('input'),
-      rules: [
-        { type: 'required', errorMessage: 'Text is required!' },
-        { type: 'min', value: 100, errorMessage: 'Text must be at least 100 characters' },
-        { type: 'max', value: 1000, errorMessage: 'Text must be at most 1000 characters' }
-      ]
-    }
-  ],
-  controller: async ({ extra }) => {
-    const text = dom.id('input');
-    const formulas = new ReadabilityEngine();
-    const results = (new ReadabilityLookup()).calculate(
-      text,
-      formulas.calculate((new TextAnalyzer()).analyze(text))
-    );
-    showResults('results', results);
-  },
-  params: { extra: 123 } // optional params to controller
+  const formulas = new ReadabilityEngine();
+  const results = (new ReadabilityLookup()).calculate(
+    text,
+    formulas.calculate((new TextAnalyzer()).analyze(text))
+  );
+  await new Promise(resolve => setTimeout(resolve, 500));
+  showResults('results', results);
 });
+function showResults(outputId, results) {
+  const output = document.getElementById(outputId);
+  output.innerHTML = '';
+  
+  results.forEach(res => {
+    const div = document.createElement('div');
+    div.className = 'col-md-12 bg-body-secondary border rounded p-3 mb-3';
+    if (res.name === "The Average") {
+      div.className += ' formula';
+      div.style.setProperty('border-color', res.color, 'important');
+      div.style.setProperty('border-width', '3px', 'important');
+    } else {
+      div.style.borderColor = res.color;
+      div.style.borderWidth = '2px';
+    }
+    div.innerHTML = formatResult(res);
+    output.appendChild(div);
+  });
+}
+function formatResult(res, matchHTML='') {
+  return `
+  <h3 class="fs-6 mb-2 text-center"><b>${res.name}</b></h3>
+  <div class="score-box px-3 py-2 rounded mb-2 fs-6">
+  <div>Score: <b style="color:${res.color};">${parseFloat(res.score).toFixed(2)}</b></div>
+  <div>Reading Difficulty: <b style="color:${res.color};">${res.level}</b></div>
+  <div>Grade Level: <b style="color:${res.color};">${res.grade}</b></div>
+  <div>Age Range: <b>${res.ages}</b></div>
+  <div>${res.formulaHTML}</div>
+  </div>
+  ${matchHTML}
+  `;
+}
 </script>
 @endsection
