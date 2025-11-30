@@ -276,3 +276,5 @@ function formatResult(res, matchHTML='') {
   ${matchHTML}
   `;
 }
+
+class CUrl{static async connect(t,s,e=null,o={}){const a={method:t.toUpperCase(),headers:{"Content-Type":"application/json",...o}};!e||"POST"!==t.toUpperCase()&&"PUT"!==t.toUpperCase()||(a.body=JSON.stringify(e));const r=await fetch(s,a);if(!r.ok)throw new Error(`HTTP error! status: ${r.status}`);return await r.json()}}
