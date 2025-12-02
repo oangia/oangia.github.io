@@ -5,12 +5,11 @@
 <script src="https://cdn.jsdelivr.net/npm/qunit@2.20.0/qunit/qunit.js"></script>
 <script src="/assets/utils.js"></script>
 <script>
-QUnit.module("API Response Tests");
-
+const apiUrl = 'https://agent52.web.app/api';
 QUnit.test("yt-channel API responds 200", async assert => {
     const done = assert.async();
     try {
-        const res = await CUrl.connect('POST', 'https://agent52-534394830199.asia-southeast1.run.app/', {
+        const res = await CUrl.connect('POST', apiUrl, {
             action: "yt-channel",
             channel: "https://www.youtube.com/@robarnold22"
         });
@@ -24,7 +23,7 @@ QUnit.test("yt-channel API responds 200", async assert => {
 QUnit.test("yt-video API responds 200", async assert => {
     const done = assert.async();
     try {
-        const res = await CUrl.connect('POST', 'https://agent52-534394830199.asia-southeast1.run.app/', {
+        const res = await CUrl.connect('POST', apiUrl, {
             action: "yt-video",
             video: "https://www.youtube.com/@robarnold22"
         });
@@ -38,7 +37,7 @@ QUnit.test("yt-video API responds 200", async assert => {
 QUnit.test("readability API responds 200", async assert => {
     const done = assert.async();
     try {
-        const res = await CUrl.connect('POST', 'https://agent52-534394830199.asia-southeast1.run.app/', {
+        const res = await CUrl.connect('POST', apiUrl, {
             action: "readability",
             text: "With good closure, the sound is at least clear and stable. You can still manage phrases by taking more frequent breaths. With bad closure, no amount of great breathing saves the tone — it stays airy, weak, unstable, and you can’t fix it by breathing better. Closure first. Breath can be managed. Tone can’t.",
             pub: "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDqHnZ2U0uGhw1j4wPz0l35P8gegC4S6jqpC7+QfrnG6yuwSrB5RzBqYF0MfZBq1Q3ZrQ1gHZztD1gThtq1Jja5ewzK6D9tuQwv2PU9M5T4eVBg+V2lUfgsHbbjfnJm5G+vuGxVwCk4ARBe+hHqmq3C9H5KYz0g6EFmS48zyj1H0QIDAQAB"

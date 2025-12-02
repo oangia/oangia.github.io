@@ -22,7 +22,7 @@ onClick('analyzeBtn', async ({ extra }) => {
         return;
     }
     const payload = { action: "yt-channel", channel: channelUrl };
-    const data = await CUrl.connect("POST", "https://agent52-534394830199.asia-southeast1.run.app/", payload);
+    const data = await CUrl.connect("POST", "https://agent52.web.app/api", payload);
     showResults(data);
 });
 

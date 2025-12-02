@@ -6,12 +6,34 @@
       "**/.*",
       "**/node_modules/**"
     ],
-    "headers": [{
-      "source": "/assets/**/*.*",
-      "headers": [{
-        "key": "Cache-Control",
-        "value": "max-age=31536000"
-      }]
-    }]
-  }
+    "rewrites": [
+      { "source": "**", "function": "on_request_example" }
+    ],
+    "headers": [
+      {
+        "source": "/assets/**/*.*",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=31536000"
+          }
+        ]
+      }
+    ]
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "venv",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "runtime": "python313"
+    }
+  ]
 }
