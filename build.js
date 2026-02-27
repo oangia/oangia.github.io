@@ -6,6 +6,7 @@ const { minify } = require("terser");
 const inputFiles = [
     "src/loading.js",
     "src/toast.js",
+    "src/cookie.js",
     "src/event.js",
     "src/auth.js",
     "src/CUrl.js",
