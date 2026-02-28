@@ -9,6 +9,7 @@ const inputFiles = [
     "src/cookie.js",
     "src/event.js",
     "src/auth.js",
+    "src/validator.js",
     "src/CUrl.js",
     "src/crud.js"
 ];
