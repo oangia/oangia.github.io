@@ -11,7 +11,7 @@ const inputFiles = [
     "src/auth.js",
     "src/validator.js",
     "src/CUrl.js",
-    "src/crud.js"
+    "src/form.js"
 ];
 
 const outputFile = "dist/bundle.min.js";

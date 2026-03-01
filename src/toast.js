@@ -1,4 +1,4 @@
-function showToast(e, t = "info") {
+function toast(e, t = "info") {
     let o = document.getElementById("toastContainer");
 
     // auto create container (like loading overlay)
