@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+        <title>Admin Settings - CMS Dashboard</title>
+        <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+        <script src="https://oangia.github.io/build/dist/bundle.min.js"></script>
+        <script>
+            const apiUrl = "https://4000-firebase-auto-1770283227999.cluster-73qgvk7hjjadkrjeyexca5ivva.cloudworkstations.dev";
+            Auth.guard();
+        </script>
+        <script id="tailwind-config">
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            "primary": "#0d9488", // Deeper teal for better accessibility on light mode
+                            "primary-light": "#ccfbf1",
+                            "background-page": "#f8fafc", // Airy off-white
+                            "sidebar-bg": "#ffffff",
+                        },
+                        fontFamily: {
+                            "display": ["Inter", "sans-serif"]
+                        },
+                        borderRadius: {
+                            "DEFAULT": "0.4rem",
+                            "lg": "0.6rem",
+                            "xl": "1rem",
+                            "full": "9999px"
+                        },
+                    },
+                },
+            }
+        </script>
+        <style type="text/tailwindcss"> body {
+            font-family: 'Inter', sans-serif;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0d9488;
+        }
+        .form-input-custom {
+            @apply w-full bg-white border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-slate-700 placeholder:text-slate-400;
+        }
+        .sidebar-link {
+            @apply flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-primary hover:bg-slate-50 transition-colors rounded-lg;
+        }
+        .sidebar-link-active {
+            @apply flex items-center gap-3 px-4 py-3 bg-primary/10 text-primary font-semibold rounded-lg;
+        }
+    </style>
+    </head>
+    <body class="bg-background-page text-slate-800 font-display min-h-screen flex">
+        <%- include("./partials/sidebar.ejs") %> 
+        <main class="flex-1 flex flex-col h-screen overflow-y-auto">
+            <header class="h-16 flex items-center justify-between px-8 bg-white border-b border-slate-200">
+                <div class="flex-1 max-w-xl">
+                    <div class="relative">
+                        <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+                        <input class="w-full pl-10 pr-4 py-2 bg-slate-50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-slate-700" placeholder="Search content, users, or data..." type="text" />
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button class="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-50 rounded-full transition-colors">
+                        <span class="material-icons">notifications</span>
+                    </button>
+                    <div class="h-8 w-px bg-slate-200 mx-2"></div>
+                    <div class="flex items-center gap-3 pl-2">
+                        <div class="text-right hidden sm:block">
+                            <p class="text-sm font-bold text-slate-800 leading-tight user-email"></p>
+                            <p class="text-[10px] text-primary uppercase font-bold tracking-wide">Administrator</p>
+                        </div>
+                        <img alt="Profile" class="w-10 h-10 rounded-full border-2 border-slate-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4EwwtH4R7gGtD6SAHmG-hw7aAF7eUswF5DBQBXwI_u4WGS3wHG0oS-4_gdOUgM_AfYNcVxQqduCRfA1KADFVqDyaeZuS4yR-1pI0bQI2auZUJs8vWUX9_VSZgKUdaAXlEu4FqbhvxfYjCW8DjK3Wmg5WgBtkZTGvBUV4PrX8xnvULkq5WgDARgHhEv82xQF0Ho4Tg70iK6_b3RVQile-UeZMvoWVM-3p-iPU3H6YVOqXyLCmgtff9Yp4rz1i5OjYbEtu6f_B3wQ" />
+                    </div>
+                </div>
+            </header>
+            <div class="flex-1 overflow-y-auto custom-scrollbar">
+                <%- body %>
+            </div>
+        </main>
+        <!-- Toast Container -->
+        <div id="toastContainer" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
+        
+        <!--<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary rounded-full flex items-center justify-center text-white shadow-xl hover:scale-110 hover:shadow-primary/40 transition-all">
+            <span class="material-icons text-2xl">help_outline</span>
+        </button> -->
+        <script>
+            document.getElementById('logout').addEventListener('click', function (e) {
+                e.preventDefault();
+                Auth.logout();
+            });
+            document.querySelectorAll(".user-email").forEach(el => {
+                el.textContent = Auth.user().email;
+            });
+        </script>
+    </body>
+</html>

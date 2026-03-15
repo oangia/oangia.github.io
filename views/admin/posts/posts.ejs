@@ -1,0 +1,48 @@
+<div class="flex flex-col lg:flex-row gap-8">
+    <!-- Editor -->
+    <div class="flex-1 space-y-6">
+        <div class="bg-white border border-border-light rounded-xl shadow-sm overflow-hidden">
+            <!-- Toolbar -->
+            <div class="flex items-center p-2 bg-sidebar-bg border-b border-border-light space-x-1 overflow-x-auto">
+                <button class="p-2 hover:bg-primary/10 rounded text-primary">
+                    <span class="material-icons text-sm">format_bold</span>
+                </button>
+                <button class="p-2 hover:bg-primary/10 rounded text-primary">
+                    <span class="material-icons text-sm">format_italic</span>
+                </button>
+                <button class="p-2 hover:bg-primary/10 rounded text-primary">
+                    <span class="material-icons text-sm">format_list_bulleted</span>
+                </button>
+                <button class="p-2 hover:bg-primary/10 rounded text-primary">
+                    <span class="material-icons text-sm">format_quote</span>
+                </button>
+                <div class="flex-grow"></div>
+            </div>
+            <!-- Content -->
+            <div class="p-8 min-h-[600px] flex flex-col bg-white">
+                <input name="title" class="w-full bg-transparent border-none text-4xl font-bold text-editor-text placeholder:text-slate-300 focus:ring-0 mb-6" placeholder="Enter post title..." type="text" />
+                <textarea name="content" class="flex-1 w-full bg-transparent border-none text-lg leading-relaxed text-editor-text placeholder:text-slate-400 focus:ring-0 resize-none" placeholder="Start writing your story..."></textarea>
+            </div>
+        </div>
+    </div>
+    <!-- Sidebar -->
+    <aside class="w-full lg:w-80 space-y-6">
+        <div class="bg-sidebar-bg border border-border-light rounded-xl p-5 space-y-4">
+            <h3 class="text-sm font-semibold text-slate-700">Status</h3>
+            <div class="flex justify-between text-sm">
+                <span class="text-slate-500">Status</span>
+                <span class="font-medium text-primary">Draft</span>
+            </div>
+            <button class="w-full py-2.5 text-sm font-medium border border-primary text-primary rounded-lg hover:bg-primary/5 transition-colors"> Save as Draft </button>
+        </div>
+        <div class="bg-sidebar-bg border border-border-light rounded-xl p-5 space-y-4">
+            <h3 class="text-sm font-semibold text-slate-700">Category</h3>
+            <select class="w-full bg-white border-border-light rounded-lg text-sm focus:ring-primary focus:border-primary">
+                <option>Technology</option>
+                <option>Lifestyle</option>
+                <option>News</option>
+                <option>Reviews</option>
+            </select>
+        </div>
+    </aside>
+</div>

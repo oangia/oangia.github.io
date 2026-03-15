@@ -1,0 +1,493 @@
+<!-- Toast Container -->
+<div id="toastContainer" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
+
+<header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div class="flex items-center justify-between px-4 py-3">
+        <div class="flex items-center space-x-4">
+            <h1 class="text-xl font-normal text-gray-700">New Post</h1>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button 
+                onclick="saveDraft()"
+                id="saveDraftBtn"
+                class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
+            >
+                Save
+            </button>
+            <button 
+                onclick="publishPost()"
+                class="px-6 py-2 text-sm font-medium bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
+            >
+                Publish
+            </button>
+        </div>
+    </div>
+</header>
+
+<div class="max-w-7xl mx-auto">
+    <div class="flex">
+        <!-- Main Editor Area -->
+        <div class="flex-1 border-r border-gray-200">
+
+            <div class="p-6">
+                <!-- Title Input -->
+                <div class="mb-6">
+                    <input 
+                        id="postTitle"
+                        name="title"
+                        class="w-full text-2xl font-normal text-gray-800 placeholder:text-gray-400 border-none focus:outline-none focus:ring-0 p-0" 
+                        placeholder="Title" 
+                        type="text"
+                        oninput="updateSlug(); autoSave()"
+                    />
+                </div>
+
+                <!-- Toolbar -->
+                <div class="flex items-center border-y border-gray-200 py-2 mb-4 space-x-1 overflow-x-auto">
+                    <button onclick="formatText('bold')" class="p-2 hover:bg-gray-100 rounded text-gray-600 transition-colors" title="Bold">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M5 3v14h5.5a4 4 0 002.5-7.25A3.75 3.75 0 0010.5 3H5zm2 2h3.5a1.75 1.75 0 110 3.5H7V5zm0 5.5h4a2 2 0 110 4H7v-4z"/>
+                        </svg>
+                    </button>
+                    <button onclick="formatText('italic')" class="p-2 hover:bg-gray-100 rounded text-gray-600 transition-colors" title="Italic">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M8 3h8v2h-3l-2 10h3v2H6v-2h3l2-10H8V3z"/>
+                        </svg>
+                    </button>
+                    <button onclick="formatText('link')" class="p-2 hover:bg-gray-100 rounded text-gray-600 transition-colors" title="Link">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"/>
+                        </svg>
+                    </button>
+                    <div class="w-px h-6 bg-gray-300"></div>
+                    <button onclick="formatText('heading')" class="p-2 hover:bg-gray-100 rounded text-gray-600 font-semibold transition-colors" title="Heading">
+                        T
+                    </button>
+                    <button onclick="formatText('list')" class="p-2 hover:bg-gray-100 rounded text-gray-600 transition-colors" title="Bullet list">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 5h2v2H3V5zm4 0h10v2H7V5zM3 9h2v2H3V9zm4 0h10v2H7V9zm-4 4h2v2H3v-2zm4 0h10v2H7v-2z"/>
+                        </svg>
+                    </button>
+                    <button onclick="formatText('quote')" class="p-2 hover:bg-gray-100 rounded text-gray-600 transition-colors" title="Quote">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M6 10c0-2 1.5-3.5 3-3.5V5C6.5 5 4 7.5 4 10v5h4v-5H6zm8 0c0-2 1.5-3.5 3-3.5V5c-2.5 0-5 2.5-5 5v5h4v-5h-2z"/>
+                        </svg>
+                    </button>
+                    <button onclick="document.getElementById('imageUpload').click()" class="p-2 hover:bg-gray-100 rounded text-gray-600 transition-colors" title="Insert image">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Content Editor -->
+                <div class="min-h-[500px]">
+                    <textarea 
+                        id="postContent"
+                        name="content"
+                        class="w-full h-full min-h-[500px] text-base leading-relaxed text-gray-800 placeholder:text-gray-400 border-none focus:outline-none focus:ring-0 resize-none p-0" 
+                        placeholder="Tell your story..."
+                        oninput="updateWordCount(); autoSave()"
+                    ></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <aside class="w-80 bg-gray-50 border-l border-gray-200 p-4 space-y-4 overflow-y-auto" style="max-height: calc(100vh - 60px);">
+            <!-- Labels -->
+            <div>
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Labels</h3>
+                <div class="flex gap-2 mb-2">
+                    <input
+                        type="text"
+                        id="tagInput"
+                        placeholder="Add label..."
+                        class="flex-1 border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-orange-500"
+                        onkeypress="handleTagKeyPress(event)"
+                    />
+                    <button
+                        onclick="addTag()"
+                        class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-sm hover:bg-gray-50"
+                    >
+                        Add
+                    </button>
+                </div>
+                <div id="tagsContainer" class="flex flex-wrap gap-2 empty:hidden"></div>
+            </div>
+
+            <div class="border-t border-gray-300 pt-4">
+                <!-- Schedule -->
+                <div class="mb-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Schedule</h3>
+                    <div class="text-sm text-gray-600">
+                        <label class="flex items-center space-x-2">
+                            <input type="radio" name="schedule" checked class="text-orange-500 focus:ring-orange-500" />
+                            <span>Publish immediately</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Permalink -->
+                <div class="mb-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Permalink</h3>
+                    <div id="slugPreview" class="text-xs text-gray-500 bg-white border border-gray-300 rounded p-2">
+                        <span id="slugText">Automatic Permalink</span>
+                    </div>
+                </div>
+
+                <!-- Location -->
+                <div class="mb-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Location</h3>
+                    <input
+                        type="text"
+                        placeholder="Add location..."
+                        class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-orange-500"
+                    />
+                </div>
+
+                <!-- Options -->
+                <div class="mb-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Options</h3>
+                    <div class="space-y-2 text-sm">
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="allowComments" class="rounded text-orange-500 focus:ring-orange-500" checked />
+                            <span class="text-gray-700">Allow comments</span>
+                        </label>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="showAds" class="rounded text-orange-500 focus:ring-orange-500" />
+                            <span class="text-gray-700">Show ads</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- SEO Preview -->
+                <div class="mb-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Search Description</h3>
+                    <textarea
+                        id="postExcerpt"
+                        class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-orange-500 resize-none"
+                        rows="3"
+                        placeholder="Brief description for search engines..."
+                        oninput="updateSEOPreview(); autoSave()"
+                    ></textarea>
+                </div>
+
+                <!-- SEO Preview Display -->
+                <div class="mb-4 bg-white border border-gray-300 rounded p-3">
+                    <h3 class="text-xs font-medium text-gray-500 mb-2 uppercase">Preview</h3>
+                    <div class="space-y-1">
+                        <div id="seoTitle" class="text-blue-600 text-sm font-medium truncate">
+                            Your Post Title
+                        </div>
+                        <div id="seoUrl" class="text-xs text-green-700 truncate">
+                            yourblog.blogspot.com/post-url.html
+                        </div>
+                        <div id="seoDescription" class="text-sm text-gray-600 line-clamp-2">
+                            Your post description will appear here...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<!-- Hidden Image Upload Input -->
+<input
+    type="file"
+    accept="image/*"
+    id="imageUpload"
+    class="hidden"
+    onchange="handleImageUpload(event)"
+/>
+
+<!-- Post creation functions -->
+<script>
+    // Post creation state
+    let autoSaveTimeout;
+    let tags = [];
+    let isDraft = false;
+    let postCrud;
+
+    // Initialize on page load
+    onLoad(() => {
+        Auth.guard();
+        loadDraft();
+        updateSEOPreview();
+        
+        // Initialize CRUD
+        postCrud = new Crud({
+            endpoint: apiUrl + '/api/v1.0.0/posts',
+            formFields: {
+                title: 'postTitle',
+                content: 'postContent',
+                excerpt: 'postExcerpt',
+                allow_comments: 'allowComments'
+            },
+            validationRules: {
+                title: {
+                    required: true,
+                    maxLength: 200,
+                    label: 'Title'
+                },
+                content: {
+                    required: true,
+                    label: 'Content'
+                }
+            }
+        });
+    });
+
+    // Tag management
+    function handleTagKeyPress(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addTag();
+        }
+    }
+
+    function addTag() {
+        const input = document.getElementById('tagInput');
+        const tag = input.value.trim();
+        
+        if (tag && !tags.includes(tag)) {
+            tags.push(tag);
+            renderTags();
+            input.value = '';
+            autoSave();
+        }
+    }
+
+    function removeTag(tag) {
+        tags = tags.filter(t => t !== tag);
+        renderTags();
+        autoSave();
+    }
+
+    function renderTags() {
+        const container = document.getElementById('tagsContainer');
+        container.innerHTML = tags.map(tag => `
+            <span class="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-300 rounded text-sm">
+                <span>${escapeHtml(tag)}</span>
+                <button onclick="removeTag('${escapeHtml(tag)}')" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M6 6L14 14M6 14L14 6" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+            </span>
+        `).join('');
+    }
+
+    // Slug generation
+    function updateSlug() {
+        const title = document.getElementById('postTitle').value;
+        const slug = generateSlug(title);
+        const slugText = document.getElementById('slugText');
+        
+        if (slug) {
+            slugText.textContent = slug + '.html';
+        } else {
+            slugText.textContent = 'Automatic Permalink';
+        }
+        
+        updateSEOPreview();
+    }
+
+    function generateSlug(text) {
+        return text
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[\s_-]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    }
+
+    // Word count
+    function updateWordCount() {
+        // Optional: Add word count display if needed
+    }
+
+    // SEO Preview
+    function updateSEOPreview() {
+        const title = document.getElementById('postTitle').value || 'Your Post Title';
+        const excerpt = document.getElementById('postExcerpt').value || 'Your post description will appear here...';
+        const slug = generateSlug(title) || 'post-url';
+        
+        document.getElementById('seoTitle').textContent = title;
+        document.getElementById('seoUrl').textContent = `yourblog.blogspot.com/${slug}.html`;
+        document.getElementById('seoDescription').textContent = excerpt;
+    }
+
+    // Text formatting
+    function formatText(command) {
+        const textarea = document.getElementById('postContent');
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = textarea.value.substring(start, end);
+        let formattedText = '';
+        
+        switch(command) {
+            case 'bold':
+                formattedText = `**${selectedText}**`;
+                break;
+            case 'italic':
+                formattedText = `*${selectedText}*`;
+                break;
+            case 'heading':
+                formattedText = `## ${selectedText}`;
+                break;
+            case 'list':
+                formattedText = selectedText.split('\n').map(line => `- ${line}`).join('\n');
+                break;
+            case 'quote':
+                formattedText = `> ${selectedText}`;
+                break;
+            case 'link':
+                const url = prompt('Enter URL:');
+                if (url) {
+                    formattedText = `[${selectedText}](${url})`;
+                } else {
+                    return;
+                }
+                break;
+            default:
+                return;
+        }
+        
+        textarea.value = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
+        textarea.focus();
+        textarea.selectionStart = start;
+        textarea.selectionEnd = start + formattedText.length;
+        autoSave();
+    }
+
+    // Image upload
+    function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (!file.type.startsWith('image/')) {
+            showToast('Please select an image file', 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const textarea = document.getElementById('postContent');
+            const imageMarkdown = `\n![Image](${e.target.result})\n`;
+            const cursorPos = textarea.selectionStart;
+            
+            textarea.value = textarea.value.substring(0, cursorPos) + 
+                            imageMarkdown + 
+                            textarea.value.substring(cursorPos);
+            
+            autoSave();
+            showToast('Image inserted', 'success');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Auto-save functionality
+    function autoSave() {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = setTimeout(() => {
+            const data = postCrud.getFormData({
+                slug: generateSlug(document.getElementById('postTitle').value),
+                tags: tags,
+                status: 'draft',
+                published_at: new Date().toISOString()
+            });
+            localStorage.setItem('postDraft', JSON.stringify(data));
+        }, 2000);
+    }
+
+    function loadDraft() {
+        const draft = localStorage.getItem('postDraft');
+        if (draft) {
+            try {
+                const data = JSON.parse(draft);
+                document.getElementById('postTitle').value = data.title || '';
+                document.getElementById('postContent').value = data.content || '';
+                document.getElementById('postExcerpt').value = data.excerpt || '';
+                tags = data.tags || [];
+                renderTags();
+                updateSlug();
+                updateSEOPreview();
+            } catch (e) {
+                console.error('Failed to load draft:', e);
+            }
+        }
+    }
+
+    function clearDraft() {
+        localStorage.removeItem('postDraft');
+    }
+
+    // Save as draft
+    async function saveDraft() {
+        isDraft = true;
+        const data = postCrud.getFormData({
+            slug: generateSlug(document.getElementById('postTitle').value),
+            tags: tags,
+            status: 'draft',
+            published_at: new Date().toISOString()
+        });
+        
+        const errors = postCrud.validateData(data);
+        
+        if (errors.length > 0) {
+            showToast(errors.join('<br>'), 'error');
+            return;
+        }
+        
+        try {
+            await postCrud.create(data);
+            showToast('Draft saved successfully', 'success');
+            clearDraft();
+            setTimeout(() => {
+                window.location.href = '/admin/posts';
+            }, 1000);
+        } catch (error) {
+            console.error('Failed to save draft:', error);
+            showToast('Failed to save draft', 'error');
+        }
+    }
+
+    // Publish post
+    async function publishPost() {
+        isDraft = false;
+        const data = postCrud.getFormData({
+            slug: generateSlug(document.getElementById('postTitle').value),
+            tags: tags,
+            status: 'published',
+            published_at: new Date().toISOString()
+        });
+        
+        const errors = postCrud.validateData(data);
+        
+        if (errors.length > 0) {
+            showToast(errors.join('<br>'), 'error');
+            return;
+        }
+        
+        try {
+            await postCrud.create(data);
+            showToast('Post published successfully', 'success');
+            clearDraft();
+            setTimeout(() => {
+                window.location.href = '/admin/posts';
+            }, 1000);
+        } catch (error) {
+            console.error('Failed to publish post:', error);
+            showToast('Failed to publish post', 'error');
+        }
+    }
+
+    // Utility function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>

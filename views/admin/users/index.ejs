@@ -1,0 +1,38 @@
+<div class="max-w-5xl mx-auto bg-white shadow-lg rounded-xl p-6 mt-6">
+    <header class="border-b">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Users</h1>
+        </div>
+    </header>    
+
+    <div class="overflow-x-auto">
+        <table class="min-w-full border border-gray-200 rounded-lg overflow-hidden">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Email</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="userTable" class="divide-y divide-gray-200 bg-white">
+            
+            </tbody>
+        </table>
+    </div>
+
+</div>
+<script>
+$.table({
+    url: "https://api-534394830199.asia-southeast1.run.app/api/v1.0.0/users",
+    table: "userTable",
+    renderItem: (user) => {
+        return `
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 text-sm text-gray-600">${user.email || "-"}<br/>${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}</td>
+                <td class="px-4 py-3 text-sm text-gray-500">
+                    
+                </td>
+            </tr>
+        `;
+    }
+});
+</script>

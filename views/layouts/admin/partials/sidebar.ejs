@@ -1,0 +1,69 @@
+<aside class="w-64 border-r border-slate-200 bg-sidebar-bg hidden lg:flex flex-col sticky top-0 h-screen">
+    <div class="p-6 flex items-center gap-3">
+        <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <span class="material-icons text-white text-sm">auto_awesome</span>
+        </div>
+        <span class="font-bold text-xl tracking-tight uppercase italic text-slate-900">Lumina <span class="text-primary">CMS</span>
+        </span>
+    </div>
+    <nav class="flex-1 px-4 space-y-1">
+        <a class="sidebar-link" href="/admin">
+            <span class="material-icons text-[20px]">dashboard</span>
+            <span class="font-medium text-sm">Dashboard</span>
+        </a>
+        <a class="sidebar-link" href="/admin/posts">
+            <span class="material-icons text-[20px]">article</span>
+            <span class="font-medium text-sm">Content</span>
+        </a>
+        <a class="sidebar-link" href="/admin/pages">
+            <span class="material-icons text-[20px]">image</span>
+            <span class="font-medium text-sm">Pages</span>
+        </a>
+        <a class="sidebar-link" href="/admin/users">
+            <span class="material-icons text-[20px]">people</span>
+            <span class="font-medium text-sm">Users</span>
+        </a>
+        <div class="pt-6 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Configuration</div>
+        <a class="sidebar-link" href="/admin/settings">
+            <span class="material-icons text-[20px]">settings</span>
+            <span class="font-medium text-sm">Settings</span>
+        </a>
+        <a class="sidebar-link" href="#">
+            <span class="material-icons text-[20px]">extension</span>
+            <span class="font-medium text-sm">Plugins</span>
+        </a>
+    </nav>
+    <div class="p-4 mt-auto">
+        <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+            <div class="flex items-center gap-3 mb-3">
+                <img alt="Profile" class="w-10 h-10 rounded-full border-2 border-primary/20" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqAWtcHtAcbixGwRxGjKkPEbxDt6p0tf2tDB0YQHWKlnzuuIT6iJ9tLCJiA0L7G4-IWcmv453nyaSKkFwM5oXL6pYI_v4LzcxcnQmKKRgWRBSvOHsjni8FVFHohzftGNQtKS1-vquopK-jeSW4EfnZrTDjuZR283it7SUNWi9wqQ4mF7ebngWrOgA_AuitvK3YyQ6r2QyX3nQEec7GhWvnhupv5p0jC_psCCTB1FCTu_RWWYXyrsvrcF1r2VMgo0RgSx23GThW3Q">
+                <div class="overflow-hidden">
+                    <p class="text-sm font-semibold text-slate-900 truncate user-email"></p>
+                    <p class="text-[10px] text-slate-500 uppercase tracking-tight">Super Admin</p>
+                </div>
+            </div>
+            <button id="logout" class="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                <span class="material-icons text-sm">logout</span> Sign Out </button>
+        </div>
+    </div>
+</aside>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const currentPath = window.location.pathname.replace(/\/$/, "");
+    
+        const links = document.querySelectorAll(".sidebar-link, .sidebar-link-active");
+    
+        links.forEach(link => {
+            const linkPath = link.getAttribute("href").replace(/\/$/, "");
+    
+            // remove active first
+            link.classList.remove("sidebar-link-active");
+            link.classList.add("sidebar-link");
+    
+            if (linkPath === currentPath) {
+                link.classList.remove("sidebar-link");
+                link.classList.add("sidebar-link-active");
+            }
+        });
+    });
+    </script>

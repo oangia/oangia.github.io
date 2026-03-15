@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Firebase CRUD</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-teal-50 min-h-screen p-10">
+
+<div class="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl p-6">
+<h1 class="text-2xl font-bold text-teal-700 mb-6">Firebase CRUD</h1>
+
+<div class="flex gap-2 mb-6">
+<input id="collectionInput"
+placeholder="Collection name"
+class="border rounded px-3 py-2 w-full">
+<button onclick="loadDocs()"
+class="bg-teal-500 text-white px-4 rounded hover:bg-teal-600">
+Load
+</button>
+</div>
+
+<ul id="docList" class="space-y-3"></ul>
+</div>
+
+
+<!-- FLOATING ADD BUTTON -->
+<button onclick="openAddModal()"
+class="fixed bottom-8 right-8 bg-teal-500 text-white w-14 h-14 rounded-full text-3xl flex items-center justify-center shadow-lg hover:bg-teal-600">
++
+</button>
+
+
+<!-- ADD MODAL -->
+<div id="addModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center">
+<div class="bg-white p-6 rounded-xl w-[400px]">
+
+<h3 class="text-xl font-semibold text-teal-700 mb-4">Add Document</h3>
+
+<textarea id="addJson"
+placeholder='{"name":"test"}'
+class="w-full border rounded p-2 mb-4 h-32"></textarea>
+
+<div class="flex justify-end gap-2">
+<button onclick="closeAddModal()" class="px-3 py-2 bg-gray-200 rounded">Cancel</button>
+<button onclick="createDoc()" class="px-3 py-2 bg-teal-500 text-white rounded">Create</button>
+</div>
+
+</div>
+</div>
+
+
+<!-- EDIT MODAL -->
+<div id="editModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center">
+<div class="bg-white p-6 rounded-xl w-[400px]">
+
+<h3 class="text-xl font-semibold text-teal-700 mb-4">Edit Document</h3>
+
+<textarea id="editJson"
+class="w-full border rounded p-2 mb-4 h-32"></textarea>
+
+<div class="flex justify-end gap-2">
+<button onclick="closeEditModal()" class="px-3 py-2 bg-gray-200 rounded">Cancel</button>
+<button onclick="updateDoc()" class="px-3 py-2 bg-teal-500 text-white rounded">Update</button>
+</div>
+
+</div>
+</div>
+
+
+<script type="module">
+
+import { Firebase } from "./firebase.min.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB0TxR5HpNJ8Ph7rnrHqXNMAmBWo1dw5Nw",
+  authDomain: "agent52.firebaseapp.com",
+  projectId: "agent52",
+  storageBucket: "agent52.firebasestorage.app",
+  messagingSenderId: "534394830199",
+  appId: "1:534394830199:web:521b810d19dbcfe9edb572"
+};
+
+const firebase = new Firebase(firebaseConfig);
+
+let currentId=null;
+
+function collection(){
+  return document.getElementById("collectionInput").value;
+}
+
+
+function openAddModal(){
+  const m=document.getElementById("addModal");
+  m.classList.remove("hidden");
+  m.classList.add("flex");
+}
+
+function closeAddModal(){
+  document.getElementById("addModal").classList.add("hidden");
+}
+
+
+function openEditModal(doc){
+  currentId=doc.id;
+
+  const m=document.getElementById("editModal");
+  document.getElementById("editJson").value=JSON.stringify(doc,null,2);
+
+  m.classList.remove("hidden");
+  m.classList.add("flex");
+}
+
+function closeEditModal(){
+  document.getElementById("editModal").classList.add("hidden");
+}
+
+
+
+async function createDoc(){
+
+  const col=collection();
+  const json=document.getElementById("addJson").value;
+
+  let data;
+
+  try{
+    data=JSON.parse(json);
+  }catch{
+    alert("invalid json");
+    return;
+  }
+
+  await firebase.add(col,data);
+
+  closeAddModal();
+  loadDocs();
+}
+
+
+
+async function updateDoc(){
+
+  const col=collection();
+  const json=document.getElementById("editJson").value;
+
+  let data;
+
+  try{
+    data=JSON.parse(json);
+  }catch{
+    alert("invalid json");
+    return;
+  }
+
+  await firebase.update(col,currentId,data);
+
+  closeEditModal();
+  loadDocs();
+}
+
+
+
+async function deleteDoc(id){
+
+  const col=collection();
+
+  await firebase.delete(col,id);
+
+  loadDocs();
+}
+
+
+
+async function loadDocs(){
+
+  const col=collection();
+  if(!col) return;
+
+  const list=document.getElementById("docList");
+  list.innerHTML="";
+
+  const docs=await firebase.getAll(col);
+
+  docs.forEach(doc=>{
+
+    const li=document.createElement("li");
+
+    li.className="border rounded p-3 bg-gray-50 flex justify-between items-center";
+
+    const span=document.createElement("span");
+    span.textContent=JSON.stringify(doc);
+
+    const actions=document.createElement("div");
+
+    const edit=document.createElement("button");
+    edit.textContent="Edit";
+    edit.className="bg-blue-500 text-white px-2 py-1 rounded mr-2";
+
+    const del=document.createElement("button");
+    del.textContent="Delete";
+    del.className="bg-red-500 text-white px-2 py-1 rounded";
+
+    edit.onclick=()=>openEditModal(doc);
+    del.onclick=()=>deleteDoc(doc.id);
+
+    actions.appendChild(edit);
+    actions.appendChild(del);
+
+    li.appendChild(span);
+    li.appendChild(actions);
+
+    list.appendChild(li);
+
+  });
+
+}
+
+window.loadDocs=loadDocs;
+window.openAddModal=openAddModal;
+window.closeAddModal=closeAddModal;
+
+loadDocs();
+
+</script>
+
+</body>
+</html>
