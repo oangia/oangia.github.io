@@ -10,6 +10,8 @@
 
 <div class="bg-white shadow-xl rounded-2xl p-6 w-[420px]">
 
+<h2 class="text-xl font-semibold text-teal-700 mb-4">Firestore</h2>
+
 <input id="collectionInput"
 placeholder="Collection name"
 class="w-full border rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-400">
@@ -20,10 +22,8 @@ class="w-full border rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 f
 
 
 <button onclick="openModal()"
-class="fixed bottom-8 right-8 bg-teal-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-teal-600 transition">
-
-<span class="material-symbols-outlined text-3xl">add</span>
-
+class="fixed bottom-8 right-8 bg-teal-500 text-white w-14 h-14 rounded-full text-3xl flex items-center justify-center shadow-lg hover:bg-teal-600 transition">
++
 </button>
 
 
@@ -33,9 +33,10 @@ class="fixed bottom-8 right-8 bg-teal-500 text-white w-14 h-14 rounded-full flex
 
 <h3 id="modalTitle" class="text-xl font-semibold text-teal-700 mb-4">Add Document</h3>
 
-<textarea id="jsonInput"
+<input id="docInput"
 placeholder='{"name":"test"}'
-class="w-full border rounded-lg px-3 py-2 mb-4 h-28 focus:outline-none focus:ring-2 focus:ring-teal-400"></textarea>
+class="w-full border rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-400"
+/>
 
 <div class="flex justify-end gap-2">
 
@@ -52,8 +53,11 @@ Save
 </div>
 
 </div>
+
 </div>
 
+
+<script src="bundle.min.js"></script>
 
 <script type="module">
 import { Firebase } from "./firebase.min.js";
@@ -76,9 +80,8 @@ function collection(){
 }
 
 function openModal(){
-  const m=document.getElementById("modal");
-  m.classList.remove("hidden");
-  m.classList.add("flex");
+  document.getElementById("modal").classList.remove("hidden");
+  document.getElementById("modal").classList.add("flex");
 }
 
 function closeModal(){
@@ -88,11 +91,13 @@ function closeModal(){
 function openEdit(doc){
   editId=doc.id;
   document.getElementById("modalTitle").textContent="Edit Document";
-  document.getElementById("jsonInput").value=JSON.stringify(doc,null,2);
+  document.getElementById("docInput").value=JSON.stringify(doc);
   openModal();
 }
 
 async function saveDoc(){
+
+  loading();
 
   const col=collection();
   if(!col) return;
@@ -100,7 +105,7 @@ async function saveDoc(){
   let data;
 
   try{
-    data=JSON.parse(document.getElementById("jsonInput").value);
+    data=JSON.parse(document.getElementById("docInput").value);
   }catch{
     alert("invalid json");
     return;
@@ -113,11 +118,13 @@ async function saveDoc(){
     await firebase.add(col,data);
   }
 
-  document.getElementById("jsonInput").value="";
+  document.getElementById("docInput").value="";
   document.getElementById("modalTitle").textContent="Add Document";
-  closeModal();
 
-  loadDocs();
+  closeModal();
+  await loadDocs();
+
+  loading(false);
 }
 
 async function deleteDoc(id){
@@ -127,22 +134,28 @@ async function deleteDoc(id){
 
 async function loadDocs(){
 
-  const col=collection();
-  if(!col) return;
+  loading();
 
   const list=document.getElementById("docList");
   list.innerHTML="";
 
-  const docs=await firebase.getAll(col);
+  const docs=await firebase.getAll(collection());
 
-  docs.forEach(doc=>{
+  docs.forEach(data=>{
 
     const li=document.createElement("li");
+
+    const date=data.timestamp
+      ? new Date(data.timestamp).toLocaleDateString()
+      : "";
 
     li.className="bg-white border border-teal-100 rounded-xl p-4 flex justify-between items-center shadow-sm hover:shadow-md transition";
 
     li.innerHTML=`
-      <span class="text-sm text-gray-700 break-all">${JSON.stringify(doc)}</span>
+      <div>
+        <div class="font-medium text-gray-800">${JSON.stringify(data)}</div>
+        <div class="text-sm text-gray-400">${date}</div>
+      </div>
 
       <div class="flex gap-2">
 
@@ -157,13 +170,13 @@ async function loadDocs(){
       </div>
     `;
 
-    li.children[1].children[0].onclick=()=>openEdit(doc);
-    li.children[1].children[1].onclick=()=>deleteDoc(doc.id);
+    li.children[1].children[0].onclick=()=>openEdit(data);
+    li.children[1].children[1].onclick=()=>deleteDoc(data.id);
 
     list.appendChild(li);
-
   });
 
+  loading(false);
 }
 
 document.getElementById("collectionInput").addEventListener("change",loadDocs);
