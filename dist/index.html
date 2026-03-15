@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Habit Tracker</title>
+<title>Firebase CRUD</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
@@ -9,50 +9,48 @@
 
 <div class="bg-white shadow-xl rounded-2xl p-6 w-[420px]">
 
-<ul id="habitList" class="mt-3 space-y-2"></ul>
+<input id="collectionInput"
+placeholder="Collection name"
+class="w-full border rounded-lg px-3 py-2 mb-4">
+
+<ul id="docList" class="space-y-2"></ul>
 
 </div>
 
 
-<!-- FLOATING ADD BUTTON -->
 <button onclick="openModal()"
-class="fixed bottom-8 right-8 bg-teal-500 text-white w-14 h-14 rounded-full text-3xl flex items-center justify-center shadow-lg hover:bg-teal-600 transition">
+class="fixed bottom-8 right-8 bg-teal-500 text-white w-14 h-14 rounded-full text-3xl flex items-center justify-center shadow-lg hover:bg-teal-600">
 +
 </button>
 
 
-<!-- ADD HABIT MODAL -->
 <div id="modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center">
 
 <div class="bg-white p-6 rounded-xl w-[350px] shadow-lg">
 
-<h3 class="text-xl font-semibold text-teal-700 mb-4">Add Habit</h3>
+<h3 id="modalTitle" class="text-xl font-semibold text-teal-700 mb-4">Add Document</h3>
 
-<input id="habitInput"
-placeholder="Enter habit"
-class="w-full border rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-400"
-/>
+<textarea id="jsonInput"
+placeholder='{"name":"test"}'
+class="w-full border rounded-lg px-3 py-2 mb-4 h-28"></textarea>
 
 <div class="flex justify-end gap-2">
 
 <button onclick="closeModal()"
-class="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
+class="px-3 py-2 bg-gray-200 rounded-lg">
 Cancel
 </button>
 
-<button onclick="addHabit()"
-class="px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600">
-Add
+<button onclick="saveDoc()"
+class="px-3 py-2 bg-teal-500 text-white rounded-lg">
+Save
 </button>
 
 </div>
 
 </div>
-
 </div>
 
-
-<script src="bundle.min.js"></script>
 
 <script type="module">
 import { Firebase } from "./firebase.min.js";
@@ -68,63 +66,98 @@ const firebaseConfig = {
 
 const firebase = new Firebase(firebaseConfig);
 
+let editId=null;
+
+function collection(){
+  return document.getElementById("collectionInput").value;
+}
+
 function openModal(){
-  document.getElementById("modal").classList.remove("hidden");
-  document.getElementById("modal").classList.add("flex");
+  const m=document.getElementById("modal");
+  m.classList.remove("hidden");
+  m.classList.add("flex");
 }
 
 function closeModal(){
   document.getElementById("modal").classList.add("hidden");
 }
 
-async function addHabit(){
-  loading();
-  const habit = document.getElementById("habitInput").value;
-  if(!habit) return;
+function openEdit(doc){
+  editId=doc.id;
+  document.getElementById("modalTitle").textContent="Edit Document";
+  document.getElementById("jsonInput").value=JSON.stringify(doc,null,2);
+  openModal();
+}
 
-  await firebase.add("habits",{
-    name: habit,
-    timestamp: Date.now(),
-    done: false
-  });
+async function saveDoc(){
 
-  document.getElementById("habitInput").value="";
+  const col=collection();
+  if(!col) return;
+
+  let data;
+
+  try{
+    data=JSON.parse(document.getElementById("jsonInput").value);
+  }catch{
+    alert("invalid json");
+    return;
+  }
+
+  if(editId){
+    await firebase.update(col,editId,data);
+    editId=null;
+  }else{
+    await firebase.add(col,data);
+  }
+
+  document.getElementById("jsonInput").value="";
   closeModal();
 
-  await loadHabits();
-  loading(false);
+  loadDocs();
 }
 
-async function loadHabits(){
-  loading();
-  const list = document.getElementById("habitList");
+async function deleteDoc(id){
+  await firebase.delete(collection(),id);
+  loadDocs();
+}
+
+async function loadDocs(){
+
+  const col=collection();
+  if(!col) return;
+
+  const list=document.getElementById("docList");
   list.innerHTML="";
 
-  const habits = await firebase.getAll("habits");
+  const docs=await firebase.getAll(col);
 
-  habits.forEach(data=>{
+  docs.forEach(doc=>{
 
-    const li = document.createElement("li");
+    const li=document.createElement("li");
 
-    const date = new Date(data.timestamp).toLocaleString();
+    li.className="bg-white border border-teal-100 rounded-lg p-3 flex justify-between items-center shadow-sm";
 
-    li.className = "bg-white border border-teal-100 rounded-lg p-3 flex justify-between shadow-sm";
+    li.innerHTML=`
+      <span class="text-sm">${JSON.stringify(doc)}</span>
 
-    li.innerHTML = `
-      <span class="font-medium text-gray-800">${data.name}</span>
-      <span class="text-sm text-gray-500">${date}</span>
+      <div class="flex gap-2">
+        <button class="bg-blue-500 text-white px-2 py-1 rounded text-sm">Edit</button>
+        <button class="bg-red-500 text-white px-2 py-1 rounded text-sm">Delete</button>
+      </div>
     `;
 
+    li.children[1].children[0].onclick=()=>openEdit(doc);
+    li.children[1].children[1].onclick=()=>deleteDoc(doc.id);
+
     list.appendChild(li);
+
   });
-  loading(false);
+
 }
 
-window.addHabit = addHabit;
-window.openModal = openModal;
-window.closeModal = closeModal;
-
-loadHabits();
+window.openModal=openModal;
+window.closeModal=closeModal;
+window.saveDoc=saveDoc;
 
 </script>
 
