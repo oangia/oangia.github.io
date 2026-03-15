@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Habit Tracker</title>
+</head>
+<body>
+
+<h2>Habit Tracker</h2>
+
+<input id="habitInput" placeholder="Enter habit">
+<button onclick="addHabit()">Add Habit</button>
+
+<h3>Habits</h3>
+<ul id="habitList"></ul>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { 
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB0TxR5HpNJ8Ph7rnrHqXNMAmBWo1dw5Nw",
+  authDomain: "agent52.firebaseapp.com",
+  projectId: "agent52",
+  storageBucket: "agent52.firebasestorage.app",
+  messagingSenderId: "534394830199",
+  appId: "1:534394830199:web:521b810d19dbcfe9edb572"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+async function addHabit() {
+
+  const habit = document.getElementById("habitInput").value;
+
+  if(!habit) return;
+
+  await addDoc(collection(db,"habits"),{
+    name: habit,
+    date: new Date().toISOString().slice(0,10),
+    done: false
+  });
+
+  document.getElementById("habitInput").value="";
+  loadHabits();
+}
+
+async function loadHabits(){
+
+  const list = document.getElementById("habitList");
+  list.innerHTML="";
+
+  const querySnapshot = await getDocs(collection(db,"habits"));
+
+  querySnapshot.forEach(doc=>{
+    const li=document.createElement("li");
+    li.textContent = doc.data().name + " - " + doc.data().date;
+    list.appendChild(li);
+  });
+
+}
+
+window.addHabit = addHabit;
+
+loadHabits();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,9 @@
+module.exports = {
+    database: {
+        uri: '',
+        dbname: 'mydb'
+    },
+    jwt: {
+        secret: ''
+    }
+};
