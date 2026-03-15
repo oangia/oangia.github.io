@@ -2,18 +2,60 @@
 <html>
 <head>
 <title>Habit Tracker</title>
-</head>
-<body>
-
-<h2>Habs</h2>
-
-<input id="habitInput" placeholder="Enter habit">
-<button onclick="addHabit()">Add Habit</button>
-
-<h3>Habits</h3>
-<ul id="habitList"></ul>
 <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+
+<div class="bg-white shadow-xl rounded-2xl p-6 w-[420px]">
+
+<h2 class="text-2xl font-bold mb-4">Habits</h2>
+
+<button onclick="openModal()" 
+class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+Add Habit
+</button>
+
+<h3 class="mt-6 text-lg font-semibold">Your Habits</h3>
+
+<ul id="habitList" class="mt-3 space-y-2"></ul>
+
+</div>
+
+
+<!-- ADD HABIT MODAL -->
+<div id="modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center">
+
+<div class="bg-white p-6 rounded-xl w-[350px] shadow-lg">
+
+<h3 class="text-xl font-semibold mb-4">Add Habit</h3>
+
+<input id="habitInput"
+placeholder="Enter habit"
+class="w-full border rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+/>
+
+<div class="flex justify-end gap-2">
+
+<button onclick="closeModal()"
+class="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
+Cancel
+</button>
+
+<button onclick="addHabit()"
+class="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+Add
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
 <script src="bundle.min.js"></script>
+
 <script type="module">
 import { Firebase } from "./firebase.min.js";
 
@@ -28,8 +70,16 @@ const firebaseConfig = {
 
 const firebase = new Firebase(firebaseConfig);
 
+function openModal(){
+  document.getElementById("modal").classList.remove("hidden");
+  document.getElementById("modal").classList.add("flex");
+}
+
+function closeModal(){
+  document.getElementById("modal").classList.add("hidden");
+}
+
 async function addHabit(){
-  loading();
 
   const habit = document.getElementById("habitInput").value;
   if(!habit) return;
@@ -41,13 +91,12 @@ async function addHabit(){
   });
 
   document.getElementById("habitInput").value="";
-  await loadHabits();
+  closeModal();
 
-  loading(false);
+  await loadHabits();
 }
 
 async function loadHabits(){
-  loading();
 
   const list = document.getElementById("habitList");
   list.innerHTML="";
@@ -55,19 +104,26 @@ async function loadHabits(){
   const habits = await firebase.getAll("habits");
 
   habits.forEach(data=>{
+
     const li = document.createElement("li");
 
     const date = new Date(data.timestamp).toLocaleString();
 
-    li.textContent = data.name + " - " + date;
+    li.className = "bg-gray-50 border rounded-lg p-3 flex justify-between";
+
+    li.innerHTML = `
+      <span>${data.name}</span>
+      <span class="text-sm text-gray-500">${date}</span>
+    `;
 
     list.appendChild(li);
   });
 
-  loading(false);
 }
 
 window.addHabit = addHabit;
+window.openModal = openModal;
+window.closeModal = closeModal;
 
 loadHabits();
 
