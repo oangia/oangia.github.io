@@ -82,7 +82,7 @@ function closeModal(){
 }
 
 async function addHabit(){
-
+  loading();
   const habit = document.getElementById("habitInput").value;
   if(!habit) return;
 
@@ -96,10 +96,11 @@ async function addHabit(){
   closeModal();
 
   await loadHabits();
+  loading(false);
 }
 
 async function loadHabits(){
-
+  loading();
   const list = document.getElementById("habitList");
   list.innerHTML="";
 
@@ -120,7 +121,7 @@ async function loadHabits(){
 
     list.appendChild(li);
   });
-
+  loading(false);
 }
 
 window.addHabit = addHabit;
