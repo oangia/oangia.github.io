@@ -15,15 +15,60 @@
 
 <script src="bundle.min.js"></script>
 <script type="module">
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-import { 
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import {
   getFirestore,
   collection,
   addDoc,
-  getDocs
+  getDocs,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
 
+export class Firebase {
+
+  constructor(config){
+    this.app = initializeApp(config);
+    this.db = getFirestore(this.app);
+  }
+
+  /* ---------- Firestore ---------- */
+
+  async add(collectionName, data){
+    return await addDoc(collection(this.db, collectionName), data);
+  }
+
+  async getAll(collectionName){
+    const snapshot = await getDocs(collection(this.db, collectionName));
+
+    const result = [];
+    snapshot.forEach(d=>{
+      result.push({
+        id: d.id,
+        ...d.data()
+      });
+    });
+
+    return result;
+  }
+
+  async set(collectionName, id, data){
+    return await setDoc(doc(this.db, collectionName, id), data);
+  }
+
+  async update(collectionName, id, data){
+    return await updateDoc(doc(this.db, collectionName, id), data);
+  }
+
+  async delete(collectionName, id){
+    return await deleteDoc(doc(this.db, collectionName, id));
+  }
+
+}
+</script>
+<script type="module">
 const firebaseConfig = {
   apiKey: "AIzaSyB0TxR5HpNJ8Ph7rnrHqXNMAmBWo1dw5Nw",
   authDomain: "agent52.firebaseapp.com",
@@ -33,35 +78,35 @@ const firebaseConfig = {
   appId: "1:534394830199:web:521b810d19dbcfe9edb572"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const firebase = new Firebase(firebaseConfig);
 
 async function addHabit(){
   loading();
+
   const habit = document.getElementById("habitInput").value;
   if(!habit) return;
 
-  await addDoc(collection(db,"habits"),{
+  await firebase.add("habits",{
     name: habit,
-    timestamp: Date.now(),   // plain number timestamp
+    timestamp: Date.now(),
     done: false
   });
 
   document.getElementById("habitInput").value="";
-  loadHabits();
+  await loadHabits();
+
   loading(false);
 }
 
 async function loadHabits(){
   loading();
+
   const list = document.getElementById("habitList");
   list.innerHTML="";
 
-  const snapshot = await getDocs(collection(db,"habits"));
+  const habits = await firebase.getAll("habits");
 
-  snapshot.forEach(doc=>{
-    const data = doc.data();
-
+  habits.forEach(data=>{
     const li = document.createElement("li");
 
     const date = new Date(data.timestamp).toLocaleString();
@@ -70,6 +115,7 @@ async function loadHabits(){
 
     list.appendChild(li);
   });
+
   loading(false);
 }
 
