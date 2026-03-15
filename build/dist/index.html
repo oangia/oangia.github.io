@@ -35,15 +35,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-async function addHabit() {
+async function addHabit(){
 
   const habit = document.getElementById("habitInput").value;
-
   if(!habit) return;
 
   await addDoc(collection(db,"habits"),{
     name: habit,
-    date: new Date().toISOString().slice(0,10),
+    timestamp: Date.now(),   // plain number timestamp
     done: false
   });
 
@@ -56,11 +55,17 @@ async function loadHabits(){
   const list = document.getElementById("habitList");
   list.innerHTML="";
 
-  const querySnapshot = await getDocs(collection(db,"habits"));
+  const snapshot = await getDocs(collection(db,"habits"));
 
-  querySnapshot.forEach(doc=>{
-    const li=document.createElement("li");
-    li.textContent = doc.data().name + " - " + doc.data().date;
+  snapshot.forEach(doc=>{
+    const data = doc.data();
+
+    const li = document.createElement("li");
+
+    const date = new Date(data.timestamp).toLocaleString();
+
+    li.textContent = data.name + " - " + date;
+
     list.appendChild(li);
   });
 
