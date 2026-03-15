@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -10,42 +11,55 @@
 
 <body class="bg-teal-50 min-h-screen flex items-center justify-center">
 
-<div class="bg-white shadow-xl rounded-2xl p-6 w-[520px]">
+<div class="bg-white shadow-xl rounded-2xl p-8 w-[900px]">
 
-<h2 class="text-xl font-semibold text-teal-700 mb-4">
-Firestore
-</h2>
+<div class="flex gap-3 mb-4">
 
 <input
 id="collectionInput"
 placeholder="Collection name"
-class="w-full border rounded-lg px-3 py-2 mb-3"
+class="flex-1 border rounded-lg px-4 py-3 text-lg"
 />
+
+<button
+onclick="loadDocs()"
+class="bg-teal-500 text-white px-6 rounded-lg hover:bg-teal-600">
+Load
+</button>
+
+<button
+onclick="openModal()"
+class="bg-teal-600 text-white px-6 rounded-lg hover:bg-teal-700">
+Add
+</button>
+
+</div>
+
+<div class="flex gap-3 mb-4">
 
 <input
 id="search"
-placeholder="Search documents"
-class="w-full border rounded-lg px-3 py-2 mb-3"
+placeholder="Search"
+class="flex-1 border rounded-lg px-4 py-3"
 />
 
-<div id="docCount" class="text-sm text-gray-400 mb-3"></div>
+<div id="docCount" class="text-gray-500 flex items-center px-3"></div>
 
-<ul id="docList" class="space-y-3"></ul>
+</div>
+
+<div class="h-[500px] overflow-y-auto border rounded-xl p-4 bg-gray-50">
+
+<ul id="docList" class="space-y-4"></ul>
+
+</div>
 
 </div>
 
 
 
-<button onclick="openModal()"
-class="fixed bottom-8 right-8 bg-teal-500 text-white w-14 h-14 rounded-full text-3xl flex items-center justify-center shadow-lg hover:bg-teal-600">
-+
-</button>
-
-
-
 <div id="modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center">
 
-<div class="bg-white p-6 rounded-xl w-[380px] shadow-lg">
+<div class="bg-white p-6 rounded-xl w-[700px] shadow-lg">
 
 <h3 id="modalTitle" class="text-xl font-semibold text-teal-700 mb-4">
 Add Document
@@ -54,24 +68,35 @@ Add Document
 <textarea
 id="docInput"
 placeholder='{"name":"test"}'
-class="w-full border rounded-lg px-3 py-2 mb-4 h-36"
+class="w-full border rounded-lg px-4 py-3 h-[300px] font-mono resize-y"
 ></textarea>
 
-<div class="flex justify-end gap-2">
+<div class="flex justify-between mt-4">
 
-<button onclick="closeModal()"
-class="px-3 py-2 bg-gray-200 rounded-lg">
+<div class="text-sm text-gray-400">
+Ctrl + Enter to save
+</div>
+
+<div class="flex gap-2">
+
+<button
+onclick="closeModal()"
+class="px-4 py-2 bg-gray-200 rounded-lg">
 Cancel
 </button>
 
-<button onclick="saveDoc()"
-class="px-3 py-2 bg-teal-500 text-white rounded-lg">
+<button
+onclick="saveDoc()"
+class="px-4 py-2 bg-teal-500 text-white rounded-lg">
 Save
 </button>
 
 </div>
 
 </div>
+
+</div>
+
 </div>
 
 
@@ -104,7 +129,9 @@ function collection(){
 
 
 function openModal(){
+
   const m=document.getElementById("modal");
+
   m.classList.remove("hidden");
   m.classList.add("flex");
 }
@@ -136,8 +163,6 @@ function openEdit(doc){
 
 async function saveDoc(){
 
-  loading();
-
   const col=collection();
   if(!col) return;
 
@@ -166,9 +191,7 @@ async function saveDoc(){
 
   closeModal();
 
-  await loadDocs();
-
-  loading(false);
+  loadDocs();
 }
 
 
@@ -196,8 +219,6 @@ async function duplicateDoc(doc){
 
 async function loadDocs(){
 
-  loading();
-
   const col=collection();
   if(!col) return;
 
@@ -221,107 +242,69 @@ async function loadDocs(){
 
     const li=document.createElement("li");
 
-    li.className="bg-white border border-teal-100 rounded-xl p-4 shadow-sm";
-
-    const header=document.createElement("div");
-
-    header.className="flex justify-between items-center cursor-pointer";
+    li.className="bg-white border rounded-lg p-4";
 
 
 
-    const title=document.createElement("div");
+    li.innerHTML=`
 
-    title.className="font-medium text-gray-800";
+    <div class="flex justify-between items-center mb-2">
 
-    title.textContent=data.id;
+      <div class="font-medium text-gray-700">
+        ${data.id}
+      </div>
 
+      <div class="flex gap-2">
 
+        <button class="p-2 hover:bg-teal-100 rounded">
+        <span class="material-symbols-outlined">edit</span>
+        </button>
 
-    const buttons=document.createElement("div");
+        <button class="p-2 hover:bg-yellow-100 rounded">
+        <span class="material-symbols-outlined">content_copy</span>
+        </button>
 
-    buttons.className="flex gap-2";
+        <button class="p-2 hover:bg-red-100 rounded">
+        <span class="material-symbols-outlined">delete</span>
+        </button>
 
+      </div>
 
+    </div>
 
-    const editBtn=document.createElement("button");
-    editBtn.className="p-2 rounded-lg hover:bg-teal-100 text-teal-600";
-    editBtn.innerHTML=`<span class="material-symbols-outlined text-[20px]">edit</span>`;
+    <pre class="text-sm text-gray-600 whitespace-pre-wrap">${JSON.stringify(data,null,2)}</pre>
 
+    `;
 
+    const btns=li.querySelectorAll("button");
 
-    const dupBtn=document.createElement("button");
-    dupBtn.className="p-2 rounded-lg hover:bg-yellow-100 text-yellow-600";
-    dupBtn.innerHTML=`<span class="material-symbols-outlined text-[20px]">content_copy</span>`;
-
-
-
-    const delBtn=document.createElement("button");
-    delBtn.className="p-2 rounded-lg hover:bg-red-100 text-red-500";
-    delBtn.innerHTML=`<span class="material-symbols-outlined text-[20px]">delete</span>`;
-
-
-
-    buttons.append(editBtn,dupBtn,delBtn);
-
-    header.append(title,buttons);
-
-
-
-    const pre=document.createElement("pre");
-
-    pre.className="text-sm text-gray-600 mt-3 hidden whitespace-pre-wrap";
-
-    pre.textContent=JSON.stringify(data,null,2);
-
-
-
-    header.onclick=()=>{
-      pre.classList.toggle("hidden");
-    };
-
-
-
-    editBtn.onclick=(e)=>{
-      e.stopPropagation();
-      openEdit(data);
-    };
-
-
-
-    delBtn.onclick=(e)=>{
-      e.stopPropagation();
-      deleteDoc(data.id);
-    };
-
-
-
-    dupBtn.onclick=(e)=>{
-      e.stopPropagation();
-      duplicateDoc(data);
-    };
-
-
-
-    li.append(header,pre);
+    btns[0].onclick=()=>openEdit(data);
+    btns[1].onclick=()=>duplicateDoc(data);
+    btns[2].onclick=()=>deleteDoc(data.id);
 
     list.appendChild(li);
 
   });
 
-  loading(false);
 }
 
 
 
 document
-  .getElementById("collectionInput")
-  .addEventListener("input",loadDocs);
+.getElementById("search")
+.addEventListener("input",loadDocs);
 
 
 
 document
-  .getElementById("search")
-  .addEventListener("input",loadDocs);
+.getElementById("docInput")
+.addEventListener("keydown",(e)=>{
+
+  if(e.ctrlKey && e.key==="Enter"){
+    saveDoc();
+  }
+
+});
 
 
 
@@ -333,3 +316,4 @@ window.saveDoc=saveDoc;
 
 </body>
 </html>
+```
