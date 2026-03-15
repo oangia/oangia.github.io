@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Habit Tracker</title>
+<title>Firebase CRUD</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
 </head>
@@ -10,31 +10,32 @@
 
 <div class="bg-white shadow-xl rounded-2xl p-6 w-[420px]">
 
-<h2 class="text-xl font-semibold text-teal-700 mb-4">Habits</h2>
+<input id="collectionInput"
+placeholder="Collection name"
+class="w-full border rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-400">
 
-<ul id="habitList" class="space-y-3"></ul>
+<ul id="docList" class="space-y-3"></ul>
 
 </div>
 
 
-<!-- FLOATING ADD BUTTON -->
 <button onclick="openModal()"
-class="fixed bottom-8 right-8 bg-teal-500 text-white w-14 h-14 rounded-full text-3xl flex items-center justify-center shadow-lg hover:bg-teal-600 transition">
-+
+class="fixed bottom-8 right-8 bg-teal-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-teal-600 transition">
+
+<span class="material-symbols-outlined text-3xl">add</span>
+
 </button>
 
 
-<!-- ADD / EDIT MODAL -->
 <div id="modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center">
 
 <div class="bg-white p-6 rounded-xl w-[350px] shadow-lg">
 
-<h3 id="modalTitle" class="text-xl font-semibold text-teal-700 mb-4">Add Habit</h3>
+<h3 id="modalTitle" class="text-xl font-semibold text-teal-700 mb-4">Add Document</h3>
 
-<input id="habitInput"
-placeholder="Enter habit"
-class="w-full border rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-400"
-/>
+<textarea id="jsonInput"
+placeholder='{"name":"test"}'
+class="w-full border rounded-lg px-3 py-2 mb-4 h-28 focus:outline-none focus:ring-2 focus:ring-teal-400"></textarea>
 
 <div class="flex justify-end gap-2">
 
@@ -43,7 +44,7 @@ class="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
 Cancel
 </button>
 
-<button onclick="saveHabit()"
+<button onclick="saveDoc()"
 class="px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600">
 Save
 </button>
@@ -51,11 +52,8 @@ Save
 </div>
 
 </div>
-
 </div>
 
-
-<script src="bundle.min.js"></script>
 
 <script type="module">
 import { Firebase } from "./firebase.min.js";
@@ -73,76 +71,78 @@ const firebase = new Firebase(firebaseConfig);
 
 let editId=null;
 
+function collection(){
+  return document.getElementById("collectionInput").value;
+}
+
 function openModal(){
-  document.getElementById("modal").classList.remove("hidden");
-  document.getElementById("modal").classList.add("flex");
+  const m=document.getElementById("modal");
+  m.classList.remove("hidden");
+  m.classList.add("flex");
 }
 
 function closeModal(){
   document.getElementById("modal").classList.add("hidden");
 }
 
-function openEdit(habit){
-  editId=habit.id;
-  document.getElementById("modalTitle").textContent="Edit Habit";
-  document.getElementById("habitInput").value=habit.name;
+function openEdit(doc){
+  editId=doc.id;
+  document.getElementById("modalTitle").textContent="Edit Document";
+  document.getElementById("jsonInput").value=JSON.stringify(doc,null,2);
   openModal();
 }
 
-async function saveHabit(){
+async function saveDoc(){
 
-  loading();
+  const col=collection();
+  if(!col) return;
 
-  const habit=document.getElementById("habitInput").value;
-  if(!habit) return;
+  let data;
 
-  if(editId){
-    await firebase.update("habits",editId,{name:habit});
-    editId=null;
-  }else{
-    await firebase.add("habits",{
-      name:habit,
-      timestamp:Date.now(),
-      done:false
-    });
+  try{
+    data=JSON.parse(document.getElementById("jsonInput").value);
+  }catch{
+    alert("invalid json");
+    return;
   }
 
-  document.getElementById("habitInput").value="";
-  document.getElementById("modalTitle").textContent="Add Habit";
+  if(editId){
+    await firebase.update(col,editId,data);
+    editId=null;
+  }else{
+    await firebase.add(col,data);
+  }
 
+  document.getElementById("jsonInput").value="";
+  document.getElementById("modalTitle").textContent="Add Document";
   closeModal();
-  await loadHabits();
 
-  loading(false);
+  loadDocs();
 }
 
-async function deleteHabit(id){
-  await firebase.delete("habits",id);
-  loadHabits();
+async function deleteDoc(id){
+  await firebase.delete(collection(),id);
+  loadDocs();
 }
 
-async function loadHabits(){
+async function loadDocs(){
 
-  loading();
+  const col=collection();
+  if(!col) return;
 
-  const list=document.getElementById("habitList");
+  const list=document.getElementById("docList");
   list.innerHTML="";
 
-  const habits=await firebase.getAll("habits");
+  const docs=await firebase.getAll(col);
 
-  habits.forEach(data=>{
+  docs.forEach(doc=>{
 
     const li=document.createElement("li");
-
-    const date=new Date(data.timestamp).toLocaleDateString();
 
     li.className="bg-white border border-teal-100 rounded-xl p-4 flex justify-between items-center shadow-sm hover:shadow-md transition";
 
     li.innerHTML=`
-      <div>
-        <div class="font-medium text-gray-800">${data.name}</div>
-        <div class="text-sm text-gray-400">${date}</div>
-      </div>
+      <span class="text-sm text-gray-700 break-all">${JSON.stringify(doc)}</span>
 
       <div class="flex gap-2">
 
@@ -157,20 +157,20 @@ async function loadHabits(){
       </div>
     `;
 
-    li.children[1].children[0].onclick=()=>openEdit(data);
-    li.children[1].children[1].onclick=()=>deleteHabit(data.id);
+    li.children[1].children[0].onclick=()=>openEdit(doc);
+    li.children[1].children[1].onclick=()=>deleteDoc(doc.id);
 
     list.appendChild(li);
+
   });
 
-  loading(false);
 }
+
+document.getElementById("collectionInput").addEventListener("change",loadDocs);
 
 window.openModal=openModal;
 window.closeModal=closeModal;
-window.saveHabit=saveHabit;
-
-loadHabits();
+window.saveDoc=saveDoc;
 
 </script>
 
