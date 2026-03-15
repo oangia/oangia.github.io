@@ -2,23 +2,9 @@ const fs = require("fs");
 const path = require("path");
 const { minify } = require("terser");
 
-// ===== CONFIG =====
-const inputFiles = [
-    "src/loading.js",
-    "src/toast.js",
-    "src/cookie.js",
-    "src/event.js",
-    "src/auth.js",
-    "src/validator.js",
-    "src/CUrl.js",
-    "src/form.js",
-    "src/app.js"
-];
-
-const outputFile = "build/dist/bundle.min.js";
 // ==================
 
-async function build() {
+async function build(inputFiles, outputFile) {
     try {
         // Read and combine files
         let combined = "";
@@ -50,4 +36,18 @@ async function build() {
     }
 }
 
-build();
+build([
+    "src/loading.js",
+    "src/toast.js",
+    "src/cookie.js",
+    "src/event.js",
+    "src/auth.js",
+    "src/validator.js",
+    "src/CUrl.js",
+    "src/form.js",
+    "src/app.js"
+], "build/dist/bundle.min.js");
+
+build([
+    "src/firebase/firebase.js"
+], "build/dist/firebase.min.js");
