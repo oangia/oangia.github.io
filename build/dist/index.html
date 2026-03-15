@@ -13,6 +13,7 @@
 <h3>Habits</h3>
 <ul id="habitList"></ul>
 
+<script src="bundle.min.js"></script>
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
@@ -36,7 +37,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 async function addHabit(){
-
+  loading();
   const habit = document.getElementById("habitInput").value;
   if(!habit) return;
 
@@ -48,10 +49,11 @@ async function addHabit(){
 
   document.getElementById("habitInput").value="";
   loadHabits();
+  loading(false);
 }
 
 async function loadHabits(){
-
+  loading();
   const list = document.getElementById("habitList");
   list.innerHTML="";
 
@@ -68,7 +70,7 @@ async function loadHabits(){
 
     list.appendChild(li);
   });
-
+  loading(false);
 }
 
 window.addHabit = addHabit;

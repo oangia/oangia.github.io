@@ -11,10 +11,11 @@ const inputFiles = [
     "src/auth.js",
     "src/validator.js",
     "src/CUrl.js",
-    "src/form.js"
+    "src/form.js",
+    "src/app.js"
 ];
 
-const outputFile = "dist/bundle.min.js";
+const outputFile = "build/dist/bundle.min.js";
 // ==================
 
 async function build() {
