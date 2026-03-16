@@ -46,8 +46,8 @@ build([
     "src/CUrl.js",
     "src/form.js",
     "src/app.js"
-], "dist/bundle.min.js");
+], "dist/scripts/bundle.min.js");
 
 build([
     "src/firebase/firebase.js"
-], "dist/firebase.min.js");
+], "dist/scripts/firebase.min.js");
