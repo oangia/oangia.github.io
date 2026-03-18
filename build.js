@@ -2,8 +2,6 @@ const fs = require("fs");
 const path = require("path");
 const { minify } = require("terser");
 
-// ==================
-
 async function build(inputFiles, outputFile) {
     try {
         // Read and combine files
