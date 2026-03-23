@@ -18110,10 +18110,10 @@ _.d=a
 _.f=_.e=null
 _.w=_.r=0
 _.x=null
-_.y=!1
-_.z=b
-_.as=_.Q=$
-_.at=c
+_.z=_.y=!1
+_.Q=b
+_.at=_.as=$
+_.ax=c
 _.hp$=d
 _.dX$=e
 _.c=_.a=null},
@@ -54768,11 +54768,11 @@ A.vL.prototype={
 aI(){var s,r,q=this
 q.bf()
 s=A.e7(null,B.aQ,null,null,q)
-q.Q=s
+q.as=s
 r=t.a7
-q.as=new A.aO(s,new A.au(1,1.1,r),r.h("aO<ah.T>"))
+q.at=new A.aO(s,new A.au(1,1.1,r),r.h("aO<ah.T>"))
 q.d.qf()},
-Hw(){var s=this,r="major",q="minor",p=s.at[B.wG.wT(6)]
+Hw(){var s=this,r="major",q="minor",p=s.ax[B.wG.wT(6)]
 s.x=p
 switch(p){case 0:s.e=r
 s.f="C"
@@ -54791,11 +54791,11 @@ s.f="G"
 break
 case 5:s.e=q
 s.f="Am"
-break}},
+break}s.z=!0},
 qO(){var s=0,r=A.B(t.H),q=this,p,o
 var $async$qO=A.C(function(a,b){if(a===1)return A.y(b,r)
-while(true)switch(s){case 0:q.Hw()
-p=q.Q
+while(true)switch(s){case 0:if(!q.z)q.Hw()
+p=q.as
 p===$&&A.b()
 p.e2().aM(new A.a1A(q),t.H)
 p=A.d([0,2,4],t.t)
@@ -54806,26 +54806,27 @@ return A.u(q.d.lf(p,o),$async$qO)
 case 2:q.aQ(new A.a1B())
 return A.z(null,r)}})
 return A.A($async$qO,r)},
-Ek(a){var s=this,r=s.e
-if(r==null)return;++s.w
-if(a===r){++s.r
-s.z=B.Cq.nR(0.15)}else s.z=B.Cp.nR(0.15)
-s.y=!0
-s.aQ(new A.a1x())
-r=t.P
-A.mH(B.aQ,new A.a1y(s),r)
-A.mH(B.eS,new A.a1z(s),r)},
+Ek(a){var s,r=this
+if(!r.z||r.e==null)return;++r.w
+if(a===r.e){++r.r
+r.Q=B.Cq.nR(0.15)}else r.Q=B.Cp.nR(0.15)
+r.y=!0
+r.aQ(new A.a1x())
+s=t.P
+A.mH(B.aQ,new A.a1y(r),s)
+r.z=!1
+A.mH(B.eS,new A.a1z(r),s)},
 m(){this.d.m()
-var s=this.Q
+var s=this.as
 s===$&&A.b()
 s.m()
 this.LA()},
-X(a){var s,r,q,p=this,o=null,n=p.e!=null,m=p.z,l=A.ab2(""+p.r+" / "+p.w,o),k=p.y?1:0,j=p.f
+X(a){var s,r,q,p=this,o=null,n=p.z,m=p.Q,l=A.ab2(""+p.r+" / "+p.w,o),k=p.y?1:0,j=p.f
 j=A.ab2(j==null?"":j,B.IN)
-s=p.Q
+s=p.as
 s===$&&A.b()
 s=A.JT(s,new A.a1s(p),o)
-r=p.as
+r=p.at
 r===$&&A.b()
 q=t.nA
 r=A.a5B(o,A.Xk(B.aK,A.d([s,A.a67(A.a5e(o,B.yK,B.W,o,B.vz,o,90,o,o,o,o,90),r)],q),B.hs),B.c9,!1,o,o,o,o,o,o,o,o,o,o,o,o,p.gZy(),o,o,o)
@@ -54834,7 +54835,7 @@ l=A.akg(new A.y3(B.i3,B.bx,B.fN,B.bt,o,B.uo,o,0,A.d([B.u_,B.KO,B.G1,l,B.u1,new A
 m=new A.fc(m,o,o,o,o,o,B.bT)
 return new A.p1(l,m,o,B.a6,B.ax,o,o)}}
 A.a1A.prototype={
-$1(a){var s=this.a.Q
+$1(a){var s=this.a.as
 s===$&&A.b()
 return s.nF()},
 $S:376}
@@ -54846,7 +54847,7 @@ $0(){},
 $S:0}
 A.a1y.prototype={
 $0(){var s=this.a
-s.z=B.ag
+s.Q=B.ag
 s.aQ(new A.a1w())},
 $S:18}
 A.a1w.prototype={
@@ -54855,13 +54856,14 @@ $S:0}
 A.a1z.prototype={
 $0(){var s=this.a
 s.y=!1
+s.e=s.x=null
 s.aQ(new A.a1v())},
 $S:18}
 A.a1v.prototype={
 $0(){},
 $S:0}
 A.a1s.prototype={
-$2(a,b){var s,r=null,q=this.a.Q
+$2(a,b){var s,r=null,q=this.a.as
 q===$&&A.b()
 q=q.x
 q===$&&A.b()
@@ -59758,7 +59760,7 @@ B.JW=new A.i(!0,B.m,null,".AppleSystemUIFont",null,null,null,null,null,null,null
 B.H_=new A.i(!0,B.m,null,".AppleSystemUIFont",null,null,null,null,null,null,null,null,null,null,null,null,null,B.e,null,null,null,"blackRedwoodCity labelSmall",null,null,null,null)
 B.KN=new A.cv(B.IC,B.HG,B.ID,B.Jb,B.Hk,B.Hr,B.HZ,B.IZ,B.Id,B.JI,B.GQ,B.Ha,B.JD,B.JW,B.H_)
 B.JH=new A.i(!0,null,null,null,null,null,26,B.aZ,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
-B.KO=new A.lB("Major / Minor",null,B.JH,null,null)
+B.KO=new A.lB("Ear Training",null,B.JH,null,null)
 B.KP=new A.lB("Major",null,null,null,null)
 B.KQ=new A.lB("Minor",null,null,null,null)
 B.N9=new A.Yx(0,"system")
