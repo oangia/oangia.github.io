@@ -23,8 +23,8 @@ const RESOURCES = {"assets/assets/piano/E3.mp3": "fa39238e5259a692287099fd2d8b61
 "assets/AssetManifest.bin.json": "f3c89c00cbc801056ad780fa67d6246f",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
 "assets/packages/cupertino_icons/assets/CupertinoIcons.ttf": "33b7d9392238c04c131b6ce224e13711",
-"assets/fonts/MaterialIcons-Regular.otf": "58ebf5947c421c26899f0f13f9d58a8c",
-"assets/NOTICES": "f12f2f93155a20bdcf48b52a014d8cd4",
+"assets/fonts/MaterialIcons-Regular.otf": "e5b68c82a7d6a1a08e028b78fc5349fe",
+"assets/NOTICES": "cbbfb2c742ac5fa15952b808ae248312",
 "assets/AssetManifest.json": "e5d8e0356e423efd913fb6ae52e0f5a2",
 "assets/FontManifest.json": "dc3d03800ccca4601324923c0b1d6d57",
 "assets/AssetManifest.bin": "7965d31e68aa9181c03af6a2c57758f0",
@@ -48,8 +48,8 @@ const RESOURCES = {"assets/assets/piano/E3.mp3": "fa39238e5259a692287099fd2d8b61
 "canvaskit/skwasm.js.symbols": "0088242d10d7e7d6d2649d1fe1bda7c1",
 "flutter.js": "888483df48293866f9f41d3d9274a779",
 "favicon.png": "5dcef449791fa27946b3d35ad8803796",
-"main.dart.js": "7c3eff8d48dcdc320c1ec4796f93d0bd",
-"flutter_bootstrap.js": "f8c12b41bfe7e5c306bf12e3d6862be5",
+"main.dart.js": "592d074a98b85f6df0eb30ec0de49e7f",
+"flutter_bootstrap.js": "95977e3c9e196f6b0eac35c19f9e5692",
 "manifest.json": "56128fc6ec7568b99d6fc24cfa34a218",
 "version.json": "389a6e6e6f34312743ca5f36467c84b5"};
 // The application shell files that are downloaded before a service worker can
