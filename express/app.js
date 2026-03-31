@@ -1,8 +1,8 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const db = require("@oangia/services/db/v1.0.0/MongoDBService");
-const crudRouter = require("@oangia/services/db/v1.0.0/Crud");
+const db = require("@oangia/services/db/MongoDBService");
+const crudRouter = require("@oangia/services/db/crud.routes");
 
 const app = express();
 
