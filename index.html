@@ -1,350 +1,170 @@
 <!DOCTYPE html>
-
-<html lang="en"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Kegelex | The Vitality Flow</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800;900&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              "on-primary-container": "#005951",
-              "on-primary-fixed-variant": "#00635b",
-              "secondary-container": "#22f2f2",
-              "on-secondary-fixed": "#004141",
-              "tertiary": "#006288",
-              "inverse-surface": "#001111",
-              "secondary": "#006667",
-              "error-container": "#fb5151",
-              "surface-tint": "#00675e",
-              "inverse-on-surface": "#6da7a6",
-              "on-tertiary-container": "#00354b",
-              "on-tertiary": "#e8f4ff",
-              "outline": "#468080",
-              "on-error-container": "#570008",
-              "tertiary-container": "#25bcfe",
-              "primary-fixed-dim": "#00e7d5",
-              "primary-fixed": "#00f7e3",
-              "on-surface-variant": "#286464",
-              "secondary-fixed-dim": "#00e3e3",
-              "on-primary-fixed": "#00443e",
-              "surface-dim": "#87e4e3",
-              "on-background": "#003535",
-              "surface-container-lowest": "#ffffff",
-              "surface-container-low": "#bafdfc",
-              "surface-container-highest": "#96ebeb",
-              "on-tertiary-fixed": "#001a28",
-              "background": "#d2fffe",
-              "surface-variant": "#96ebeb",
-              "error-dim": "#9f0519",
-              "primary": "#00675e",
-              "on-secondary": "#bbfffe",
-              "inverse-primary": "#00fde9",
-              "on-surface": "#003535",
-              "on-tertiary-fixed-variant": "#003e57",
-              "surface": "#d2fffe",
-              "on-secondary-fixed-variant": "#006061",
-              "surface-bright": "#d2fffe",
-              "surface-container": "#adf5f4",
-              "on-secondary-container": "#005656",
-              "secondary-fixed": "#22f2f2",
-              "tertiary-fixed": "#25bcfe",
-              "surface-container-high": "#a2f0f0",
-              "on-error": "#ffefee",
-              "error": "#b31b25",
-              "tertiary-dim": "#005677",
-              "secondary-dim": "#005959",
-              "primary-container": "#00f7e3",
-              "outline-variant": "#7db7b7",
-              "primary-dim": "#005a52",
-              "on-primary": "#bffff5",
-              "tertiary-fixed-dim": "#00aeee"
-            },
-            fontFamily: {
-              "headline": ["Lexend"],
-              "body": ["Manrope"],
-              "label": ["Manrope"]
-            },
-            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
-          },
-        },
-      }
-    </script>
-<style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-        }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        body {
-            min-height: 100vh;
-        }
-    </style>
+<html>
+<head>
+<title>Habit Tracker</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
 </head>
-<body class="bg-background font-body text-on-background selection:bg-primary-container selection:text-on-primary-container">
-<nav class="fixed top-0 w-full z-50 bg-[#d2fffe]/80 backdrop-blur-2xl border-b border-primary/10">
-<div class="flex justify-between items-center px-12 py-6 max-w-[1600px] mx-auto">
-<div class="flex items-center gap-3">
-<span class="material-symbols-outlined text-[#0d9488] text-3xl" data-icon="exercise">exercise</span>
-<span class="text-3xl font-black uppercase tracking-[0.2em] font-headline">
-  <span class="text-[#00675e]">Kegel</span><span class="text-[#00f7e3]">ex</span>
-</span>
+
+<body class="bg-teal-50 min-h-screen flex items-center justify-center">
+
+<div class="bg-white shadow-xl rounded-2xl p-6 w-[420px]">
+
+<h2 class="text-xl font-semibold text-teal-700 mb-4">Habits</h2>
+
+<ul id="habitList" class="space-y-3"></ul>
+
 </div>
-<div class="hidden md:flex items-center space-x-12">
-<a class="text-[#00675e] font-bold border-b-2 border-[#00675e] pb-1 font-headline transition-all duration-300 hover:opacity-80" href="#">Home</a>
-<a class="text-[#003535]/70 font-semibold hover:text-[#0d9488] font-headline transition-all duration-300" href="#">Workouts</a>
-<a class="text-[#003535]/70 font-semibold hover:text-[#0d9488] font-headline transition-all duration-300" href="#">Blog</a>
-<a class="bg-primary text-on-primary px-8 py-3 rounded-full font-bold transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95 shadow-lg shadow-primary/20" href="#">Get Started</a>
-</div>
-<button class="md:hidden text-primary">
-<span class="material-symbols-outlined text-3xl">menu</span>
+
+
+<!-- FLOATING ADD BUTTON -->
+<button onclick="openModal()"
+class="fixed bottom-8 right-8 bg-teal-500 text-white w-14 h-14 rounded-full text-3xl flex items-center justify-center shadow-lg hover:bg-teal-600 transition">
++
 </button>
-</div>
-</nav>
-<main class="pt-24">
-<!-- Hero Section -->
-<section class="relative px-12 py-24 lg:py-48 max-w-[1600px] mx-auto overflow-hidden">
-<div class="grid lg:grid-cols-2 gap-24 items-center">
-<div class="z-10 order-2 lg:order-1">
-<h1 class="font-headline font-extrabold text-7xl lg:text-9xl text-primary leading-[0.85] tracking-tighter mb-10">
-                    The Vitality <br/><span class="text-transparent bg-clip-text bg-gradient-to-br from-primary via-tertiary to-secondary">Flow.</span>
-</h1>
-<p class="text-2xl lg:text-3xl text-on-background/70 mb-14 max-w-2xl font-light leading-relaxed">
-                    Science-backed pelvic floor training reimagined for the modern lifestyle. Experience precision, strength, and editorial wellness at your fingertips.
-                </p>
-<div class="flex flex-col sm:flex-row gap-6">
-<button class="flex items-center gap-4 bg-inverse-surface text-surface-container-lowest px-10 py-5 rounded-2xl transition-all hover:scale-105 hover:shadow-2xl active:scale-95 group">
-<span class="material-symbols-outlined text-3xl" data-icon="apple">ios</span>
-<div class="text-left">
-<div class="text-[10px] uppercase tracking-widest opacity-60 font-bold">Download on the</div>
-<div class="text-xl font-bold leading-none">App Store</div>
-</div>
+
+
+<!-- ADD / EDIT MODAL -->
+<div id="modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center">
+
+<div class="bg-white p-6 rounded-xl w-[350px] shadow-lg">
+
+<h3 id="modalTitle" class="text-xl font-semibold text-teal-700 mb-4">Add Habit</h3>
+
+<input id="habitInput"
+placeholder="Enter habit"
+class="w-full border rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-400"
+/>
+
+<div class="flex justify-end gap-2">
+
+<button onclick="closeModal()"
+class="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
+Cancel
 </button>
-<button class="flex items-center gap-4 bg-inverse-surface text-surface-container-lowest px-10 py-5 rounded-2xl transition-all hover:scale-105 hover:shadow-2xl active:scale-95 group">
-<span class="material-symbols-outlined text-3xl" data-icon="play_arrow">play_arrow</span>
-<div class="text-left">
-<div class="text-[10px] uppercase tracking-widest opacity-60 font-bold">Get it on</div>
-<div class="text-xl font-bold leading-none">Google Play</div>
-</div>
+
+<button onclick="saveHabit()"
+class="px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600">
+Save
 </button>
+
 </div>
+
 </div>
-<div class="relative order-1 lg:order-2 flex justify-center lg:justify-end">
-<div class="absolute -top-40 -right-40 w-[600px] h-[600px] bg-primary-container/20 blur-[120px] rounded-full"></div>
-<div class="relative z-10 transform lg:rotate-6 hover:rotate-0 transition-transform duration-1000">
-<div class="bg-surface-container-lowest p-4 rounded-[4rem] shadow-[0_50px_100px_-20px_rgba(0,103,94,0.3)] border border-primary/10">
-<img alt="Kegelex App Interface" class="rounded-[3rem] w-[320px] lg:w-[400px] aspect-[9/19] object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCe6HLPxFIUbckiWi2SaH3FnLVFjBbSdhvRSe9aefLZwJJLb2Ac0xhwFSp9cwu-EY2c9sQIE67yqN9EAMEW48gxgD_LBZQfYdUk3oD6JfNX-_ZnfiSC8qU56dcpc8RkOQZ5lP1OwC-elp_hB1M1DRYBAl1Cof5NkEPotDowmgaEiwHeIC_Cky5GCZaWakPeDnp-89ib7NWpJbBvJRAnCdXD_P9Lp_JztcQ3mo6uqN8SrFpTxsHlt93850LOzh1aOzrJUrWmTbiOK4c"/>
+
 </div>
-</div>
-</div>
-</div>
-</section>
-<!-- Feature Bento Grid -->
-<section class="bg-surface-container-low py-40 px-12">
-<div class="max-w-[1600px] mx-auto">
-<div class="flex flex-col lg:flex-row lg:items-end justify-between mb-24 gap-12">
-<div class="max-w-3xl">
-<h2 class="font-headline font-bold text-6xl lg:text-7xl text-primary mb-8 tracking-tight">Redefining Core Strength</h2>
-<p class="text-on-surface-variant font-medium text-xl lg:text-2xl leading-relaxed">Beyond exercise—a holistic approach to internal vitality using bio-feedback and smart routines designed for high performance.</p>
-</div>
-<div class="flex gap-4">
-<div class="w-16 h-1 bg-primary rounded-full"></div>
-<div class="w-8 h-1 bg-primary/20 rounded-full"></div>
-<div class="w-4 h-1 bg-primary/20 rounded-full"></div>
-</div>
-</div>
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-<!-- Large Feature Card -->
-<div class="lg:col-span-2 bg-surface-container-lowest rounded-[3rem] p-16 flex flex-col justify-between min-h-[600px] transition-all hover:shadow-2xl group overflow-hidden border border-primary/5 relative">
-<div class="z-10 relative">
-<span class="material-symbols-outlined text-primary text-6xl mb-10 block" data-icon="bolt">bolt</span>
-<h3 class="font-headline font-bold text-5xl text-on-surface mb-6">Precision Bio-Feedback</h3>
-<p class="text-on-surface-variant text-xl max-w-xl leading-relaxed">Track your progress with millisecond accuracy. Our algorithm adapts in real-time to your muscle response, ensuring every contraction counts toward your ultimate vitality goal.</p>
-</div>
-<div class="mt-12 relative h-80 w-full overflow-hidden rounded-3xl">
-<img alt="Data Analytics" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCb7s1nsu8XtwDTadsVpHC1nhQ3IXa3gSGgV8oFa0j-jz9Iq3Hu8ysoQzI17XolU8x3SANwxwpFdl5-BrNexsIyHcSlUBN6PxdHqefblXuZ4dPo-My2w_l9x38xbPI_jiefFyx7N-ANh2GtsYF6dTYaKrxOX3UQomfpb-vtWHBdL0CYUCP63MtW26avvmj-vBrDDFw9PlZZMuuv9WSHDyfZCFVve8UErXQAA3xCUqaSRz3tOCl86LQsp2gNG65HXmEu40wprXnM11Q"/>
-<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/90 via-transparent to-transparent"></div>
-</div>
-</div>
-<div class="flex flex-col gap-10">
-<!-- Smart Routines -->
-<div class="bg-primary rounded-[3rem] p-12 text-on-primary flex-1 flex flex-col justify-center transition-all hover:scale-[1.02] hover:shadow-2xl group">
-<span class="material-symbols-outlined text-5xl mb-6 group-hover:rotate-12 transition-transform" data-icon="auto_awesome">auto_awesome</span>
-<h3 class="font-headline font-bold text-3xl mb-4">Smart Routines</h3>
-<p class="text-lg opacity-80 leading-relaxed">AI-generated workouts tailored to your specific physiological goals and tight schedule.</p>
-</div>
-<!-- Privacy First -->
-<div class="bg-surface-container-high rounded-[3rem] p-12 flex-1 flex flex-col justify-center transition-all hover:bg-surface-container-highest group">
-<span class="material-symbols-outlined text-5xl mb-6 text-tertiary group-hover:-translate-y-2 transition-transform" data-icon="lock">lock</span>
-<h3 class="font-headline font-bold text-3xl mb-4 text-on-tertiary-container">Privacy First</h3>
-<p class="text-lg text-on-tertiary-container/70 leading-relaxed">Your health data is yours alone. Fully encrypted, secure, and decentralized architecture.</p>
-</div>
-</div>
-</div>
-</div>
-</section>
-<!-- The Vitality Score Section -->
-<section class="py-48 px-12 max-w-[1600px] mx-auto">
-<div class="flex flex-col lg:flex-row items-center gap-32">
-<div class="relative w-[400px] h-[400px] lg:w-[600px] lg:h-[600px] flex-shrink-0">
-<!-- Circular Progress Ring Visual -->
-<svg class="w-full h-full transform -rotate-90 filter drop-shadow-2xl" viewbox="0 0 100 100">
-<circle class="text-surface-container-highest" cx="50" cy="50" fill="none" r="45" stroke="currentColor" stroke-width="2"></circle>
-<circle class="text-primary" cx="50" cy="50" fill="none" r="45" stroke="url(#vitalityGradientDesktop)" stroke-dasharray="283" stroke-dashoffset="45" stroke-linecap="round" stroke-width="6"></circle>
-<defs>
-<lineargradient id="vitalityGradientDesktop" x1="0%" x2="100%" y1="0%" y2="100%">
-<stop offset="0%" style="stop-color:#00675e"></stop>
-<stop offset="100%" style="stop-color:#00f7e3"></stop>
-</lineargradient>
-</defs>
-</svg>
-<div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-<span class="text-9xl font-headline font-black text-primary tracking-tighter">84<span class="text-5xl opacity-50">%</span></span>
-<span class="text-sm uppercase tracking-[0.4em] text-on-background/50 font-bold mt-2">Vitality Score</span>
-</div>
-</div>
-<div class="flex-1">
-<div class="inline-block px-6 py-2 bg-primary-container text-on-primary-container rounded-full text-xs font-bold tracking-widest uppercase mb-8">The Metric that Matters</div>
-<h2 class="font-headline font-bold text-6xl lg:text-7xl text-primary mb-10 leading-tight">The Future of <br/>Personal Vitality</h2>
-<p class="text-2xl text-on-background/70 mb-14 leading-relaxed max-w-2xl font-light">
-                    A singular metric that combines endurance, strength, and consistency into one actionable data point. Know exactly where you stand on your journey to peak internal health.
-                </p>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-<div class="flex items-start gap-5">
-<span class="material-symbols-outlined text-primary bg-primary-container/40 p-3 rounded-2xl text-2xl" data-icon="check">check</span>
-<div>
-<h4 class="font-bold text-xl mb-1">Consistency tracking</h4>
-<p class="text-on-background/60">Daily automated progress monitoring.</p>
-</div>
-</div>
-<div class="flex items-start gap-5">
-<span class="material-symbols-outlined text-primary bg-primary-container/40 p-3 rounded-2xl text-2xl" data-icon="check">check</span>
-<div>
-<h4 class="font-bold text-xl mb-1">Intramuscular metrics</h4>
-<p class="text-on-background/60">Deep tissue activation analysis.</p>
-</div>
-</div>
-<div class="flex items-start gap-5">
-<span class="material-symbols-outlined text-primary bg-primary-container/40 p-3 rounded-2xl text-2xl" data-icon="check">check</span>
-<div>
-<h4 class="font-bold text-xl mb-1">Health forecasting</h4>
-<p class="text-on-background/60">Predictive wellness modeling.</p>
-</div>
-</div>
-</div>
-</div>
-</div>
-</section>
-<!-- Blog / Editorial Section -->
-<section class="bg-[#bafdfc] py-48">
-<div class="max-w-[1600px] mx-auto px-12">
-<div class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-12 mb-28">
-<div class="max-w-3xl">
-<h2 class="font-headline font-bold text-7xl lg:text-8xl text-primary mb-8 tracking-tighter">Deep Dives.</h2>
-<p class="text-2xl lg:text-3xl text-on-secondary-container opacity-80 leading-relaxed font-light">Our research team explores the intersection of physiology, high-end technology, and long-term vitality.</p>
-</div>
-<button class="bg-white text-primary px-12 py-6 rounded-full font-bold text-lg flex items-center gap-4 group transition-all hover:px-16 hover:shadow-2xl shadow-xl">
-                    Visit our Research Blog
-                    <span class="material-symbols-outlined transition-transform group-hover:translate-x-3" data-icon="arrow_forward">arrow_forward</span>
-</button>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16">
-<!-- Blog Item 1 -->
-<article class="bg-white/40 backdrop-blur-md rounded-[2.5rem] overflow-hidden group hover:bg-white/60 transition-all duration-700 shadow-sm flex flex-col border border-white/20">
-<div class="h-[400px] overflow-hidden">
-<img alt="Yoga and Pelvic Floor" class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDa6ab77a613CfQTo5jfy253T6OoDrCWKE33BNKgnk57Ts3YmCCW2TNpmNJi8lfeASTouQMbD4pP_cVSFpSMRqbCHW-fQokxnj_zLTIoKjDF78cY75ikQ2saKYychR0yhh9hOXo82PehUiawAqj8n26WpUIQRHAZWjqoj7rxCXWxaVI9mNqJrauwC_eDKzeCkKw9l20F_7pDdGzCdJ2NJHBTDrwUfj3wNqDnKMnaZyRuBo9WweTtBuMMLUHCLpp8D23UbYcS49-Kbw"/>
-</div>
-<div class="p-12 flex-1 flex flex-col">
-<span class="text-xs font-black uppercase tracking-[0.3em] text-primary mb-6 block">Research / 01</span>
-<h3 class="text-3xl font-headline font-bold mb-8 group-hover:text-primary transition-colors leading-tight">The connection between posture and pelvic stability.</h3>
-<div class="mt-auto">
-<a class="text-primary font-bold text-lg inline-flex items-center gap-2 group-hover:underline" href="#">Read Article <span class="material-symbols-outlined text-sm">north_east</span></a>
-</div>
-</div>
-</article>
-<!-- Blog Item 2 -->
-<article class="bg-white/40 backdrop-blur-md rounded-[2.5rem] overflow-hidden group hover:bg-white/60 transition-all duration-700 shadow-sm flex flex-col border border-white/20">
-<div class="h-[400px] overflow-hidden">
-<img alt="Digital Health" class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhVBbNI22-Y_0w5B26MGWhRELuv6OBMYLJD6QBYfv6JPFAZjsfuGhBcmDZo1iTC4O5wxk5217Lj94hhCW7Ix7ytWQRQWtPQ6JDlJmbTgZXEmH1lSWSqz4MQQDiPKpKLus2OITCRicCe3W9Km0GDGaVKTJXQJpXcAbnAN5rfS0aST9JUbyPCbOBc1YtId2NrpjWBJcozMb8yqJSShGQb3LD8MXUuM5cYHXsnvXVE8u3ccGbsHIFVxCOyeHudAPWezsmbe1J_N2ue6w"/>
-</div>
-<div class="p-12 flex-1 flex flex-col">
-<span class="text-xs font-black uppercase tracking-[0.3em] text-primary mb-6 block">Insight / 02</span>
-<h3 class="text-3xl font-headline font-bold mb-8 group-hover:text-primary transition-colors leading-tight">Why bio-feedback is the future of at-home therapy.</h3>
-<div class="mt-auto">
-<a class="text-primary font-bold text-lg inline-flex items-center gap-2 group-hover:underline" href="#">Read Article <span class="material-symbols-outlined text-sm">north_east</span></a>
-</div>
-</div>
-</article>
-<!-- Blog Item 3 -->
-<article class="bg-white/40 backdrop-blur-md rounded-[2.5rem] overflow-hidden group hover:bg-white/60 transition-all duration-700 shadow-sm flex flex-col border border-white/20">
-<div class="h-[400px] overflow-hidden">
-<img alt="Workout focus" class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA42Cn4d27zlyFyuQAtVXODv3kkpxywWi3BblzhE9soViJUbPtDbjvVs23wc-FJzp60OWE-wKyfwkgH7PZn3RnhjJr6lfkVsbhU0lKh474CmVrO69XviyU8iKZPGn9WURj76F1gPnc5POM5A3HO5hSM18N8oZ-Cq2ofq-lavbGLz9qoLp5j77AI_l-vAOKNoYXEb9Wc6pqtk-U-ciYaGcxZK76NckDZRkoNsairh89YiZTJNVEwYB7MzTHLw1CDJCc2jf8KEGBNUqE"/>
-</div>
-<div class="p-12 flex-1 flex flex-col">
-<span class="text-xs font-black uppercase tracking-[0.3em] text-primary mb-6 block">Training / 03</span>
-<h3 class="text-3xl font-headline font-bold mb-8 group-hover:text-primary transition-colors leading-tight">5 myths about pelvic health you need to stop believing.</h3>
-<div class="mt-auto">
-<a class="text-primary font-bold text-lg inline-flex items-center gap-2 group-hover:underline" href="#">Read Article <span class="material-symbols-outlined text-sm">north_east</span></a>
-</div>
-</div>
-</article>
-</div>
-</div>
-</section>
-</main>
-<footer class="w-full py-24 bg-[#bafdfc] border-t border-primary/10">
-<div class="px-12 max-w-[1600px] mx-auto">
-<div class="grid grid-cols-1 md:grid-cols-4 gap-20 mb-20">
-<div class="md:col-span-1">
-<div class="flex items-center gap-3 mb-8">
-<span class="material-symbols-outlined text-primary text-3xl" data-icon="exercise">exercise</span>
-<span class="text-3xl font-black uppercase tracking-[0.2em] font-headline">
-  <span class="text-[#00675e]">Kegel</span><span class="text-[#00f7e3]">ex</span>
-</span>
-</div>
-<p class="text-on-background/60 leading-relaxed mb-8">
-                    Elevating pelvic health through science and technology. Join the flow.
-                </p>
-</div>
-<div>
-<h4 class="font-headline font-bold text-lg mb-8 text-primary uppercase tracking-widest">Platform</h4>
-<ul class="space-y-4">
-<li><a class="text-on-background/70 hover:text-primary transition-colors" href="#">How it Works</a></li>
-<li><a class="text-on-background/70 hover:text-primary transition-colors" href="#">Pricing</a></li>
-<li><a class="text-on-background/70 hover:text-primary transition-colors" href="#">Testimonials</a></li>
-</ul>
-</div>
-<div>
-<h4 class="font-headline font-bold text-lg mb-8 text-primary uppercase tracking-widest">Company</h4>
-<ul class="space-y-4">
-<li><a class="text-on-background/70 hover:text-primary transition-colors" href="#">About Us</a></li>
-<li><a class="text-on-background/70 hover:text-primary transition-colors" href="#">Careers</a></li>
-<li><a class="text-on-background/70 hover:text-primary transition-colors" href="#">Research</a></li>
-</ul>
-</div>
-<div>
-<h4 class="font-headline font-bold text-lg mb-8 text-primary uppercase tracking-widest">Legal</h4>
-<ul class="space-y-4">
-<li><a class="text-on-background/70 hover:text-primary transition-colors" href="#">Privacy Policy</a></li>
-<li><a class="text-on-background/70 hover:text-primary transition-colors" href="#">Terms of Service</a></li>
-<li><a class="text-on-background/70 hover:text-primary transition-colors" href="#">Cookie Policy</a></li>
-</ul>
-</div>
-</div>
-<div class="h-[1px] w-full bg-primary/10 mb-12"></div>
-<div class="flex flex-col md:flex-row justify-between items-center gap-6">
-<p class="text-sm text-on-background/60">© 2024 Kegelex. All rights reserved.</p>
-<div class="flex gap-8">
-<a class="text-on-background/40 hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">share</span></a>
-<a class="text-on-background/40 hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">public</span></a>
-<a class="text-on-background/40 hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">alternate_email</span></a>
-</div>
-</div>
-</div>
-</footer>
-</body></html>
+
+
+<script src="/scripts/bundle.min.js"></script>
+
+<script type="module">
+import { Firebase } from "./scripts/firebase.min.js";
+import { firebaseConfig } from "./scripts/config.js";
+
+const firebase = new Firebase(firebaseConfig);
+
+let editId=null;
+
+function openModal(){
+  document.getElementById("modal").classList.remove("hidden");
+  document.getElementById("modal").classList.add("flex");
+}
+
+function closeModal(){
+  document.getElementById("modal").classList.add("hidden");
+}
+
+function openEdit(habit){
+  editId=habit.id;
+  document.getElementById("modalTitle").textContent="Edit Habit";
+  document.getElementById("habitInput").value=habit.name;
+  openModal();
+}
+
+async function saveHabit(){
+
+  loading();
+
+  const habit=document.getElementById("habitInput").value;
+  if(!habit) return;
+
+  if(editId){
+    await firebase.update("habits",editId,{name:habit});
+    editId=null;
+  }else{
+    await firebase.add("habits",{
+      name:habit,
+      timestamp:Date.now(),
+      done:false
+    });
+  }
+
+  document.getElementById("habitInput").value="";
+  document.getElementById("modalTitle").textContent="Add Habit";
+
+  closeModal();
+  await loadHabits();
+
+  loading(false);
+}
+
+async function deleteHabit(id){
+  await firebase.delete("habits",id);
+  loadHabits();
+}
+
+async function loadHabits(){
+
+  loading();
+
+  const list=document.getElementById("habitList");
+  list.innerHTML="";
+
+  const habits=await firebase.getAll("habits");
+
+  habits.forEach(data=>{
+
+    const li=document.createElement("li");
+
+    const date=new Date(data.timestamp).toLocaleDateString();
+
+    li.className="bg-white border border-teal-100 rounded-xl p-4 flex justify-between items-center shadow-sm hover:shadow-md transition";
+
+    li.innerHTML=`
+      <div>
+        <div class="font-medium text-gray-800">${data.name}</div>
+        <div class="text-sm text-gray-400">${date}</div>
+      </div>
+
+      <div class="flex gap-2">
+
+        <button class="p-2 rounded-lg hover:bg-teal-100 text-teal-600">
+          <span class="material-symbols-outlined text-[20px]">edit</span>
+        </button>
+
+        <button class="p-2 rounded-lg hover:bg-red-100 text-red-500">
+          <span class="material-symbols-outlined text-[20px]">delete</span>
+        </button>
+
+      </div>
+    `;
+
+    li.children[1].children[0].onclick=()=>openEdit(data);
+    li.children[1].children[1].onclick=()=>deleteHabit(data.id);
+
+    list.appendChild(li);
+  });
+
+  loading(false);
+}
+
+window.openModal=openModal;
+window.closeModal=closeModal;
+window.saveHabit=saveHabit;
+
+loadHabits();
+
+</script>
+
+</body>
+</html>
