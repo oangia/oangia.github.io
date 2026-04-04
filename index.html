@@ -5,54 +5,34 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
 <script type="module">
-import { getPublicKey } from 'https://cdn.skypack.dev/@noble/secp256k1';
-import { sha256 } from 'https://cdn.skypack.dev/@noble/hashes/sha256';
-import { ripemd160 } from 'https://cdn.skypack.dev/@noble/hashes/ripemd160';
+import * as secp from 'https://esm.sh/@noble/secp256k1@2.0.0';
+import { sha256 } from 'https://esm.sh/@noble/hashes@1.3.0/sha256';
+import { ripemd160 } from 'https://esm.sh/@noble/hashes@1.3.0/ripemd160';
 
-function hexToBytes(hex) {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
-  }
-  return bytes;
-}
+const hexToBytes = h =>
+  Uint8Array.from(h.match(/.{1,2}/g).map(b => parseInt(b, 16)));
 
-function base58check(payload) {
-  const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  let x = BigInt('0x' + [...payload].map(b => b.toString(16).padStart(2,'0')).join(''));
+const base58 = bytes => {
+  const A = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  let x = BigInt('0x' + [...bytes].map(b => b.toString(16).padStart(2,'0')).join(''));
   let out = '';
-  while (x > 0) {
-    const mod = x % 58n;
-    x = x / 58n;
-    out = alphabet[Number(mod)] + out;
+  while (x > 0n) {
+    out = A[x % 58n] + out;
+    x /= 58n;
   }
   return out;
+};
+
+async function privToAddress(hex) {
+  const pub = secp.getPublicKey(hexToBytes(hex), true);
+  const h160 = ripemd160(sha256(pub));
+  const payload = new Uint8Array([0x00, ...h160]);
+  const checksum = sha256(sha256(payload)).slice(0, 4);
+  return base58(new Uint8Array([...payload, ...checksum]));
 }
 
-async function privateKeyToAddress(privHex) {
-  const priv = hexToBytes(privHex);
-
-  // compressed pubkey
-  const pub = getPublicKey(priv, true);
-
-  // hash160
-  const sha = sha256(pub);
-  const ripe = ripemd160(sha);
-
-  // version + payload
-  const versioned = new Uint8Array([0x00, ...ripe]);
-
-  // checksum
-  const checksum = sha256(sha256(versioned)).slice(0, 4);
-
-  const full = new Uint8Array([...versioned, ...checksum]);
-
-  return base58check(full);
-}
-
-// example
-privateKeyToAddress('0000000000000000000000000000000000000000000000E9B2AA6D8DAC071855')
-  .then(addr => console.log(addr));
+// test
+privToAddress('0000000000000000000000000000000000000000000000E9B2AA6D8DAC071855').then(console.log);
 </script>
 
 </head>
