@@ -7,8 +7,8 @@
 
 <script type="module">
 import * as btc from './scripts/btc.js';
-import { sha256 } from './scripts/sha256lib.js';
-import { ripemd160 } from './scripts/ripemd160lib.js';
+import { sha256 } from './scripts/sha256.js';
+import { ripemd160 } from './scripts/ripemd160.js';
 
 const hexToBytes = h =>
   Uint8Array.from(h.match(/.{1,2}/g).map(b => parseInt(b, 16)));
