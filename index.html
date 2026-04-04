@@ -4,25 +4,57 @@
 <title>Habit Tracker</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
-  <script type="module">
-import * as bitcoin from 'https://cdn.skypack.dev/bitcoinjs-lib';
+<script type="module">
+import { getPublicKey } from 'https://cdn.skypack.dev/@noble/secp256k1';
+import { sha256 } from 'https://cdn.skypack.dev/@noble/hashes/sha256';
+import { ripemd160 } from 'https://cdn.skypack.dev/@noble/hashes/ripemd160';
 
-function privateKeyToAddress(privKeyHex) {
-  const keyPair = bitcoin.ECPair.fromPrivateKey(
-    Uint8Array.from(Buffer.from(privKeyHex, 'hex'))
-  );
+function hexToBytes(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return bytes;
+}
 
-  const { address } = bitcoin.payments.p2pkh({
-    pubkey: keyPair.publicKey,
-  });
+function base58check(payload) {
+  const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  let x = BigInt('0x' + [...payload].map(b => b.toString(16).padStart(2,'0')).join(''));
+  let out = '';
+  while (x > 0) {
+    const mod = x % 58n;
+    x = x / 58n;
+    out = alphabet[Number(mod)] + out;
+  }
+  return out;
+}
 
-  return address;
+async function privateKeyToAddress(privHex) {
+  const priv = hexToBytes(privHex);
+
+  // compressed pubkey
+  const pub = getPublicKey(priv, true);
+
+  // hash160
+  const sha = sha256(pub);
+  const ripe = ripemd160(sha);
+
+  // version + payload
+  const versioned = new Uint8Array([0x00, ...ripe]);
+
+  // checksum
+  const checksum = sha256(sha256(versioned)).slice(0, 4);
+
+  const full = new Uint8Array([...versioned, ...checksum]);
+
+  return base58check(full);
 }
 
 // example
-const privKey = '0000000000000000000000000000000000000000000000E9B2AA6D8DAC071855';
-console.log(privateKeyToAddress(privKey));
+privateKeyToAddress('0000000000000000000000000000000000000000000000E9B2AA6D8DAC071855')
+  .then(addr => console.log(addr));
 </script>
+
 </head>
 
 <body class="bg-teal-50 min-h-screen flex items-center justify-center">
