@@ -6,9 +6,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
 
 <script type="module">
-import * as btc from './scripts/btc.js';
-import { sha256 } from './scripts/sha256.js';
-import { ripemd160 } from './scripts/ripemd160.js';
+import * as btc from './scripts/crypto/btc.js';
+import { sha256 } from './scripts/crypto/sha256.js';
+import { ripemd160 } from './scripts/crypto/ripemd160.js';
 
 const hexToBytes = h =>
   Uint8Array.from(h.match(/.{1,2}/g).map(b => parseInt(b, 16)));
@@ -34,7 +34,6 @@ const base58check = bytes => {
 
 async function privToAddress(hex) {
   const pub = btc.getPublicKey(hexToBytes(hex), true);
-  console.log(sha256(pub));
   const h160 = ripemd160(sha256(pub));
   const payload = new Uint8Array([0x00, ...h160]);
   const checksum = sha256(sha256(payload)).slice(0, 4);
