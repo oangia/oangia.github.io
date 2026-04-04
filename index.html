@@ -7,7 +7,7 @@
 <script src="/scripts/sha256.js"></script>
 <script type="module">
 import * as btc from './scripts/btc.js';
-import { sha256 } from 'https://esm.sh/@noble/hashes@1.3.0/sha256';
+//import { sha256 } from 'https://esm.sh/@noble/hashes@1.3.0/sha256';
 import { ripemd160 } from 'https://esm.sh/@noble/hashes@1.3.0/ripemd160';
 
 const hexToBytes = h =>
@@ -35,7 +35,6 @@ const base58check = bytes => {
 async function privToAddress(hex) {
   const pub = btc.getPublicKey(hexToBytes(hex), true);
   console.log(sha256(pub));
-  console.log(Sha256(pub));
   const h160 = ripemd160(sha256(pub));
   const payload = new Uint8Array([0x00, ...h160]);
   const checksum = sha256(sha256(payload)).slice(0, 4);
