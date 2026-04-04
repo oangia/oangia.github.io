@@ -4,6 +4,25 @@
 <title>Habit Tracker</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+  <script type="module">
+import * as bitcoin from 'https://cdn.skypack.dev/bitcoinjs-lib';
+
+function privateKeyToAddress(privKeyHex) {
+  const keyPair = bitcoin.ECPair.fromPrivateKey(
+    Uint8Array.from(Buffer.from(privKeyHex, 'hex'))
+  );
+
+  const { address } = bitcoin.payments.p2pkh({
+    pubkey: keyPair.publicKey,
+  });
+
+  return address;
+}
+
+// example
+const privKey = '0000000000000000000000000000000000000000000000E9B2AA6D8DAC071855';
+console.log(privateKeyToAddress(privKey));
+</script>
 </head>
 
 <body class="bg-teal-50 min-h-screen flex items-center justify-center">
