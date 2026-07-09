@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= typeof pageTitle !== 'undefined' ? pageTitle : 'mohopam – Hợp âm bài hát' %></title>
+    <meta name="description" content="<%= typeof pageDescription !== 'undefined' ? pageDescription : 'Tìm kiếm và xem lời bài hát, hợp âm nhanh chóng.' %>" />
+    <meta name="keywords" content="<%= typeof pageKeywords !== 'undefined' ? pageKeywords : 'mohopam, lời bài hát, hợp âm, tìm bài hát, tiếng Việt' %>" />
+    <link rel="canonical" href="<%= typeof canonical !== 'undefined' ? canonical : 'https://your-domain.com/' %>" />
+    <meta property="og:type" content="<%= typeof ogType !== 'undefined' ? ogType : 'website' %>" />
+    <meta property="og:title" content="<%= typeof ogTitle !== 'undefined' ? ogTitle : 'mohopam – Hợp âm bài hát' %>" />
+    <meta property="og:description" content="<%= typeof ogDescription !== 'undefined' ? ogDescription : 'Tìm kiếm và xem lời bài hát, hợp âm nhanh chóng.' %>" />
+    <meta property="og:url" content="<%= typeof ogUrl !== 'undefined' ? ogUrl : 'https://your-domain.com/' %>" />
+    <meta property="og:site_name" content="mohopam" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <% if (typeof schema !== 'undefined') { %>
+        <script type="application/ld+json">
+            <%- JSON.stringify(schema) %>
+        </script>
+    <% } %>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/js/bundle.min.js"></script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-2VPT061VHQ"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-2VPT061VHQ');
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <%- include('layouts/header') %>
+    
+    <main class="container mx-auto px-4 py-3 flex-1">
+        <%- body %>
+    </main>
+    
+    <%- include('layouts/footer') %>
+</body>
+</html>

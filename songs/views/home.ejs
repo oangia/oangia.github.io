@@ -1,0 +1,15 @@
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <% songs.forEach(song => { %>
+        <a href="/<%= song.performerSlug %>/<%= song.slug %>" class="block bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow no-underline text-inherit">
+            <h2 class="text-xl font-semibold mb-2"><%= song.title %></h2>
+            <p class="text-gray-600 mb-2">by <%= song.performer %></p>
+            <% if (song.genre) { %>
+                <p class="text-sm text-gray-500 mb-4"><%= song.genre %></p>
+            <% } %>
+        </a>
+    <% }); %>
+</div>
+
+<% if (songs.length === 0) { %>
+    <p class="text-center text-gray-500 mt-8">Không tìm thấy bài hát nào.</p>
+<% } %>
