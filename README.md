@@ -63,28 +63,28 @@ The Firebase helper wraps Firestore operations with a simple class-based API. It
 ```js
 import { Firebase } from './lib/jQuery/src/firebase/firebase.js';
 
-const firebase = new Firebase({
+const fbDb = new Firebase({
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
   projectId: process.env.FIREBASE_PROJECT_ID
 });
 
 // Create a document
-await firebase.create('users', { name: 'Alice', role: 'admin' });
+await fbDb.create('users', { name: 'Alice', role: 'admin' });
 
 // Get all documents
-const users = await firebase.all('users');
+const users = await fbDb.all('users');
 
 // Read one document by id
-const user = await firebase.read('users', userId);
+const user = await fbDb.read('users', userId);
 
 // Update a document
-await firebase.update('users', userId, { name: 'Bob' });
+await fbDb.update('users', userId, { name: 'Bob' });
 
 // Replace a document entirely
-await firebase.update('users', userId, { name: 'Bob' }, true);
+await fbDb.update('users', userId, { name: 'Bob' }, true);
 
 // Delete a document
-await firebase.delete('users', userId);
+await fbDb.delete('users', userId);
 ```
 
