@@ -139,7 +139,7 @@ async function saveHabit(){
     await firebase.update("habits",editId,{name:habit});
     editId=null;
   }else{
-    await firebase.add("habits",{
+    await firebase.create("habits",{
       name:habit,
       timestamp:Date.now(),
       done:false
@@ -167,7 +167,7 @@ async function loadHabits(){
   const list=document.getElementById("habitList");
   list.innerHTML="";
 
-  const habits=await firebase.getAll("habits");
+  const habits=await firebase.all("habits");
 
   habits.forEach(data=>{
 
