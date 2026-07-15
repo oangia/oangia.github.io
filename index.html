@@ -5,45 +5,6 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
 
-<script type="module">
-import * as btc from 'https://oangia.github.io/lib/jQuery/crypto/btc.js';
-import { sha256 } from 'https://oangia.github.io/lib/jQuery/crypto/sha256.js';
-import { ripemd160 } from 'https://oangia.github.io/lib/jQuery/crypto/ripemd160.js';
-
-const hexToBytes = h =>
-  Uint8Array.from(h.match(/.{1,2}/g).map(b => parseInt(b, 16)));
-
-const base58check = bytes => {
-  const A = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-
-  let x = BigInt('0x' + [...bytes].map(b => b.toString(16).padStart(2,'0')).join(''));
-  let out = '';
-
-  while (x > 0n) {
-    out = A[x % 58n] + out;
-    x /= 58n;
-  }
-
-  // 🔥 FIX: preserve leading zeros → '1'
-  for (let i = 0; i < bytes.length && bytes[i] === 0; i++) {
-    out = '1' + out;
-  }
-
-  return out;
-};
-
-async function privToAddress(hex) {
-  const pub = btc.getPublicKey(hexToBytes(hex), true);
-  const h160 = ripemd160(sha256(pub));
-  const payload = new Uint8Array([0x00, ...h160]);
-  const checksum = sha256(sha256(payload)).slice(0, 4);
-  return base58check(new Uint8Array([...payload, ...checksum]));
-}
-
-// test
-privToAddress('0000000000000000000000000000000000000000000000B106681643F49295B5').then(console.log);
-</script>
-
 </head>
 
 <body class="bg-teal-50 min-h-screen flex items-center justify-center p-4">
