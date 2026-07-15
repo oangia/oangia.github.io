@@ -61,15 +61,14 @@ Save
 <script type="module">
 import { Firebase } from "./firebase.js";
 
-const firebaseConfig = {
+const fb = new Firebase({
   apiKey: "AIzaSyB0TxR5HpNJ8Ph7rnrHqXNMAmBWo1dw5Nw",
   authDomain: "agent52.firebaseapp.com",
   projectId: "agent52",
   storageBucket: "agent52.firebasestorage.app",
   messagingSenderId: "534394830199",
   appId: "1:534394830199:web:521b810d19dbcfe9edb572"
-};
-const firebase = new Firebase(firebaseConfig);
+});
 
 let editId=null;
 
@@ -97,10 +96,10 @@ async function saveHabit(){
   if(!habit) return;
 
   if(editId){
-    await firebase.update("habits",editId,{name:habit});
+    await fb.update("habits",editId,{name:habit});
     editId=null;
   }else{
-    await firebase.create("habits",{
+    await fb.create("habits",{
       name:habit,
       timestamp:Date.now(),
       done:false
@@ -117,7 +116,7 @@ async function saveHabit(){
 }
 
 async function deleteHabit(id){
-  await firebase.delete("habits",id);
+  await fb.delete("habits",id);
   loadHabits();
 }
 
@@ -128,7 +127,7 @@ async function loadHabits(){
   const list=document.getElementById("habitList");
   list.innerHTML="";
 
-  const habits=await firebase.all("habits");
+  const habits=await fb.all("habits");
 
   habits.forEach(data=>{
 

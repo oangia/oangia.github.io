@@ -26,29 +26,6 @@ export class Cache {
   }
 }
 
-export class StockAPI {
-  constructor() {
-    this.baseUrl = "https://mohopam.com/api/stocks";
-  }
-
-  async fetchStocks() {
-    const res = await fetch(`${this.baseUrl}/all`);
-    if (!res.ok) throw new Error(res.statusText);
-    return res.json();
-  }
-
-  async updateStock(code, payload) {
-    const res = await fetch(`${this.baseUrl}/${code}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) throw new Error(res.statusText);
-    return res.json();
-  }
-}
-
 export function listen(type = 'TRACK') {
     browser.webRequest.onBeforeRequest.addListener((request) => {
           if (request.tabId >= 0) {

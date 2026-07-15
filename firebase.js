@@ -1,18 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  getDoc,
-  doc,
-  setDoc,
-  updateDoc,
-  deleteDoc
-} from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc,
+  updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
 
 export class Firebase {
-
   constructor(config){
     this.app = initializeApp(config);
     this.db = getFirestore(this.app);
@@ -59,5 +49,4 @@ export class Firebase {
   async delete(collectionName, id){
     return await deleteDoc(doc(this.db, collectionName, id));
   }
-
 }
