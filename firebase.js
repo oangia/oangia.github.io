@@ -1,31 +1,24 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  getDoc,
-  doc,
-  setDoc,
-  updateDoc,
-  deleteDoc
-} from "./lib/firebase/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc,
+  updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
 
 export class Firebase {
-  constructor(config) {
+  constructor(config){
     this.app = initializeApp(config);
     this.db = getFirestore(this.app);
   }
 
-  async create(collectionName, data) {
+  /* ---------- Firestore ---------- */
+
+  async create(collectionName, data){
     return await addDoc(collection(this.db, collectionName), data);
   }
 
-  async all(collectionName) {
+  async all(collectionName){
     const snapshot = await getDocs(collection(this.db, collectionName));
 
     const result = [];
-    snapshot.forEach((d) => {
+    snapshot.forEach(d=>{
       result.push({
         id: d.id,
         ...d.data()
@@ -43,7 +36,7 @@ export class Firebase {
     };
   }
 
-  async update(collectionName, id, data, set = false) {
+  async update(collectionName, id, data, set = false){
     const docRef = doc(this.db, collectionName, id);
 
     if (set) {
@@ -53,7 +46,7 @@ export class Firebase {
     return await updateDoc(docRef, data);
   }
 
-  async delete(collectionName, id) {
+  async delete(collectionName, id){
     return await deleteDoc(doc(this.db, collectionName, id));
   }
 }
