@@ -1,6 +1,6 @@
-import { initializeApp } from "./firebase/firebase-app.js";
+import { initializeApp } from "./firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc,
-  updateDoc, deleteDoc } from "./firebase/firebase-firestore.js";
+  updateDoc, deleteDoc } from "./firebase-firestore.js";
 
 export class Firebase {
   constructor(config){
