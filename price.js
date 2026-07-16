@@ -1,29 +1,4 @@
-hotkeys('f', () => {
-  browser.runtime.sendMessage({ type: "FETCH_STOCKS", force: true });
-  alert("Done");
-});
-const STYLES = {
-  table: {
-    minWidth: "600px", borderCollapse: "separate",
-    borderSpacing: "0", background: "#121826", color: "#e6e6e6", fontSize: "13px"
-  },
-  th: {
-    padding: "5px", textAlign: "center", borderBottom: "1px solid #2a3548",
-    background: "#141a26", position: "sticky", top: "0", zIndex: "5", cursor: "pointer"
-  },
-  td:         { padding: "5px", textAlign: "center", borderBottom: "1px solid #1f2a3a" },
-  scrollBox:  { width: "100%", height: "100%", overflow: "auto" },
-  refreshBtn: {
-    padding: "6px 10px", background: "#1f2a3a", color: "#fff",
-    border: "1px solid #2a3548", cursor: "pointer"
-  },
-  actionBtn: {
-    padding: "8px 12px", background: "#1f2635",
-    color: "#e6e6e6", border: "1px solid #2a3548", borderRadius: "6px", cursor: "pointer"
-  }
-};
-//observe("#data-content-table-body", renderStockTable);
-observe("#banggia-khop-lenh", renderStockTable);
+
 
 // ================= MAIN =================
 async function renderStockTable(el) {
