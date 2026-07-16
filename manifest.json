@@ -4,8 +4,7 @@
   "version": "1.0",
   "host_permissions": [
     "https://finance.vietstock.vn/*",
-    "https://trade.vndirect.com.vn/*",
-    "https://mohopam.com/*"
+    "https://trade.vndirect.com.vn/*"
   ],
   "permissions": [
     "storage",

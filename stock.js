@@ -1,5 +1,4 @@
 // ================= CONFIG =================
-
 function renderTable({ headers, rows }, config) {
   const { table, tbody } = makeTable("Metric", headers);
   table.style.width = "100%";

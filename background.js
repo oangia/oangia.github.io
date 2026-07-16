@@ -1,5 +1,5 @@
 import { Cache, listen } from './utils/background.js';
-import { Firebase } from "./firebase/facade.js";
+import { Firebase } from "./utils/firebase/facade.js";
 
 const firebase = new Firebase({
   apiKey: "AIzaSyB0TxR5HpNJ8Ph7rnrHqXNMAmBWo1dw5Nw",
@@ -12,7 +12,6 @@ const firebase = new Firebase({
 });
 
 const cache = new Cache(7 * 24 * 60 * 60 * 1000);
-const api = new StockAPI();
 
 async function getStocks({ force = false } = {}) {
   if (!force) {

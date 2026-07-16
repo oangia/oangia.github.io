@@ -1,5 +1,3 @@
-
-
 // ================= MAIN =================
 async function renderStockTable(el) {
   // extract data
