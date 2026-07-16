@@ -1,4 +1,4 @@
-import { initializeApp } from "./lib/firebase/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
 import {
   getFirestore,
   collection,
