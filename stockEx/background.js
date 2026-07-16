@@ -1,7 +1,7 @@
-import { Cache, StockAPI, listen } from './utils/background/background.js';
+import { Cache, StockAPI, listen } from './utils/background.js';
 
-import { initializeApp } from "./utils/background/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc } from "./utils/background/firebase-firestore.js";
+import { initializeApp } from "./firebase/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc } from "./firebase/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyB0TxR5HpNJ8Ph7rnrHqXNMAmBWo1dw5Nw",
