@@ -1,177 +1,238 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Habit Tracker</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
-
+    <meta charset="UTF-8">
+    <title>PDF Large Paragraph Scanner (>15px)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Georgia, serif; 
+            padding: 40px; 
+            background: #fdfdfd; 
+            color: #111; 
+            max-width: 850px; 
+            margin: 0 auto; 
+            line-height: 1.8;
+            font-size: 18px;
+        }
+        .file-selector { 
+            background: #f4f4f6; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 30px; 
+            font-family: sans-serif;
+            font-size: 14px;
+        }
+        #output { 
+            min-height: 300px; 
+        }
+        p { 
+            margin-bottom: 1.5em; 
+            font-weight: bold;
+        }
+        .size-tag {
+            font-family: monospace;
+            font-weight: bold;
+            color: #007aff;
+            margin-right: 12px;
+            font-size: 15px;
+        }
+        .status-msg { 
+            color: #777; 
+            font-style: italic; 
+            font-family: sans-serif;
+            font-size: 15px;
+        }
+        .action-bar {
+            margin-bottom: 25px;
+        }
+        .btn-download {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-family: sans-serif;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            display: none;
+        }
+        .btn-download:hover {
+            background-color: #218838;
+        }
+    </style>
 </head>
+<body>
 
-<body class="bg-teal-50 min-h-screen flex items-center justify-center p-4">
+    <div class="file-selector">
+        <label for="pdf-file"><strong>Select Document: </strong></label>
+        <input type="file" id="pdf-file" accept=".pdf">
+    </div>
 
-<div class="bg-white shadow-xl rounded-2xl p-4 w-full max-w-5xl min-h-[80vh]">
+    <div class="action-bar">
+        <button id="download-txt" class="btn-download">Save Full Content as TXT</button>
+    </div>
 
-<h2 class="text-xl font-semibold text-teal-700 mb-3">Habits</h2>
+    <div id="output"><span class="status-msg">Upload a PDF to parse large heading blocks (>15px)...</span></div>
 
-<ul id="habitList" class="space-y-2"></ul>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-</div>
+        let fullDocumentContent = ""; // Stores the entire plain text content of the PDF
 
+        document.getElementById('pdf-file').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-<!-- FLOATING ADD BUTTON -->
-<button onclick="openModal()"
-class="fixed bottom-8 right-8 bg-teal-500 text-white w-14 h-14 rounded-full text-3xl flex items-center justify-center shadow-lg hover:bg-teal-600 transition">
-+
-</button>
+            const outputDiv = document.getElementById('output');
+            const downloadBtn = document.getElementById('download-txt');
+            
+            outputDiv.innerHTML = '<span class="status-msg">Processing full document content and extracting headings...</span>';
+            downloadBtn.style.display = 'none';
+            fullDocumentContent = "";
 
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                let heavyLines = [];
+                let txtPages = [];
 
-<!-- ADD / EDIT MODAL -->
-<div id="modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center">
+                // Step 1: Read all pages
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    
+                    let pageLines = {};
+                    let fullPageTextLines = [];
+                    
+                    content.items.forEach(item => {
+                        if (!item.str.trim()) return;
+                        
+                        const fontSize = Math.round(item.transform[0]); 
+                        const yPos = Math.round(item.transform[5]);     
+                        const xPos = Math.round(item.transform[4]);     
+                        
+                        if (!pageLines[yPos]) {
+                            pageLines[yPos] = [];
+                        }
+                        pageLines[yPos].push({ text: item.str, x: xPos, size: fontSize });
+                    });
 
-<div class="bg-white p-4 rounded-xl w-[340px] shadow-lg">
+                    // Sort Y coordinates top to bottom
+                    let sortedYPositions = Object.keys(pageLines).sort((a, b) => b - a);
 
-<h3 id="modalTitle" class="text-xl font-semibold text-teal-700 mb-3">Add Habit</h3>
+                    sortedYPositions.forEach(y => {
+                        let lineTokens = pageLines[y].sort((a, b) => a.x - b.x);
+                        let maxLineSize = Math.max(...lineTokens.map(t => t.size));
+                        
+                        let combinedLineText = lineTokens.map(t => t.text).join(" ").replace(/\s+/g, ' ').trim();
+                        
+                        // Record all text lines for the raw text content file
+                        fullPageTextLines.push(combinedLineText);
+                        
+                        heavyLines.push({
+                            text: combinedLineText,
+                            y: parseInt(y),
+                            size: maxLineSize,
+                            page: i
+                        });
+                    });
 
-<input id="habitInput"
-placeholder="Enter habit"
-class="w-full border rounded-lg px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-teal-400"
-/>
+                    // Save full textual data per page block
+                    txtPages.push(`--- PAGE ${i} ---\n` + fullPageTextLines.join("\n"));
+                }
 
-<div class="flex justify-end gap-2">
+                // Compile entire plain text content map
+                fullDocumentContent = txtPages.join("\n\n");
 
-<button onclick="closeModal()"
-class="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
-Cancel
-</button>
+                if (heavyLines.length === 0) {
+                    outputDiv.innerHTML = '<span class="status-msg">Finished. No text fragments extracted.</span>';
+                    if (fullDocumentContent.trim().length > 0) downloadBtn.style.display = 'block';
+                    return;
+                }
 
-<button onclick="saveHabit()"
-class="px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600">
-Save
-</button>
+                // Step 2: Reconstruct lines into paragraphs (Combining sections with matching font sizes)
+                let heavyParagraphs = [];
+                let currentParagraph = {
+                    text: heavyLines[0].text,
+                    size: heavyLines[0].size,
+                    y: heavyLines[0].y,
+                    page: heavyLines[0].page
+                };
 
-</div>
+                for (let i = 1; i < heavyLines.length; i++) {
+                    let prevLine = heavyLines[i - 1];
+                    let currentLine = heavyLines[i];
+                    let lineGap = prevLine.y - currentLine.y;
+                    
+                    if (currentLine.page !== prevLine.page) {
+                        lineGap = 12; 
+                    }
 
-</div>
+                    // MODIFIED DECISION POINT:
+                    // Removed "lineGap > 24" so sentences merge regardless of vertical spacing.
+                    // It will now only split if font sizes differ significantly or text jumps upward abnormally.
+                    if (Math.abs(currentLine.size - prevLine.size) > 1 || lineGap < 0) { 
+                        heavyParagraphs.push(currentParagraph);
+                        currentParagraph = {
+                            text: currentLine.text,
+                            size: currentLine.size,
+                            y: currentLine.y,
+                            page: currentLine.page
+                        };
+                    } else {
+                        // Weld wrapped headings cleanly together
+                        if (currentParagraph.text.endsWith('-')) {
+                            currentParagraph.text = currentParagraph.text.slice(0, -1) + currentLine.text;
+                        } else {
+                            currentParagraph.text += " " + currentLine.text;
+                        }
+                        if (currentLine.size > currentParagraph.size) {
+                            currentParagraph.size = currentLine.size;
+                        }
+                        currentParagraph.y = currentLine.y;
+                    }
+                }
+                heavyParagraphs.push(currentParagraph); 
 
-</div>
+                // Step 3: Render visual headings to standard page layout container
+                outputDiv.innerHTML = heavyParagraphs
+                    .map(p => {
+                        const cleanText = p.text.replace(/\s+/g, ' ').replace(/\s([.,!?;:])/g, '$1').trim();
+                        if (cleanText.length < 2) return '';
+                        return `<p><span class="size-tag">[${p.size}px]</span>${cleanText}</p>`;
+                    })
+                    .join("");
 
+                // Display download button if content exists
+                if (fullDocumentContent.trim().length > 0) {
+                    downloadBtn.style.display = 'block';
+                }
 
-<script src="https://oangia.github.io/lib/jQuery/dist/bundle.min.js"></script>
+            } catch (err) {
+                outputDiv.innerHTML = `<span class="status-msg" style="color: red;">Error: ${err.message}</span>`;
+            }
+        });
 
-<script type="module">
-import { Firebase } from "https://oangia.github.io/stockEx/firebase/facade.js";
-
-const fb = new Firebase({
-  apiKey: "AIzaSyB0TxR5HpNJ8Ph7rnrHqXNMAmBWo1dw5Nw",
-  authDomain: "agent52.firebaseapp.com",
-  projectId: "agent52",
-  storageBucket: "agent52.firebasestorage.app",
-  messagingSenderId: "534394830199",
-  appId: "1:534394830199:web:521b810d19dbcfe9edb572"
-});
-
-let editId=null;
-
-function openModal(){
-  document.getElementById("modal").classList.remove("hidden");
-  document.getElementById("modal").classList.add("flex");
-}
-
-function closeModal(){
-  document.getElementById("modal").classList.add("hidden");
-}
-
-function openEdit(habit){
-  editId=habit.id;
-  document.getElementById("modalTitle").textContent="Edit Habit";
-  document.getElementById("habitInput").value=habit.name;
-  openModal();
-}
-
-async function saveHabit(){
-
-  loading();
-
-  const habit=document.getElementById("habitInput").value;
-  if(!habit) return;
-
-  if(editId){
-    await fb.update("habits",editId,{name:habit});
-    editId=null;
-  }else{
-    await fb.create("habits",{
-      name:habit,
-      timestamp:Date.now(),
-      done:false
-    });
-  }
-
-  document.getElementById("habitInput").value="";
-  document.getElementById("modalTitle").textContent="Add Habit";
-
-  closeModal();
-  await loadHabits();
-
-  loading(false);
-}
-
-async function deleteHabit(id){
-  await fb.delete("habits",id);
-  loadHabits();
-}
-
-async function loadHabits(){
-
-  loading();
-
-  const list=document.getElementById("habitList");
-  list.innerHTML="";
-
-  const habits=await fb.all("habits");
-
-  habits.forEach(data=>{
-
-    const li=document.createElement("li");
-
-    const date=new Date(data.timestamp).toLocaleDateString();
-
-    li.className="bg-white border border-teal-100 rounded-xl p-3 flex justify-between items-center shadow-sm hover:shadow-md transition";
-
-    li.innerHTML=`
-      <div>
-        <div class="font-medium text-gray-800">${data.name}</div>
-        <div class="text-sm text-gray-400">${date}</div>
-      </div>
-
-      <div class="flex gap-2">
-
-        <button class="p-2 rounded-lg hover:bg-teal-100 text-teal-600">
-          <span class="material-symbols-outlined text-[20px]">edit</span>
-        </button>
-
-        <button class="p-2 rounded-lg hover:bg-red-100 text-red-500">
-          <span class="material-symbols-outlined text-[20px]">delete</span>
-        </button>
-
-      </div>
-    `;
-
-    li.children[1].children[0].onclick=()=>openEdit(data);
-    li.children[1].children[1].onclick=()=>deleteHabit(data.id);
-
-    list.appendChild(li);
-  });
-
-  loading(false);
-}
-
-window.openModal=openModal;
-window.closeModal=closeModal;
-window.saveHabit=saveHabit;
-
-loadHabits();
-
-</script>
+        // Step 4: Handle standard raw text blob export
+        document.getElementById('download-txt').addEventListener('click', () => {
+            if (!fullDocumentContent) return;
+            
+            const blob = new Blob([fullDocumentContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            
+            link.href = url;
+            link.download = 'full_pdf_content.txt';
+            document.body.appendChild(link);
+            link.click();
+            
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        });
+    </script>
 
 </body>
 </html>
