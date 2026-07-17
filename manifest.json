@@ -17,7 +17,14 @@
       "matches": [
         "https://finance.vietstock.vn/*"
       ],
-      "js": ["utils/chart.umd.min.js", "utils/utils.js", "utils/extract.js", "utils/business.js", "utils/dom.js", "content.js"],
+      "js": [
+        "utils/chart.umd.min.js", 
+        "utils/utils.js", 
+        "utils/extract.js", 
+        "utils/business.js", 
+        "utils/dom.js", 
+        "content.js"
+      ],
       "run_at": "document_start"
     }
   ]
