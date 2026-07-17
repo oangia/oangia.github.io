@@ -1,26 +1,4 @@
 // ================= CONFIG =================
-function normalizeTitle(title) {
-    return title.trim().toLowerCase();
-}
-
-function getRowByName(rows, name) {
-    return rows.find(r => normalizeTitle(r.title) === normalizeTitle(name))?.values ?? [];
-}
-
-function buildEquityGrowth(values) {
-    return values.map((v, i, arr) => {
-        if (i === 0 || !arr[i - 1]) return "0";
-        return (((v - arr[i - 1]) / arr[i - 1]) * 100).toFixed(2);
-    });
-}
-
-function calculateRatio(numerator, denominator, decimals = 0, reverse = false) {
-    return numerator.map((v, i) => {
-        const div = Array.isArray(denominator) ? denominator[i] : denominator;
-        return div ? (reverse ? (1 - v / div) * 100 : (v / div) * 100).toFixed(decimals) : "0";
-    });
-}
-
 function renderTable({
     headers,
     rows
@@ -38,7 +16,9 @@ function renderTable({
         colorRule,
         title
     }) => {
-        const values = getRowByName(rows, key);
+        const values = rows.find(r =>
+            r.title.trim().toLowerCase() === key
+        )?.values ?? [];
 
         const tr = document.createElement("tr");
 
@@ -73,10 +53,13 @@ function renderTable({
 }
 
 function bank(data) {
-    const getRow = (name) => getRowByName(data.rows, name);
+    const getRow = (name) => data.rows.find(r => r.title.trim().toLowerCase() === name)?.values ?? [];
 
     const equity = getRow("capital and reserves");
-    const equityGrowthPct = buildEquityGrowth(equity);
+    const equityGrowthPct = equity.map((v, i, arr) => {
+        if (i === 0 || !arr[i - 1]) return "0";
+        return (((v - arr[i - 1]) / arr[i - 1]) * 100).toFixed(2);
+    });
 
     const revenue = getRow("net interest income");
 
@@ -189,7 +172,7 @@ function bank(data) {
 }
 
 function cost_structure(data) {
-    const getRow = (name) => getRowByName(data.rows, name);
+    const getRow = (name) => data.rows.find(r => r.title.trim().toLowerCase() === name)?.values ?? [];
 
     const cogs = getRow("cost of goods sold");
     return renderTable(data, [{
@@ -349,11 +332,7 @@ function non_bank(data) {
 function renderFinancialTable(el) {
     const data = extractStockData(el);
     if (data == null) return;
-    const scrollBox = makeEl("div", {}, {
-        width: "100%",
-        height: "100%",
-        overflow: "auto"
-    });
+    const scrollBox = makeEl("div", {}, STYLES.scrollBox);
     scrollBox.className = "scroll-box";
 
     // high return on equity, and increase equity
@@ -365,12 +344,16 @@ function renderFinancialTable(el) {
 
     const ctx = canvas.getContext("2d");
 
-    const getRow = (name) => getRowByName(data.rows, name);
+    const getRow = (name) => data.rows.find(r => r.title.trim().toLowerCase() === name)?.values ?? [];
 
 
     const is_bank = getRow("owner's equity").length == 0;
 
-    const calcRatio = calculateRatio;
+    const calcRatio = (numerator, denominator, decimals = 0, reverse = false) =>
+        numerator.map((v, i) => {
+            const div = Array.isArray(denominator) ? denominator[i] : denominator;
+            return div ? (reverse ? (1 - v / div) * 100 : (v / div) * 100).toFixed(decimals) : "0";
+        });
     if (is_bank) {
         data.rows.push({
                 title: "equity growth",
@@ -455,7 +438,10 @@ function renderFinancialTable(el) {
         const netProfit = getRow("net profit after tax");
         const parentProfit = getRow("profit after tax for shareholders of the parent company");
         // 4. Equity Growth (Unique logic due to look-back)
-        const equityGrowthPct = buildEquityGrowth(equity);
+        const equityGrowthPct = equity.map((v, i, arr) => {
+            if (i === 0 || !arr[i - 1]) return "0";
+            return (((v - arr[i - 1]) / arr[i - 1]) * 100).toFixed(2);
+        });
         data.rows.push(
             // Income Statement & Performance
             {
@@ -544,7 +530,9 @@ function renderFinancialTable(el) {
             datasets: [{
                     label: "Equity",
                     type: "line",
-                    data: getRowByName(data.rows, "owner's equity"),
+                    data: data.rows.find(r =>
+                        r.title.trim().toLowerCase() === "owner's equity"
+                    )?.values ?? [],
                     yAxisID: "y1",
                     borderWidth: 2,
                     fill: false,
@@ -553,7 +541,9 @@ function renderFinancialTable(el) {
                 {
                     label: "Revenue",
                     type: "line",
-                    data: getRowByName(data.rows, "net revenue"),
+                    data: data.rows.find(r =>
+                        r.title.trim().toLowerCase() === "net revenue"
+                    )?.values ?? [],
                     yAxisID: "y1",
                     borderWidth: 2,
                     fill: false,
@@ -583,7 +573,9 @@ function renderFinancialTable(el) {
                         // This adds the "Growth" info to the tooltip on hover
                         afterLabel: function(context) {
                             const index = context.dataIndex;
-                            const growthRow = getRowByName(data.rows, "equity growth");
+                            const growthRow = data.rows.find(r =>
+                                r.title.trim().toLowerCase() === "equity growth"
+                            );
                             const growthValue = growthRow?.values[index];
 
                             return growthValue !== undefined ? `Growth: ${growthValue}%` : '';
@@ -628,5 +620,51 @@ function renderFinancialTable(el) {
     
     ui.setContent(scrollBox);
 }
+
+const STYLES = {
+    table: {
+        minWidth: "600px",
+        borderCollapse: "separate",
+        borderSpacing: "0",
+        background: "#121826",
+        color: "#e6e6e6",
+        fontSize: "13px"
+    },
+    th: {
+        padding: "5px",
+        textAlign: "center",
+        borderBottom: "1px solid #2a3548",
+        background: "#141a26",
+        position: "sticky",
+        top: "0",
+        zIndex: "5",
+        cursor: "pointer"
+    },
+    td: {
+        padding: "5px",
+        textAlign: "center",
+        borderBottom: "1px solid #1f2a3a"
+    },
+    scrollBox: {
+        width: "100%",
+        height: "100%",
+        overflow: "auto"
+    },
+    refreshBtn: {
+        padding: "6px 10px",
+        background: "#1f2a3a",
+        color: "#fff",
+        border: "1px solid #2a3548",
+        cursor: "pointer"
+    },
+    actionBtn: {
+        padding: "8px 12px",
+        background: "#1f2635",
+        color: "#e6e6e6",
+        border: "1px solid #2a3548",
+        borderRadius: "6px",
+        cursor: "pointer"
+    }
+};
 
 observe("#div-content-BCTT", renderFinancialTable);
