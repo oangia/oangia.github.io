@@ -161,25 +161,7 @@ return renderTable(data, [
   ])
 }
 
-function renderFinancialTable(el) {
-  // ideal business high return on equity over time, and keep that high return on equity in an increamental capital
-  
-  // can I understand it
-  
-  // high return on capital, compound?
-  
-  // moat, competitive advantage
-  
-  // how the CEO
-  
-  // cost structure
-  
-  // equity 
-  
-  // profitability
-  
-  // price / equity / profit
-  
+function renderFinancialTable(el) {  
   const data = extractStockData(el);
   if (data == null) return;
   const scrollBox = makeEl("div", {}, STYLES.scrollBox);
@@ -399,23 +381,6 @@ scrollBox.appendChild(renderTable(data, [
  
   ui.setContent(scrollBox);
 }
-
-hotkeys('s', () => {
-    const code = getStockCode();
-    const tables = getAllTables();
-    browser.runtime.sendMessage({ type: "SEND_STOCK", code, payload: {quarters: JSON.stringify([tables[3], tables[5], tables[7]])}});
-    alert("Done");
-});
-hotkeys('d', () => {
-    const code = getStockCode();
-    const tables = getAllTables();
-    browser.runtime.sendMessage({ type: "SEND_STOCK", code, payload: {years: JSON.stringify([tables[3], tables[5], tables[7]])}});
-    alert("Done");
-});
-hotkeys('f', () => {
-  browser.runtime.sendMessage({ type: "FETCH_STOCKS", force: true });
-  alert("Done");
-});
 const STYLES = {
   table: {
     minWidth: "600px", borderCollapse: "separate",
@@ -437,5 +402,4 @@ const STYLES = {
   }
 };
 //observe("#data-content-table-body", renderStockTable);
-observe("#banggia-khop-lenh", renderStockTable);
 observe("#div-content-BCTT", renderFinancialTable);

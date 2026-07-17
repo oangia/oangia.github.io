@@ -13,10 +13,6 @@
     "tabs",
     "downloads"
   ],
-  "background": {
-	"scripts": ["background.js"],
-	"type": "module"
-  },
   "content_scripts": [
     {
       "matches": [
@@ -24,7 +20,7 @@
         "https://trade.vndirect.com.vn/*",
         "https://banggia.vndirect.com.vn/*"
       ],
-      "js": ["utils/chart.umd.min.js", "utils/utils.js", "utils/extract.js", "utils/business.js", "utils/dom.js", "price.js", "stock.js"],
+      "js": ["utils/chart.umd.min.js", "utils/utils.js", "utils/extract.js", "utils/business.js", "utils/dom.js", "stock.js"],
       "run_at": "document_start"
     }
   ]
