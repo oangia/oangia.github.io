@@ -618,7 +618,8 @@ function renderFinancialTable(el) {
         },
     ]));
     
-    document.body.prepend(scrollBox);
+    
+    addUI.setContent(scrollBox);
 }
 
 const STYLES = {
@@ -666,5 +667,6 @@ const STYLES = {
         cursor: "pointer"
     }
 };
-
+const addUI = makeEl("div", {});
+document.body.prepend(addUI);
 observe("#div-content-BCTT", renderFinancialTable);
