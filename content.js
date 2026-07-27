@@ -619,7 +619,7 @@ function renderFinancialTable(el) {
     ]));
     
     
-    addUI.setContent(scrollBox);
+    addUI.replaceChildren(scrollBox);
 }
 
 const STYLES = {
