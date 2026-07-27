@@ -670,7 +670,13 @@ const STYLES = {
 const addUIId = "financial-table-ui";
 let addUI = document.getElementById(addUIId);
 if (!addUI) {
-    addUI = makeEl("div", { id: addUIId });
+    addUI = makeEl("div", { id: addUIId }, {
+        position: "relative",
+        zIndex: "2147483647"
+    });
+} else {
+    addUI.style.position = "relative";
+    addUI.style.zIndex = "2147483647";
 }
 
 function ensureAddUI() {
