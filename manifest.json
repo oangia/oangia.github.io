@@ -20,9 +20,7 @@
       "js": [
         "utils/chart.umd.min.js", 
         "utils/utils.js", 
-        "utils/extract.js", 
-        "utils/business.js", 
-        "utils/dom.js", 
+        "utils/extract.js",
         "content.js"
       ],
       "run_at": "document_start"
