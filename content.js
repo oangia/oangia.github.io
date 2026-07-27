@@ -340,7 +340,7 @@ function renderFinancialTable(el) {
     canvas.style.width = "100%";
     canvas.style.maxWidth = "1000px";
     canvas.style.maxHeight = "500px";
-    canvas.style.margin = "0 auto";
+    
 
     const ctx = canvas.getContext("2d");
 
@@ -586,6 +586,7 @@ function renderFinancialTable(el) {
         }
     });
 
+    canvas.style.margin = "0 auto";
     scrollBox.appendChild(canvas);
 
 
