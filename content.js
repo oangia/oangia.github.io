@@ -667,6 +667,20 @@ const STYLES = {
         cursor: "pointer"
     }
 };
-const addUI = makeEl("div", {});
-document.body.prepend(addUI);
+const addUIId = "financial-table-ui";
+let addUI = document.getElementById(addUIId);
+if (!addUI) {
+    addUI = makeEl("div", { id: addUIId });
+}
+
+function ensureAddUI() {
+    if (!addUI || addUI.isConnected || !document.body) return;
+    document.body.prepend(addUI);
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", ensureAddUI, { once: true });
+} else {
+    ensureAddUI();
+}
 observe("#div-content-BCTT", renderFinancialTable);
