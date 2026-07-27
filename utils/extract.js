@@ -1,18 +1,3 @@
-function extractTableData(tableIndex, columnsMap) {
-  const table = getAllTables()[tableIndex];
-  if (!table) return [];
-
-  return table.rows.map(row => {
-    const obj = {};
-
-    for (const [key, colIndex] of Object.entries(columnsMap)) {
-      obj[key] = row[colIndex] ?? null;
-    }
-
-    return obj;
-  });
-}
-
 function getAllTables({ mode = "text" } = {}) {
   const getCellContent = cell =>
     mode === "html"
@@ -38,28 +23,6 @@ function getAllTables({ mode = "text" } = {}) {
 
     return { headers, rows };
   });
-}
-
-function getAllLinks() {
-  return Array.from(document.body.querySelectorAll("a"))
-    .map(a => ({
-      text: a.innerText.trim(),
-      href: a.href
-    }))
-    .filter(link => link.href); // remove empty
-}
-
-function getAllImageUrls() {
-  return Array.from(document.body.querySelectorAll("img"))
-    .map(img => img.src)
-    .filter(src => src); // remove empty
-}
-
-function extractPbs() {
-  const tables = getAllTables();
-  const pb = tables[7].rows[12].slice(4);
-  const bvps = tables[7].rows[8].at(-1);
-  return { pb, bvps }
 }
 
 function extractStockData(el) {

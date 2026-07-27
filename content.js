@@ -340,7 +340,7 @@ function renderFinancialTable(el) {
     canvas.style.width = "100%";
     canvas.style.maxWidth = "1000px";
     canvas.style.maxHeight = "500px";
-
+    canvas.style.margin = "0 auto";
 
     const ctx = canvas.getContext("2d");
 
@@ -649,7 +649,8 @@ const STYLES = {
     scrollBox: {
         width: "100%",
         height: "100%",
-        overflow: "auto"
+        overflow: "auto",
+        padding: "10px"
     },
     refreshBtn: {
         padding: "6px 10px",
