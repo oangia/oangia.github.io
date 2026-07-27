@@ -618,7 +618,7 @@ function renderFinancialTable(el) {
         },
     ]));
     
-    ui.setContent(scrollBox);
+    document.body.prepend(scrollBox);
 }
 
 const STYLES = {
