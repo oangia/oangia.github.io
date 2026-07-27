@@ -585,8 +585,6 @@ function renderFinancialTable(el) {
             }
         }
     });
-
-    canvas.style.margin = "0 auto";
     scrollBox.appendChild(canvas);
 
 
