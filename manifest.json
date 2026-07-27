@@ -18,8 +18,8 @@
         "https://finance.vietstock.vn/*"
       ],
       "js": [
-        "utils/chart.umd.min.js", 
-        "utils/utils.js", 
+        "utils/chart.umd.min.js",
+        "utils/utils.js",
         "utils/extract.js",
         "content.js"
       ],
