@@ -44,10 +44,10 @@
                 <!-- Checkboxes generated dynamically -->
             </div>
             <span id="note-error-msg" class="text-xs text-rose-400 hidden">Please select at least one note!</span>
-            
+
             <!-- Play Full Scale Button -->
             <button id="play-scale-btn" class="mt-2 w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold rounded-lg transition-colors text-sm shadow-sm flex items-center justify-center gap-2 cursor-pointer">
-                🎵 Scale
+                🎵 Play Full Scale
             </button>
         </div>
     </aside>
@@ -69,16 +69,16 @@
 
     <!-- Load audio file properly -->
     <script>
-        const AUDIO_FILES = {
-            'C4': 'wav/c4.wav', // adjust filenames to match your exact folder structure
-            'D4': 'wav/d4.wav',
-            'E4': 'wav/e4.wav',
-            'F4': 'wav/f4.wav',
-            'G4': 'wav/g4.wav',
-            'A4': 'wav/a4.wav',
-            'B4': 'wav/b4.wav',
-            'C5': 'wav/c5.wav'
-        };
+        const ALL_NOTES = [
+            { note: 'C4', freq: 261.63, name: 'C', file: 'wav/c4.wav' },
+            { note: 'D4', freq: 293.66, name: 'D', file: 'wav/d4.wav' },
+            { note: 'E4', freq: 329.63, name: 'E', file: 'wav/e4.wav' },
+            { note: 'F4', freq: 349.23, name: 'F', file: 'wav/f4.wav' },
+            { note: 'G4', freq: 392.00, name: 'G', file: 'wav/g4.wav' },
+            { note: 'A4', freq: 440.00, name: 'A', file: 'wav/a4.wav' },
+            { note: 'B4', freq: 493.88, name: 'B', file: 'wav/b4.wav' },
+            { note: 'C5', freq: 523.25, name: 'C', file: 'wav/c5.wav' }
+        ];
 
         // --- COOKIE HELPER FUNCTIONS ---
         function setCookie(name, value, days = 365) {
@@ -108,7 +108,6 @@
         
         let activeNotes = defaultIndices.map(i => ALL_NOTES[i]);
 
-        let audioCtx = null;
         let isPlaying = false;
         let currentTimeout = null;
         let animationFrameId = null;
@@ -194,11 +193,19 @@
             updateActiveNotes();
         });
 
+        // --- PLAY LOCAL WAV AUDIO ---
+        function playSampleAudio(filePath) {
+            const audio = new Audio(filePath);
+            audio.currentTime = 0;
+            audio.play().catch(err => {
+                console.error("Error playing WAV file:", err);
+            });
+        }
+
         // Play Full Scale Button Listener
         playScaleBtn.addEventListener('click', () => {
             if (isPlaying) stopLoop();
 
-            // Play through all notes in ALL_NOTES sequentially
             ALL_NOTES.forEach((item, index) => {
                 setTimeout(() => {
                     centerDisplay.textContent = item.name;
@@ -206,9 +213,8 @@
                     timerRing.style.stroke = "#3b82f6";
                     timerRing.style.strokeDashoffset = "0";
 
-                    playPianoTone(item.freq, 1.2);
+                    playSampleAudio(item.file);
 
-                    // Reset display after the final note finishes playing
                     if (index === ALL_NOTES.length - 1) {
                         setTimeout(() => {
                             if (!isPlaying) {
@@ -218,30 +224,9 @@
                             }
                         }, 600);
                     }
-                }, index * 400); // 400ms delay per note in the scale
+                }, index * 400);
             });
         });
-
-        function getAudioContext() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-            return audioCtx;
-        }
-
-        function playPianoTone(noteName) {
-            const filePath = AUDIO_FILES[noteName];
-            if (!filePath) return;
-
-            const audio = new Audio(filePath);
-            audio.currentTime = 0; // Rewind to start in case it's triggered rapidly
-            audio.play().catch(err => {
-                console.error("Error playing audio file:", err);
-            });
-        }
 
         function toggleSession() {
             if (activeNotes.length === 0) {
@@ -263,7 +248,7 @@
             timerRing.style.stroke = "#3b82f6";
             timerRing.style.strokeDashoffset = "0";
 
-            playPianoTone(activeNotes[0].freq, 1.5);
+            playSampleAudio(activeNotes[0].file);
 
             currentTimeout = setTimeout(() => {
                 if (!isPlaying) return;
@@ -277,7 +262,7 @@
             const randomIndex = Math.floor(Math.random() * activeNotes.length);
             const currentItem = activeNotes[randomIndex];
 
-            playPianoTone(currentItem.freq, 2.5);
+            playSampleAudio(currentItem.file);
             
             centerDisplay.textContent = "?";
             centerDisplay.className = "text-6xl font-black tracking-tight text-amber-400 animate-pulse";
