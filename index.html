@@ -34,7 +34,7 @@
                 <span>Reaction Speed</span>
                 <span id="speed-label" class="text-blue-400 font-bold">800 ms</span>
             </label>
-            <input id="speed-range" type="range" min="300" max="2000" step="50" value="800" 
+            <input id="speed-range" type="range" min="300" max="3000" step="50" value="800" 
                    class="w-full accent-blue-500 cursor-pointer">
             <span class="text-[11px] text-slate-400">Time given to guess the note before reveal.</span>
         </div>
@@ -108,7 +108,7 @@
 
         // --- LOAD INITIAL SETTINGS FROM COOKIES ---
         const savedSpeed = getCookie('earTrainerSpeed');
-        let guessDuration = savedSpeed ? parseInt(savedSpeed) : 1500;
+        let guessDuration = savedSpeed ? parseInt(savedSpeed) : 2000;
 
         let savedNoteIndices = getCookie('earTrainerNotes');
         let defaultIndices = savedNoteIndices ? JSON.parse(savedNoteIndices) : ALL_NOTES.map((_, i) => i);
