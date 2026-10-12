@@ -69,16 +69,16 @@
 
     <!-- Load audio file properly -->
     <script>
-        const ALL_NOTES = [
-            { note: 'C4', freq: 261.63, name: 'C' },
-            { note: 'D4', freq: 293.66, name: 'D' },
-            { note: 'E4', freq: 329.63, name: 'E' },
-            { note: 'F4', freq: 349.23, name: 'F' },
-            { note: 'G4', freq: 392.00, name: 'G' },
-            { note: 'A4', freq: 440.00, name: 'A' },
-            { note: 'B4', freq: 493.88, name: 'B' },
-            { note: 'C5', freq: 523.25, name: 'C' }
-        ];
+        const AUDIO_FILES = {
+            'C4': 'wav/c4.wav', // adjust filenames to match your exact folder structure
+            'D4': 'wav/d4.wav',
+            'E4': 'wav/e4.wav',
+            'F4': 'wav/f4.wav',
+            'G4': 'wav/g4.wav',
+            'A4': 'wav/a4.wav',
+            'B4': 'wav/b4.wav',
+            'C5': 'wav/c5.wav'
+        };
 
         // --- COOKIE HELPER FUNCTIONS ---
         function setCookie(name, value, days = 365) {
@@ -232,38 +232,14 @@
             return audioCtx;
         }
 
-        function playPianoTone(freq, duration = 3.5) {
-            const ctx = getAudioContext();
-            const now = ctx.currentTime;
+        function playPianoTone(noteName) {
+            const filePath = AUDIO_FILES[noteName];
+            if (!filePath) return;
 
-            const masterGain = ctx.createGain();
-            masterGain.connect(ctx.destination);
-
-            masterGain.gain.setValueAtTime(0, now);
-            masterGain.gain.linearRampToValueAtTime(0.7, now + 0.015);
-            masterGain.gain.exponentialRampToValueAtTime(0.3, now + 0.6);
-            masterGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-            const harmonics = [
-                { mult: 1.0, gain: 1.0, type: 'triangle' },
-                { mult: 2.0, gain: 0.4, type: 'sine' },
-                { mult: 3.0, gain: 0.2, type: 'sine' },
-                { mult: 4.0, gain: 0.08, type: 'sine' }
-            ];
-
-            harmonics.forEach(h => {
-                const osc = ctx.createOscillator();
-                const oscGain = ctx.createGain();
-
-                osc.type = h.type;
-                osc.frequency.setValueAtTime(freq * h.mult, now);
-                oscGain.gain.setValueAtTime(h.gain, now);
-
-                osc.connect(oscGain);
-                oscGain.connect(masterGain);
-
-                osc.start(now);
-                osc.stop(now + duration + 0.05);
+            const audio = new Audio(filePath);
+            audio.currentTime = 0; // Rewind to start in case it's triggered rapidly
+            audio.play().catch(err => {
+                console.error("Error playing audio file:", err);
             });
         }
 
