@@ -9,14 +9,14 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
     </style>
-    <link rel="preload" href="wav/wav_c1s.wav" as="audio" />
-    <link rel="preload" href="wav/wav_d1s.wav" as="audio" />
-    <link rel="preload" href="wav/wav_e1s.wav" as="audio" />
-    <link rel="preload" href="wav/wav_f1s.wav" as="audio" />
-    <link rel="preload" href="wav/wav_g1s.wav" as="audio" />
-    <link rel="preload" href="wav/wav_a1s.wav" as="audio" />
-    <link rel="preload" href="wav/wav_b1s.wav" as="audio" />
-    <link rel="preload" href="wav/wav_c2s.wav" as="audio" />
+    <link rel="preload" href="wav/C4.mp3" as="audio" />
+    <link rel="preload" href="wav/D4.mp3" as="audio" />
+    <link rel="preload" href="wav/E4.mp3" as="audio" />
+    <link rel="preload" href="wav/F4.mp3" as="audio" />
+    <link rel="preload" href="wav/G4.mp3" as="audio" />
+    <link rel="preload" href="wav/A4.mp3" as="audio" />
+    <link rel="preload" href="wav/B4.mp3" as="audio" />
+    <link rel="preload" href="wav/C5.mp3" as="audio" />
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col lg:flex-row select-none">
 
@@ -77,14 +77,14 @@
     <!-- Load audio file properly -->
     <script>
         const ALL_NOTES = [
-            { note: 'C', name: 'C', file: 'wav/wav_c1s.wav' },
-            { note: 'D', name: 'D', file: 'wav/wav_d1s.wav' },
-            { note: 'E', name: 'E', file: 'wav/wav_e1s.wav' },
-            { note: 'F', name: 'F', file: 'wav/wav_f1s.wav' },
-            { note: 'G', name: 'G', file: 'wav/wav_g1s.wav' },
-            { note: 'A', name: 'A', file: 'wav/wav_a1s.wav' },
-            { note: 'B', name: 'B', file: 'wav/wav_b1s.wav' },
-            { note: 'C2', name: 'C', file: 'wav/wav_c2s.wav' }
+            { note: 'C', name: 'C', file: 'wav/C$.mp3' },
+            { note: 'D', name: 'D', file: 'wav/D4.mp3' },
+            { note: 'E', name: 'E', file: 'wav/E4.mp3' },
+            { note: 'F', name: 'F', file: 'wav/F4.mp3' },
+            { note: 'G', name: 'G', file: 'wav/G4.mp3' },
+            { note: 'A', name: 'A', file: 'wav/A4.mp3' },
+            { note: 'B', name: 'B', file: 'wav/B4.mp3' },
+            { note: 'C2', name: 'C', file: 'wav/C5.mp3' }
         ];
 
         // --- COOKIE HELPER FUNCTIONS ---
