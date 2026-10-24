@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF Header & Markdown Extractor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6 font-sans">
+    
+    <div class="w-full max-w-4xl bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-8 flex flex-col gap-6">
+        
+        <!-- Controls & Options Header -->
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900/50 border border-slate-700/60 p-4 rounded-xl">
+            <label class="w-full md:w-auto flex-1 cursor-pointer">
+                <span class="sr-only">Choose PDF file</span>
+                <input type="file" id="pdfUpload" accept=".pdf" class="block w-full text-sm text-slate-400
+                    file:mr-4 file:py-2.5 file:px-4
+                    file:rounded-xl file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-indigo-600 file:text-white
+                    hover:file:bg-indigo-500
+                    file:cursor-pointer transition-all
+                "/>
+            </label>
+
+            <!-- Mode Selector -->
+            <div class="flex items-center gap-3 bg-slate-800 border border-slate-700 p-2 rounded-xl text-sm w-full md:w-auto justify-between md:justify-start">
+                <span class="text-slate-400 text-xs font-semibold uppercase tracking-wider pl-1">Mode:</span>
+                <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                    <input type="radio" name="extractMode" value="headers" class="accent-indigo-500">
+                    <span>Headers Only</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                    <input type="radio" name="extractMode" value="markdown" checked class="accent-indigo-500">
+                    <span class="font-medium text-indigo-400">Full .MD File</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Output Header and Action Buttons -->
+        <div class="flex items-center justify-between">
+            <span id="outputLabel" class="text-xs font-semibold uppercase tracking-wider text-slate-400">Markdown (.md) Content</span>
+            <div class="flex gap-2">
+                <button id="copyBtn" onclick="copyOutput()" class="hidden px-3 py-1.5 text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors">
+                    Copy
+                </button>
+                <button id="downloadBtn" onclick="downloadMd()" class="hidden px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors">
+                    Download .md
+                </button>
+            </div>
+        </div>
+
+        <!-- Output Display -->
+        <pre id="output" class="w-full h-96 bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 overflow-y-auto whitespace-pre-wrap font-mono">Select a PDF file to begin extraction...</pre>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let currentFile = null;
+
+        // Re-process file when mode changes
+        document.querySelectorAll('input[name="extractMode"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const mode = document.querySelector('input[name="extractMode"]:checked').value;
+                document.getElementById('outputLabel').textContent = mode === 'markdown' ? 'Markdown (.md) Content' : 'Headers Extraction Output';
+                if (currentFile) processPdf(currentFile);
+            });
+        });
+
+        document.getElementById('pdfUpload').addEventListener('change', function(e) {
+            currentFile = e.target.files[0];
+            if (currentFile) processPdf(currentFile);
+        });
+
+        async function processPdf(file) {
+            const output = document.getElementById('output');
+            const copyBtn = document.getElementById('copyBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            
+            output.textContent = 'Extracting content...';
+            copyBtn.classList.add('hidden');
+            downloadBtn.classList.add('hidden');
+
+            const mode = document.querySelector('input[name="extractMode"]:checked').value;
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+                if (mode === 'headers') {
+                    await extractHeadersOnly(pdfDoc);
+                } else {
+                    await extractAsMarkdown(pdfDoc, file.name);
+                }
+
+                copyBtn.classList.remove('hidden');
+                if (mode === 'markdown') downloadBtn.classList.remove('hidden');
+
+            } catch (error) {
+                output.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function extractAsMarkdown(pdfDoc, fileName) {
+            const output = document.getElementById('output');
+            let mdLines = [];
+
+            // Title header from filename
+            const documentTitle = fileName.replace(/\.pdf$/i, '');
+            mdLines.push(`# ${documentTitle}\n`);
+
+            // Extract Outline/Table of Contents if available
+            const outline = await pdfDoc.getOutline();
+            if (outline && outline.length > 0) {
+                mdLines.push(`## Table of Contents\n`);
+                function processOutline(items, indent = '') {
+                    for (let item of items) {
+                        if (item.title) {
+                            mdLines.push(`${indent}- ${item.title.trim()}`);
+                        }
+                        if (item.items && item.items.length > 0) {
+                            processOutline(item.items, indent + '  ');
+                        }
+                    }
+                }
+                processOutline(outline);
+                mdLines.push('\n---\n');
+            }
+
+            // Extract pages and format to markdown
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                const page = await pdfDoc.getPage(i);
+                const textContent = await page.getTextContent();
+                const items = textContent.items;
+                const styles = textContent.styles;
+
+                if (items.length === 0) continue;
+
+                mdLines.push(`\n## Page ${i}\n`);
+
+                let heights = items.map(item => item.height || Math.abs(item.transform[3]));
+                let avgHeight = heights.reduce((a, b) => a + b, 0) / (heights.length || 1);
+
+                let linesMap = {};
+                items.forEach(item => {
+                    if (!item.str.trim()) return;
+                    let y = Math.round(item.transform[5] / 4) * 4;
+                    if (!linesMap[y]) linesMap[y] = [];
+                    
+                    let fontName = item.fontName;
+                    let fontStyle = styles[fontName] || {};
+                    let isBold = (fontStyle.name && /bold|black|heavy/i.test(fontStyle.name)) || 
+                                 (fontName && /bold|black|heavy/i.test(fontName));
+
+                    linesMap[y].push({
+                        str: item.str,
+                        height: item.height || Math.abs(item.transform[3]),
+                        isBold: isBold,
+                        x: item.transform[4]
+                    });
+                });
+
+                let sortedYs = Object.keys(linesMap).map(Number).sort((a, b) => b - a);
+
+                for (let y of sortedYs) {
+                    let lineItems = linesMap[y].sort((a, b) => a.x - b.x);
+                    let lineText = lineItems.map(it => it.str).join(' ').trim();
+                    let maxHeight = Math.max(...lineItems.map(it => it.height));
+                    let hasBold = lineItems.some(it => it.isBold);
+
+                    if (!lineText) continue;
+
+                    // Markdown Header / Styling detection
+                    if (maxHeight > avgHeight * 1.4) {
+                        mdLines.push(`\n### ${lineText}\n`);
+                    } else if (maxHeight > avgHeight * 1.15 || (hasBold && maxHeight >= avgHeight * 0.95 && lineText.length < 100)) {
+                        mdLines.push(`\n#### ${lineText}\n`);
+                    } else if (hasBold) {
+                        // Check for list bullet format or bold inline
+                        if (/^[\bullet\-\*]/.test(lineText)) {
+                            mdLines.push(`- **${lineText.replace(/^[\bullet\-\*]\s*/, '')}**`);
+                        } else {
+                            mdLines.push(`**${lineText}**`);
+                        }
+                    } else if (/^[\bullet\-\*]\s/.test(lineText) || /^\d+[\.\)]\s/.test(lineText)) {
+                        mdLines.push(lineText);
+                    } else {
+                        mdLines.push(lineText);
+                    }
+                }
+            }
+
+            output.textContent = mdLines.length > 0 ? mdLines.join('\n') : 'No content extracted
