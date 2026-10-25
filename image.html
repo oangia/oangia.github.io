@@ -3,187 +3,512 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GIF Frame Splitter & Google Lens Search</title>
-    <!-- Include omggif library from CDN to parse GIF frames -->
+    <title>Media Frame Extractor & Google Lens Search</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- omggif CDN for parsing GIF frames -->
     <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body {
-            font-family: Arial, sans-serif;
-            max-width: 900px;
-            margin: 40px auto;
-            padding: 0 20px;
-            background-color: #f9f9f9;
-            color: #333;
+            font-family: 'Inter', sans-serif;
         }
-        h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
         }
-        .upload-box {
-            background: #fff;
-            padding: 20px;
-            border: 2px dashed #ccc;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 20px;
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
         }
-        input[type="file"] {
-            margin-top: 10px;
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
         }
-        #frames-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        .frame-card {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 4px;
-            text-align: center;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-        .frame-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            border-color: #4285f4;
-        }
-        .frame-card img {
-            width: 32px;
-            height: 32px;
-            object-fit: contain;
-            background: #eee;
-            border-radius: 2px;
-            image-rendering: pixelated;
-        }
-        .frame-label {
-            font-size: 10px;
-            color: #666;
-            margin-top: 2px;
-        }
-        #loading {
-            display: none;
-            font-weight: bold;
-            color: #4285f4;
-            margin-top: 10px;
-        }
-        #toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #333;
-            color: #fff;
-            padding: 12px 20px;
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            display: none;
-            z-index: 1000;
-            font-size: 14px;
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
     </style>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
 
-    <h1>GIF Frame Extractor & Google Lens Search</h1>
-    <p>Upload a GIF to split it into frames (32x32 view). <b>Click any frame</b> to copy it, then paste it (Ctrl+V) into Google Lens!</p>
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg">
+                    <i class="fa-solid fa-film text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg text-white leading-tight">FrameExtractor Pro</h1>
+                    <p class="text-xs text-slate-400">GIF & Video Sampling for Google Lens</p>
+                </div>
+            </div>
+            <a href="https://lens.google.com" target="_blank" class="text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-2">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                <span>Open Google Lens</span>
+            </a>
+        </div>
+    </header>
 
-    <div class="upload-box">
-        <input type="file" id="gifInput" accept="image/gif">
-        <div id="loading">Processing GIF frames... Please wait.</div>
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8">
+        
+        <!-- Controls & Upload Section -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Dropzone -->
+            <div class="lg:col-span-2">
+                <div id="dropzone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-800/50 hover:bg-slate-800 transition-all rounded-2xl p-8 text-center flex flex-col items-center justify-center cursor-pointer min-h-[220px] relative group">
+                    <input type="file" id="mediaInput" accept="image/gif,video/mp4,video/webm,video/ogg,video/quicktime" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                    
+                    <div class="p-4 bg-slate-800 text-indigo-400 rounded-full group-hover:scale-110 transition-transform mb-3 border border-slate-700">
+                        <i class="fa-solid fa-cloud-arrow-up text-3xl"></i>
+                    </div>
+                    
+                    <p class="text-base font-medium text-slate-200">
+                        Drop your GIF or Video file here, or <span class="text-indigo-400 underline">browse</span>
+                    </p>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Supports MP4, WebM, MOV, OGG, and GIF files
+                    </p>
+
+                    <!-- File Info Badge -->
+                    <div id="fileInfo" class="hidden mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-slate-700/80 border border-slate-600 rounded-full text-xs font-medium text-slate-200">
+                        <i id="fileIcon" class="fa-solid fa-file"></i>
+                        <span id="fileName" class="truncate max-w-[200px]">filename.mp4</span>
+                        <span id="fileSize" class="text-slate-400">0 MB</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Box -->
+            <div class="bg-slate-800/50 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-400"></i> Extraction Settings
+                    </h2>
+
+                    <!-- Frame Count Selector -->
+                    <div class="mb-5">
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="frameCountInput" class="text-xs font-medium text-slate-300">Target Frame Count</label>
+                            <span id="frameCountVal" class="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">20 frames</span>
+                        </div>
+                        <input type="range" id="frameCountInput" min="2" max="100" value="20" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                            <span>2</span>
+                            <span>25</span>
+                            <span>50</span>
+                            <span>75</span>
+                            <span>100</span>
+                        </div>
+                    </div>
+
+                    <!-- Thumbnail Size Config -->
+                    <div>
+                        <label class="text-xs font-medium text-slate-300 block mb-2">Grid Thumbnail Size</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" data-size="sm" class="size-btn py-1.5 text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 rounded-lg transition text-center">Small</button>
+                            <button type="button" data-size="md" class="size-btn py-1.5 text-xs font-medium bg-indigo-600 text-white border border-indigo-500 rounded-lg transition text-center active-size">Medium</button>
+                            <button type="button" data-size="lg" class="size-btn py-1.5 text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 rounded-lg transition text-center">Large</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extract Action Button -->
+                <button id="extractBtn" disabled class="mt-6 w-full py-3 px-4 bg-indigo-600 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed hover:bg-indigo-500 text-white font-medium text-sm rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Extract Frames</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Progress Indicator -->
+        <div id="progressContainer" class="hidden bg-slate-800/80 border border-slate-700 rounded-xl p-4">
+            <div class="flex justify-between items-center mb-2">
+                <span id="progressText" class="text-xs font-medium text-slate-300">Processing media...</span>
+                <span id="progressPercent" class="text-xs font-bold text-indigo-400">0%</span>
+            </div>
+            <div class="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                <div id="progressBar" class="bg-indigo-500 h-2 rounded-full transition-all duration-150 w-0"></div>
+            </div>
+        </div>
+
+        <!-- Frame Gallery Section -->
+        <section class="flex-1 flex flex-col">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-lg font-semibold text-white">Extracted Frames</h2>
+                    <span id="extractedBadge" class="hidden text-xs bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-700">0 frames</span>
+                </div>
+                <p class="text-xs text-slate-400">
+                    <i class="fa-solid fa-circle-info text-indigo-400 mr-1"></i>
+                    Click any frame to copy image directly to clipboard & launch Google Lens.
+                </p>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="flex-1 bg-slate-800/30 border border-dashed border-slate-800 rounded-2xl p-12 flex flex-col items-center justify-center text-center min-h-[250px]">
+                <div class="p-4 bg-slate-800/50 text-slate-500 rounded-full mb-3">
+                    <i class="fa-regular fa-images text-3xl"></i>
+                </div>
+                <p class="text-slate-400 font-medium text-sm">No frames extracted yet</p>
+                <p class="text-xs text-slate-500 mt-1 max-w-sm">Upload a video or GIF and click 'Extract Frames' to generate evenly distributed image thumbnails.</p>
+            </div>
+
+            <!-- Frames Container Grid -->
+            <div id="framesGrid" class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+        </section>
+
+    </main>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 border border-indigo-500/40 text-slate-100 px-4 py-3 rounded-xl shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 flex items-center gap-3 z-50">
+        <div class="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg">
+            <i class="fa-solid fa-check"></i>
+        </div>
+        <div>
+            <p id="toastTitle" class="text-xs font-semibold">Frame Copied!</p>
+            <p id="toastMsg" class="text-[11px] text-slate-400">Press Ctrl+V (Cmd+V) on Google Lens page to search.</p>
+        </div>
     </div>
 
-    <div id="frames-container"></div>
-    <div id="toast">Frame copied! Press Ctrl+V in Google Lens to search.</div>
+    <!-- Hidden Video Element for sampling -->
+    <video id="hiddenVideo" class="hidden" preload="auto" muted playsinline></video>
 
+    <!-- JavaScript Logic -->
     <script>
-        document.getElementById('gifInput').addEventListener('change', async function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        // DOM Elements
+        const mediaInput = document.getElementById('mediaInput');
+        const dropzone = document.getElementById('dropzone');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const fileIcon = document.getElementById('fileIcon');
+        const frameCountInput = document.getElementById('frameCountInput');
+        const frameCountVal = document.getElementById('frameCountVal');
+        const extractBtn = document.getElementById('extractBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const progressPercent = document.getElementById('progressPercent');
+        const emptyState = document.getElementById('emptyState');
+        const framesGrid = document.getElementById('framesGrid');
+        const extractedBadge = document.getElementById('extractedBadge');
+        const hiddenVideo = document.getElementById('hiddenVideo');
+        const sizeBtns = document.querySelectorAll('.size-btn');
+        const toast = document.getElementById('toast');
 
-            const container = document.getElementById('frames-container');
-            const loading = document.getElementById('loading');
-            container.innerHTML = '';
-            loading.style.display = 'block';
+        // State Variables
+        let currentFile = null;
+        let currentThumbSize = 'md'; // sm, md, lg
 
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const uint8Array = new Uint8Array(arrayBuffer);
-                
-                const reader = new GifReader(uint8Array);
-                const width = reader.width;
-                const height = reader.height;
-                const numFrames = reader.numFrames();
+        // Mapping Thumbnail sizes to grid class columns
+        const gridClasses = {
+            sm: 'grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3',
+            md: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4',
+            lg: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'
+        };
 
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
+        // Event Listeners
+        frameCountInput.addEventListener('input', (e) => {
+            frameCountVal.textContent = `${e.target.value} frames`;
+        });
 
-                const frameData = new Uint8Array(width * height * 4);
+        sizeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                sizeBtns.forEach(b => {
+                    b.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-500');
+                    b.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700');
+                });
+                btn.classList.remove('bg-slate-800', 'text-slate-300', 'border-slate-700');
+                btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-500');
 
-                for (let i = 0; i < numFrames; i++) {
-                    reader.decodeAndBlitFrameRGBA(i, frameData);
-                    
-                    const imageData = new ImageData(
-                        new Uint8ClampedArray(frameData.buffer, frameData.byteOffset, frameData.byteLength), 
-                        width, 
-                        height
-                    );
-                    ctx.putImageData(imageData, 0, 0);
+                currentThumbSize = btn.dataset.size;
+                updateGridSizeClass();
+            });
+        });
 
-                    // Convert canvas frame to a Blob instead of dataURL
-                    await new Promise((resolve) => {
-                        canvas.toBlob((blob) => {
-                            const blobUrl = URL.createObjectURL(blob);
+        function updateGridSizeClass() {
+            framesGrid.className = `grid ${gridClasses[currentThumbSize]}`;
+        }
 
-                            const card = document.createElement('div');
-                            card.className = 'frame-card';
-                            card.innerHTML = `
-                                <img src="${blobUrl}" alt="Frame ${i + 1}" width="32" height="32">
-                                <div class="frame-label">${i + 1}</div>
-                            `;
+        // File Selection Handlers
+        mediaInput.addEventListener('change', handleFileSelect);
 
-                            // When clicked, copy the clean blob directly and open Lens
-                            card.addEventListener('click', () => copyBlobAndOpenLens(blob));
-                            container.appendChild(card);
-                            resolve();
-                        }, 'image/png');
-                    });
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Failed to parse GIF. Make sure it is a valid GIF file.');
-            } finally {
-                loading.style.display = 'none';
+        // Drag & Drop
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('border-indigo-500', 'bg-slate-800');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('border-indigo-500', 'bg-slate-800');
+            });
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length) {
+                mediaInput.files = files;
+                handleFileSelect();
             }
         });
 
-        async function copyBlobAndOpenLens(blob) {
-            try {
-                const item = new ClipboardItem({ 'image/png': blob });
-                await navigator.clipboard.write([item]);
+        function handleFileSelect() {
+            const file = mediaInput.files[0];
+            if (!file) return;
 
-                window.open('https://lens.google.com', '_blank');
-                showToast();
+            currentFile = file;
+            fileInfo.classList.remove('hidden');
+            fileName.textContent = file.name;
+            fileSize.textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+
+            if (file.type.includes('gif')) {
+                fileIcon.className = 'fa-solid fa-file-image text-indigo-400';
+            } else {
+                fileIcon.className = 'fa-solid fa-file-video text-indigo-400';
+            }
+
+            extractBtn.disabled = false;
+        }
+
+        // Extract Action
+        extractBtn.addEventListener('click', async () => {
+            if (!currentFile) return;
+
+            const targetCount = parseInt(frameCountInput.value, 10);
+            
+            // UI Reset
+            framesGrid.innerHTML = '';
+            emptyState.classList.add('hidden');
+            framesGrid.classList.remove('hidden');
+            progressContainer.classList.remove('hidden');
+            extractBtn.disabled = true;
+
+            try {
+                if (currentFile.type.includes('gif')) {
+                    await extractGifFrames(currentFile, targetCount);
+                } else {
+                    await extractVideoFrames(currentFile, targetCount);
+                }
             } catch (err) {
-                console.error('Clipboard copy failed:', err);
-                alert('Could not copy image to clipboard. Check browser permissions.');
+                console.error(err);
+                showToastNotification('Extraction Failed', 'Could not parse media file.', true);
+            } finally {
+                progressContainer.classList.add('hidden');
+                extractBtn.disabled = false;
+            }
+        });
+
+        // -------------------------------------------------------------
+        // Video Frame Extraction Strategy
+        // -------------------------------------------------------------
+        async function extractVideoFrames(file, targetCount) {
+            const videoUrl = URL.createObjectURL(file);
+            hiddenVideo.src = videoUrl;
+
+            await new Promise((resolve, reject) => {
+                hiddenVideo.onloadedmetadata = () => resolve();
+                hiddenVideo.onerror = (e) => reject(e);
+            });
+
+            const duration = hiddenVideo.duration;
+            if (!duration || isNaN(duration)) {
+                throw new Error("Invalid video duration");
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = hiddenVideo.videoWidth || 640;
+            canvas.height = hiddenVideo.videoHeight || 360;
+            const ctx = canvas.getContext('2d');
+
+            // Calculate evenly spread timestamps
+            const timestamps = [];
+            const step = duration / (targetCount > 1 ? targetCount - 1 : 1);
+            for (let i = 0; i < targetCount; i++) {
+                timestamps.push(Math.min(i * step, duration - 0.05));
+            }
+
+            extractedBadge.textContent = `${timestamps.length} frames`;
+            extractedBadge.classList.remove('hidden');
+
+            for (let i = 0; i < timestamps.length; i++) {
+                const time = timestamps[i];
+                
+                // Seek video
+                await seekVideoToTime(hiddenVideo, time);
+
+                // Render frame
+                ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+
+                // Convert canvas to Blob
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                const timeLabel = formatTimestamp(time);
+                
+                renderFrameCard(blob, i + 1, timeLabel);
+
+                // Update Progress
+                const percent = Math.round(((i + 1) / timestamps.length) * 100);
+                updateProgress(percent, `Extracted video frame ${i + 1} of ${timestamps.length}`);
+            }
+
+            URL.revokeObjectURL(videoUrl);
+        }
+
+        function seekVideoToTime(video, time) {
+            return new Promise((resolve) => {
+                const onSeeked = () => {
+                    video.removeEventListener('seeked', onSeeked);
+                    resolve();
+                };
+                video.addEventListener('seeked', onSeeked);
+                video.currentTime = time;
+            });
+        }
+
+        // -------------------------------------------------------------
+        // GIF Frame Extraction Strategy (Using omggif)
+        // -------------------------------------------------------------
+        async function extractGifFrames(file, targetCount) {
+            const arrayBuffer = await file.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+
+            const reader = new GifReader(uint8Array);
+            const totalGifFrames = reader.numFrames();
+            const width = reader.width;
+            const height = reader.height;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            // Calculate evenly spaced frame indices
+            const indices = [];
+            if (targetCount >= totalGifFrames) {
+                // If requested frames >= total, grab all
+                for (let i = 0; i < totalGifFrames; i++) indices.push(i);
+            } else {
+                const step = (totalGifFrames - 1) / (targetCount - 1);
+                for (let i = 0; i < targetCount; i++) {
+                    indices.push(Math.round(i * step));
+                }
+            }
+
+            extractedBadge.textContent = `${indices.length} frames`;
+            extractedBadge.classList.remove('hidden');
+
+            const frameBuf = new Uint8Array(width * height * 4);
+
+            for (let idx = 0; idx < indices.length; idx++) {
+                const frameIndex = indices[idx];
+
+                // Decode specific frame buffer from omggif
+                reader.decodeAndBlitFrameRGBA(frameIndex, frameBuf);
+
+                const imageData = new ImageData(
+                    new Uint8ClampedArray(frameBuf.buffer, frameBuf.byteOffset, frameBuf.byteLength),
+                    width,
+                    height
+                );
+                ctx.putImageData(imageData, 0, 0);
+
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                renderFrameCard(blob, idx + 1, `Frame ${frameIndex + 1}/${totalGifFrames}`);
+
+                const percent = Math.round(((idx + 1) / indices.length) * 100);
+                updateProgress(percent, `Extracted GIF frame ${idx + 1} of ${indices.length}`);
             }
         }
 
-        function showToast() {
-            const toast = document.getElementById('toast');
-            toast.style.display = 'block';
+        // -------------------------------------------------------------
+        // UI & Helper Functions
+        // -------------------------------------------------------------
+        function renderFrameCard(blob, frameIndex, labelText) {
+            const blobUrl = URL.createObjectURL(blob);
+
+            const card = document.createElement('div');
+            card.className = 'group relative bg-slate-800 border border-slate-700 hover:border-indigo-500 rounded-xl overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col cursor-pointer';
+
+            card.innerHTML = `
+                <div class="relative aspect-video w-full bg-slate-950 flex items-center justify-center overflow-hidden">
+                    <img src="${blobUrl}" alt="Frame ${frameIndex}" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105" />
+                    <div class="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                        <span class="bg-indigo-600 text-white p-2 rounded-full shadow-lg">
+                            <i class="fa-solid fa-copy text-sm"></i>
+                        </span>
+                    </div>
+                </div>
+                <div class="p-2.5 flex items-center justify-between border-t border-slate-700/60 bg-slate-800">
+                    <span class="text-[11px] font-semibold text-slate-300">#${frameIndex}</span>
+                    <span class="text-[10px] text-slate-400 bg-slate-700/50 px-1.5 py-0.5 rounded border border-slate-600/50">${labelText}</span>
+                </div>
+            `;
+
+            card.addEventListener('click', () => copyFrameAndSearchLens(blob));
+            framesGrid.appendChild(card);
+        }
+
+        async function copyFrameAndSearchLens(blob) {
+            try {
+                // Clipboard copy using ClipboardItem
+                const item = new ClipboardItem({ 'image/png': blob });
+                await navigator.clipboard.write([item]);
+
+                // Open Google Lens in a new tab
+                window.open('https://lens.google.com', '_blank');
+
+                showToastNotification('Frame Copied to Clipboard!', 'Press Ctrl+V (or Cmd+V) inside Google Lens to search.');
+            } catch (err) {
+                console.error('Clipboard copy failed:', err);
+                // Fallback attempt or permissions notification
+                showToastNotification('Copy Failed', 'Could not access clipboard. Check browser permissions.', true);
+            }
+        }
+
+        function updateProgress(percent, message) {
+            progressBar.style.width = `${percent}%`;
+            progressPercent.textContent = `${percent}%`;
+            progressText.textContent = message;
+        }
+
+        function formatTimestamp(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            const ms = Math.floor((seconds % 1) * 10);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms}`;
+        }
+
+        function showToastNotification(title, message, isError = false) {
+            const toastTitle = document.getElementById('toastTitle');
+            const toastMsg = document.getElementById('toastMsg');
+
+            toastTitle.textContent = title;
+            toastMsg.textContent = message;
+
+            if (isError) {
+                toast.classList.remove('border-indigo-500/40');
+                toast.classList.add('border-red-500/40');
+            } else {
+                toast.classList.remove('border-red-500/40');
+                toast.classList.add('border-indigo-500/40');
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
             setTimeout(() => {
-                toast.style.display = 'none';
-            }, 3000);
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3500);
         }
     </script>
 </body>
