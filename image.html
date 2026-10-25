@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIF Frame Splitter & Google Lens Search</title>
+    <!-- Include omggif library from CDN to parse GIF frames -->
+    <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .upload-box {
+            background: #fff;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        input[type="file"] {
+            margin-top: 10px;
+        }
+        #frames-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .frame-card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .frame-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border-color: #4285f4;
+        }
+        .frame-card img {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            background: #eee;
+            border-radius: 2px;
+            image-rendering: pixelated;
+        }
+        .frame-label {
+            font-size: 10px;
+            color: #666;
+            margin-top: 2px;
+        }
+        #loading {
+            display: none;
+            font-weight: bold;
+            color: #4285f4;
+            margin-top: 10px;
+        }
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 1000;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>GIF Frame Extractor & Google Lens Search</h1>
+    <p>Upload a GIF to split it into frames (32x32 view). <b>Click any frame</b> to copy it, then paste it (Ctrl+V) into Google Lens!</p>
+
+    <div class="upload-box">
+        <input type="file" id="gifInput" accept="image/gif">
+        <div id="loading">Processing GIF frames... Please wait.</div>
+    </div>
+
+    <div id="frames-container"></div>
+    <div id="toast">Frame copied! Press Ctrl+V in Google Lens to search.</div>
+
+    <script>
+        document.getElementById('gifInput').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const container = document.getElementById('frames-container');
+            const loading = document.getElementById('loading');
+            container.innerHTML = '';
+            loading.style.display = 'block';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+                
+                const reader = new GifReader(uint8Array);
+                const width = reader.width;
+                const height = reader.height;
+                const numFrames = reader.numFrames();
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+
+                const frameData = new Uint8Array(width * height * 4);
+
+                for (let i = 0; i < numFrames; i++) {
+                    reader.decodeAndBlitFrameRGBA(i, frameData);
+                    
+                    const imageData = new ImageData(
+                        new Uint8ClampedArray(frameData.buffer, frameData.byteOffset, frameData.byteLength), 
+                        width, 
+                        height
+                    );
+                    ctx.putImageData(imageData, 0, 0);
+
+                    // Convert canvas frame to a Blob instead of dataURL
+                    await new Promise((resolve) => {
+                        canvas.toBlob((blob) => {
+                            const blobUrl = URL.createObjectURL(blob);
+
+                            const card = document.createElement('div');
+                            card.className = 'frame-card';
+                            card.innerHTML = `
+                                <img src="${blobUrl}" alt="Frame ${i + 1}" width="32" height="32">
+                                <div class="frame-label">${i + 1}</div>
+                            `;
+
+                            // When clicked, copy the clean blob directly and open Lens
+                            card.addEventListener('click', () => copyBlobAndOpenLens(blob));
+                            container.appendChild(card);
+                            resolve();
+                        }, 'image/png');
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Failed to parse GIF. Make sure it is a valid GIF file.');
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        async function copyBlobAndOpenLens(blob) {
+            try {
+                const item = new ClipboardItem({ 'image/png': blob });
+                await navigator.clipboard.write([item]);
+
+                window.open('https://lens.google.com', '_blank');
+                showToast();
+            } catch (err) {
+                console.error('Clipboard copy failed:', err);
+                alert('Could not copy image to clipboard. Check browser permissions.');
+            }
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
