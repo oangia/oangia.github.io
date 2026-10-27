@@ -3,319 +3,299 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Piano Ear Trainer</title>
+    <title>PDF Header & Markdown Extractor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-    </style>
-    <link rel="preload" href="wav/C4.mp3" as="audio" />
-    <link rel="preload" href="wav/D4.mp3" as="audio" />
-    <link rel="preload" href="wav/E4.mp3" as="audio" />
-    <link rel="preload" href="wav/F4.mp3" as="audio" />
-    <link rel="preload" href="wav/G4.mp3" as="audio" />
-    <link rel="preload" href="wav/A4.mp3" as="audio" />
-    <link rel="preload" href="wav/B4.mp3" as="audio" />
-    <link rel="preload" href="wav/C5.mp3" as="audio" />
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col lg:flex-row select-none">
-
-    <!-- SIDEBAR FOR OPTIONS -->
-    <aside class="w-full lg:w-80 bg-slate-800/60 backdrop-blur border-b lg:border-b-0 lg:border-r border-slate-700/60 p-6 flex flex-col gap-6">
-        <div>
-            <h1 class="text-xl font-bold tracking-tight text-white mb-1">🎹</h1>
-        </div>
-
-        <hr class="border-slate-700">
-
-        <!-- Option 1: Speed / Wait Duration -->
-        <div class="flex flex-col gap-2">
-            <label for="speed-range" class="text-sm font-semibold flex justify-between">
-                <span>Reaction Speed</span>
-                <span id="speed-label" class="text-blue-400 font-bold">800 ms</span>
-            </label>
-            <input id="speed-range" type="range" min="300" max="3000" step="50" value="800" 
-                   class="w-full accent-blue-500 cursor-pointer">
-            <span class="text-[11px] text-slate-400">Time given to guess the note before reveal.</span>
-        </div>
-
-        <hr class="border-slate-700">
-
-        <!-- Option 2: Note Selection -->
-        <div class="flex flex-col gap-3">
-            <span class="text-sm font-semibold flex justify-between items-center">
-                <span>Active Notes</span>
-                <button id="select-all-btn" class="text-xs text-blue-400 hover:underline">Toggle All</button>
-            </span>
-            <div id="notes-checkbox-container" class="grid grid-cols-2 gap-2">
-                <!-- Checkboxes generated dynamically -->
-            </div>
-            <span id="note-error-msg" class="text-xs text-rose-400 hidden">Please select at least one note!</span>
-
-            <!-- Play Full Scale Button -->
-            <button id="play-scale-btn" class="mt-2 w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold rounded-lg transition-colors text-sm shadow-sm flex items-center justify-center gap-2 cursor-pointer">
-                🎵 Play Full Scale
-            </button>
-        </div>
-    </aside>
-
-    <!-- MAIN GAME AREA -->
-    <main class="flex-1 flex flex-col items-center justify-center p-6 relative">
-        <div class="flex flex-col items-center gap-8">
-            <div id="circle-container" class="relative w-64 h-64 flex items-center justify-center cursor-pointer group">
-                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="44" class="stroke-slate-800" stroke-width="5" fill="transparent" />
-                    <circle id="timer-ring" cx="50" cy="50" r="44" class="stroke-blue-500 transition-all duration-75" stroke-width="5" stroke-dasharray="276.46" stroke-dashoffset="276.46" stroke-linecap="round" fill="transparent" />
-                </svg>
-                <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span id="center-display" class="text-6xl font-black tracking-tight text-white group-hover:scale-105 transition-transform">▶</span>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Load audio file properly -->
-    <script>
-        const ALL_NOTES = [
-            { note: 'C', name: 'C', file: 'wav/C4.mp3' },
-            { note: 'D', name: 'D', file: 'wav/D4.mp3' },
-            { note: 'E', name: 'E', file: 'wav/E4.mp3' },
-            { note: 'F', name: 'F', file: 'wav/F4.mp3' },
-            { note: 'G', name: 'G', file: 'wav/G4.mp3' },
-            { note: 'A', name: 'A', file: 'wav/A4.mp3' },
-            { note: 'B', name: 'B', file: 'wav/B4.mp3' },
-            { note: 'C2', name: 'C', file: 'wav/C5.mp3' }
-        ];
-
-        // --- COOKIE HELPER FUNCTIONS ---
-        function setCookie(name, value, days = 365) {
-            const d = new Date();
-            d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
-            let expires = "expires=" + d.toUTCString();
-            document.cookie = name + "=" + encodeURIComponent(value) + ";" + expires + ";path=/";
-        }
-
-        function getCookie(name) {
-            let nameEQ = name + "=";
-            let ca = document.cookie.split(';');
-            for (let i = 0; i < ca.length; i++) {
-                let c = ca[i];
-                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-                if (c.indexOf(nameEQ) == 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
-            }
-            return null;
-        }
-
-        // --- LOAD INITIAL SETTINGS FROM COOKIES ---
-        const savedSpeed = getCookie('earTrainerSpeed');
-        let guessDuration = savedSpeed ? parseInt(savedSpeed) : 2000;
-
-        let savedNoteIndices = getCookie('earTrainerNotes');
-        let defaultIndices = savedNoteIndices ? JSON.parse(savedNoteIndices) : ALL_NOTES.map((_, i) => i);
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6 font-sans">
+    
+    <div class="w-full max-w-4xl bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-8 flex flex-col gap-6">
         
-        let activeNotes = defaultIndices.map(i => ALL_NOTES[i]);
+        <!-- Controls & Options Header -->
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900/50 border border-slate-700/60 p-4 rounded-xl">
+            <label class="w-full md:w-auto flex-1 cursor-pointer">
+                <span class="sr-only">Choose PDF file</span>
+                <input type="file" id="pdfUpload" accept=".pdf" class="block w-full text-sm text-slate-400
+                    file:mr-4 file:py-2.5 file:px-4
+                    file:rounded-xl file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-indigo-600 file:text-white
+                    hover:file:bg-indigo-500
+                    file:cursor-pointer transition-all
+                "/>
+            </label>
 
-        let isPlaying = false;
-        let currentTimeout = null;
-        let animationFrameId = null;
+            <!-- Mode Selector -->
+            <div class="flex items-center gap-3 bg-slate-800 border border-slate-700 p-2 rounded-xl text-sm w-full md:w-auto justify-between md:justify-start">
+                <span class="text-slate-400 text-xs font-semibold uppercase tracking-wider pl-1">Mode:</span>
+                <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                    <input type="radio" name="extractMode" value="headers" class="accent-indigo-500">
+                    <span>Headers Only</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                    <input type="radio" name="extractMode" value="markdown" checked class="accent-indigo-500">
+                    <span class="font-medium text-indigo-400">Full .MD File</span>
+                </label>
+            </div>
+        </div>
 
-        const circleContainer = document.getElementById('circle-container');
-        const timerRing = document.getElementById('timer-ring');
-        const centerDisplay = document.getElementById('center-display');
-        const speedRange = document.getElementById('speed-range');
-        const speedLabel = document.getElementById('speed-label');
-        const notesContainer = document.getElementById('notes-checkbox-container');
-        const selectAllBtn = document.getElementById('select-all-btn');
-        const noteErrorMsg = document.getElementById('note-error-msg');
-        const playScaleBtn = document.getElementById('play-scale-btn');
+        <!-- Output Header and Action Buttons -->
+        <div class="flex items-center justify-between">
+            <span id="outputLabel" class="text-xs font-semibold uppercase tracking-wider text-slate-400">Markdown (.md) Content</span>
+            <div class="flex gap-2">
+                <button id="copyBtn" onclick="copyOutput()" class="hidden px-3 py-1.5 text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors">
+                    Copy
+                </button>
+                <button id="downloadBtn" onclick="downloadMd()" class="hidden px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors">
+                    Download .md
+                </button>
+            </div>
+        </div>
 
-        const circumference = 2 * Math.PI * 44;
+        <!-- Output Display -->
+        <pre id="output" class="w-full h-96 bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 overflow-y-auto whitespace-pre-wrap font-mono">Select a PDF file to begin extraction...</pre>
+    </div>
 
-        // Set initial slider UI state from loaded cookie
-        speedRange.value = guessDuration;
-        speedLabel.textContent = guessDuration + " ms";
-
-        // --- RENDER CHECKBOXES DYNAMICALLY ---
-        function initNoteCheckboxes() {
-            notesContainer.innerHTML = '';
-            ALL_NOTES.forEach((item, index) => {
-                const label = document.createElement('label');
-                label.className = "flex items-center gap-2.5 bg-slate-900/40 p-2.5 rounded-lg border border-slate-700/50 cursor-pointer hover:border-slate-600 transition-colors";
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.value = index;
-                checkbox.checked = defaultIndices.includes(index);
-                checkbox.className = "w-4 h-4 rounded accent-blue-500 bg-slate-900 border-slate-700";
-                
-                checkbox.addEventListener('change', updateActiveNotes);
-
-                const span = document.createElement('span');
-                span.className = "text-sm font-medium text-slate-200";
-                span.textContent = `${item.note}`;
-
-                label.appendChild(checkbox);
-                label.appendChild(span);
-                notesContainer.appendChild(label);
-            });
+    <script>
+        // Use inline worker fallback to bypass browser worker CDN restrictions
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         }
 
-        function updateActiveNotes() {
-            const checkboxes = notesContainer.querySelectorAll('input[type="checkbox"]');
-            activeNotes = [];
-            const selectedIndices = [];
+        let currentFile = null;
 
-            checkboxes.forEach((cb) => {
-                if (cb.checked) {
-                    const idx = parseInt(cb.value);
-                    activeNotes.push(ALL_NOTES[idx]);
-                    selectedIndices.push(idx);
-                }
-            });
-
-            // Save selected note indices to cookie
-            setCookie('earTrainerNotes', JSON.stringify(selectedIndices));
-
-            if (activeNotes.length === 0) {
-                noteErrorMsg.classList.remove('hidden');
-                if (isPlaying) stopLoop();
-            } else {
-                noteErrorMsg.classList.add('hidden');
-            }
-        }
-
-        // Speed slider listener
-        speedRange.addEventListener('input', (e) => {
-            guessDuration = parseInt(e.target.value);
-            speedLabel.textContent = guessDuration + " ms";
-            // Save speed to cookie
-            setCookie('earTrainerSpeed', guessDuration);
-        });
-
-        // Toggle All button
-        selectAllBtn.addEventListener('click', () => {
-            const checkboxes = notesContainer.querySelectorAll('input[type="checkbox"]');
-            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-            checkboxes.forEach(cb => cb.checked = !allChecked);
-            updateActiveNotes();
-        });
-
-        // --- PLAY LOCAL WAV AUDIO ---
-        function playSampleAudio(filePath) {
-            const audio = new Audio(filePath);
-            audio.currentTime = 0;
-            audio.play().catch(err => {
-                console.error("Error playing WAV file:", err);
-            });
-        }
-
-        // Play Full Scale Button Listener
-        playScaleBtn.addEventListener('click', () => {
-            if (isPlaying) stopLoop();
-
-            ALL_NOTES.forEach((item, index) => {
-                setTimeout(() => {
-                    centerDisplay.textContent = item.name;
-                    centerDisplay.className = "text-6xl font-black tracking-tight text-blue-400";
-                    timerRing.style.stroke = "#3b82f6";
-                    timerRing.style.strokeDashoffset = "0";
-
-                    playSampleAudio(item.file);
-
-                    if (index === ALL_NOTES.length - 1) {
-                        setTimeout(() => {
-                            if (!isPlaying) {
-                                centerDisplay.textContent = "▶";
-                                centerDisplay.className = "text-6xl font-black tracking-tight text-white group-hover:scale-105 transition-transform";
-                                timerRing.style.strokeDashoffset = circumference;
-                            }
-                        }, 600);
-                    }
-                }, index * 400);
+        document.querySelectorAll('input[name="extractMode"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const mode = document.querySelector('input[name="extractMode"]:checked').value;
+                document.getElementById('outputLabel').textContent = mode === 'markdown' ? 'Markdown (.md) Content' : 'Headers Extraction Output';
+                if (currentFile) processPdf(currentFile);
             });
         });
 
-        function toggleSession() {
-            if (activeNotes.length === 0) {
-                noteErrorMsg.classList.remove('hidden');
-                return;
-            }
-            if (isPlaying) {
-                stopLoop();
-            } else {
-                startLoop();
-            }
-        }
+        document.getElementById('pdfUpload').addEventListener('change', function(e) {
+            currentFile = e.target.files[0];
+            if (currentFile) processPdf(currentFile);
+        });
 
-        function startLoop() {
-            isPlaying = true;
-
-            centerDisplay.textContent = activeNotes[0].name;
-            centerDisplay.className = "text-6xl font-black tracking-tight text-blue-400";
-            timerRing.style.stroke = "#3b82f6";
-            timerRing.style.strokeDashoffset = "0";
-
-            playSampleAudio(activeNotes[0].file);
-
-            currentTimeout = setTimeout(() => {
-                if (!isPlaying) return;
-                runRandomStep();
-            }, 2000);
-        }
-
-        function runRandomStep() {
-            if (!isPlaying || activeNotes.length === 0) return;
-
-            const randomIndex = Math.floor(Math.random() * activeNotes.length);
-            const currentItem = activeNotes[randomIndex];
-
-            playSampleAudio(currentItem.file);
+        async function processPdf(file) {
+            const output = document.getElementById('output');
+            const copyBtn = document.getElementById('copyBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
             
-            centerDisplay.textContent = "";
-            centerDisplay.className = "text-6xl font-black tracking-tight text-amber-400 animate-pulse";
-            timerRing.style.stroke = "#f59e0b";
+            output.textContent = 'Reading file...';
+            copyBtn.classList.add('hidden');
+            downloadBtn.classList.add('hidden');
 
-            const startTime = performance.now();
+            const mode = document.querySelector('input[name="extractMode"]:checked').value;
 
-            function updateTimer(timestamp) {
-                if (!isPlaying) return;
-                const elapsed = timestamp - startTime;
-                const progress = elapsed / guessDuration;
+            try {
+                const reader = new FileReader();
+                reader.onload = async function() {
+                    try {
+                        output.textContent = 'Parsing PDF document...';
+                        const typedarray = new Uint8Array(this.result);
+                        const pdfDoc = await pdfjsLib.getDocument({ data: typedarray }).promise;
 
-                timerRing.style.strokeDashoffset = circumference * Math.min(progress, 1);
+                        if (mode === 'headers') {
+                            await extractHeadersOnly(pdfDoc);
+                        } else {
+                            await extractAsMarkdown(pdfDoc, file.name);
+                        }
 
-                if (elapsed < guessDuration) {
-                    animationFrameId = requestAnimationFrame(updateTimer);
-                } else {
-                    centerDisplay.textContent = currentItem.name;
-                    centerDisplay.className = "text-6xl font-black tracking-tight text-emerald-400";
-                    timerRing.style.stroke = "#10b981";
-                    timerRing.style.strokeDashoffset = "0";
+                        copyBtn.classList.remove('hidden');
+                        if (mode === 'markdown') downloadBtn.classList.remove('hidden');
+                    } catch (err) {
+                        output.textContent = 'PDF Processing Error: ' + err.message;
+                    }
+                };
+                reader.onerror = () => output.textContent = 'Failed to read local file.';
+                reader.readAsArrayBuffer(file);
 
-                    currentTimeout = setTimeout(() => {
-                        if (!isPlaying) return;
-                        runRandomStep();
-                    }, 800);
+            } catch (error) {
+                output.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function extractAsMarkdown(pdfDoc, fileName) {
+            const output = document.getElementById('output');
+            let mdLines = [];
+
+            const documentTitle = fileName.replace(/\.pdf$/i, '');
+            mdLines.push(`# ${documentTitle}\n`);
+
+            const outline = await pdfDoc.getOutline().catch(() => null);
+            if (outline && outline.length > 0) {
+                mdLines.push(`## Table of Contents\n`);
+                function processOutline(items, indent = '') {
+                    for (let item of items) {
+                        if (item.title) {
+                            mdLines.push(`${indent}- ${item.title.trim()}`);
+                        }
+                        if (item.items && item.items.length > 0) {
+                            processOutline(item.items, indent + '  ');
+                        }
+                    }
+                }
+                processOutline(outline);
+                mdLines.push('\n---\n');
+            }
+
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                output.textContent = `Processing Page ${i} of ${pdfDoc.numPages}...`;
+                const page = await pdfDoc.getPage(i);
+                const textContent = await page.getTextContent();
+                const items = textContent.items;
+                const styles = textContent.styles || {};
+
+                if (items.length === 0) continue;
+
+                mdLines.push(`\n## Page ${i}\n`);
+
+                let heights = items.map(item => item.height || Math.abs(item.transform[3]));
+                let avgHeight = heights.reduce((a, b) => a + b, 0) / (heights.length || 1);
+
+                let linesMap = {};
+                items.forEach(item => {
+                    if (!item.str || !item.str.trim()) return;
+                    let y = Math.round(item.transform[5] / 4) * 4;
+                    if (!linesMap[y]) linesMap[y] = [];
+                    
+                    let fontName = item.fontName;
+                    let fontStyle = styles[fontName] || {};
+                    let isBold = (fontStyle.name && /bold|black|heavy/i.test(fontStyle.name)) || 
+                                 (fontName && /bold|black|heavy/i.test(fontName));
+
+                    linesMap[y].push({
+                        str: item.str,
+                        height: item.height || Math.abs(item.transform[3]),
+                        isBold: isBold,
+                        x: item.transform[4]
+                    });
+                });
+
+                let sortedYs = Object.keys(linesMap).map(Number).sort((a, b) => b - a);
+
+                for (let y of sortedYs) {
+                    let lineItems = linesMap[y].sort((a, b) => a.x - b.x);
+                    let lineText = lineItems.map(it => it.str).join(' ').trim();
+                    let maxHeight = Math.max(...lineItems.map(it => it.height));
+                    let hasBold = lineItems.some(it => it.isBold);
+
+                    if (!lineText) continue;
+
+                    if (maxHeight > avgHeight * 1.4) {
+                        mdLines.push(`\n### ${lineText}\n`);
+                    } else if (maxHeight > avgHeight * 1.15 || (hasBold && maxHeight >= avgHeight * 0.95 && lineText.length < 100)) {
+                        mdLines.push(`\n#### ${lineText}\n`);
+                    } else if (hasBold) {
+                        if (/^[\bullet\-\*]/.test(lineText)) {
+                            mdLines.push(`- **${lineText.replace(/^[\bullet\-\*]\s*/, '')}**`);
+                        } else {
+                            mdLines.push(`**${lineText}**`);
+                        }
+                    } else {
+                        mdLines.push(lineText);
+                    }
                 }
             }
 
-            animationFrameId = requestAnimationFrame(updateTimer);
+            output.textContent = mdLines.length > 0 ? mdLines.join('\n') : 'No content extracted.';
         }
 
-        function stopLoop() {
-            isPlaying = false;
-            if (currentTimeout) clearTimeout(currentTimeout);
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        async function extractHeadersOnly(pdfDoc) {
+            const output = document.getElementById('output');
+            let results = [];
 
-            centerDisplay.textContent = "▶";
-            centerDisplay.className = "text-6xl font-black tracking-tight text-white group-hover:scale-105 transition-transform";
-            timerRing.style.stroke = "#3b82f6";
-            timerRing.style.strokeDashoffset = circumference;
+            const outline = await pdfDoc.getOutline().catch(() => null);
+            if (outline && outline.length > 0) {
+                function extractOutlineTitles(items) {
+                    let titles = [];
+                    for (let item of items) {
+                        if (item.title) titles.push(item.title.trim());
+                        if (item.items && item.items.length > 0) {
+                            titles.push(...extractOutlineTitles(item.items));
+                        }
+                    }
+                    return titles;
+                }
+                results.push("--- OUTLINE TITLES ---");
+                results.push(...extractOutlineTitles(outline));
+            }
+
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                output.textContent = `Checking headers on Page ${i} of ${pdfDoc.numPages}...`;
+                const page = await pdfDoc.getPage(i);
+                const textContent = await page.getTextContent();
+                const items = textContent.items;
+                const styles = textContent.styles || {};
+
+                if (items.length === 0) continue;
+
+                let heights = items.map(item => item.height || Math.abs(item.transform[3]));
+                let avgHeight = heights.reduce((a, b) => a + b, 0) / heights.length;
+
+                let linesMap = {};
+                items.forEach(item => {
+                    if (!item.str || !item.str.trim()) return;
+                    let y = Math.round(item.transform[5] / 4) * 4;
+                    if (!linesMap[y]) linesMap[y] = [];
+                    
+                    let fontName = item.fontName;
+                    let fontStyle = styles[fontName] || {};
+                    let isBold = (fontStyle.name && /bold|black|heavy/i.test(fontStyle.name)) || 
+                                 (fontName && /bold|black|heavy/i.test(fontName));
+
+                    linesMap[y].push({
+                        str: item.str,
+                        height: item.height || Math.abs(item.transform[3]),
+                        isBold: isBold,
+                        x: item.transform[4]
+                    });
+                });
+
+                let sortedYs = Object.keys(linesMap).map(Number).sort((a, b) => b - a);
+                let pageHeaders = [];
+
+                for (let y of sortedYs) {
+                    let lineItems = linesMap[y].sort((a, b) => a.x - b.x);
+                    let lineText = lineItems.map(it => it.str).join(' ').trim();
+                    let maxHeight = Math.max(...lineItems.map(it => it.height));
+                    let hasBold = lineItems.some(it => it.isBold);
+
+                    if ((maxHeight > avgHeight * 1.1) || (hasBold && maxHeight >= avgHeight * 0.95 && lineText.length < 120)) {
+                        pageHeaders.push(lineText);
+                    }
+                }
+
+                let uniqueHeaders = [...new Set(pageHeaders)];
+                if (uniqueHeaders.length > 0) {
+                    results.push(`--- Page ${i} ---`);
+                    results.push(...uniqueHeaders);
+                }
+            }
+
+            output.textContent = results.length > 0 ? results.join('\n') : 'No headers found.';
         }
 
-        // Initialize UI and load selections
-        initNoteCheckboxes();
-        circleContainer.addEventListener('click', toggleSession);
+        function copyOutput() {
+            const text = document.getElementById('output').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyBtn');
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 2000);
+            });
+        }
+
+        function downloadMd() {
+            const text = document.getElementById('output').textContent;
+            const blob = new Blob([text], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFile ? `${currentFile.name.replace(/\.pdf$/i, '')}.md` : 'document.md';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
     </script>
 </body>
 </html>
