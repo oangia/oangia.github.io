@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase File Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="bg-blue-500 p-2 rounded-xl shadow-md text-white">
+          <i class="fa-solid fa-folder-tree text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight">Firebase File Manager</h1>
+          <p class="text-[11px] text-slate-400">Folders, Thumbnails & Chunked Storage</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <span id="statusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span>Local / Demo</span>
+        </span>
+
+        <button id="toggleConfigBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-2 border border-slate-700">
+          <i class="fa-solid fa-gear"></i>
+          <span>Firebase Config</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 w-full flex-1 flex flex-col space-y-4">
+
+    <!-- Config Panel -->
+    <div id="configPanel" class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden hidden transition-all">
+      <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
+        <h2 class="font-semibold text-sm flex items-center gap-2"><i class="fa-solid fa-key text-amber-400"></i> Firebase Config</h2>
+        <button id="closeConfigBtn" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <textarea id="configTextarea" rows="6" class="w-full text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 custom-scrollbar" placeholder='const firebaseConfig = { ... };'></textarea>
+        <div class="flex items-center justify-between text-xs text-slate-500">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="rememberCookie" checked class="rounded text-amber-500">
+            <span>Save in cookie (30 days)</span>
+          </label>
+          <button id="clearCookieBtn" class="text-red-500 underline font-medium">Clear Cookie</button>
+        </div>
+        <button id="saveConfigBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-2">
+          <i class="fa-solid fa-floppy-disk"></i> Apply & Save Config
+        </button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 justify-between items-center">
+      <div class="flex items-center gap-2">
+        <a href="index.html" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
+          <i class="fa-solid fa-arrow-left"></i> Notes App
+        </a>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="openFolderModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
+          <i class="fa-solid fa-folder-plus text-amber-600"></i> New Folder
+        </button>
+        <button id="openCreateModalBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
+        </button>
+        <button id="backupDataBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
+          <i class="fa-solid fa-file-arrow-down"></i> Backup All Files
+        </button>
+      </div>
+    </div>
+
+    <!-- FILE MANAGER GRID CONTAINER -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col space-y-4">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div id="breadcrumbsBar" class="flex items-center gap-2 text-xs font-semibold text-slate-700"></div>
+        <span id="fileCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg">0 items</span>
+      </div>
+      <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+    </div>
+
+  </main>
+
+  <!-- MODAL: NEW FOLDER -->
+  <div id="createFolderModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 space-y-4">
+      <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-folder-plus text-amber-500"></i> Create Folder</h3>
+      <input type="text" id="folderNameInput" placeholder="Folder name..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <div class="flex gap-2 justify-end pt-2">
+        <button type="button" id="cancelFolderBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+        <button type="button" id="submitFolderBtn" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: UPLOAD FILE -->
+  <div id="createFileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl p-6 space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+        <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Upload File</h3>
+        <button id="closeFileModalBtn" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form id="createFileForm" class="space-y-4">
+        <div class="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-5 text-center">
+          <label class="cursor-pointer block">
+            <i class="fa-solid fa-file-arrow-up text-blue-500 text-2xl mb-1"></i>
+            <p class="text-xs font-semibold text-slate-700">Select Image, Video or Document</p>
+            <input type="file" id="chunkFileInput" required class="mt-2 block w-full text-xs text-slate-500 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-blue-50 file:text-blue-700">
+          </label>
+        </div>
+        <div class="pt-2 flex gap-3 justify-end">
+          <button type="button" id="cancelFileBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+          <button type="submit" id="submitFileBtn" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Upload File</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: VIEW FILE PREVIEW -->
+  <div id="viewModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden">
+      <div class="bg-slate-900 text-white p-4 px-6 flex justify-between items-center">
+        <h3 id="viewModalTitle" class="font-bold text-base">File Preview</h3>
+        <button id="closeViewModalBtn" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div id="viewContentContainer" class="bg-slate-50 border border-slate-200 rounded-xl p-5 max-h-[400px] overflow-y-auto flex items-center justify-center">
+          <i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500"></i>
+        </div>
+        <div class="flex justify-between items-center pt-2 border-t border-slate-100">
+          <span id="viewDate" class="text-xs text-slate-400"></span>
+          <a id="downloadFileBtn" href="#" download="" class="hidden bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold items-center gap-2">
+            <i class="fa-solid fa-download"></i> Download
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { FirebaseService } from "./firebase-service.js";
+
+    const fbService = new FirebaseService();
+    let currentFolders = [];
+    let currentFiles = [];
+    let currentChunks = [];
+    let currentFolderId = "root";
+
+    function showToast(msg, type = "info") {
+      const container = document.getElementById("toastContainer");
+      const toast = document.createElement("div");
+      const bgColors = { success: "bg-emerald-600", error: "bg-red-600", info: "bg-slate-900" };
+      toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-xs font-medium text-white ${bgColors[type]} transition-all transform translate-y-2 opacity-0 pointer-events-auto`;
+      toast.innerHTML = `<i class="fa-solid fa-circle-info text-base"></i> <span>${msg}</span>`;
+      container.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.remove("translate-y-2", "opacity-0"));
+      setTimeout(() => { toast.classList.add("opacity-0", "translate-y-2"); setTimeout(() => toast.remove(), 300); }, 3000);
+    }
+
+    function renderStatus(isCloud, err = null) {
+      const badge = document.getElementById("statusBadge");
+      if (isCloud) {
+        badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Live Cloud`;
+      } else {
+        badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Local Demo`;
+      }
+      if (err) showToast(err, "error");
+    }
+
+    function renderFileManager() {
+      const grid = document.getElementById("fileGridContainer");
+      const breadcrumbs = document.getElementById("breadcrumbsBar");
+
+      if (currentFolderId === "root") {
+        breadcrumbs.innerHTML = `<span class="text-blue-600 font-bold"><i class="fa-solid fa-house"></i> Home</span>`;
+      } else {
+        const folder = currentFolders.find(f => f.id === currentFolderId);
+        breadcrumbs.innerHTML = `
+          <button onclick="window.navigateToFolder('root')" class="hover:text-blue-600"><i class="fa-solid fa-house"></i> Home</button>
+          <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+          <span class="text-blue-600 font-bold">${folder ? folder.name : 'Folder'}</span>
+        `;
+      }
+
+      const subFolders = currentFolders.filter(f => f.parentId === currentFolderId);
+      const dirFiles = currentFiles.filter(f => f.folderId === currentFolderId);
+
+      document.getElementById("fileCountBadge").textContent = `${subFolders.length} folders, ${dirFiles.length} files`;
+
+      let html = "";
+      subFolders.forEach(folder => {
+        html += `
+          <div ondblclick="window.navigateToFolder('${folder.id}')" onclick="window.navigateToFolder('${folder.id}')" class="bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition group shadow-sm">
+            <i class="fa-solid fa-folder text-amber-400 text-4xl group-hover:scale-110 transition"></i>
+            <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${escapeHtml(folder.name)}</span>
+            <button onclick="event.stopPropagation(); window.deleteFolder('${folder.id}')" class="text-slate-300 hover:text-red-500 text-xs"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        `;
+      });
+
+      dirFiles.forEach(file => {
+        let thumbHtml = `<i class="fa-solid fa-file-lines text-blue-400 text-4xl"></i>`;
+        if (file.thumbnail) {
+          thumbHtml = `<img src="${file.thumbnail}" class="w-full h-20 object-cover rounded-xl shadow-inner">`;
+        } else if (file.category === 'Media') {
+          thumbHtml = `<i class="fa-solid fa-file-video text-purple-400 text-4xl"></i>`;
+        }
+
+        html += `
+          <div onclick="window.viewFile('${file.id}', '${file.fileId}')" class="bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-2xl p-3 flex flex-col items-center justify-between gap-2 cursor-pointer transition group shadow-sm">
+            <div class="w-full flex justify-center items-center h-20 bg-slate-100 rounded-xl overflow-hidden">
+              ${thumbHtml}
+            </div>
+            <span class="text-xs font-semibold text-slate-800 truncate w-full text-center" title="${escapeHtml(file.title)}">${escapeHtml(file.title)}</span>
+            <div class="flex justify-between w-full items-center text-[10px] text-slate-400 pt-1 border-t border-slate-100">
+              <span>${file.totalParts || 1} chunks</span>
+              <button onclick="event.stopPropagation(); window.deleteFile('${file.id}', '${file.fileId}')" class="hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>
+        `;
+      });
+
+      if (subFolders.length === 0 && dirFiles.length === 0) {
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300 block"></i>This folder is empty</div>`;
+      } else {
+        grid.innerHTML = html;
+      }
+    }
+
+    window.navigateToFolder = (folderId) => {
+      currentFolderId = folderId;
+      renderFileManager();
+    };
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // Modal Triggers
+    document.getElementById("openFolderModalBtn").addEventListener("click", () => {
+      document.getElementById("folderNameInput").value = "";
+      document.getElementById("createFolderModal").classList.remove("hidden");
+    });
+    document.getElementById("cancelFolderBtn").addEventListener("click", () => document.getElementById("createFolderModal").classList.add("hidden"));
+    
+    document.getElementById("submitFolderBtn").addEventListener("click", async () => {
+      const name = document.getElementById("folderNameInput").value.trim();
+      if (!name) return;
+      await fbService.create("folders", { name, parentId: currentFolderId });
+      showToast("Folder created!", "success");
+      document.getElementById("createFolderModal").classList.add("hidden");
+    });
+
+    document.getElementById("openCreateModalBtn").addEventListener("click", () => {
+      document.getElementById("createFileForm").reset();
+      document.getElementById("createFileModal").classList.remove("hidden");
+    });
+
+    document.getElementById("closeFileModalBtn").addEventListener("click", () => document.getElementById("createFileModal").classList.add("hidden"));
+    document.getElementById("cancelFileBtn").addEventListener("click", () => document.getElementById("createFileModal").classList.add("hidden"));
+
+    // Chunked File Upload Handler
+    document.getElementById("createFileForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const file = document.getElementById("chunkFileInput").files[0];
+      if (!file) return;
+
+      const submitBtn = document.getElementById("submitFileBtn");
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
+
+      const reader = new FileReader();
+      reader.onload = async function(uploadEvent) {
+        const base64Data = uploadEvent.target.result;
+        let thumbnail = "";
+        if (file.type.startsWith("image/")) {
+          thumbnail = await generateThumbnail(base64Data, 150);
+        }
+
+        const CHUNK_SIZE = 700000;
+        const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
+        const fileId = "file_" + Date.now();
+
+        try {
+          await fbService.create("files", {
+            fileId,
+            title: file.name,
+            category: file.type.startsWith("image/") ? "Image" : "Media",
+            folderId: currentFolderId,
+            totalParts,
+            thumbnail
+          });
+
+          for (let i = 0; i < totalParts; i++) {
+            const chunkData = base64Data.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+            await fbService.create("file_chunks", {
+              fileId,
+              partIndex: i,
+              chunkData
+            });
+          }
+
+          showToast("File uploaded and chunked successfully!", "success");
+          document.getElementById("createFileModal").classList.add("hidden");
+        } catch (err) {
+          showToast("Upload failed: " + err.message, "error");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Upload File";
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function generateThumbnail(base64Str, maxSize = 150) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let w = img.width, h = img.height;
+          if (w > h) { h = Math.round((h * maxSize) / w); w = maxSize; }
+          else { w = Math.round((w * maxSize) / h); h = maxSize; }
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.6));
+        };
+        img.onerror = () => resolve("");
+      });
+    }
+
+    // View File Reassembly & Preview
+    window.viewFile = async (id, fileId) => {
+      const item = currentFiles.find(f => f.id === id || f.fileId === fileId);
+      if (!item) return;
+
+      document.getElementById("viewModalTitle").textContent = item.title;
+      document.getElementById("viewDate").innerHTML = `<i class="fa-regular fa-clock"></i> ${item.formattedDate || 'Recent'}`;
+      
+      const container = document.getElementById("viewContentContainer");
+      const downloadBtn = document.getElementById("downloadFileBtn");
+      
+      container.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i><p class="text-xs text-slate-500">Reassembling file chunks...</p>`;
+      document.getElementById("viewModal").classList.remove("hidden");
+
+      const relevantChunks = currentChunks.filter(c => c.fileId === item.fileId);
+      relevantChunks.sort((a, b) => a.partIndex - b.partIndex);
+      const fullBase64 = relevantChunks.map(c => c.chunkData).join("");
+
+      if (fullBase64.startsWith("data:image/")) {
+        container.innerHTML = `<img src="${fullBase64}" class="max-h-85 rounded-xl shadow-md object-contain">`;
+      } else if (fullBase64.startsWith("data:video/")) {
+        container.innerHTML = `<video controls class="w-full max-h-85 rounded-xl shadow-md bg-black"><source src="${fullBase64}"></video>`;
+      } else {
+        container.innerHTML = `<div class="text-center py-6"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-sm font-semibold">${escapeHtml(item.title)}</p></div>`;
+      }
+
+      downloadBtn.href = fullBase64;
+      downloadBtn.download = item.title;
+      downloadBtn.classList.remove("hidden");
+      downloadBtn.classList.add("flex");
+    };
+
+    document.getElementById("closeViewModalBtn").addEventListener("click", () => {
+      document.getElementById("viewContentContainer").innerHTML = "";
+      document.getElementById("viewModal").classList.add("hidden");
+    });
+
+    window.deleteFolder = async (id) => {
+      if (!confirm("Delete folder?")) return;
+      await fbService.delete("folders", id);
+      showToast("Folder deleted", "success");
+    };
+
+    window.deleteFile = async (id, fileId) => {
+      if (!confirm("Delete file and its chunks?")) return;
+      await fbService.delete("files", id);
+      const matchingChunks = currentChunks.filter(c => c.fileId === fileId);
+      for (const chunk of matchingChunks) {
+        await fbService.delete("file_chunks", chunk.id);
+      }
+      showToast("File deleted", "success");
+    };
+
+    // Full Comprehensive Backup (All Collections)
+    document.getElementById("backupDataBtn").addEventListener("click", () => {
+      const backupPayload = {
+        posts: fbService.isLiveMode ? currentNotesCache : fbService.getLocal("posts"),
+        folders: currentFolders,
+        files: currentFiles,
+        file_chunks: currentChunks,
+        exportedAt: new Date().toISOString()
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `firebase_file_manager_full_backup_${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast("Complete full backup downloaded!", "success");
+    });
+
+    // Config Panel
+    document.getElementById("toggleConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.toggle("hidden"));
+    document.getElementById("closeConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.add("hidden"));
+    document.getElementById("saveConfigBtn").addEventListener("click", () => {
+      const rawText = document.getElementById("configTextarea").value;
+      const parsed = fbService.parseConfig(rawText);
+      if (!parsed) { showToast("Invalid config syntax", "error"); return; }
+      if (document.getElementById("rememberCookie").checked) fbService.setCookie(fbService.cookieName, rawText, 30);
+      if (fbService.connect(parsed)) {
+        showToast("Connected to Firebase!", "success");
+        initSubscriptions();
+      }
+      document.getElementById("configPanel").classList.add("hidden");
+    });
+    document.getElementById("clearCookieBtn").addEventListener("click", () => {
+      fbService.eraseCookie(fbService.cookieName);
+      document.getElementById("configTextarea").value = "";
+      showToast("Cookie cleared", "info");
+      startLocalDemo();
+    });
+
+    let currentNotesCache = [];
+    function initSubscriptions() {
+      if (fbService.isLiveMode) {
+        fbService.subscribe("posts", (data) => { currentNotesCache = data; });
+        fbService.subscribe("folders", (data) => { currentFolders = data; renderFileManager(); });
+        fbService.subscribe("files", (data) => { currentFiles = data; renderFileManager(); });
+        fbService.subscribe("file_chunks", (data) => { currentChunks = data; });
+      }
+    }
+
+    function startLocalDemo() {
+      if (!localStorage.getItem("demo_folders")) {
+        localStorage.setItem("demo_folders", JSON.stringify([{ id: "f-1", name: "Sample Folder", parentId: "root", createdAt: new Date().toISOString() }]));
+      }
+      if (!localStorage.getItem("demo_files")) localStorage.setItem("demo_files", JSON.stringify([]));
+      if (!localStorage.getItem("demo_file_chunks")) localStorage.setItem("demo_file_chunks", JSON.stringify([]));
+
+      currentNotesCache = fbService.getLocal("posts");
+      currentFolders = fbService.getLocal("folders");
+      currentFiles = fbService.getLocal("files");
+      currentChunks = fbService.getLocal("file_chunks");
+
+      renderFileManager();
+    }
+
+    // Startup
+    const saved = fbService.getCookie(fbService.cookieName);
+    if (saved) {
+      document.getElementById("configTextarea").value = saved;
+      const parsed = fbService.parseConfig(saved);
+      if (parsed && fbService.connect(parsed)) {
+        renderStatus(true);
+        initSubscriptions();
+      } else {
+        renderStatus(false);
+        startLocalDemo();
+      }
+    } else {
+      renderStatus(false);
+      startLocalDemo();
+    }
+  </script>
+</body>
+</html>
