@@ -78,7 +78,7 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <button id="openFolderModalBtn" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
+        <button id="openFolderModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
           <i class="fa-solid fa-folder-plus text-amber-600"></i> New Folder
         </button>
         <button id="openCreateModalBtn" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm">
@@ -86,29 +86,21 @@
           <span id="createBtnLabel">Upload File</span>
         </button>
         <button id="backupDataBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
-          <i class="fa-solid fa-file-arrow-down"></i> Backup
+          <i class="fa-solid fa-file-arrow-down"></i> Backup All
         </button>
       </div>
     </div>
 
     <!-- VIEW 1: FILE MANAGER (Folders & Thumbnails Grid) -->
     <div id="fileManagerContainer" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col space-y-4">
-      
-      <!-- Breadcrumbs Bar -->
       <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-        <div id="breadcrumbsBar" class="flex items-center gap-2 text-xs font-semibold text-slate-700">
-          <!-- Dynamically generated breadcrumbs -->
-        </div>
+        <div id="breadcrumbsBar" class="flex items-center gap-2 text-xs font-semibold text-slate-700"></div>
         <span id="fileCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg">0 items</span>
       </div>
-
-      <!-- Grid Container for Folders and Files -->
-      <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <!-- Dynamically populated folder and file cards -->
-      </div>
+      <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
     </div>
 
-    <!-- VIEW 2: NOTES TABLE (Hidden by default) -->
+    <!-- VIEW 2: NOTES TABLE -->
     <div id="notesViewContainer" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col hidden">
       <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
         <h3 class="font-bold text-sm text-slate-700">Text Notes</h3>
@@ -215,7 +207,8 @@
     let currentNotes = [];
     let currentFolders = [];
     let currentFiles = [];
-    let currentFolderId = "root"; // Navigation state
+    let currentChunks = [];
+    let currentFolderId = "root";
     let activeTab = "files";
 
     function showToast(msg, type = "info") {
@@ -262,12 +255,11 @@
       document.getElementById("createBtnLabel").textContent = "New Note";
     });
 
-    // Render File Manager Grid & Breadcrumbs
+    // Render File Manager Grid
     function renderFileManager() {
       const grid = document.getElementById("fileGridContainer");
       const breadcrumbs = document.getElementById("breadcrumbsBar");
 
-      // 1. Render Breadcrumbs
       if (currentFolderId === "root") {
         breadcrumbs.innerHTML = `<span class="text-amber-500 font-bold"><i class="fa-solid fa-house"></i> Home</span>`;
       } else {
@@ -279,15 +271,12 @@
         `;
       }
 
-      // Filter folders and files for current directory
       const subFolders = currentFolders.filter(f => f.parentId === currentFolderId);
       const dirFiles = currentFiles.filter(f => f.folderId === currentFolderId);
 
       document.getElementById("fileCountBadge").textContent = `${subFolders.length} folders, ${dirFiles.length} files`;
 
       let html = "";
-
-      // Render Folders
       subFolders.forEach(folder => {
         html += `
           <div ondblclick="window.navigateToFolder('${folder.id}')" onclick="window.navigateToFolder('${folder.id}')" class="bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition group shadow-sm">
@@ -298,7 +287,6 @@
         `;
       });
 
-      // Render Files with Thumbnails
       dirFiles.forEach(file => {
         let thumbHtml = `<i class="fa-solid fa-file-lines text-blue-400 text-4xl"></i>`;
         if (file.thumbnail) {
@@ -314,7 +302,7 @@
             </div>
             <span class="text-xs font-semibold text-slate-800 truncate w-full text-center" title="${escapeHtml(file.title)}">${escapeHtml(file.title)}</span>
             <div class="flex justify-between w-full items-center text-[10px] text-slate-400 pt-1 border-t border-slate-100">
-              <span>${file.totalParts} chunks</span>
+              <span>${file.totalParts || 1} chunks</span>
               <button onclick="event.stopPropagation(); window.deleteFile('${file.id}', '${file.fileId}')" class="hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
             </div>
           </div>
@@ -369,7 +357,7 @@
     document.getElementById("submitFolderBtn").addEventListener("click", async () => {
       const name = document.getElementById("folderNameInput").value.trim();
       if (!name) return;
-      await fbService.createFolder(name, currentFolderId);
+      await fbService.create("folders", { name, parentId: currentFolderId });
       showToast("Folder created!", "success");
       document.getElementById("createFolderModal").classList.add("hidden");
     });
@@ -389,7 +377,7 @@
     document.getElementById("closeNoteModalBtn").addEventListener("click", () => document.getElementById("createNoteModal").classList.add("hidden"));
     document.getElementById("cancelNoteBtn").addEventListener("click", () => document.getElementById("createNoteModal").classList.add("hidden"));
 
-    // File Upload Handler with Thumbnail Generation
+    // File Upload Handler (Splits into Chunks automatically if >700KB)
     document.getElementById("createFileForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const file = document.getElementById("chunkFileInput").files[0];
@@ -403,14 +391,35 @@
       reader.onload = async function(uploadEvent) {
         const base64Data = uploadEvent.target.result;
         let thumbnail = "";
-
-        // Generate tiny thumbnail if image
         if (file.type.startsWith("image/")) {
           thumbnail = await generateThumbnail(base64Data, 150);
         }
 
+        const CHUNK_SIZE = 700000;
+        const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
+        const fileId = "file_" + Date.now();
+
         try {
-          await fbService.uploadFileInChunks(file.name, file.type.startsWith("image/") ? "Image" : "Media", currentFolderId, base64Data, thumbnail);
+          // 1. Save metadata record
+          await fbService.create("files", {
+            fileId,
+            title: file.name,
+            category: file.type.startsWith("image/") ? "Image" : "Media",
+            folderId: currentFolderId,
+            totalParts,
+            thumbnail
+          });
+
+          // 2. Save each chunk
+          for (let i = 0; i < totalParts; i++) {
+            const chunkData = base64Data.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+            await fbService.create("file_chunks", {
+              fileId,
+              partIndex: i,
+              chunkData
+            });
+          }
+
           showToast("File uploaded and chunked successfully!", "success");
           document.getElementById("createFileModal").classList.add("hidden");
         } catch (err) {
@@ -446,7 +455,7 @@
       e.preventDefault();
       const title = document.getElementById("noteTitle").value.trim();
       const content = document.getElementById("noteContent").value.trim();
-      await fbService.createNote({ title, content, category: "General" });
+      await fbService.create("posts", { title, content, category: "General" });
       showToast("Note saved!", "success");
       document.getElementById("createNoteModal").classList.add("hidden");
     });
@@ -465,7 +474,10 @@
       container.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500 mb-2"></i><p class="text-xs text-slate-500">Reassembling file chunks...</p>`;
       document.getElementById("viewModal").classList.remove("hidden");
 
-      const fullBase64 = await fbService.getReassembledFileBase64(item.fileId);
+      // Combine chunks back together
+      const relevantChunks = currentChunks.filter(c => c.fileId === item.fileId);
+      relevantChunks.sort((a, b) => a.partIndex - b.partIndex);
+      const fullBase64 = relevantChunks.map(c => c.chunkData).join("");
 
       if (fullBase64.startsWith("data:image/")) {
         container.innerHTML = `<img src="${fullBase64}" class="max-h-85 rounded-xl shadow-md object-contain">`;
@@ -488,23 +500,44 @@
 
     window.deleteFolder = async (id) => {
       if (!confirm("Delete folder?")) return;
-      await fbService.deleteFolder(id);
+      await fbService.delete("folders", id);
       showToast("Folder deleted", "success");
     };
 
     window.deleteFile = async (id, fileId) => {
       if (!confirm("Delete file and its chunks?")) return;
-      await fbService.deleteFile(id, fileId);
+      await fbService.delete("files", id);
+      const matchingChunks = currentChunks.filter(c => c.fileId === fileId);
+      for (const chunk of matchingChunks) {
+        await fbService.delete("file_chunks", chunk.id);
+      }
       showToast("File deleted", "success");
     };
 
     window.deleteNote = async (id) => {
       if (!confirm("Delete note?")) return;
-      await fbService.deleteNote(id);
+      await fbService.delete("posts", id);
       showToast("Note deleted", "success");
     };
 
-    document.getElementById("backupDataBtn").addEventListener("click", () => fbService.downloadBackup());
+    // Comprehensive Backup All Collections
+    document.getElementById("backupDataBtn").addEventListener("click", () => {
+      const backupPayload = {
+        posts: currentNotes,
+        folders: currentFolders,
+        files: currentFiles,
+        file_chunks: currentChunks,
+        exportedAt: new Date().toISOString()
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `firebase_complete_backup_${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast("Complete backup downloaded!", "success");
+    });
 
     // Config Panel
     document.getElementById("toggleConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.toggle("hidden"));
@@ -514,24 +547,63 @@
       const parsed = fbService.parseConfig(rawText);
       if (!parsed) { showToast("Invalid config syntax", "error"); return; }
       if (document.getElementById("rememberCookie").checked) fbService.setCookie(fbService.cookieName, rawText, 30);
-      fbService.connect(parsed);
+      if (fbService.connect(parsed)) {
+        showToast("Connected to Firebase!", "success");
+        initSubscriptions();
+      }
       document.getElementById("configPanel").classList.add("hidden");
     });
     document.getElementById("clearCookieBtn").addEventListener("click", () => {
       fbService.eraseCookie(fbService.cookieName);
       document.getElementById("configTextarea").value = "";
       showToast("Cookie cleared", "info");
-      fbService.startLocalMode();
+      startLocalDemo();
     });
 
+    function initSubscriptions() {
+      if (fbService.isLiveMode) {
+        fbService.subscribe("posts", (data) => { currentNotes = data; renderNotes(data); });
+        fbService.subscribe("folders", (data) => { currentFolders = data; renderFileManager(); });
+        fbService.subscribe("files", (data) => { currentFiles = data; renderFileManager(); });
+        fbService.subscribe("file_chunks", (data) => { currentChunks = data; });
+      }
+    }
+
+    function startLocalDemo() {
+      if (!localStorage.getItem("demo_posts")) {
+        localStorage.setItem("demo_posts", JSON.stringify([{ id: "n-1", title: "Sample Note", content: "Hello world", category: "General", createdAt: new Date().toISOString() }]));
+      }
+      if (!localStorage.getItem("demo_folders")) {
+        localStorage.setItem("demo_folders", JSON.stringify([{ id: "f-1", name: "Sample Folder", parentId: "root", createdAt: new Date().toISOString() }]));
+      }
+      if (!localStorage.getItem("demo_files")) localStorage.setItem("demo_files", JSON.stringify([]));
+      if (!localStorage.getItem("demo_file_chunks")) localStorage.setItem("demo_file_chunks", JSON.stringify([]));
+
+      currentNotes = fbService.getLocal("posts");
+      currentFolders = fbService.getLocal("folders");
+      currentFiles = fbService.getLocal("files");
+      currentChunks = fbService.getLocal("file_chunks");
+
+      renderNotes(currentNotes);
+      renderFileManager();
+    }
+
     // Startup
-    const saved = fbService.init(
-      renderNotes, 
-      (folders) => { currentFolders = folders; renderFileManager(); }, 
-      (files) => { currentFiles = files; renderFileManager(); }, 
-      renderStatus
-    );
-    if (saved) document.getElementById("configTextarea").value = saved;
+    const saved = fbService.getCookie(fbService.cookieName);
+    if (saved) {
+      document.getElementById("configTextarea").value = saved;
+      const parsed = fbService.parseConfig(saved);
+      if (parsed && fbService.connect(parsed)) {
+        renderStatus(true);
+        initSubscriptions();
+      } else {
+        renderStatus(false);
+        startLocalDemo();
+      }
+    } else {
+      renderStatus(false);
+      startLocalDemo();
+    }
   </script>
 </body>
 </html>
