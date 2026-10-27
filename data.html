@@ -264,4 +264,240 @@
       const badge = document.getElementById("statusBadge");
       if (isCloud) {
         badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
-        badge.innerHTML =
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Live Cloud Firestore`;
+      } else {
+        badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Local / Demo`;
+      }
+      if (errorMsg) showToast("Error: " + errorMsg, "error");
+    }
+
+    // Tab Switching Logic
+    document.getElementById("tabNotesBtn").addEventListener("click", () => {
+      activeTab = "notes";
+      document.getElementById("tabNotesBtn").className = "px-4 py-2 rounded-lg text-xs font-bold transition bg-white text-slate-900 shadow-sm flex items-center gap-2";
+      document.getElementById("tabFilesBtn").className = "px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-2";
+      document.getElementById("notesViewContainer").classList.remove("hidden");
+      document.getElementById("filesViewContainer").classList.add("hidden");
+      document.getElementById("createBtnLabel").textContent = "New Note";
+    });
+
+    document.getElementById("tabFilesBtn").addEventListener("click", () => {
+      activeTab = "files";
+      document.getElementById("tabFilesBtn").className = "px-4 py-2 rounded-lg text-xs font-bold transition bg-white text-slate-900 shadow-sm flex items-center gap-2";
+      document.getElementById("tabNotesBtn").className = "px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-2";
+      document.getElementById("filesViewContainer").classList.remove("hidden");
+      document.getElementById("notesViewContainer").classList.add("hidden");
+      document.getElementById("createBtnLabel").textContent = "Upload Large File";
+    });
+
+    // Render Notes Table
+    function renderNotes(notes) {
+      currentNotes = notes;
+      const tbody = document.getElementById("notesTableBody");
+      document.getElementById("notesCount").textContent = `${notes.length} notes`;
+
+      if (notes.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">No notes found</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = notes.map(item => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-3 px-4 font-semibold text-slate-800">${escapeHtml(item.title)}</td>
+          <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-600">${item.category}</span></td>
+          <td class="py-3 px-4 text-slate-500 truncate max-w-xs">${escapeHtml(item.content)}</td>
+          <td class="py-3 px-4 text-xs text-slate-400">${item.formattedDate}</td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="window.viewNote('${item.id}')" class="p-1.5 text-slate-400 hover:text-blue-600 transition" title="View"><i class="fa-solid fa-eye"></i></button>
+            <button onclick="window.deleteNote('${item.id}')" class="p-1.5 text-slate-400 hover:text-red-600 transition" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    // Render Files Table
+    function renderFiles(files) {
+      currentFiles = files;
+      const tbody = document.getElementById("filesTableBody");
+      document.getElementById("filesCount").textContent = `${files.length} files`;
+
+      if (files.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">No large files uploaded yet</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = files.map(item => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-3 px-4 font-semibold text-slate-800"><i class="fa-solid fa-file-arrow-down text-blue-500 mr-2"></i>${escapeHtml(item.title)}</td>
+          <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700">${item.category}</span></td>
+          <td class="py-3 px-4 text-xs text-slate-600 font-mono"><span class="bg-slate-100 px-2 py-1 rounded">${item.totalParts} Chunks</span></td>
+          <td class="py-3 px-4 text-xs text-slate-400">${item.formattedDate}</td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="window.viewFile('${item.id}', '${item.fileId}')" class="p-1.5 text-slate-400 hover:text-blue-600 transition" title="View / Reassemble"><i class="fa-solid fa-eye"></i></button>
+            <button onclick="window.deleteFile('${item.id}', '${item.fileId}')" class="p-1.5 text-slate-400 hover:text-red-600 transition" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // Modal Triggers
+    document.getElementById("openCreateModalBtn").addEventListener("click", () => {
+      if (activeTab === "notes") {
+        document.getElementById("createNoteForm").reset();
+        document.getElementById("createNoteModal").classList.remove("hidden");
+      } else {
+        document.getElementById("createFileForm").reset();
+        document.getElementById("createFileModal").classList.remove("hidden");
+      }
+    });
+
+    document.getElementById("closeNoteModalBtn").addEventListener("click", () => document.getElementById("createNoteModal").classList.add("hidden"));
+    document.getElementById("cancelNoteBtn").addEventListener("click", () => document.getElementById("createNoteModal").classList.add("hidden"));
+    document.getElementById("closeFileModalBtn").addEventListener("click", () => document.getElementById("createFileModal").classList.add("hidden"));
+    document.getElementById("cancelFileBtn").addEventListener("click", () => document.getElementById("createFileModal").classList.add("hidden"));
+
+    // Submit Note
+    document.getElementById("createNoteForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("noteTitle").value.trim();
+      const category = document.getElementById("noteCategory").value;
+      const content = document.getElementById("noteContent").value.trim();
+
+      await fbService.createNote({ title, category, content });
+      showToast("Note created successfully!", "success");
+      document.getElementById("createNoteModal").classList.add("hidden");
+    });
+
+    // Submit File (Chunking engine)
+    document.getElementById("createFileForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById("chunkFileInput");
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const category = document.getElementById("fileCategory").value;
+      const submitBtn = document.getElementById("submitFileBtn");
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Splitting & Uploading...`;
+
+      const reader = new FileReader();
+      reader.onload = async function(uploadEvent) {
+        const base64Data = uploadEvent.target.result;
+        try {
+          await fbService.uploadFileInChunks(file.name, category, base64Data);
+          showToast("File successfully split and uploaded in chunks!", "success");
+          document.getElementById("createFileModal").classList.add("hidden");
+        } catch (err) {
+          showToast("Upload failed: " + err.message, "error");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Upload & Split Chunks";
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // View Note Handler
+    window.viewNote = (id) => {
+      const item = currentNotes.find(n => n.id === id);
+      if (!item) return;
+      document.getElementById("viewTitle").textContent = item.title;
+      document.getElementById("viewCategory").textContent = item.category;
+      document.getElementById("viewDate").innerHTML = `<i class="fa-regular fa-clock"></i> ${item.formattedDate}`;
+      document.getElementById("viewContentContainer").innerHTML = `<p class="text-sm text-slate-700 whitespace-pre-line leading-relaxed w-full">${escapeHtml(item.content)}</p>`;
+      document.getElementById("downloadFileBtn").classList.add("hidden");
+      document.getElementById("viewModal").classList.remove("hidden");
+    };
+
+    // View & Reassemble File Chunks Handler
+    window.viewFile = async (id, fileId) => {
+      const item = currentFiles.find(f => f.id === id || f.fileId === fileId);
+      if (!item) return;
+
+      document.getElementById("viewTitle").textContent = item.title;
+      document.getElementById("viewCategory").textContent = item.category;
+      document.getElementById("viewDate").innerHTML = `<i class="fa-regular fa-clock"></i> ${item.formattedDate}`;
+      
+      const container = document.getElementById("viewContentContainer");
+      const downloadBtn = document.getElementById("downloadFileBtn");
+      
+      container.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500 mb-2"></i><p class="text-xs text-slate-500">Reassembling chunks from database...</p>`;
+      document.getElementById("viewModal").classList.remove("hidden");
+
+      // Reassemble chunks back into full Base64
+      const fullBase64 = await fbService.getReassembledFileBase64(item.fileId);
+
+      if (fullBase64.startsWith("data:image/")) {
+        container.innerHTML = `<img src="${fullBase64}" class="max-h-85 rounded-xl shadow-md object-contain">`;
+      } else if (fullBase64.startsWith("data:video/")) {
+        container.innerHTML = `
+          <video controls class="w-full max-h-85 rounded-xl shadow-md bg-black">
+            <source src="${fullBase64}">Your browser does not support video playback.
+          </video>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="text-center py-6">
+            <i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i>
+            <p class="text-sm font-semibold text-slate-700">${escapeHtml(item.title)}</p>
+            <p class="text-xs text-slate-400 mt-1">Reassembled successfully (${item.totalParts} chunks)</p>
+          </div>
+        `;
+      }
+
+      downloadBtn.href = fullBase64;
+      downloadBtn.download = item.title;
+      downloadBtn.classList.remove("hidden");
+      downloadBtn.classList.add("flex");
+    };
+
+    document.getElementById("closeViewModalBtn").addEventListener("click", () => {
+      document.getElementById("viewContentContainer").innerHTML = "";
+      document.getElementById("viewModal").classList.add("hidden");
+    });
+
+    window.deleteNote = async (id) => {
+      if (!confirm("Delete this note?")) return;
+      await fbService.deleteNote(id);
+      showToast("Note deleted", "success");
+    };
+
+    window.deleteFile = async (id, fileId) => {
+      if (!confirm("Delete this file and all its storage chunks?")) return;
+      await fbService.deleteFile(id, fileId);
+      showToast("File and chunks deleted", "success");
+    };
+
+    document.getElementById("backupDataBtn").addEventListener("click", () => fbService.downloadBackup());
+
+    document.getElementById("toggleConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.toggle("hidden"));
+    document.getElementById("closeConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.add("hidden"));
+
+    document.getElementById("saveConfigBtn").addEventListener("click", () => {
+      const rawText = document.getElementById("configTextarea").value;
+      const parsed = fbService.parseConfig(rawText);
+      if (!parsed) { showToast("Invalid config syntax", "error"); return; }
+      if (document.getElementById("rememberCookie").checked) fbService.setCookie(fbService.cookieName, rawText, 30);
+      fbService.connect(parsed);
+      document.getElementById("configPanel").classList.add("hidden");
+    });
+
+    document.getElementById("clearCookieBtn").addEventListener("click", () => {
+      fbService.eraseCookie(fbService.cookieName);
+      document.getElementById("configTextarea").value = "";
+      showToast("Cookie cleared", "info");
+      fbService.startLocalMode();
+    });
+
+    // Startup
+    const saved = fbService.init(renderNotes, renderFiles, renderStatus);
+    if (saved) document.getElementById("configTextarea").value = saved;
+  </script>
+</body>
+</html>
