@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Firebase Split Tables & Chunked Files Manager</title>
+  <title>Firebase File Manager & Notes</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -19,11 +19,11 @@
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
       <div class="flex items-center space-x-3">
         <div class="bg-amber-500 p-2 rounded-xl shadow-md text-slate-900">
-          <i class="fa-solid fa-fire text-lg"></i>
+          <i class="fa-solid fa-folder-tree text-lg"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold tracking-tight">Firebase Split Storage Manager</h1>
-          <p class="text-[11px] text-slate-400">Notes Table & Chunked Large File Uploads</p>
+          <h1 class="text-lg font-bold tracking-tight">Firebase File Manager</h1>
+          <p class="text-[11px] text-slate-400">Folders, Thumbnails & Chunked Storage</p>
         </div>
       </div>
 
@@ -48,61 +48,71 @@
     <!-- Config Panel -->
     <div id="configPanel" class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden hidden transition-all">
       <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
-        <h2 class="font-semibold text-sm flex items-center gap-2">
-          <i class="fa-solid fa-key text-amber-400"></i> Firebase Config (Cookie Stored)
-        </h2>
-        <button id="closeConfigBtn" class="text-slate-400 hover:text-white text-sm">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
+        <h2 class="font-semibold text-sm flex items-center gap-2"><i class="fa-solid fa-key text-amber-400"></i> Firebase Config</h2>
+        <button id="closeConfigBtn" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="p-5 space-y-4">
-        <textarea id="configTextarea" rows="6" class="w-full text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 custom-scrollbar" placeholder='const firebaseConfig = { apiKey: "...", projectId: "..." };'></textarea>
-        
+        <textarea id="configTextarea" rows="6" class="w-full text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 custom-scrollbar" placeholder='const firebaseConfig = { ... };'></textarea>
         <div class="flex items-center justify-between text-xs text-slate-500">
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="rememberCookie" checked class="rounded text-amber-500 focus:ring-amber-400">
+            <input type="checkbox" id="rememberCookie" checked class="rounded text-amber-500">
             <span>Save in cookie (30 days)</span>
           </label>
-          <button id="clearCookieBtn" class="text-red-500 hover:text-red-700 underline font-medium">Clear Cookie</button>
+          <button id="clearCookieBtn" class="text-red-500 underline font-medium">Clear Cookie</button>
         </div>
-
-        <button id="saveConfigBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 px-4 rounded-xl shadow-sm transition text-xs flex items-center justify-center gap-2">
+        <button id="saveConfigBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-2">
           <i class="fa-solid fa-floppy-disk"></i> Apply & Save Config
         </button>
       </div>
     </div>
 
-    <!-- Tab Navigation & Toolbar -->
+    <!-- Toolbar & Tabs -->
     <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 justify-between items-center">
-      
-      <!-- Tabs Switcher -->
       <div class="flex items-center bg-slate-100 p-1 rounded-xl">
-        <button id="tabNotesBtn" class="px-4 py-2 rounded-lg text-xs font-bold transition bg-white text-slate-900 shadow-sm flex items-center gap-2">
-          <i class="fa-solid fa-note-sticky text-amber-500"></i> Notes Table
+        <button id="tabFilesBtn" class="px-4 py-2 rounded-lg text-xs font-bold transition bg-white text-slate-900 shadow-sm flex items-center gap-2">
+          <i class="fa-solid fa-folder text-amber-500"></i> File Manager
         </button>
-        <button id="tabFilesBtn" class="px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-2">
-          <i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Large Files (Chunked)
+        <button id="tabNotesBtn" class="px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-note-sticky text-blue-500"></i> Notes Table
         </button>
       </div>
 
       <div class="flex items-center gap-2">
+        <button id="openFolderModalBtn" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
+          <i class="fa-solid fa-folder-plus text-amber-600"></i> New Folder
+        </button>
         <button id="openCreateModalBtn" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm">
           <i class="fa-solid fa-plus text-amber-400"></i>
-          <span id="createBtnLabel">New Note</span>
+          <span id="createBtnLabel">Upload File</span>
         </button>
-
         <button id="backupDataBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
-          <i class="fa-solid fa-file-arrow-down"></i>
-          <span>Backup JSON</span>
+          <i class="fa-solid fa-file-arrow-down"></i> Backup
         </button>
       </div>
     </div>
 
-    <!-- VIEW 1: NOTES TABLE CONTAINER -->
-    <div id="notesViewContainer" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col">
+    <!-- VIEW 1: FILE MANAGER (Folders & Thumbnails Grid) -->
+    <div id="fileManagerContainer" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col space-y-4">
+      
+      <!-- Breadcrumbs Bar -->
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div id="breadcrumbsBar" class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+          <!-- Dynamically generated breadcrumbs -->
+        </div>
+        <span id="fileCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg">0 items</span>
+      </div>
+
+      <!-- Grid Container for Folders and Files -->
+      <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <!-- Dynamically populated folder and file cards -->
+      </div>
+    </div>
+
+    <!-- VIEW 2: NOTES TABLE (Hidden by default) -->
+    <div id="notesViewContainer" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col hidden">
       <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-        <h3 class="font-bold text-sm text-slate-700">Text & Document Notes</h3>
-        <span id="notesCount" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-xl">0 notes</span>
+        <h3 class="font-bold text-sm text-slate-700">Text Notes</h3>
+        <span id="notesCount" class="text-xs bg-blue-100 text-blue-800 font-bold px-2.5 py-1 rounded-xl">0 notes</span>
       </div>
       <div class="overflow-x-auto flex-1">
         <table class="w-full text-left border-collapse">
@@ -110,7 +120,7 @@
             <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase font-semibold">
               <th class="py-3 px-4">Title</th>
               <th class="py-3 px-4">Category</th>
-              <th class="py-3 px-4">Content Preview</th>
+              <th class="py-3 px-4">Content</th>
               <th class="py-3 px-4">Date</th>
               <th class="py-3 px-4 text-center">Actions</th>
             </tr>
@@ -122,129 +132,91 @@
       </div>
     </div>
 
-    <!-- VIEW 2: FILES TABLE CONTAINER (Hidden by default) -->
-    <div id="filesViewContainer" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col hidden">
-      <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-        <h3 class="font-bold text-sm text-slate-700">Chunked Large Files (>1MB Supported)</h3>
-        <span id="filesCount" class="text-xs bg-blue-100 text-blue-800 font-bold px-2.5 py-1 rounded-xl">0 files</span>
-      </div>
-      <div class="overflow-x-auto flex-1">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase font-semibold">
-              <th class="py-3 px-4">Filename</th>
-              <th class="py-3 px-4">Category</th>
-              <th class="py-3 px-4">Storage Chunks</th>
-              <th class="py-3 px-4">Date</th>
-              <th class="py-3 px-4 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="filesTableBody" class="divide-y divide-slate-100 text-sm">
-            <tr><td colspan="5" class="py-10 text-center text-slate-400">Loading files...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
   </main>
 
-  <!-- MODAL: CREATE NOTE -->
-  <div id="createNoteModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-100 overflow-hidden">
-      <div class="bg-slate-900 text-white p-4 px-6 flex justify-between items-center">
-        <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-plus text-amber-400"></i> Add New Note</h3>
-        <button id="closeNoteModalBtn" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+  <!-- MODAL: NEW FOLDER -->
+  <div id="createFolderModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 space-y-4">
+      <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-folder-plus text-amber-500"></i> Create Folder</h3>
+      <input type="text" id="folderNameInput" placeholder="Folder name..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+      <div class="flex gap-2 justify-end pt-2">
+        <button type="button" id="cancelFolderBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+        <button type="button" id="submitFolderBtn" class="px-4 py-2 bg-amber-500 text-slate-950 rounded-xl text-xs font-bold">Create</button>
       </div>
-      <form id="createNoteForm" class="p-6 space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Title *</label>
-          <input type="text" id="noteTitle" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Category</label>
-          <select id="noteCategory" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
-            <option value="General">General</option>
-            <option value="Work">Work</option>
-            <option value="Personal">Personal</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Content *</label>
-          <textarea id="noteContent" rows="5" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm custom-scrollbar"></textarea>
-        </div>
-        <div class="pt-2 flex gap-3 justify-end">
-          <button type="button" id="cancelNoteBtn" class="px-4 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs">Cancel</button>
-          <button type="submit" class="px-5 py-2.5 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs">Create Note</button>
-        </div>
-      </form>
     </div>
   </div>
 
-  <!-- MODAL: UPLOAD LARGE FILE (CHUNKER) -->
+  <!-- MODAL: UPLOAD FILE -->
   <div id="createFileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-100 overflow-hidden">
-      <div class="bg-slate-900 text-white p-4 px-6 flex justify-between items-center">
-        <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-blue-400"></i> Upload Large File (>1MB Supported)</h3>
-        <button id="closeFileModalBtn" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+    <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl p-6 space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+        <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Upload File</h3>
+        <button id="closeFileModalBtn" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
-      <form id="createFileForm" class="p-6 space-y-4">
-        <div class="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
+      <form id="createFileForm" class="space-y-4">
+        <div class="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-5 text-center">
           <label class="cursor-pointer block">
-            <i class="fa-solid fa-file-video text-blue-500 text-3xl mb-2"></i>
-            <p class="text-xs font-semibold text-slate-700">Select any file (Videos, High-res Images, PDFs)</p>
-            <p class="text-[10px] text-slate-400 mt-1">Automatically splits into chunks to bypass Firestore 1MB limit</p>
-            <input type="file" id="chunkFileInput" required class="mt-3 block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <i class="fa-solid fa-file-arrow-up text-blue-500 text-2xl mb-1"></i>
+            <p class="text-xs font-semibold text-slate-700">Select Image, Video or Document</p>
+            <input type="file" id="chunkFileInput" required class="mt-2 block w-full text-xs text-slate-500 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-blue-50 file:text-blue-700">
           </label>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Category</label>
-          <select id="fileCategory" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
-            <option value="Media">Media / Video</option>
-            <option value="Document">Document / PDF</option>
-            <option value="Archive">Archive</option>
-          </select>
-        </div>
         <div class="pt-2 flex gap-3 justify-end">
-          <button type="button" id="cancelFileBtn" class="px-4 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs">Cancel</button>
-          <button type="submit" id="submitFileBtn" class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl text-xs">Upload & Split Chunks</button>
+          <button type="button" id="cancelFileBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+          <button type="submit" id="submitFileBtn" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Upload File</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- MODAL: VIEW NOTE OR REASSEMBLED FILE -->
+  <!-- MODAL: UPLOAD NOTE -->
+  <div id="createNoteModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl p-6 space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+        <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-plus text-amber-500"></i> New Note</h3>
+        <button id="closeNoteModalBtn" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form id="createNoteForm" class="space-y-4">
+        <input type="text" id="noteTitle" placeholder="Note title..." required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+        <textarea id="noteContent" rows="4" placeholder="Note content..." required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"></textarea>
+        <div class="flex gap-3 justify-end pt-2">
+          <button type="button" id="cancelNoteBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+          <button type="submit" class="px-5 py-2 bg-amber-500 text-slate-950 rounded-xl text-xs font-bold">Save Note</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: VIEW FILE PREVIEW -->
   <div id="viewModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden">
+    <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden">
       <div class="bg-slate-900 text-white p-4 px-6 flex justify-between items-center">
-        <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-eye text-amber-400"></i> Record Viewer</h3>
-        <button id="closeViewModalBtn" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 id="viewModalTitle" class="font-bold text-base">File Preview</h3>
+        <button id="closeViewModalBtn" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
       <div class="p-6 space-y-4">
-        <div>
-          <span id="viewCategory" class="inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-100 text-slate-700 mb-2">Category</span>
-          <h2 id="viewTitle" class="text-xl font-bold text-slate-800">Title</h2>
+        <div id="viewContentContainer" class="bg-slate-50 border border-slate-200 rounded-xl p-5 max-h-[400px] overflow-y-auto flex items-center justify-center">
+          <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500"></i>
         </div>
-        <div id="viewContentContainer" class="bg-slate-50 border border-slate-200 rounded-xl p-5 max-h-[400px] overflow-y-auto custom-scrollbar flex flex-col items-center justify-center">
-          <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500"></i> Reassembling chunks...
-        </div>
-        <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-          <span id="viewDate" class="text-xs text-slate-400"><i class="fa-regular fa-clock"></i> Date</span>
-          <a id="downloadFileBtn" href="#" download="" class="hidden bg-emerald-600 text-white font-semibold px-4 py-2 rounded-xl text-xs items-center gap-2">
-            <i class="fa-solid fa-download"></i> Download File
+        <div class="flex justify-between items-center pt-2 border-t border-slate-100">
+          <span id="viewDate" class="text-xs text-slate-400"></span>
+          <a id="downloadFileBtn" href="#" download="" class="hidden bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold items-center gap-2">
+            <i class="fa-solid fa-download"></i> Download
           </a>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- CONTROLLER SCRIPT -->
   <script type="module">
     import { FirebaseService } from "./firebase-service.js";
 
     const fbService = new FirebaseService();
     let currentNotes = [];
+    let currentFolders = [];
     let currentFiles = [];
-    let activeTab = "notes"; // "notes" or "files"
+    let currentFolderId = "root"; // Navigation state
+    let activeTab = "files";
 
     function showToast(msg, type = "info") {
       const container = document.getElementById("toastContainer");
@@ -254,88 +226,129 @@
       toast.innerHTML = `<i class="fa-solid fa-circle-info text-base"></i> <span>${msg}</span>`;
       container.appendChild(toast);
       requestAnimationFrame(() => toast.classList.remove("translate-y-2", "opacity-0"));
-      setTimeout(() => {
-        toast.classList.add("opacity-0", "translate-y-2");
-        setTimeout(() => toast.remove(), 300);
-      }, 3000);
+      setTimeout(() => { toast.classList.add("opacity-0", "translate-y-2"); setTimeout(() => toast.remove(), 300); }, 3000);
     }
 
-    function renderStatus(isCloud, errorMsg = null) {
+    function renderStatus(isCloud, err = null) {
       const badge = document.getElementById("statusBadge");
       if (isCloud) {
         badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Live Cloud Firestore`;
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Live Cloud`;
       } else {
         badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30";
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Local / Demo`;
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Local Demo`;
       }
-      if (errorMsg) showToast("Error: " + errorMsg, "error");
+      if (err) showToast(err, "error");
     }
 
-    // Tab Switching Logic
+    // Tabs
+    document.getElementById("tabFilesBtn").addEventListener("click", () => {
+      activeTab = "files";
+      document.getElementById("tabFilesBtn").className = "px-4 py-2 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm flex items-center gap-2";
+      document.getElementById("tabNotesBtn").className = "px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-2";
+      document.getElementById("fileManagerContainer").classList.remove("hidden");
+      document.getElementById("notesViewContainer").classList.add("hidden");
+      document.getElementById("openFolderModalBtn").classList.remove("hidden");
+      document.getElementById("createBtnLabel").textContent = "Upload File";
+    });
+
     document.getElementById("tabNotesBtn").addEventListener("click", () => {
       activeTab = "notes";
-      document.getElementById("tabNotesBtn").className = "px-4 py-2 rounded-lg text-xs font-bold transition bg-white text-slate-900 shadow-sm flex items-center gap-2";
-      document.getElementById("tabFilesBtn").className = "px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-2";
+      document.getElementById("tabNotesBtn").className = "px-4 py-2 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm flex items-center gap-2";
+      document.getElementById("tabFilesBtn").className = "px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-2";
       document.getElementById("notesViewContainer").classList.remove("hidden");
-      document.getElementById("filesViewContainer").classList.add("hidden");
+      document.getElementById("fileManagerContainer").classList.add("hidden");
+      document.getElementById("openFolderModalBtn").classList.add("hidden");
       document.getElementById("createBtnLabel").textContent = "New Note";
     });
 
-    document.getElementById("tabFilesBtn").addEventListener("click", () => {
-      activeTab = "files";
-      document.getElementById("tabFilesBtn").className = "px-4 py-2 rounded-lg text-xs font-bold transition bg-white text-slate-900 shadow-sm flex items-center gap-2";
-      document.getElementById("tabNotesBtn").className = "px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-2";
-      document.getElementById("filesViewContainer").classList.remove("hidden");
-      document.getElementById("notesViewContainer").classList.add("hidden");
-      document.getElementById("createBtnLabel").textContent = "Upload Large File";
-    });
+    // Render File Manager Grid & Breadcrumbs
+    function renderFileManager() {
+      const grid = document.getElementById("fileGridContainer");
+      const breadcrumbs = document.getElementById("breadcrumbsBar");
 
-    // Render Notes Table
+      // 1. Render Breadcrumbs
+      if (currentFolderId === "root") {
+        breadcrumbs.innerHTML = `<span class="text-amber-500 font-bold"><i class="fa-solid fa-house"></i> Home</span>`;
+      } else {
+        const folder = currentFolders.find(f => f.id === currentFolderId);
+        breadcrumbs.innerHTML = `
+          <button onclick="window.navigateToFolder('root')" class="hover:text-amber-600"><i class="fa-solid fa-house"></i> Home</button>
+          <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+          <span class="text-amber-500 font-bold">${folder ? folder.name : 'Folder'}</span>
+        `;
+      }
+
+      // Filter folders and files for current directory
+      const subFolders = currentFolders.filter(f => f.parentId === currentFolderId);
+      const dirFiles = currentFiles.filter(f => f.folderId === currentFolderId);
+
+      document.getElementById("fileCountBadge").textContent = `${subFolders.length} folders, ${dirFiles.length} files`;
+
+      let html = "";
+
+      // Render Folders
+      subFolders.forEach(folder => {
+        html += `
+          <div ondblclick="window.navigateToFolder('${folder.id}')" onclick="window.navigateToFolder('${folder.id}')" class="bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition group shadow-sm">
+            <i class="fa-solid fa-folder text-amber-400 text-4xl group-hover:scale-110 transition"></i>
+            <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${escapeHtml(folder.name)}</span>
+            <button onclick="event.stopPropagation(); window.deleteFolder('${folder.id}')" class="text-slate-300 hover:text-red-500 text-xs"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        `;
+      });
+
+      // Render Files with Thumbnails
+      dirFiles.forEach(file => {
+        let thumbHtml = `<i class="fa-solid fa-file-lines text-blue-400 text-4xl"></i>`;
+        if (file.thumbnail) {
+          thumbHtml = `<img src="${file.thumbnail}" class="w-full h-20 object-cover rounded-xl shadow-inner">`;
+        } else if (file.category === 'Media') {
+          thumbHtml = `<i class="fa-solid fa-file-video text-purple-400 text-4xl"></i>`;
+        }
+
+        html += `
+          <div onclick="window.viewFile('${file.id}', '${file.fileId}')" class="bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-2xl p-3 flex flex-col items-center justify-between gap-2 cursor-pointer transition group shadow-sm">
+            <div class="w-full flex justify-center items-center h-20 bg-slate-100 rounded-xl overflow-hidden">
+              ${thumbHtml}
+            </div>
+            <span class="text-xs font-semibold text-slate-800 truncate w-full text-center" title="${escapeHtml(file.title)}">${escapeHtml(file.title)}</span>
+            <div class="flex justify-between w-full items-center text-[10px] text-slate-400 pt-1 border-t border-slate-100">
+              <span>${file.totalParts} chunks</span>
+              <button onclick="event.stopPropagation(); window.deleteFile('${file.id}', '${file.fileId}')" class="hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>
+        `;
+      });
+
+      if (subFolders.length === 0 && dirFiles.length === 0) {
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300 block"></i>This folder is empty</div>`;
+      } else {
+        grid.innerHTML = html;
+      }
+    }
+
+    window.navigateToFolder = (folderId) => {
+      currentFolderId = folderId;
+      renderFileManager();
+    };
+
     function renderNotes(notes) {
       currentNotes = notes;
       const tbody = document.getElementById("notesTableBody");
       document.getElementById("notesCount").textContent = `${notes.length} notes`;
-
       if (notes.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">No notes found</td></tr>`;
         return;
       }
-
-      tbody.innerHTML = notes.map(item => `
+      tbody.innerHTML = notes.map(n => `
         <tr class="hover:bg-slate-50 transition">
-          <td class="py-3 px-4 font-semibold text-slate-800">${escapeHtml(item.title)}</td>
-          <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-600">${item.category}</span></td>
-          <td class="py-3 px-4 text-slate-500 truncate max-w-xs">${escapeHtml(item.content)}</td>
-          <td class="py-3 px-4 text-xs text-slate-400">${item.formattedDate}</td>
+          <td class="py-3 px-4 font-semibold">${escapeHtml(n.title)}</td>
+          <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] uppercase bg-slate-100">${n.category || 'General'}</span></td>
+          <td class="py-3 px-4 text-slate-500 truncate max-w-xs">${escapeHtml(n.content)}</td>
+          <td class="py-3 px-4 text-xs text-slate-400">${n.formattedDate}</td>
           <td class="py-3 px-4 text-center">
-            <button onclick="window.viewNote('${item.id}')" class="p-1.5 text-slate-400 hover:text-blue-600 transition" title="View"><i class="fa-solid fa-eye"></i></button>
-            <button onclick="window.deleteNote('${item.id}')" class="p-1.5 text-slate-400 hover:text-red-600 transition" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
-          </td>
-        </tr>
-      `).join("");
-    }
-
-    // Render Files Table
-    function renderFiles(files) {
-      currentFiles = files;
-      const tbody = document.getElementById("filesTableBody");
-      document.getElementById("filesCount").textContent = `${files.length} files`;
-
-      if (files.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">No large files uploaded yet</td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = files.map(item => `
-        <tr class="hover:bg-slate-50 transition">
-          <td class="py-3 px-4 font-semibold text-slate-800"><i class="fa-solid fa-file-arrow-down text-blue-500 mr-2"></i>${escapeHtml(item.title)}</td>
-          <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700">${item.category}</span></td>
-          <td class="py-3 px-4 text-xs text-slate-600 font-mono"><span class="bg-slate-100 px-2 py-1 rounded">${item.totalParts} Chunks</span></td>
-          <td class="py-3 px-4 text-xs text-slate-400">${item.formattedDate}</td>
-          <td class="py-3 px-4 text-center">
-            <button onclick="window.viewFile('${item.id}', '${item.fileId}')" class="p-1.5 text-slate-400 hover:text-blue-600 transition" title="View / Reassemble"><i class="fa-solid fa-eye"></i></button>
-            <button onclick="window.deleteFile('${item.id}', '${item.fileId}')" class="p-1.5 text-slate-400 hover:text-red-600 transition" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
+            <button onclick="window.deleteNote('${n.id}')" class="text-slate-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button>
           </td>
         </tr>
       `).join("");
@@ -347,108 +360,119 @@
     }
 
     // Modal Triggers
+    document.getElementById("openFolderModalBtn").addEventListener("click", () => {
+      document.getElementById("folderNameInput").value = "";
+      document.getElementById("createFolderModal").classList.remove("hidden");
+    });
+    document.getElementById("cancelFolderBtn").addEventListener("click", () => document.getElementById("createFolderModal").classList.add("hidden"));
+    
+    document.getElementById("submitFolderBtn").addEventListener("click", async () => {
+      const name = document.getElementById("folderNameInput").value.trim();
+      if (!name) return;
+      await fbService.createFolder(name, currentFolderId);
+      showToast("Folder created!", "success");
+      document.getElementById("createFolderModal").classList.add("hidden");
+    });
+
     document.getElementById("openCreateModalBtn").addEventListener("click", () => {
-      if (activeTab === "notes") {
-        document.getElementById("createNoteForm").reset();
-        document.getElementById("createNoteModal").classList.remove("hidden");
-      } else {
+      if (activeTab === "files") {
         document.getElementById("createFileForm").reset();
         document.getElementById("createFileModal").classList.remove("hidden");
+      } else {
+        document.getElementById("createNoteForm").reset();
+        document.getElementById("createNoteModal").classList.remove("hidden");
       }
     });
 
-    document.getElementById("closeNoteModalBtn").addEventListener("click", () => document.getElementById("createNoteModal").classList.add("hidden"));
-    document.getElementById("cancelNoteBtn").addEventListener("click", () => document.getElementById("createNoteModal").classList.add("hidden"));
     document.getElementById("closeFileModalBtn").addEventListener("click", () => document.getElementById("createFileModal").classList.add("hidden"));
     document.getElementById("cancelFileBtn").addEventListener("click", () => document.getElementById("createFileModal").classList.add("hidden"));
+    document.getElementById("closeNoteModalBtn").addEventListener("click", () => document.getElementById("createNoteModal").classList.add("hidden"));
+    document.getElementById("cancelNoteBtn").addEventListener("click", () => document.getElementById("createNoteModal").classList.add("hidden"));
 
-    // Submit Note
-    document.getElementById("createNoteForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const title = document.getElementById("noteTitle").value.trim();
-      const category = document.getElementById("noteCategory").value;
-      const content = document.getElementById("noteContent").value.trim();
-
-      await fbService.createNote({ title, category, content });
-      showToast("Note created successfully!", "success");
-      document.getElementById("createNoteModal").classList.add("hidden");
-    });
-
-    // Submit File (Chunking engine)
+    // File Upload Handler with Thumbnail Generation
     document.getElementById("createFileForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const fileInput = document.getElementById("chunkFileInput");
-      const file = fileInput.files[0];
+      const file = document.getElementById("chunkFileInput").files[0];
       if (!file) return;
 
-      const category = document.getElementById("fileCategory").value;
       const submitBtn = document.getElementById("submitFileBtn");
       submitBtn.disabled = true;
-      submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Splitting & Uploading...`;
+      submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
 
       const reader = new FileReader();
       reader.onload = async function(uploadEvent) {
         const base64Data = uploadEvent.target.result;
+        let thumbnail = "";
+
+        // Generate tiny thumbnail if image
+        if (file.type.startsWith("image/")) {
+          thumbnail = await generateThumbnail(base64Data, 150);
+        }
+
         try {
-          await fbService.uploadFileInChunks(file.name, category, base64Data);
-          showToast("File successfully split and uploaded in chunks!", "success");
+          await fbService.uploadFileInChunks(file.name, file.type.startsWith("image/") ? "Image" : "Media", currentFolderId, base64Data, thumbnail);
+          showToast("File uploaded and chunked successfully!", "success");
           document.getElementById("createFileModal").classList.add("hidden");
         } catch (err) {
           showToast("Upload failed: " + err.message, "error");
         } finally {
           submitBtn.disabled = false;
-          submitBtn.textContent = "Upload & Split Chunks";
+          submitBtn.textContent = "Upload File";
         }
       };
       reader.readAsDataURL(file);
     });
 
-    // View Note Handler
-    window.viewNote = (id) => {
-      const item = currentNotes.find(n => n.id === id);
-      if (!item) return;
-      document.getElementById("viewTitle").textContent = item.title;
-      document.getElementById("viewCategory").textContent = item.category;
-      document.getElementById("viewDate").innerHTML = `<i class="fa-regular fa-clock"></i> ${item.formattedDate}`;
-      document.getElementById("viewContentContainer").innerHTML = `<p class="text-sm text-slate-700 whitespace-pre-line leading-relaxed w-full">${escapeHtml(item.content)}</p>`;
-      document.getElementById("downloadFileBtn").classList.add("hidden");
-      document.getElementById("viewModal").classList.remove("hidden");
-    };
+    function generateThumbnail(base64Str, maxSize = 150) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let w = img.width, h = img.height;
+          if (w > h) { h = Math.round((h * maxSize) / w); w = maxSize; }
+          else { w = Math.round((w * maxSize) / h); h = maxSize; }
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.6));
+        };
+        img.onerror = () => resolve("");
+      });
+    }
 
-    // View & Reassemble File Chunks Handler
+    // Submit Note
+    document.getElementById("createNoteForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("noteTitle").value.trim();
+      const content = document.getElementById("noteContent").value.trim();
+      await fbService.createNote({ title, content, category: "General" });
+      showToast("Note saved!", "success");
+      document.getElementById("createNoteModal").classList.add("hidden");
+    });
+
+    // View File Reassembly
     window.viewFile = async (id, fileId) => {
       const item = currentFiles.find(f => f.id === id || f.fileId === fileId);
       if (!item) return;
 
-      document.getElementById("viewTitle").textContent = item.title;
-      document.getElementById("viewCategory").textContent = item.category;
+      document.getElementById("viewModalTitle").textContent = item.title;
       document.getElementById("viewDate").innerHTML = `<i class="fa-regular fa-clock"></i> ${item.formattedDate}`;
       
       const container = document.getElementById("viewContentContainer");
       const downloadBtn = document.getElementById("downloadFileBtn");
       
-      container.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500 mb-2"></i><p class="text-xs text-slate-500">Reassembling chunks from database...</p>`;
+      container.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500 mb-2"></i><p class="text-xs text-slate-500">Reassembling file chunks...</p>`;
       document.getElementById("viewModal").classList.remove("hidden");
 
-      // Reassemble chunks back into full Base64
       const fullBase64 = await fbService.getReassembledFileBase64(item.fileId);
 
       if (fullBase64.startsWith("data:image/")) {
         container.innerHTML = `<img src="${fullBase64}" class="max-h-85 rounded-xl shadow-md object-contain">`;
       } else if (fullBase64.startsWith("data:video/")) {
-        container.innerHTML = `
-          <video controls class="w-full max-h-85 rounded-xl shadow-md bg-black">
-            <source src="${fullBase64}">Your browser does not support video playback.
-          </video>
-        `;
+        container.innerHTML = `<video controls class="w-full max-h-85 rounded-xl shadow-md bg-black"><source src="${fullBase64}"></video>`;
       } else {
-        container.innerHTML = `
-          <div class="text-center py-6">
-            <i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i>
-            <p class="text-sm font-semibold text-slate-700">${escapeHtml(item.title)}</p>
-            <p class="text-xs text-slate-400 mt-1">Reassembled successfully (${item.totalParts} chunks)</p>
-          </div>
-        `;
+        container.innerHTML = `<div class="text-center py-6"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-sm font-semibold">${escapeHtml(item.title)}</p></div>`;
       }
 
       downloadBtn.href = fullBase64;
@@ -462,23 +486,29 @@
       document.getElementById("viewModal").classList.add("hidden");
     });
 
+    window.deleteFolder = async (id) => {
+      if (!confirm("Delete folder?")) return;
+      await fbService.deleteFolder(id);
+      showToast("Folder deleted", "success");
+    };
+
+    window.deleteFile = async (id, fileId) => {
+      if (!confirm("Delete file and its chunks?")) return;
+      await fbService.deleteFile(id, fileId);
+      showToast("File deleted", "success");
+    };
+
     window.deleteNote = async (id) => {
-      if (!confirm("Delete this note?")) return;
+      if (!confirm("Delete note?")) return;
       await fbService.deleteNote(id);
       showToast("Note deleted", "success");
     };
 
-    window.deleteFile = async (id, fileId) => {
-      if (!confirm("Delete this file and all its storage chunks?")) return;
-      await fbService.deleteFile(id, fileId);
-      showToast("File and chunks deleted", "success");
-    };
-
     document.getElementById("backupDataBtn").addEventListener("click", () => fbService.downloadBackup());
 
+    // Config Panel
     document.getElementById("toggleConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.toggle("hidden"));
     document.getElementById("closeConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.add("hidden"));
-
     document.getElementById("saveConfigBtn").addEventListener("click", () => {
       const rawText = document.getElementById("configTextarea").value;
       const parsed = fbService.parseConfig(rawText);
@@ -487,7 +517,6 @@
       fbService.connect(parsed);
       document.getElementById("configPanel").classList.add("hidden");
     });
-
     document.getElementById("clearCookieBtn").addEventListener("click", () => {
       fbService.eraseCookie(fbService.cookieName);
       document.getElementById("configTextarea").value = "";
@@ -496,7 +525,12 @@
     });
 
     // Startup
-    const saved = fbService.init(renderNotes, renderFiles, renderStatus);
+    const saved = fbService.init(
+      renderNotes, 
+      (folders) => { currentFolders = folders; renderFileManager(); }, 
+      (files) => { currentFiles = files; renderFileManager(); }, 
+      renderStatus
+    );
     if (saved) document.getElementById("configTextarea").value = saved;
   </script>
 </body>
