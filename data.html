@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Firebase Notes & File Base64 Manager</title>
+  <title>Firebase Notes, Images & Video Base64 Manager</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
@@ -25,7 +25,7 @@
         </div>
         <div>
           <h1 class="text-lg font-bold tracking-tight">Firebase Notes & Base64 Files</h1>
-          <p class="text-[11px] text-slate-400">Modular CRUD with File Upload Support</p>
+          <p class="text-[11px] text-slate-400">Supports Text, Images, and Video Playback</p>
         </div>
       </div>
 
@@ -135,7 +135,7 @@
 
   </main>
 
-  <!-- MODAL: CREATE NOTE & FILE UPLOAD (Larger: max-w-2xl) -->
+  <!-- MODAL: CREATE NOTE & FILE UPLOAD (Large: max-w-2xl) -->
   <div id="createModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden">
       <div class="bg-slate-900 text-white p-4 px-6 flex justify-between items-center">
@@ -151,7 +151,7 @@
         <div class="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-5 text-center">
           <label class="cursor-pointer block">
             <i class="fa-solid fa-cloud-arrow-up text-amber-500 text-2xl mb-1"></i>
-            <p class="text-xs font-semibold text-slate-700">Upload a file (Optional)</p>
+            <p class="text-xs font-semibold text-slate-700">Upload a file (Images, Videos, PDFs, Docs)</p>
             <p class="text-[10px] text-slate-400 mt-0.5">Automatically fills title & Base64 content</p>
             <input type="file" id="fileUploadInput" class="hidden">
           </label>
@@ -187,7 +187,7 @@
     </div>
   </div>
 
-  <!-- MODAL: EDIT NOTE (Larger: max-w-2xl) -->
+  <!-- MODAL: EDIT NOTE (Large: max-w-2xl) -->
   <div id="editModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden">
       <div class="bg-slate-900 text-white p-4 px-6 flex justify-between items-center">
@@ -232,7 +232,7 @@
     </div>
   </div>
 
-  <!-- MODAL: VIEW DETAILS & BASE64 PREVIEW (Larger: max-w-2xl) -->
+  <!-- MODAL: VIEW DETAILS, IMAGE & VIDEO PREVIEW (Large: max-w-2xl) -->
   <div id="viewModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden">
       <div class="bg-slate-900 text-white p-4 px-6 flex justify-between items-center">
@@ -250,8 +250,8 @@
           <h2 id="viewTitle" class="text-xl font-bold text-slate-800">Title</h2>
         </div>
 
-        <div id="viewContentContainer" class="bg-slate-50 border border-slate-200 rounded-xl p-5 max-h-96 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center">
-          <!-- Dynamically rendered content or image preview -->
+        <div id="viewContentContainer" class="bg-slate-50 border border-slate-200 rounded-xl p-5 max-h-[420px] overflow-y-auto custom-scrollbar flex flex-col items-center justify-center">
+          <!-- Dynamically renders Text, Image, or Video -->
         </div>
 
         <div class="flex items-center justify-between pt-2 border-t border-slate-100">
@@ -333,6 +333,8 @@
         if (isBase64DataUrl(item.content)) {
           if (item.content.startsWith('data:image/')) {
             contentPreview = `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200"><i class="fa-regular fa-image"></i> Image Attachment</span>`;
+          } else if (item.content.startsWith('data:video/')) {
+            contentPreview = `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200"><i class="fa-solid fa-circle-play"></i> Video Attachment</span>`;
           } else {
             contentPreview = `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"><i class="fa-solid fa-file-arrow-down"></i> File Attachment</span>`;
           }
@@ -373,7 +375,7 @@
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
-    // File to Base64 Upload Handler
+    // File Upload Reader (Images, Video, Docs)
     document.getElementById("fileUploadInput").addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -383,7 +385,7 @@
         document.getElementById("createTitle").value = file.name;
         document.getElementById("createCategory").value = "Media";
         document.getElementById("createContent").value = uploadEvent.target.result;
-        showToast("File converted to Base64 successfully!", "success");
+        showToast("File loaded & ready!", "success");
       };
       reader.readAsDataURL(file);
     });
@@ -433,7 +435,7 @@
       document.getElementById("editModal").classList.add("hidden");
     });
 
-    // View Modal (Eye Icon)
+    // View Modal (Renders Text, Image, or HTML5 Video Player)
     window.viewItem = (id) => {
       const item = currentItems.find(i => i.id === id);
       if (!item) return;
@@ -447,8 +449,18 @@
 
       if (isBase64DataUrl(item.content)) {
         if (item.content.startsWith('data:image/')) {
+          // Render Image
           container.innerHTML = `<img src="${item.content}" class="max-h-80 rounded-xl shadow-md object-contain">`;
+        } else if (item.content.startsWith('data:video/')) {
+          // Render Video Player
+          container.innerHTML = `
+            <video controls class="w-full max-h-80 rounded-xl shadow-md bg-black">
+              <source src="${item.content}">
+              Your browser does not support playing this video.
+            </video>
+          `;
         } else {
+          // Render Document / File Fallback
           container.innerHTML = `
             <div class="text-center py-8">
               <i class="fa-solid fa-file-arrow-down text-5xl text-amber-500 mb-3"></i>
@@ -462,6 +474,7 @@
         downloadBtn.classList.remove("hidden");
         downloadBtn.classList.add("flex");
       } else {
+        // Plain Text Note
         container.innerHTML = `<p class="text-sm text-slate-700 whitespace-pre-line leading-relaxed w-full">${escapeHtml(item.content)}</p>`;
         downloadBtn.classList.add("hidden");
         downloadBtn.classList.remove("flex");
@@ -470,7 +483,12 @@
       document.getElementById("viewModal").classList.remove("hidden");
     };
 
-    document.getElementById("closeViewModalBtn").addEventListener("click", () => document.getElementById("viewModal").classList.add("hidden"));
+    // Stop video playback when closing modal
+    document.getElementById("closeViewModalBtn").addEventListener("click", () => {
+      const container = document.getElementById("viewContentContainer");
+      container.innerHTML = "";
+      document.getElementById("viewModal").classList.add("hidden");
+    });
 
     // Delete
     window.deleteItem = async (id) => {
