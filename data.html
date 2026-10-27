@@ -3,40 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Modular Firebase Title & Content Manager</title>
+  <title>Firebase Title & Content CRUD</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen pb-12">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
-  <!-- Header -->
+  <!-- Header Header -->
   <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
       <div class="flex items-center space-x-3">
-        <div class="bg-amber-500 p-2.5 rounded-xl shadow-md text-slate-900">
-          <i class="fa-solid fa-fire text-xl"></i>
+        <div class="bg-amber-500 p-2 rounded-xl shadow-md text-slate-900">
+          <i class="fa-solid fa-fire text-lg"></i>
         </div>
         <div>
-          <h1 class="text-xl font-bold tracking-tight">Firebase CRUD Notes</h1>
-          <p class="text-xs text-slate-400">Modular SDK v13 Service & Table UI</p>
+          <h1 class="text-lg font-bold tracking-tight">Firebase Notes Manager</h1>
+          <p class="text-[11px] text-slate-400">Compact Table Layout with Modal Popups</p>
         </div>
       </div>
 
       <div class="flex items-center space-x-3">
-        <!-- Status Badge -->
+        <!-- Connection Badge -->
         <span id="statusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
           <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-          <span>Demo / Local Mode</span>
+          <span>Local / Demo</span>
         </span>
 
-        <button id="toggleConfigBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-sm transition flex items-center gap-2 border border-slate-700">
+        <button id="toggleConfigBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-2 border border-slate-700">
           <i class="fa-solid fa-gear"></i>
           <span>Firebase Config</span>
         </button>
@@ -47,180 +47,142 @@
   <!-- Notification Toast Container -->
   <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
 
-  <!-- Main Layout -->
-  <main class="max-w-7xl mx-auto px-4 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+  <!-- Main Content Layout -->
+  <main class="max-w-7xl mx-auto px-4 py-6 w-full flex-1 flex flex-col space-y-4">
 
-    <!-- Left Column: Config & Create Form -->
-    <div class="lg:col-span-4 space-y-6">
-
-      <!-- Config Panel -->
-      <div id="configPanel" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hidden transition-all">
-        <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
-          <h2 class="font-semibold text-sm flex items-center gap-2">
-            <i class="fa-solid fa-key text-amber-400"></i> Firebase Config (Cookie Stored)
-          </h2>
-          <button id="closeConfigBtn" class="text-slate-400 hover:text-white text-sm">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-        <div class="p-5 space-y-4">
-          <p class="text-xs text-slate-500 leading-relaxed">
-            Paste your Firebase configuration below. Saved in cookies & managed via standard ES module.
-          </p>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Paste Firebase Config</label>
-            <textarea id="configTextarea" rows="7" class="w-full text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 custom-scrollbar" placeholder='const firebaseConfig = {
-  apiKey: "AIzaSy...",
-  authDomain: "your-app.firebaseapp.com",
-  projectId: "your-app-id",
-  storageBucket: "your-app.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
-};'></textarea>
-          </div>
-
-          <div class="flex items-center justify-between text-xs text-slate-500">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" id="rememberCookie" checked class="rounded text-amber-500 focus:ring-amber-400">
-              <span>Save in cookie (30 days)</span>
-            </label>
-            <button id="clearCookieBtn" class="text-red-500 hover:text-red-700 underline font-medium">Clear Cookie</button>
-          </div>
-
-          <button id="saveConfigBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex items-center justify-center gap-2">
-            <i class="fa-solid fa-floppy-disk"></i> Apply & Connect
-          </button>
-        </div>
+    <!-- Config Panel (Hidden by default) -->
+    <div id="configPanel" class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden hidden transition-all">
+      <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
+        <h2 class="font-semibold text-sm flex items-center gap-2">
+          <i class="fa-solid fa-key text-amber-400"></i> Firebase Config (Cookie Stored)
+        </h2>
+        <button id="closeConfigBtn" class="text-slate-400 hover:text-white text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
-
-      <!-- Create Post Form -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
-          <h2 class="font-bold text-slate-800 text-lg flex items-center gap-2">
-            <i class="fa-solid fa-pen-to-square text-amber-500"></i> Add New Note
-          </h2>
-          <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-md font-medium">Create</span>
+      <div class="p-5 space-y-4">
+        <textarea id="configTextarea" rows="6" class="w-full text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 custom-scrollbar" placeholder='const firebaseConfig = { apiKey: "...", projectId: "..." };'></textarea>
+        
+        <div class="flex items-center justify-between text-xs text-slate-500">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="rememberCookie" checked class="rounded text-amber-500 focus:ring-amber-400">
+            <span>Save in cookie (30 days)</span>
+          </label>
+          <button id="clearCookieBtn" class="text-red-500 hover:text-red-700 underline font-medium">Clear Cookie</button>
         </div>
 
-        <form id="createForm" class="space-y-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1" for="createTitle">Title <span class="text-red-500">*</span></label>
-            <input type="text" id="createTitle" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition" placeholder="e.g., Project Update">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1" for="createCategory">Category</label>
-            <select id="createCategory" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
-              <option value="General">General</option>
-              <option value="Work">Work</option>
-              <option value="Personal">Personal</option>
-              <option value="Ideas">Ideas</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1" for="createContent">Content <span class="text-red-500">*</span></label>
-            <textarea id="createContent" rows="4" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition custom-scrollbar" placeholder="Type full note text here..."></textarea>
-          </div>
-
-          <button type="submit" id="submitCreateBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm">
-            <i class="fa-solid fa-plus"></i> Save to Database
-          </button>
-        </form>
+        <button id="saveConfigBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 px-4 rounded-xl shadow-sm transition text-xs flex items-center justify-center gap-2">
+          <i class="fa-solid fa-floppy-disk"></i> Apply & Save Config
+        </button>
       </div>
-
     </div>
 
-    <!-- Right Column: Table View -->
-    <div class="lg:col-span-8 space-y-4">
+    <!-- Toolbar: Actions, Search, Filters -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-3 justify-between items-center">
+      
+      <div class="flex items-center gap-2">
+        <!-- New Note Button (Launches Create Modal) -->
+        <button id="openCreateModalBtn" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-plus text-amber-400"></i>
+          <span>New Note</span>
+        </button>
 
-      <!-- Search & Filters -->
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-3 justify-between items-center">
-        <div class="relative flex-1 min-w-[200px]">
-          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+        <!-- Download Backup Data Button -->
+        <button id="backupDataBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
+          <i class="fa-solid fa-file-arrow-down"></i>
+          <span>Backup JSON</span>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-3 flex-1 max-w-lg justify-end">
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-2.5 text-slate-400 text-xs"></i>
           <input type="text" id="searchInput" placeholder="Search title or content..." class="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
         </div>
         
-        <div class="flex items-center gap-2">
-          <select id="filterCategory" class="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500">
-            <option value="ALL">All Categories</option>
+        <select id="filterCategory" class="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <option value="ALL">All Categories</option>
+          <option value="General">General</option>
+          <option value="Work">Work</option>
+          <option value="Personal">Personal</option>
+          <option value="Ideas">Ideas</option>
+        </select>
+
+        <span id="itemCount" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1.5 rounded-xl whitespace-nowrap">0 notes</span>
+      </div>
+    </div>
+
+    <!-- Full Space Table Container -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase font-semibold">
+              <th class="py-3 px-4">Title</th>
+              <th class="py-3 px-4">Category</th>
+              <th class="py-3 px-4">Content Preview</th>
+              <th class="py-3 px-4">Date</th>
+              <th class="py-3 px-4 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-100 text-sm">
+            <tr>
+              <td colspan="5" class="py-12 text-center text-slate-400">
+                <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500 mb-2"></i>
+                <p>Loading database items...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL 1: CREATE NOTE -->
+  <div id="createModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden">
+      <div class="bg-slate-900 text-white p-4 px-6 flex justify-between items-center">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <i class="fa-solid fa-plus text-amber-400"></i> Add New Note
+        </h3>
+        <button id="closeCreateModalBtn" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="createForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1" for="createTitle">Title <span class="text-red-500">*</span></label>
+          <input type="text" id="createTitle" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1" for="createCategory">Category</label>
+          <select id="createCategory" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
             <option value="General">General</option>
             <option value="Work">Work</option>
             <option value="Personal">Personal</option>
             <option value="Ideas">Ideas</option>
           </select>
-
-          <span id="itemCount" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-lg">0 items</span>
-        </div>
-      </div>
-
-      <!-- Clean Table Layout -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="overflow-x-auto custom-scrollbar">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-900 text-white text-xs font-semibold tracking-wider uppercase">
-                <th class="p-4 pl-6">Title</th>
-                <th class="p-4">Category</th>
-                <th class="p-4">Content Preview</th>
-                <th class="p-4">Date</th>
-                <th class="p-4 text-center pr-6">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="tableBody" class="divide-y divide-slate-100 text-sm">
-              <tr>
-                <td colspan="5" class="p-8 text-center text-slate-400">
-                  <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500 mb-2"></i>
-                  <p class="text-xs font-medium text-slate-600">Loading Database...</p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-
-  </main>
-
-  <!-- Eye Icon Details Modal -->
-  <div id="detailsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-      <div class="bg-slate-900 text-white p-4 px-6 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-eye text-amber-400"></i>
-          <h3 class="font-bold text-base">Note Details</h3>
-        </div>
-        <button id="closeDetailsModalBtn" class="text-slate-400 hover:text-white transition">
-          <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
-      </div>
-
-      <div class="p-6 space-y-4">
-        <div class="flex justify-between items-start gap-3">
-          <div>
-            <span id="detailCategory" class="inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold tracking-wide uppercase bg-amber-100 text-amber-800 mb-1">Category</span>
-            <h2 id="detailTitle" class="text-xl font-bold text-slate-800">Title</h2>
-          </div>
-          <span id="detailDate" class="text-xs text-slate-400 whitespace-nowrap"><i class="fa-regular fa-clock"></i> Date</span>
         </div>
 
-        <div class="border-t border-b border-slate-100 py-4 max-h-72 overflow-y-auto custom-scrollbar">
-          <p id="detailContent" class="text-slate-700 text-sm whitespace-pre-line leading-relaxed">Content text...</p>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1" for="createContent">Content <span class="text-red-500">*</span></label>
+          <textarea id="createContent" rows="5" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 custom-scrollbar"></textarea>
         </div>
 
-        <div class="flex justify-between items-center pt-2">
-          <span id="detailDocId" class="text-[10px] font-mono bg-slate-100 px-2 py-1 rounded text-slate-500">ID: ...</span>
-          <button id="closeDetailsBtn" class="px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded-xl hover:bg-slate-800 transition">
-            Close
+        <div class="pt-2 flex gap-3 justify-end">
+          <button type="button" id="cancelCreateBtn" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i> Create Note
           </button>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 
-  <!-- Edit Modal -->
+  <!-- MODAL 2: EDIT NOTE -->
   <div id="editModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden">
       <div class="bg-slate-900 text-white p-4 px-6 flex justify-between items-center">
@@ -256,10 +218,8 @@
         </div>
 
         <div class="pt-2 flex gap-3 justify-end">
-          <button type="button" id="cancelEditBtn" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition">
-            Cancel
-          </button>
-          <button type="submit" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-sm transition flex items-center gap-2">
+          <button type="button" id="cancelEditBtn" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition flex items-center gap-2">
             <i class="fa-solid fa-check"></i> Save Changes
           </button>
         </div>
@@ -267,111 +227,93 @@
     </div>
   </div>
 
+  <!-- MODAL 3: EYE ICON DETAILS POPUP -->
+  <div id="viewModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden">
+      <div class="bg-slate-900 text-white p-4 px-6 flex justify-between items-center">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <i class="fa-solid fa-eye text-amber-400"></i> Note Details
+        </h3>
+        <button id="closeViewModalBtn" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
 
-  <!-- ES Module Connection -->
+      <div class="p-6 space-y-4">
+        <div>
+          <span id="viewCategory" class="inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold tracking-wide uppercase bg-slate-100 text-slate-700 mb-2">Category</span>
+          <h2 id="viewTitle" class="text-xl font-bold text-slate-800">Title</h2>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 max-h-60 overflow-y-auto custom-scrollbar">
+          <p id="viewContent" class="text-sm text-slate-700 whitespace-pre-line leading-relaxed">Content</p>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100">
+          <span id="viewDate"><i class="fa-regular fa-clock"></i> Date</span>
+          <span id="viewDocId" class="font-mono text-[10px] bg-slate-100 px-2 py-0.5 rounded">ID: </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UI CONTROLLER SCRIPT -->
   <script type="module">
     import { FirebaseService } from "./firebase-service.js";
 
     const fbService = new FirebaseService();
-    let cachedItems = [];
+    let currentItems = [];
 
-    function showToast(message, type = "info") {
+    // Toast Utility
+    function showToast(msg, type = "info") {
       const container = document.getElementById("toastContainer");
       const toast = document.createElement("div");
-      
-      const bgColors = {
-        success: "bg-emerald-600 text-white",
-        error: "bg-red-600 text-white",
-        info: "bg-slate-900 text-white"
-      };
-
-      const icons = {
-        success: "fa-circle-check",
-        error: "fa-circle-exclamation",
-        info: "fa-circle-info"
-      };
-
-      toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-xs font-medium ${bgColors[type]} transition-all transform translate-y-2 opacity-0 pointer-events-auto`;
-      toast.innerHTML = `<i class="fa-solid ${icons[type]} text-base"></i> <span>${message}</span>`;
-      
+      const bgColors = { success: "bg-emerald-600", error: "bg-red-600", info: "bg-slate-900" };
+      toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-xs font-medium text-white ${bgColors[type]} transition-all transform translate-y-2 opacity-0 pointer-events-auto`;
+      toast.innerHTML = `<i class="fa-solid fa-circle-info text-base"></i> <span>${msg}</span>`;
       container.appendChild(toast);
       requestAnimationFrame(() => toast.classList.remove("translate-y-2", "opacity-0"));
       setTimeout(() => {
         toast.classList.add("opacity-0", "translate-y-2");
         setTimeout(() => toast.remove(), 300);
-      }, 3500);
+      }, 3000);
     }
 
-    function initSystem() {
-      const savedConfigStr = fbService.getCookie();
-      const configTextarea = document.getElementById("configTextarea");
-
-      if (savedConfigStr) {
-        configTextarea.value = savedConfigStr;
-        const configObj = fbService.parseConfig(savedConfigStr);
-        if (configObj) {
-          try {
-            fbService.connect(configObj);
-            updateBadge(true);
-            showToast("Connected to Firebase Cloud Firestore!", "success");
-            fbService.subscribe(onDataChange, onDataError);
-            return;
-          } catch (e) {
-            showToast("Connection failed: " + e.message, "error");
-          }
-        }
-      }
-
-      startLocalDemo();
-    }
-
-    function startLocalDemo() {
-      fbService.disconnect();
-      updateBadge(false);
-      cachedItems = fbService.getLocalDocs();
-      renderTable(cachedItems);
-    }
-
-    function updateBadge(isCloud) {
+    // Status Badge Render
+    function renderStatus(isCloud, errorMsg = null) {
       const badge = document.getElementById("statusBadge");
       if (isCloud) {
         badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
         badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Live Cloud Firestore`;
       } else {
         badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30";
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Demo / Local Mode`;
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Local / Demo`;
       }
+      if (errorMsg) showToast("Error: " + errorMsg, "error");
     }
 
-    function onDataChange(items) {
-      cachedItems = items;
-      renderTable(cachedItems);
-    }
-
-    function onDataError(err) {
-      showToast("Firestore error: " + err.message, "error");
-    }
-
+    // Render Table Data
     function renderTable(items) {
+      currentItems = items;
       const tbody = document.getElementById("tableBody");
-      const searchTerm = document.getElementById("searchInput").value.toLowerCase();
-      const selectedCategory = document.getElementById("filterCategory").value;
+      const search = document.getElementById("searchInput").value.toLowerCase();
+      const cat = document.getElementById("filterCategory").value;
 
       const filtered = items.filter(item => {
-        const matchesSearch = (item.title || "").toLowerCase().includes(searchTerm) || 
-                              (item.content || "").toLowerCase().includes(searchTerm);
-        const matchesCategory = selectedCategory === "ALL" || item.category === selectedCategory;
+        const matchesSearch = (item.title || "").toLowerCase().includes(search) || 
+                              (item.content || "").toLowerCase().includes(search);
+        const matchesCategory = cat === "ALL" || item.category === cat;
         return matchesSearch && matchesCategory;
       });
 
-      document.getElementById("itemCount").textContent = `${filtered.length} items`;
+      document.getElementById("itemCount").textContent = `${filtered.length} notes`;
 
       if (filtered.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="5" class="p-8 text-center text-slate-400">
-              <i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300"></i>
-              <p class="text-xs font-medium text-slate-600">No matching items found</p>
+            <td colspan="5" class="py-8 text-center text-slate-400">
+              <i class="fa-regular fa-folder-open text-2xl mb-1 text-slate-300"></i>
+              <p class="text-xs">No records found</p>
             </td>
           </tr>
         `;
@@ -379,32 +321,28 @@
       }
 
       tbody.innerHTML = filtered.map(item => `
-        <tr class="hover:bg-slate-50/80 transition group">
-          <td class="p-4 pl-6 font-semibold text-slate-800 max-w-[180px] truncate">
-            ${escapeHtml(item.title)}
-          </td>
-          <td class="p-4 whitespace-nowrap">
-            <span class="inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold tracking-wide uppercase bg-slate-100 text-slate-700">
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-3 px-4 font-semibold text-slate-800">${escapeHtml(item.title)}</td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-600">
               ${item.category || "General"}
             </span>
           </td>
-          <td class="p-4 text-slate-500 max-w-[240px] truncate">
-            ${escapeHtml(item.content)}
-          </td>
-          <td class="p-4 text-xs text-slate-400 whitespace-nowrap">
-            ${item.formattedDate || 'Recent'}
-          </td>
-          <td class="p-4 pr-6 text-center whitespace-nowrap">
+          <td class="py-3 px-4 text-slate-500 max-w-xs truncate">${escapeHtml(item.content)}</td>
+          <td class="py-3 px-4 text-xs text-slate-400 whitespace-nowrap">${item.formattedDate || 'Recent'}</td>
+          <td class="py-3 px-4 text-center">
             <div class="flex items-center justify-center gap-1">
-              <!-- EYE ICON: Opens Full Details Modal -->
-              <button onclick="window.showDetailsModal('${item.id}')" class="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition" title="View Details">
-                <i class="fa-solid fa-eye text-base"></i>
+              <!-- EYE ICON (View Details) -->
+              <button onclick="window.viewItem('${item.id}')" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="View Details">
+                <i class="fa-solid fa-eye"></i>
               </button>
-              <button onclick="window.openEditModal('${item.id}')" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Note">
-                <i class="fa-solid fa-pen text-sm"></i>
+              <!-- EDIT ICON -->
+              <button onclick="window.openEditModal('${item.id}')" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Edit">
+                <i class="fa-solid fa-pen"></i>
               </button>
-              <button onclick="window.deleteItem('${item.id}')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete Note">
-                <i class="fa-solid fa-trash-can text-sm"></i>
+              <!-- DELETE ICON -->
+              <button onclick="window.deleteItem('${item.id}')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
+                <i class="fa-solid fa-trash-can"></i>
               </button>
             </div>
           </td>
@@ -417,61 +355,38 @@
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
-    // Modal Actions
-    window.showDetailsModal = (id) => {
-      const item = cachedItems.find(i => i.id === id);
-      if (!item) return;
+    // Modal Triggers: CREATE
+    document.getElementById("openCreateModalBtn").addEventListener("click", () => {
+      document.getElementById("createForm").reset();
+      document.getElementById("createModal").classList.remove("hidden");
+    });
+    document.getElementById("closeCreateModalBtn").addEventListener("click", () => document.getElementById("createModal").classList.add("hidden"));
+    document.getElementById("cancelCreateBtn").addEventListener("click", () => document.getElementById("createModal").classList.add("hidden"));
 
-      document.getElementById("detailTitle").textContent = item.title;
-      document.getElementById("detailCategory").textContent = item.category || "General";
-      document.getElementById("detailContent").textContent = item.content;
-      document.getElementById("detailDate").innerHTML = `<i class="fa-regular fa-clock"></i> ${item.formattedDate || 'Recent'}`;
-      document.getElementById("detailDocId").textContent = `ID: ${item.id}`;
-
-      document.getElementById("detailsModal").classList.remove("hidden");
-    };
-
-    const closeDetails = () => document.getElementById("detailsModal").classList.add("hidden");
-    document.getElementById("closeDetailsModalBtn").addEventListener("click", closeDetails);
-    document.getElementById("closeDetailsBtn").addEventListener("click", closeDetails);
-
-    window.openEditModal = (id) => {
-      const item = cachedItems.find(i => i.id === id);
-      if (!item) return;
-
-      document.getElementById("editDocId").value = item.id;
-      document.getElementById("editTitle").value = item.title || "";
-      document.getElementById("editCategory").value = item.category || "General";
-      document.getElementById("editContent").value = item.content || "";
-
-      document.getElementById("editModal").classList.remove("hidden");
-    };
-
-    const closeEdit = () => document.getElementById("editModal").classList.add("hidden");
-    document.getElementById("closeEditModalBtn").addEventListener("click", closeEdit);
-    document.getElementById("cancelEditBtn").addEventListener("click", closeEdit);
-
-    // Form Event Listeners
     document.getElementById("createForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const title = document.getElementById("createTitle").value.trim();
       const category = document.getElementById("createCategory").value;
       const content = document.getElementById("createContent").value.trim();
-      if (!title || !content) return;
 
-      try {
-        await fbService.createDoc({ title, category, content });
-        showToast("Note created successfully!", "success");
-        document.getElementById("createTitle").value = "";
-        document.getElementById("createContent").value = "";
-        if (!fbService.isCloudMode) {
-          cachedItems = fbService.getLocalDocs();
-          renderTable(cachedItems);
-        }
-      } catch (err) {
-        showToast("Failed to create note: " + err.message, "error");
-      }
+      await fbService.create({ title, category, content });
+      showToast("Note created successfully!", "success");
+      document.getElementById("createModal").classList.add("hidden");
     });
+
+    // Modal Triggers: EDIT
+    window.openEditModal = (id) => {
+      const item = currentItems.find(i => i.id === id);
+      if (!item) return;
+      document.getElementById("editDocId").value = item.id;
+      document.getElementById("editTitle").value = item.title || "";
+      document.getElementById("editCategory").value = item.category || "General";
+      document.getElementById("editContent").value = item.content || "";
+      document.getElementById("editModal").classList.remove("hidden");
+    };
+
+    document.getElementById("closeEditModalBtn").addEventListener("click", () => document.getElementById("editModal").classList.add("hidden"));
+    document.getElementById("cancelEditBtn").addEventListener("click", () => document.getElementById("editModal").classList.add("hidden"));
 
     document.getElementById("editForm").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -480,72 +395,70 @@
       const category = document.getElementById("editCategory").value;
       const content = document.getElementById("editContent").value.trim();
 
-      try {
-        await fbService.updateDocById(id, { title, category, content });
-        showToast("Note updated successfully!", "success");
-        closeEdit();
-        if (!fbService.isCloudMode) {
-          cachedItems = fbService.getLocalDocs();
-          renderTable(cachedItems);
-        }
-      } catch (err) {
-        showToast("Update failed: " + err.message, "error");
-      }
+      await fbService.update(id, { title, category, content });
+      showToast("Note updated!", "success");
+      document.getElementById("editModal").classList.add("hidden");
     });
 
-    window.deleteItem = async (id) => {
-      if (!confirm("Are you sure you want to delete this note?")) return;
-      try {
-        await fbService.deleteDocById(id);
-        showToast("Note deleted", "success");
-        if (!fbService.isCloudMode) {
-          cachedItems = fbService.getLocalDocs();
-          renderTable(cachedItems);
-        }
-      } catch (err) {
-        showToast("Delete failed: " + err.message, "error");
-      }
+    // Modal Triggers: VIEW (Eye Icon)
+    window.viewItem = (id) => {
+      const item = currentItems.find(i => i.id === id);
+      if (!item) return;
+      document.getElementById("viewTitle").textContent = item.title;
+      document.getElementById("viewCategory").textContent = item.category || "General";
+      document.getElementById("viewContent").textContent = item.content;
+      document.getElementById("viewDate").innerHTML = `<i class="fa-regular fa-clock"></i> ${item.formattedDate || 'Recent'}`;
+      document.getElementById("viewDocId").textContent = `ID: ${item.id}`;
+      document.getElementById("viewModal").classList.remove("hidden");
     };
 
-    // Config Panel Logic
+    document.getElementById("closeViewModalBtn").addEventListener("click", () => document.getElementById("viewModal").classList.add("hidden"));
+
+    // Delete Trigger
+    window.deleteItem = async (id) => {
+      if (!confirm("Are you sure you want to delete this note?")) return;
+      await fbService.delete(id);
+      showToast("Note deleted!", "success");
+    };
+
+    // Backup Data Download Trigger
+    document.getElementById("backupDataBtn").addEventListener("click", () => {
+      fbService.downloadBackup();
+      showToast("Backup JSON file downloaded!", "success");
+    });
+
+    // Config Header Panel
     document.getElementById("toggleConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.toggle("hidden"));
     document.getElementById("closeConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.add("hidden"));
 
     document.getElementById("saveConfigBtn").addEventListener("click", () => {
-      const rawConfig = document.getElementById("configTextarea").value;
-      const configObj = fbService.parseConfig(rawConfig);
-
-      if (!configObj) {
-        showToast("Could not parse config. Please check formatting.", "error");
+      const rawText = document.getElementById("configTextarea").value;
+      const parsed = fbService.parseConfig(rawText);
+      if (!parsed) {
+        showToast("Unable to parse config!", "error");
         return;
       }
-
       if (document.getElementById("rememberCookie").checked) {
-        fbService.setCookie(rawConfig, 30);
+        fbService.setCookie(fbService.cookieName, rawText, 30);
       }
-
-      try {
-        fbService.connect(configObj);
-        updateBadge(true);
-        showToast("Connected to Cloud Firestore!", "success");
-        fbService.subscribe(onDataChange, onDataError);
-        document.getElementById("configPanel").classList.add("hidden");
-      } catch (e) {
-        showToast("Firebase error: " + e.message, "error");
-      }
+      fbService.connect(parsed);
+      document.getElementById("configPanel").classList.add("hidden");
     });
 
     document.getElementById("clearCookieBtn").addEventListener("click", () => {
-      fbService.eraseCookie();
+      fbService.eraseCookie(fbService.cookieName);
       document.getElementById("configTextarea").value = "";
-      showToast("Cookie cleared", "info");
-      startLocalDemo();
+      showToast("Cookie cleared!", "info");
+      fbService.startLocalMode();
     });
 
-    document.getElementById("searchInput").addEventListener("input", () => renderTable(cachedItems));
-    document.getElementById("filterCategory").addEventListener("change", () => renderTable(cachedItems));
+    // Search and Filter Listeners
+    document.getElementById("searchInput").addEventListener("input", () => renderTable(currentItems));
+    document.getElementById("filterCategory").addEventListener("change", () => renderTable(currentItems));
 
-    initSystem();
+    // App Startup
+    const savedConfig = fbService.init(renderTable, renderStatus);
+    if (savedConfig) document.getElementById("configTextarea").value = savedConfig;
   </script>
 </body>
 </html>
