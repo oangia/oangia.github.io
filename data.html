@@ -460,7 +460,7 @@
       document.getElementById("createNoteModal").classList.add("hidden");
     });
 
-    // View File Reassembly
+    // View File Reassembly & Preview
     window.viewFile = async (id, fileId) => {
       const item = currentFiles.find(f => f.id === id || f.fileId === fileId);
       if (!item) return;
