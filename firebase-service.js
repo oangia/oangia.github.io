@@ -21,19 +21,24 @@ export class FirebaseService {
     this.db = null;
     this.unsubscribeNotes = null;
     this.unsubscribeFiles = null;
+    this.unsubscribeFolders = null;
     this.isLiveMode = false;
+    
     this.notesCollection = "posts";
+    this.foldersCollection = "folders";
     this.filesCollection = "files";
     this.chunksCollection = "file_chunks";
     
     this.cachedNotes = [];
+    this.cachedFolders = [];
     this.cachedFiles = [];
+    
     this.onNotesChangeCallback = null;
+    this.onFoldersChangeCallback = null;
     this.onFilesChangeCallback = null;
     this.onStatusChangeCallback = null;
   }
 
-  // Cookie Helpers
   setCookie(name, value, days = 30) {
     const date = new Date();
     date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
@@ -74,8 +79,9 @@ export class FirebaseService {
     }
   }
 
-  init(onNotesChange, onFilesChange, onStatusChange) {
+  init(onNotesChange, onFoldersChange, onFilesChange, onStatusChange) {
     this.onNotesChangeCallback = onNotesChange;
+    this.onFoldersChangeCallback = onFoldersChange;
     this.onFilesChangeCallback = onFilesChange;
     this.onStatusChangeCallback = onStatusChange;
 
@@ -111,12 +117,18 @@ export class FirebaseService {
   startLocalMode() {
     this.isLiveMode = false;
     if (this.unsubscribeNotes) this.unsubscribeNotes();
+    if (this.unsubscribeFolders) this.unsubscribeFolders();
     if (this.unsubscribeFiles) this.unsubscribeFiles();
     if (this.onStatusChangeCallback) this.onStatusChangeCallback(false);
 
     if (!localStorage.getItem("demo_notes")) {
       localStorage.setItem("demo_notes", JSON.stringify([
-        { id: "note-1", title: "Project Overview", category: "Work", content: "This is a standard text note.", createdAt: new Date().toISOString() }
+        { id: "note-1", title: "Project Roadmap", category: "Work", content: "Standard text note item.", createdAt: new Date().toISOString() }
+      ]));
+    }
+    if (!localStorage.getItem("demo_folders")) {
+      localStorage.setItem("demo_folders", JSON.stringify([
+        { id: "folder-1", name: "Images & Photos", parentId: "root", createdAt: new Date().toISOString() }
       ]));
     }
     if (!localStorage.getItem("demo_files")) {
@@ -127,13 +139,14 @@ export class FirebaseService {
     }
 
     this.readLocalNotes();
+    this.readLocalFolders();
     this.readLocalFiles();
   }
 
   subscribeAll() {
     if (!this.db || !this.isLiveMode) return;
 
-    // 1. Subscribe Notes
+    // Notes
     const qNotes = query(collection(this.db, this.notesCollection), orderBy("createdAt", "desc"));
     if (this.unsubscribeNotes) this.unsubscribeNotes();
     this.unsubscribeNotes = onSnapshot(qNotes, (snapshot) => {
@@ -148,7 +161,15 @@ export class FirebaseService {
       if (this.onNotesChangeCallback) this.onNotesChangeCallback(this.cachedNotes);
     });
 
-    // 2. Subscribe Files Metadata
+    // Folders
+    const qFolders = query(collection(this.db, this.foldersCollection), orderBy("createdAt", "asc"));
+    if (this.unsubscribeFolders) this.unsubscribeFolders();
+    this.unsubscribeFolders = onSnapshot(qFolders, (snapshot) => {
+      this.cachedFolders = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+      if (this.onFoldersChangeCallback) this.onFoldersChangeCallback(this.cachedFolders);
+    });
+
+    // Files
     const qFiles = query(collection(this.db, this.filesCollection), orderBy("createdAt", "desc"));
     if (this.unsubscribeFiles) this.unsubscribeFiles();
     this.unsubscribeFiles = onSnapshot(qFiles, (snapshot) => {
@@ -166,25 +187,23 @@ export class FirebaseService {
 
   readLocalNotes() {
     const raw = localStorage.getItem("demo_notes");
-    const items = raw ? JSON.parse(raw) : [];
-    this.cachedNotes = items.map(item => ({
-      ...item,
-      formattedDate: new Date(item.createdAt).toLocaleString()
-    }));
+    this.cachedNotes = (raw ? JSON.parse(raw) : []).map(i => ({ ...i, formattedDate: new Date(i.createdAt).toLocaleString() }));
     if (this.onNotesChangeCallback) this.onNotesChangeCallback(this.cachedNotes);
+  }
+
+  readLocalFolders() {
+    const raw = localStorage.getItem("demo_folders");
+    this.cachedFolders = raw ? JSON.parse(raw) : [];
+    if (this.onFoldersChangeCallback) this.onFoldersChangeCallback(this.cachedFolders);
   }
 
   readLocalFiles() {
     const raw = localStorage.getItem("demo_files");
-    const items = raw ? JSON.parse(raw) : [];
-    this.cachedFiles = items.map(item => ({
-      ...item,
-      formattedDate: new Date(item.createdAt).toLocaleString()
-    }));
+    this.cachedFiles = (raw ? JSON.parse(raw) : []).map(i => ({ ...i, formattedDate: new Date(i.createdAt).toLocaleString() }));
     if (this.onFilesChangeCallback) this.onFilesChangeCallback(this.cachedFiles);
   }
 
-  // --- NOTES CRUD ---
+  // Notes CRUD
   async createNote(item) {
     if (this.isLiveMode && this.db) {
       return await addDoc(collection(this.db, this.notesCollection), { ...item, createdAt: serverTimestamp() });
@@ -198,72 +217,87 @@ export class FirebaseService {
     }
   }
 
-  async updateNote(id, updatedFields) {
-    if (this.isLiveMode && this.db) {
-      return await updateDoc(doc(this.db, this.notesCollection, id), updatedFields);
-    } else {
-      let items = JSON.parse(localStorage.getItem("demo_notes") || "[]");
-      items = items.map(item => item.id === id ? { ...item, ...updatedFields } : item);
-      localStorage.setItem("demo_notes", JSON.stringify(items));
-      this.readLocalNotes();
-    }
-  }
-
   async deleteNote(id) {
     if (this.isLiveMode && this.db) {
       return await deleteDoc(doc(this.db, this.notesCollection, id));
     } else {
       let items = JSON.parse(localStorage.getItem("demo_notes") || "[]");
-      items = items.filter(item => item.id !== id);
+      items = items.filter(i => i.id !== id);
       localStorage.setItem("demo_notes", JSON.stringify(items));
       this.readLocalNotes();
     }
   }
 
-  // --- CHUNKED FILE UPLOAD CRUD (Bypasses 1MB Limit) ---
-  async uploadFileInChunks(fileTitle, category, base64Data) {
-    const CHUNK_SIZE = 700000; // ~700KB per chunk (safe under 1MB limit)
+  // Folder Management
+  async createFolder(name, parentId = "root") {
+    if (this.isLiveMode && this.db) {
+      return await addDoc(collection(this.db, this.foldersCollection), { name, parentId, createdAt: serverTimestamp() });
+    } else {
+      const folders = JSON.parse(localStorage.getItem("demo_folders") || "[]");
+      const newFolder = { id: "folder-" + Date.now(), name, parentId, createdAt: new Date().toISOString() };
+      folders.push(newFolder);
+      localStorage.setItem("demo_folders", JSON.stringify(folders));
+      this.readLocalFolders();
+      return newFolder;
+    }
+  }
+
+  async deleteFolder(folderId) {
+    if (this.isLiveMode && this.db) {
+      await deleteDoc(doc(this.db, this.foldersCollection, folderId));
+    } else {
+      let folders = JSON.parse(localStorage.getItem("demo_folders") || "[]");
+      folders = folders.filter(f => f.id !== folderId);
+      localStorage.setItem("demo_folders", JSON.stringify(folders));
+      this.readLocalFolders();
+    }
+  }
+
+  // Chunked File Upload with Thumbnail
+  async uploadFileInChunks(fileTitle, category, folderId, base64Data, thumbnailBase64 = "") {
+    const CHUNK_SIZE = 700000; // ~700KB chunks
     const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
     const fileId = "file_" + Date.now();
 
     if (this.isLiveMode && this.db) {
-      // 1. Save File Metadata
       await addDoc(collection(this.db, this.filesCollection), {
-        fileId: fileId,
+        fileId,
         title: fileTitle,
-        category: category,
-        totalParts: totalParts,
+        category,
+        folderId,
+        totalParts,
+        thumbnail: thumbnailBase64,
         createdAt: serverTimestamp()
       });
 
-      // 2. Save Chunks
       for (let i = 0; i < totalParts; i++) {
         const chunkData = base64Data.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
         await addDoc(collection(this.db, this.chunksCollection), {
-          fileId: fileId,
+          fileId,
           partIndex: i,
-          chunkData: chunkData
+          chunkData
         });
       }
     } else {
-      // Local Storage Mode
       const files = JSON.parse(localStorage.getItem("demo_files") || "[]");
       const chunks = JSON.parse(localStorage.getItem("demo_chunks") || "[]");
 
-      const newFileMeta = {
+      const meta = {
         id: fileId,
-        fileId: fileId,
+        fileId,
         title: fileTitle,
-        category: category,
-        totalParts: totalParts,
+        category,
+        folderId,
+        totalParts,
+        thumbnail: thumbnailBase64,
         createdAt: new Date().toISOString()
       };
-      files.unshift(newFileMeta);
+      files.unshift(meta);
       localStorage.setItem("demo_files", JSON.stringify(files));
 
       for (let i = 0; i < totalParts; i++) {
         chunks.push({
-          fileId: fileId,
+          fileId,
           partIndex: i,
           chunkData: base64Data.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
         });
@@ -275,30 +309,24 @@ export class FirebaseService {
 
   async getReassembledFileBase64(fileId) {
     let chunksList = [];
-
     if (this.isLiveMode && this.db) {
       const q = query(collection(this.db, this.chunksCollection), where("fileId", "==", fileId));
       const querySnapshot = await getDocs(q);
-      chunksList = querySnapshot.docs.map(doc => doc.data());
+      chunksList = querySnapshot.docs.map(d => d.data());
     } else {
       const chunks = JSON.parse(localStorage.getItem("demo_chunks") || "[]");
       chunksList = chunks.filter(c => c.fileId === fileId);
     }
-
-    // Sort by partIndex and combine
     chunksList.sort((a, b) => a.partIndex - b.partIndex);
     return chunksList.map(c => c.chunkData).join("");
   }
 
   async deleteFile(id, fileId) {
     if (this.isLiveMode && this.db) {
-      // Delete metadata doc
       await deleteDoc(doc(this.db, this.filesCollection, id));
-      // Delete all related chunk docs
       const q = query(collection(this.db, this.chunksCollection), where("fileId", "==", fileId));
       const querySnapshot = await getDocs(q);
-      const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
-      await Promise.all(deletePromises);
+      await Promise.all(querySnapshot.docs.map(d => deleteDoc(d.ref)));
     } else {
       let files = JSON.parse(localStorage.getItem("demo_files") || "[]");
       let chunks = JSON.parse(localStorage.getItem("demo_chunks") || "[]");
@@ -311,11 +339,11 @@ export class FirebaseService {
   }
 
   downloadBackup() {
-    const exportData = { notes: this.cachedNotes, files: this.cachedFiles };
+    const exportData = { notes: this.cachedNotes, folders: this.cachedFolders, files: this.cachedFiles };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `firebase_backup_${new Date().toISOString().slice(0, 10)}.json`);
+    downloadAnchor.setAttribute("download", `firebase_file_manager_backup_${new Date().toISOString().slice(0, 10)}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
