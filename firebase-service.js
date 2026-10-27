@@ -3,12 +3,14 @@ import {
   getFirestore, 
   collection, 
   addDoc, 
+  getDocs,
   onSnapshot, 
   doc, 
   updateDoc, 
   deleteDoc, 
   serverTimestamp, 
   query, 
+  where,
   orderBy 
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
@@ -17,11 +19,17 @@ export class FirebaseService {
     this.cookieName = cookieName;
     this.app = null;
     this.db = null;
-    this.unsubscribe = null;
+    this.unsubscribeNotes = null;
+    this.unsubscribeFiles = null;
     this.isLiveMode = false;
-    this.collectionName = "posts";
-    this.cachedItems = [];
-    this.onDataChangeCallback = null;
+    this.notesCollection = "posts";
+    this.filesCollection = "files";
+    this.chunksCollection = "file_chunks";
+    
+    this.cachedNotes = [];
+    this.cachedFiles = [];
+    this.onNotesChangeCallback = null;
+    this.onFilesChangeCallback = null;
     this.onStatusChangeCallback = null;
   }
 
@@ -46,7 +54,6 @@ export class FirebaseService {
     document.cookie = `${name}=; Max-Age=-99999999; path=/;`;
   }
 
-  // Parse Raw Config text directly
   parseConfig(rawText) {
     if (!rawText || !rawText.trim()) return null;
     try {
@@ -67,9 +74,9 @@ export class FirebaseService {
     }
   }
 
-  // Initialize Connection or Local Fallback
-  init(onDataChange, onStatusChange) {
-    this.onDataChangeCallback = onDataChange;
+  init(onNotesChange, onFilesChange, onStatusChange) {
+    this.onNotesChangeCallback = onNotesChange;
+    this.onFilesChangeCallback = onFilesChange;
     this.onStatusChangeCallback = onStatusChange;
 
     const savedConfigStr = this.getCookie(this.cookieName);
@@ -93,7 +100,7 @@ export class FirebaseService {
       this.isLiveMode = true;
 
       if (this.onStatusChangeCallback) this.onStatusChangeCallback(true);
-      this.subscribe();
+      this.subscribeAll();
     } catch (err) {
       console.error("Firebase connect failed:", err);
       if (this.onStatusChangeCallback) this.onStatusChangeCallback(false, err.message);
@@ -103,32 +110,34 @@ export class FirebaseService {
 
   startLocalMode() {
     this.isLiveMode = false;
-    if (this.unsubscribe) this.unsubscribe();
+    if (this.unsubscribeNotes) this.unsubscribeNotes();
+    if (this.unsubscribeFiles) this.unsubscribeFiles();
     if (this.onStatusChangeCallback) this.onStatusChangeCallback(false);
 
-    if (!localStorage.getItem("demo_crud_items")) {
-      const mock = [
-        {
-          id: "demo-1",
-          title: "Welcome to Notes App",
-          category: "General",
-          content: "Click the + New Note button above to add notes inside a popup modal. You can backup your data using the Backup button anytime!",
-          createdAt: new Date().toISOString()
-        }
-      ];
-      localStorage.setItem("demo_crud_items", JSON.stringify(mock));
+    if (!localStorage.getItem("demo_notes")) {
+      localStorage.setItem("demo_notes", JSON.stringify([
+        { id: "note-1", title: "Project Overview", category: "Work", content: "This is a standard text note.", createdAt: new Date().toISOString() }
+      ]));
     }
-    this.readLocal();
+    if (!localStorage.getItem("demo_files")) {
+      localStorage.setItem("demo_files", JSON.stringify([]));
+    }
+    if (!localStorage.getItem("demo_chunks")) {
+      localStorage.setItem("demo_chunks", JSON.stringify([]));
+    }
+
+    this.readLocalNotes();
+    this.readLocalFiles();
   }
 
-  subscribe() {
+  subscribeAll() {
     if (!this.db || !this.isLiveMode) return;
-    const q = query(collection(this.db, this.collectionName), orderBy("createdAt", "desc"));
-    
-    if (this.unsubscribe) this.unsubscribe();
 
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
-      this.cachedItems = snapshot.docs.map(docSnap => {
+    // 1. Subscribe Notes
+    const qNotes = query(collection(this.db, this.notesCollection), orderBy("createdAt", "desc"));
+    if (this.unsubscribeNotes) this.unsubscribeNotes();
+    this.unsubscribeNotes = onSnapshot(qNotes, (snapshot) => {
+      this.cachedNotes = snapshot.docs.map(docSnap => {
         const data = docSnap.data();
         let formattedDate = "Just now";
         if (data && data.createdAt && typeof data.createdAt.toDate === "function") {
@@ -136,66 +145,177 @@ export class FirebaseService {
         }
         return { id: docSnap.id, ...data, formattedDate };
       });
-      if (this.onDataChangeCallback) this.onDataChangeCallback(this.cachedItems);
+      if (this.onNotesChangeCallback) this.onNotesChangeCallback(this.cachedNotes);
+    });
+
+    // 2. Subscribe Files Metadata
+    const qFiles = query(collection(this.db, this.filesCollection), orderBy("createdAt", "desc"));
+    if (this.unsubscribeFiles) this.unsubscribeFiles();
+    this.unsubscribeFiles = onSnapshot(qFiles, (snapshot) => {
+      this.cachedFiles = snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        let formattedDate = "Just now";
+        if (data && data.createdAt && typeof data.createdAt.toDate === "function") {
+          formattedDate = data.createdAt.toDate().toLocaleString();
+        }
+        return { id: docSnap.id, ...data, formattedDate };
+      });
+      if (this.onFilesChangeCallback) this.onFilesChangeCallback(this.cachedFiles);
     });
   }
 
-  readLocal() {
-    const raw = localStorage.getItem("demo_crud_items");
+  readLocalNotes() {
+    const raw = localStorage.getItem("demo_notes");
     const items = raw ? JSON.parse(raw) : [];
-    this.cachedItems = items.map(item => ({
+    this.cachedNotes = items.map(item => ({
       ...item,
       formattedDate: new Date(item.createdAt).toLocaleString()
     }));
-    if (this.onDataChangeCallback) this.onDataChangeCallback(this.cachedItems);
+    if (this.onNotesChangeCallback) this.onNotesChangeCallback(this.cachedNotes);
   }
 
-  // CRUD Operations
-  async create(item) {
+  readLocalFiles() {
+    const raw = localStorage.getItem("demo_files");
+    const items = raw ? JSON.parse(raw) : [];
+    this.cachedFiles = items.map(item => ({
+      ...item,
+      formattedDate: new Date(item.createdAt).toLocaleString()
+    }));
+    if (this.onFilesChangeCallback) this.onFilesChangeCallback(this.cachedFiles);
+  }
+
+  // --- NOTES CRUD ---
+  async createNote(item) {
     if (this.isLiveMode && this.db) {
-      return await addDoc(collection(this.db, this.collectionName), {
-        ...item,
-        createdAt: serverTimestamp()
-      });
+      return await addDoc(collection(this.db, this.notesCollection), { ...item, createdAt: serverTimestamp() });
     } else {
-      const items = JSON.parse(localStorage.getItem("demo_crud_items") || "[]");
-      const newItem = { id: "local-" + Date.now(), ...item, createdAt: new Date().toISOString() };
+      const items = JSON.parse(localStorage.getItem("demo_notes") || "[]");
+      const newItem = { id: "local-note-" + Date.now(), ...item, createdAt: new Date().toISOString() };
       items.unshift(newItem);
-      localStorage.setItem("demo_crud_items", JSON.stringify(items));
-      this.readLocal();
+      localStorage.setItem("demo_notes", JSON.stringify(items));
+      this.readLocalNotes();
       return newItem;
     }
   }
 
-  async update(id, updatedFields) {
+  async updateNote(id, updatedFields) {
     if (this.isLiveMode && this.db) {
-      const ref = doc(this.db, this.collectionName, id);
-      return await updateDoc(ref, updatedFields);
+      return await updateDoc(doc(this.db, this.notesCollection, id), updatedFields);
     } else {
-      let items = JSON.parse(localStorage.getItem("demo_crud_items") || "[]");
+      let items = JSON.parse(localStorage.getItem("demo_notes") || "[]");
       items = items.map(item => item.id === id ? { ...item, ...updatedFields } : item);
-      localStorage.setItem("demo_crud_items", JSON.stringify(items));
-      this.readLocal();
+      localStorage.setItem("demo_notes", JSON.stringify(items));
+      this.readLocalNotes();
     }
   }
 
-  async delete(id) {
+  async deleteNote(id) {
     if (this.isLiveMode && this.db) {
-      return await deleteDoc(doc(this.db, this.collectionName, id));
+      return await deleteDoc(doc(this.db, this.notesCollection, id));
     } else {
-      let items = JSON.parse(localStorage.getItem("demo_crud_items") || "[]");
+      let items = JSON.parse(localStorage.getItem("demo_notes") || "[]");
       items = items.filter(item => item.id !== id);
-      localStorage.setItem("demo_crud_items", JSON.stringify(items));
-      this.readLocal();
+      localStorage.setItem("demo_notes", JSON.stringify(items));
+      this.readLocalNotes();
     }
   }
 
-  // Export / Backup Helper
+  // --- CHUNKED FILE UPLOAD CRUD (Bypasses 1MB Limit) ---
+  async uploadFileInChunks(fileTitle, category, base64Data) {
+    const CHUNK_SIZE = 700000; // ~700KB per chunk (safe under 1MB limit)
+    const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
+    const fileId = "file_" + Date.now();
+
+    if (this.isLiveMode && this.db) {
+      // 1. Save File Metadata
+      await addDoc(collection(this.db, this.filesCollection), {
+        fileId: fileId,
+        title: fileTitle,
+        category: category,
+        totalParts: totalParts,
+        createdAt: serverTimestamp()
+      });
+
+      // 2. Save Chunks
+      for (let i = 0; i < totalParts; i++) {
+        const chunkData = base64Data.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+        await addDoc(collection(this.db, this.chunksCollection), {
+          fileId: fileId,
+          partIndex: i,
+          chunkData: chunkData
+        });
+      }
+    } else {
+      // Local Storage Mode
+      const files = JSON.parse(localStorage.getItem("demo_files") || "[]");
+      const chunks = JSON.parse(localStorage.getItem("demo_chunks") || "[]");
+
+      const newFileMeta = {
+        id: fileId,
+        fileId: fileId,
+        title: fileTitle,
+        category: category,
+        totalParts: totalParts,
+        createdAt: new Date().toISOString()
+      };
+      files.unshift(newFileMeta);
+      localStorage.setItem("demo_files", JSON.stringify(files));
+
+      for (let i = 0; i < totalParts; i++) {
+        chunks.push({
+          fileId: fileId,
+          partIndex: i,
+          chunkData: base64Data.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+        });
+      }
+      localStorage.setItem("demo_chunks", JSON.stringify(chunks));
+      this.readLocalFiles();
+    }
+  }
+
+  async getReassembledFileBase64(fileId) {
+    let chunksList = [];
+
+    if (this.isLiveMode && this.db) {
+      const q = query(collection(this.db, this.chunksCollection), where("fileId", "==", fileId));
+      const querySnapshot = await getDocs(q);
+      chunksList = querySnapshot.docs.map(doc => doc.data());
+    } else {
+      const chunks = JSON.parse(localStorage.getItem("demo_chunks") || "[]");
+      chunksList = chunks.filter(c => c.fileId === fileId);
+    }
+
+    // Sort by partIndex and combine
+    chunksList.sort((a, b) => a.partIndex - b.partIndex);
+    return chunksList.map(c => c.chunkData).join("");
+  }
+
+  async deleteFile(id, fileId) {
+    if (this.isLiveMode && this.db) {
+      // Delete metadata doc
+      await deleteDoc(doc(this.db, this.filesCollection, id));
+      // Delete all related chunk docs
+      const q = query(collection(this.db, this.chunksCollection), where("fileId", "==", fileId));
+      const querySnapshot = await getDocs(q);
+      const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(deletePromises);
+    } else {
+      let files = JSON.parse(localStorage.getItem("demo_files") || "[]");
+      let chunks = JSON.parse(localStorage.getItem("demo_chunks") || "[]");
+      files = files.filter(f => f.id !== id);
+      chunks = chunks.filter(c => c.fileId !== fileId);
+      localStorage.setItem("demo_files", JSON.stringify(files));
+      localStorage.setItem("demo_chunks", JSON.stringify(chunks));
+      this.readLocalFiles();
+    }
+  }
+
   downloadBackup() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.cachedItems, null, 2));
+    const exportData = { notes: this.cachedNotes, files: this.cachedFiles };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `firebase_notes_backup_${new Date().toISOString().slice(0, 10)}.json`);
+    downloadAnchor.setAttribute("download", `firebase_backup_${new Date().toISOString().slice(0, 10)}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
