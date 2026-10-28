@@ -303,31 +303,7 @@
     document.addEventListener("click", () => {
       document.getElementById("contextMenu").classList.add("hidden");
     });
-
-    document.getElementById("ctxDeleteBtn").addEventListener("click", async () => {
-      if (!contextTarget) return;
-      if (contextTarget.type === 'folder') {
-        if (!confirm("Delete folder?")) return;
-        await fbService.delete("folders", contextTarget.id);
-        showToast("Folder deleted", "success");
-      } else if (contextTarget.type === 'file') {
-        if (!confirm("Delete file and its chunks?")) return;
-        await fbService.delete("files", contextTarget.id);
-        
-        // Delete associated chunks
-        const chunks = fbService.isLiveMode ? 
-          await fbService.getByField("file_chunks", "fileId", contextTarget.fileId) :
-          JSON.parse(localStorage.getItem("demo_file_chunks") || "[]").filter(c => c.fileId === contextTarget.fileId);
-        
-        for (const chunk of chunks) {
-          await fbService.delete("file_chunks", chunk.id);
-        }
-        showToast("File deleted", "success");
-      }
-      document.getElementById("contextMenu").classList.add("hidden");
-      loadCurrentFolder();
-    });
-    document.getElementById("ctxDownloadBtn").addEventListener("click", async () => {
+    document.getElementById("backupDataBtn").addEventListener("click", async () => {
       showToast("Preparing ZIP backup...", "info");
       try {
         let folders = [], files = [], file_chunks = [];
@@ -396,6 +372,51 @@
       } catch (err) {
         showToast(`Failed to generate ZIP: ${err.message}`, "error");
       }
+    });
+
+    document.getElementById("ctxDeleteBtn").addEventListener("click", async () => {
+      if (!contextTarget) return;
+      if (contextTarget.type === 'folder') {
+        if (!confirm("Delete folder?")) return;
+        await fbService.delete("folders", contextTarget.id);
+        showToast("Folder deleted", "success");
+      } else if (contextTarget.type === 'file') {
+        if (!confirm("Delete file and its chunks?")) return;
+        await fbService.delete("files", contextTarget.id);
+        
+        // Delete associated chunks
+        const chunks = fbService.isLiveMode ? 
+          await fbService.getByField("file_chunks", "fileId", contextTarget.fileId) :
+          JSON.parse(localStorage.getItem("demo_file_chunks") || "[]").filter(c => c.fileId === contextTarget.fileId);
+        
+        for (const chunk of chunks) {
+          await fbService.delete("file_chunks", chunk.id);
+        }
+        showToast("File deleted", "success");
+      }
+      document.getElementById("contextMenu").classList.add("hidden");
+      loadCurrentFolder();
+    });
+    document.getElementById("ctxDownloadBtn").addEventListener("click", async () => {
+      if (!contextTarget || contextTarget.type !== 'file') return;
+            
+      const fileRecord = fbService.isLiveMode ?
+        await fbService.getById("files", contextTarget.id) :
+        JSON.parse(localStorage.getItem("demo_files") || "[]").find(f => f.id === contextTarget.id);
+      if (!fileRecord) return;
+      const chunks = fbService.isLiveMode ?
+        await fbService.getByField("file_chunks", "fileId", fileRecord.fileId) :
+        JSON.parse(localStorage.getItem("demo_file_chunks") || "[]").filter(c => c.fileId === fileRecord.fileId);
+      chunks.sort((a, b) => a.partIndex - b.partIndex);
+      const fullBase64 = chunks.map(c => c.chunkData).join("");
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.href = fullBase64;
+      downloadAnchor.download = fileRecord.title;
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast(`Downloaded ${fileRecord.title}`, "success");
+      document.getElementById("contextMenu").classList.add("hidden");
     });
 
     // Modal Triggers
@@ -545,31 +566,6 @@
       document.getElementById("viewContentContainer").innerHTML = "";
       document.getElementById("viewModal").classList.add("hidden");
     });
-
-    // Backup All Files
-    document.getElementById("backupDataBtn").addEventListener("click", async () => {
-      let folders = [], files = [], file_chunks = [];
-      if (fbService.isLiveMode) {
-        folders = await fbService.getAll("folders");
-        files = await fbService.getAll("files");
-        file_chunks = await fbService.getAll("file_chunks");
-      } else {
-        folders = JSON.parse(localStorage.getItem("demo_folders") || "[]");
-        files = JSON.parse(localStorage.getItem("demo_files") || "[]");
-        file_chunks = JSON.parse(localStorage.getItem("demo_file_chunks") || "[]");
-      }
-
-      const backupPayload = { folders, files, file_chunks, exportedAt: new Date().toISOString() };
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `firebase_file_manager_full_backup_${new Date().toISOString().slice(0, 10)}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      showToast("Complete full backup downloaded!", "success");
-    });
-
     // Config Panel
     document.getElementById("toggleConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.toggle("hidden"));
     document.getElementById("closeConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.add("hidden"));
