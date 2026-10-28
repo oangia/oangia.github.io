@@ -23,7 +23,7 @@
         </div>
         <div>
           <h1 class="text-lg font-bold tracking-tight">Firebase File Manager</h1>
-          <p class="text-[11px] text-slate-400">Folders, Thumbnails & Chunked Storage</p>
+          <p class="text-[11px] text-slate-400">Fast On-Demand Loading & Chunked Storage</p>
         </div>
       </div>
 
@@ -74,9 +74,7 @@
 
     <!-- Toolbar -->
     <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 justify-between items-center">
-      <div class="flex items-center gap-2">
-        <!-- Back button or navigation breadcrumbs handle the rest -->
-      </div>
+      <div class="flex items-center gap-2"></div>
 
       <div class="flex items-center gap-2">
         <button id="openFolderModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
@@ -162,12 +160,7 @@
     import { FirebaseService } from "./firebase-service.js";
 
     const fbService = new FirebaseService();
-    let currentFolders = [];
-    let currentFiles = [];
-    let currentChunks = [];
     let currentFolderId = "root";
-
-    // Context Menu State
     let contextTarget = null; // { type: 'folder'|'file', id, fileId }
 
     function showToast(msg, type = "info") {
@@ -193,67 +186,94 @@
       if (err) showToast(err, "error");
     }
 
-    function renderFileManager() {
-      const grid = document.getElementById("fileGridContainer");
+    // ON-DEMAND LOADING: Fetch only folders and files for the current folder
+    async function loadCurrentFolder() {
       const breadcrumbs = document.getElementById("breadcrumbsBar");
+      const grid = document.getElementById("fileGridContainer");
+      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-blue-500 block"></i>Loading folder...</div>`;
 
-      if (currentFolderId === "root") {
-        breadcrumbs.innerHTML = `<span class="text-blue-600 font-bold"><i class="fa-solid fa-house"></i> Home</span>`;
-      } else {
-        const folder = currentFolders.find(f => f.id === currentFolderId);
-        breadcrumbs.innerHTML = `
-          <button onclick="window.navigateToFolder('root')" class="hover:text-blue-600"><i class="fa-solid fa-house"></i> Home</button>
-          <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
-          <span class="text-blue-600 font-bold">${folder ? escapeHtml(folder.name) : 'Folder'}</span>
-        `;
-      }
+      try {
+        let subFolders = [];
+        let dirFiles = [];
+        let currentFolderName = "Home";
 
-      const subFolders = currentFolders.filter(f => f.parentId === currentFolderId);
-      const dirFiles = currentFiles.filter(f => f.folderId === currentFolderId);
-
-      document.getElementById("fileCountBadge").textContent = `${subFolders.length} folders, ${dirFiles.length} files`;
-
-      let html = "";
-      subFolders.forEach(folder => {
-        html += `
-          <div ondblclick="window.navigateToFolder('${folder.id}')" onclick="window.navigateToFolder('${folder.id}')" oncontextmenu="window.openContextMenu(event, 'folder', '${folder.id}')" class="bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition group shadow-sm select-none">
-            <i class="fa-solid fa-folder text-amber-400 text-4xl group-hover:scale-110 transition"></i>
-            <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${escapeHtml(folder.name)}</span>
-          </div>
-        `;
-      });
-
-      dirFiles.forEach(file => {
-        let thumbHtml = `<i class="fa-solid fa-file-lines text-blue-400 text-4xl"></i>`;
-        if (file.thumbnail) {
-          thumbHtml = `<img src="${file.thumbnail}" class="w-full h-20 object-cover rounded-xl shadow-inner">`;
-        } else if (file.category === 'Media') {
-          thumbHtml = `<i class="fa-solid fa-file-video text-purple-400 text-4xl"></i>`;
+        if (fbService.isLiveMode) {
+          // Live Cloud Fetch (Filtered by parentId / folderId)
+          subFolders = await fbService.getByField("folders", "parentId", currentFolderId);
+          dirFiles = await fbService.getByField("files", "folderId", currentFolderId);
+          if (currentFolderId !== "root") {
+            const parentFolder = await fbService.getById("folders", currentFolderId);
+            if (parentFolder) currentFolderName = parentFolder.name;
+          }
+        } else {
+          // Local Demo Mode Fetch
+          const allFolders = JSON.parse(localStorage.getItem("demo_folders") || "[]");
+          const allFiles = JSON.parse(localStorage.getItem("demo_files") || "[]");
+          subFolders = allFolders.filter(f => f.parentId === currentFolderId);
+          dirFiles = allFiles.filter(f => f.folderId === currentFolderId);
+          if (currentFolderId !== "root") {
+            const found = allFolders.find(f => f.id === currentFolderId);
+            if (found) currentFolderName = found.name;
+          }
         }
 
-        html += `
-          <div onclick="window.viewFile('${file.id}', '${file.fileId}')" oncontextmenu="window.openContextMenu(event, 'file', '${file.id}', '${file.fileId}')" class="bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-2xl p-3 flex flex-col items-center justify-between gap-2 cursor-pointer transition group shadow-sm select-none">
-            <div class="w-full flex justify-center items-center h-20 bg-slate-100 rounded-xl overflow-hidden">
-              ${thumbHtml}
-            </div>
-            <span class="text-xs font-semibold text-slate-800 truncate w-full text-center" title="${escapeHtml(file.title)}">${escapeHtml(file.title)}</span>
-            <div class="w-full text-center text-[10px] text-slate-400 pt-1 border-t border-slate-100">
-              <span>${file.totalParts || 1} chunks</span>
-            </div>
-          </div>
-        `;
-      });
+        // Render Breadcrumbs
+        if (currentFolderId === "root") {
+          breadcrumbs.innerHTML = `<span class="text-blue-600 font-bold"><i class="fa-solid fa-house"></i> Home</span>`;
+        } else {
+          breadcrumbs.innerHTML = `
+            <button onclick="window.navigateToFolder('root')" class="hover:text-blue-600"><i class="fa-solid fa-house"></i> Home</button>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+            <span class="text-blue-600 font-bold">${escapeHtml(currentFolderName)}</span>
+          `;
+        }
 
-      if (subFolders.length === 0 && dirFiles.length === 0) {
-        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300 block"></i>This folder is empty</div>`;
-      } else {
-        grid.innerHTML = html;
+        document.getElementById("fileCountBadge").textContent = `${subFolders.length} folders, ${dirFiles.length} files`;
+
+        let html = "";
+        subFolders.forEach(folder => {
+          html += `
+            <div ondblclick="window.navigateToFolder('${folder.id}')" onclick="window.navigateToFolder('${folder.id}')" oncontextmenu="window.openContextMenu(event, 'folder', '${folder.id}')" class="bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition group shadow-sm select-none">
+              <i class="fa-solid fa-folder text-amber-400 text-4xl group-hover:scale-110 transition"></i>
+              <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${escapeHtml(folder.name)}</span>
+            </div>
+          `;
+        });
+
+        dirFiles.forEach(file => {
+          let thumbHtml = `<i class="fa-solid fa-file-lines text-blue-400 text-4xl"></i>`;
+          if (file.thumbnail) {
+            thumbHtml = `<img src="${file.thumbnail}" class="w-full h-20 object-cover rounded-xl shadow-inner">`;
+          } else if (file.category === 'Media') {
+            thumbHtml = `<i class="fa-solid fa-file-video text-purple-400 text-4xl"></i>`;
+          }
+
+          html += `
+            <div onclick="window.viewFile('${file.id}', '${file.fileId}')" oncontextmenu="window.openContextMenu(event, 'file', '${file.id}', '${file.fileId}')" class="bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-2xl p-3 flex flex-col items-center justify-between gap-2 cursor-pointer transition group shadow-sm select-none">
+              <div class="w-full flex justify-center items-center h-20 bg-slate-100 rounded-xl overflow-hidden">
+                ${thumbHtml}
+              </div>
+              <span class="text-xs font-semibold text-slate-800 truncate w-full text-center" title="${escapeHtml(file.title)}">${escapeHtml(file.title)}</span>
+              <div class="w-full text-center text-[10px] text-slate-400 pt-1 border-t border-slate-100">
+                <span>${file.totalParts || 1} chunks</span>
+              </div>
+            </div>
+          `;
+        });
+
+        if (subFolders.length === 0 && dirFiles.length === 0) {
+          grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300 block"></i>This folder is empty</div>`;
+        } else {
+          grid.innerHTML = html;
+        }
+      } catch (err) {
+        showToast(`Error loading folder: ${err.message}`, "error");
       }
     }
 
     window.navigateToFolder = (folderId) => {
       currentFolderId = folderId;
-      renderFileManager();
+      loadCurrentFolder();
     };
 
     function escapeHtml(str) {
@@ -292,31 +312,44 @@
       } else if (contextTarget.type === 'file') {
         if (!confirm("Delete file and its chunks?")) return;
         await fbService.delete("files", contextTarget.id);
-        const matchingChunks = currentChunks.filter(c => c.fileId === contextTarget.fileId);
-        for (const chunk of matchingChunks) {
+        
+        // Delete associated chunks
+        const chunks = fbService.isLiveMode ? 
+          await fbService.getByField("file_chunks", "fileId", contextTarget.fileId) :
+          JSON.parse(localStorage.getItem("demo_file_chunks") || "[]").filter(c => c.fileId === contextTarget.fileId);
+        
+        for (const chunk of chunks) {
           await fbService.delete("file_chunks", chunk.id);
         }
         showToast("File deleted", "success");
       }
       document.getElementById("contextMenu").classList.add("hidden");
+      loadCurrentFolder();
     });
 
     document.getElementById("ctxDownloadBtn").addEventListener("click", async () => {
       if (!contextTarget || contextTarget.type !== 'file') return;
-      const item = currentFiles.find(f => f.id === contextTarget.id || f.fileId === contextTarget.fileId);
-      if (!item) return;
+      
+      const fileRecord = fbService.isLiveMode ?
+        await fbService.getById("files", contextTarget.id) :
+        JSON.parse(localStorage.getItem("demo_files") || "[]").find(f => f.id === contextTarget.id);
 
-      const relevantChunks = currentChunks.filter(c => c.fileId === item.fileId);
-      relevantChunks.sort((a, b) => a.partIndex - b.partIndex);
-      const fullBase64 = relevantChunks.map(c => c.chunkData).join("");
+      if (!fileRecord) return;
+
+      const chunks = fbService.isLiveMode ?
+        await fbService.getByField("file_chunks", "fileId", fileRecord.fileId) :
+        JSON.parse(localStorage.getItem("demo_file_chunks") || "[]").filter(c => c.fileId === fileRecord.fileId);
+
+      chunks.sort((a, b) => a.partIndex - b.partIndex);
+      const fullBase64 = chunks.map(c => c.chunkData).join("");
 
       const downloadAnchor = document.createElement('a');
       downloadAnchor.href = fullBase64;
-      downloadAnchor.download = item.title;
+      downloadAnchor.download = fileRecord.title;
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
-      showToast(`Downloaded ${item.title}`, "success");
+      showToast(`Downloaded ${fileRecord.title}`, "success");
       document.getElementById("contextMenu").classList.add("hidden");
     });
 
@@ -333,6 +366,7 @@
       await fbService.create("folders", { name, parentId: currentFolderId });
       showToast("Folder created!", "success");
       document.getElementById("createFolderModal").classList.add("hidden");
+      loadCurrentFolder();
     });
 
     document.getElementById("openCreateModalBtn").addEventListener("click", () => {
@@ -396,6 +430,7 @@
       submitBtn.disabled = false;
       submitBtn.textContent = "Upload File";
       document.getElementById("createFileModal").classList.add("hidden");
+      loadCurrentFolder();
     });
 
     function readFileAsDataURL(file) {
@@ -427,11 +462,14 @@
 
     // View File Reassembly & Preview
     window.viewFile = async (id, fileId) => {
-      const item = currentFiles.find(f => f.id === id || f.fileId === fileId);
-      if (!item) return;
+      const fileRecord = fbService.isLiveMode ?
+        await fbService.getById("files", id) :
+        JSON.parse(localStorage.getItem("demo_files") || "[]").find(f => f.id === id || f.fileId === fileId);
 
-      document.getElementById("viewModalTitle").textContent = item.title;
-      document.getElementById("viewDate").innerHTML = `<i class="fa-regular fa-clock"></i> ${item.formattedDate || 'Recent'}`;
+      if (!fileRecord) return;
+
+      document.getElementById("viewModalTitle").textContent = fileRecord.title;
+      document.getElementById("viewDate").innerHTML = `<i class="fa-regular fa-clock"></i> Recent`;
       
       const container = document.getElementById("viewContentContainer");
       const downloadBtn = document.getElementById("downloadFileBtn");
@@ -439,20 +477,23 @@
       container.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i><p class="text-xs text-slate-500">Reassembling file chunks...</p>`;
       document.getElementById("viewModal").classList.remove("hidden");
 
-      const relevantChunks = currentChunks.filter(c => c.fileId === item.fileId);
-      relevantChunks.sort((a, b) => a.partIndex - b.partIndex);
-      const fullBase64 = relevantChunks.map(c => c.chunkData).join("");
+      const chunks = fbService.isLiveMode ?
+        await fbService.getByField("file_chunks", "fileId", fileRecord.fileId) :
+        JSON.parse(localStorage.getItem("demo_file_chunks") || "[]").filter(c => c.fileId === fileRecord.fileId);
+
+      chunks.sort((a, b) => a.partIndex - b.partIndex);
+      const fullBase64 = chunks.map(c => c.chunkData).join("");
 
       if (fullBase64.startsWith("data:image/")) {
         container.innerHTML = `<img src="${fullBase64}" class="max-h-85 rounded-xl shadow-md object-contain">`;
       } else if (fullBase64.startsWith("data:video/")) {
         container.innerHTML = `<video controls class="w-full max-h-85 rounded-xl shadow-md bg-black"><source src="${fullBase64}"></video>`;
       } else {
-        container.innerHTML = `<div class="text-center py-6"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-sm font-semibold">${escapeHtml(item.title)}</p></div>`;
+        container.innerHTML = `<div class="text-center py-6"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-sm font-semibold">${escapeHtml(fileRecord.title)}</p></div>`;
       }
 
       downloadBtn.href = fullBase64;
-      downloadBtn.download = item.title;
+      downloadBtn.download = fileRecord.title;
     };
 
     document.getElementById("closeViewModalBtn").addEventListener("click", () => {
@@ -460,14 +501,20 @@
       document.getElementById("viewModal").classList.add("hidden");
     });
 
-    // Full Comprehensive Backup (Files Only)
-    document.getElementById("backupDataBtn").addEventListener("click", () => {
-      const backupPayload = {
-        folders: currentFolders,
-        files: currentFiles,
-        file_chunks: currentChunks,
-        exportedAt: new Date().toISOString()
-      };
+    // Backup All Files
+    document.getElementById("backupDataBtn").addEventListener("click", async () => {
+      let folders = [], files = [], file_chunks = [];
+      if (fbService.isLiveMode) {
+        folders = await fbService.getAll("folders");
+        files = await fbService.getAll("files");
+        file_chunks = await fbService.getAll("file_chunks");
+      } else {
+        folders = JSON.parse(localStorage.getItem("demo_folders") || "[]");
+        files = JSON.parse(localStorage.getItem("demo_files") || "[]");
+        file_chunks = JSON.parse(localStorage.getItem("demo_file_chunks") || "[]");
+      }
+
+      const backupPayload = { folders, files, file_chunks, exportedAt: new Date().toISOString() };
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute("href", dataStr);
@@ -487,8 +534,8 @@
       if (!parsed) { showToast("Invalid config syntax", "error"); return; }
       if (document.getElementById("rememberCookie").checked) fbService.setCookie(fbService.cookieName, rawText, 30);
       if (fbService.connect(parsed)) {
-        showToast("Connected to Firebase!", "success");
-        initSubscriptions();
+        renderStatus(true);
+        loadCurrentFolder();
       }
       document.getElementById("configPanel").classList.add("hidden");
     });
@@ -499,26 +546,13 @@
       startLocalDemo();
     });
 
-    function initSubscriptions() {
-      if (fbService.isLiveMode) {
-        fbService.subscribe("folders", (data) => { currentFolders = data; renderFileManager(); });
-        fbService.subscribe("files", (data) => { currentFiles = data; renderFileManager(); });
-        fbService.subscribe("file_chunks", (data) => { currentChunks = data; });
-      }
-    }
-
     function startLocalDemo() {
       if (!localStorage.getItem("demo_folders")) {
         localStorage.setItem("demo_folders", JSON.stringify([{ id: "f-1", name: "Sample Folder", parentId: "root", createdAt: new Date().toISOString() }]));
       }
       if (!localStorage.getItem("demo_files")) localStorage.setItem("demo_files", JSON.stringify([]));
       if (!localStorage.getItem("demo_file_chunks")) localStorage.setItem("demo_file_chunks", JSON.stringify([]));
-
-      currentFolders = fbService.getLocal("folders");
-      currentFiles = fbService.getLocal("files");
-      currentChunks = fbService.getLocal("file_chunks");
-
-      renderFileManager();
+      loadCurrentFolder();
     }
 
     // Startup
@@ -528,7 +562,7 @@
       const parsed = fbService.parseConfig(saved);
       if (parsed && fbService.connect(parsed)) {
         renderStatus(true);
-        initSubscriptions();
+        loadCurrentFolder();
       } else {
         renderStatus(false);
         startLocalDemo();
