@@ -5,10 +5,13 @@ import {
   addDoc, 
   onSnapshot, 
   doc, 
+  getDoc,
+  getDocs,
   updateDoc, 
   deleteDoc, 
   serverTimestamp, 
   query, 
+  where,
   orderBy 
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
@@ -95,6 +98,39 @@ export class FirebaseService {
       });
       callback(items);
     });
+  }
+
+  // On-Demand Fetch Methods
+  async getAll(collectionName) {
+    if (this.isLiveMode && this.db) {
+      const q = query(collection(this.db, collectionName), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+    } else {
+      return this.getLocal(collectionName);
+    }
+  }
+
+  async getById(collectionName, id) {
+    if (this.isLiveMode && this.db) {
+      const docRef = doc(this.db, collectionName, id);
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+    } else {
+      const items = this.getLocal(collectionName);
+      return items.find(i => i.id === id) || null;
+    }
+  }
+
+  async getByField(collectionName, fieldName, value) {
+    if (this.isLiveMode && this.db) {
+      const q = query(collection(this.db, collectionName), where(fieldName, "==", value));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+    } else {
+      const items = this.getLocal(collectionName);
+      return items.filter(i => i[fieldName] === value);
+    }
   }
 
   // Generic CRUD
