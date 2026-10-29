@@ -22,7 +22,33 @@ export class ToastManager {
 }
 
 export class FilePreviewComponent {
-  constructor() {}
+  constructor() {
+    this.ensureDOM();
+  }
+
+  ensureDOM() {
+    if (document.getElementById("viewModal")) return;
+    const modalHTML = `
+      <div id="viewModal" class="fixed inset-0 bg-slate-950 z-50 flex flex-col hidden">
+        <div class="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center border-b border-slate-800 shrink-0">
+          <h3 id="viewModalTitle" class="font-bold text-xs truncate">File Preview</h3>
+          <button id="closeViewModalBtn" class="text-slate-400 hover:text-white text-sm px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex-1 flex flex-col w-full h-full overflow-hidden p-2">
+          <div id="viewContentContainer" class="bg-black border border-slate-900 rounded-lg flex-1 flex items-center justify-center overflow-auto relative">
+            <i class="fa-solid fa-spinner fa-spin text-xl text-blue-500"></i>
+          </div>
+        </div>
+        <div class="bg-slate-900 text-white px-4 py-2 flex justify-between items-center border-t border-slate-800 shrink-0">
+          <span id="viewDate" class="text-[11px] text-slate-400"></span>
+          <a id="downloadFileBtn" href="#" download="" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-download"></i> Download
+          </a>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+  }
 
   get elements() {
     return {
@@ -114,7 +140,6 @@ export class FileManager {
     this.previewer = new FilePreviewComponent();
   }
 
-  // ONLY injects file manager components into #fileManagerApp
   mountUI() {
     if (!this.container) return;
     this.container.innerHTML = `
