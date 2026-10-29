@@ -5,7 +5,14 @@ function escapeHtml(str) {
 }
 
 export class ToastManager {
+  static ensureDOM() {
+    if (document.getElementById("toastContainer")) return;
+    const containerHTML = `<div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>`;
+    document.body.insertAdjacentHTML('beforeend', containerHTML);
+  }
+
   static show(msg, type = "info") {
+    ToastManager.ensureDOM();
     let container = document.getElementById("toastContainer");
     if (!container) return;
     const toast = document.createElement("div");
@@ -138,6 +145,56 @@ export class FileManager {
     this.currentFolderId = "root";
     this.contextTarget = null;
     this.previewer = new FilePreviewComponent();
+    this.ensureOverlays();
+  }
+
+  ensureOverlays() {
+    ToastManager.ensureDOM();
+    if (document.getElementById("contextMenu")) return;
+
+    const overlaysHTML = `
+      <!-- CONTEXT MENU -->
+      <div id="contextMenu" class="hidden fixed z-50 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 w-40 text-xs font-medium text-slate-700">
+        <button id="ctxDownloadBtn" class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 hidden"><i class="fa-solid fa-download text-emerald-600"></i> Download</button>
+        <button id="ctxDeleteBtn" class="w-full text-left px-4 py-2 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 text-slate-700"><i class="fa-solid fa-trash"></i> Delete</button>
+      </div>
+
+      <!-- MODAL: NEW FOLDER -->
+      <div id="createFolderModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 space-y-4">
+          <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-folder-plus text-amber-500"></i> Create Folder</h3>
+          <input type="text" id="folderNameInput" placeholder="Folder name..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <div class="flex gap-2 justify-end pt-2">
+            <button type="button" id="cancelFolderBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+            <button type="button" id="submitFolderBtn" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Create</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: UPLOAD FILE -->
+      <div id="createFileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl p-6 space-y-4">
+          <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+            <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Upload File</h3>
+            <button id="closeFileModalBtn" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+          </div>
+          <form id="createFileForm" class="space-y-4">
+            <div class="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-5 text-center">
+              <label class="cursor-pointer block">
+                <i class="fa-solid fa-file-arrow-up text-blue-500 text-2xl mb-1"></i>
+                <p class="text-xs font-semibold text-slate-700">Select Image, Video, Text or PDF</p>
+                <input type="file" id="chunkFileInput" multiple required class="mt-2 block w-full text-xs text-slate-500 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-blue-50 file:text-blue-700">
+              </label>
+            </div>
+            <div class="pt-2 flex gap-3 justify-end">
+              <button type="button" id="cancelFileBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+              <button type="submit" id="submitFileBtn" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Upload File</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', overlaysHTML);
   }
 
   mountUI() {
