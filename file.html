@@ -23,7 +23,7 @@
           <i class="fa-solid fa-folder-tree text-lg"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold tracking-tight">Firebase File Manager</h1>
+          <h1 class="text-lg font-bold tracking-tight">File Manager</h1>
           <p class="text-[11px] text-slate-400">Fast On-Demand Loading & Chunked Storage</p>
         </div>
       </div>
@@ -36,7 +36,7 @@
 
         <button id="toggleConfigBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-2 border border-slate-700">
           <i class="fa-solid fa-gear"></i>
-          <span>Firebase Config</span>
+          <span>Config</span>
         </button>
       </div>
     </div>
@@ -137,7 +137,7 @@
 
   <script type="module">
     import { FirebaseService } from "./firebase-service.js";
-    import { FirebaseConfigManager } from "./config-manager.js";
+    import { ConfigManager } from "./config-manager.js";
 
     const fbService = new FirebaseService();
     // Initialize the manager by pointing it to your button selector
