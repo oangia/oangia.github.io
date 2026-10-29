@@ -22,9 +22,7 @@ export class ToastManager {
 }
 
 export class FilePreviewComponent {
-  constructor(rootEl) {
-    this.rootEl = rootEl;
-  }
+  constructor() {}
 
   get elements() {
     return {
@@ -116,7 +114,7 @@ export class FileManager {
     this.previewer = new FilePreviewComponent();
   }
 
-  // Only injects the file manager specific toolbar and grid into the target div
+  // ONLY injects file manager components into #fileManagerApp
   mountUI() {
     if (!this.container) return;
     this.container.innerHTML = `
