@@ -137,14 +137,14 @@
 
   <script type="module">
     import { FirebaseService } from "./firebase-service.js";
-    import { FirebaseConfigManager } from "./firebase-config-manager.js";
+    import { ConfigManager } from "./config-manager.js";
 
     const fbService = new FirebaseService();
     let currentFolderId = "root";
     let contextTarget = null; // { type: 'folder'|'file', id, fileId }
 
     // Initialize the reusable Config Manager component
-    const configManager = new FirebaseConfigManager({
+    const configManager = new ConfigManager({
       buttonSelector: "#toggleConfigBtn",
       fbService: fbService,
       onConnect: (isLive) => {
