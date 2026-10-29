@@ -137,25 +137,25 @@
 
   <script type="module">
     import { FirebaseService } from "./firebase-service.js";
-    import { ConfigManager } from "./config-manager.js";
+    import { FirebaseConfigManager } from "./firebase-config-manager.js";
 
     const fbService = new FirebaseService();
-    // Initialize the manager by pointing it to your button selector
-    const configManager = new ConfigManager({
-      buttonSelector: "#toggleConfigBtn", // The button in your header
+    let currentFolderId = "root";
+    let contextTarget = null; // { type: 'folder'|'file', id, fileId }
+
+    // Initialize the reusable Config Manager component
+    const configManager = new FirebaseConfigManager({
+      buttonSelector: "#toggleConfigBtn",
       fbService: fbService,
       onConnect: (isLive) => {
         renderStatus(isLive);
-        loadCurrentFolder(); // Refresh your page data
+        loadCurrentFolder();
       },
       onDemo: () => {
         renderStatus(false);
-        startLocalDemo(); // Fallback to local demo mode
+        startLocalDemo();
       }
     });
-    
-    let currentFolderId = "root";
-    let contextTarget = null; // { type: 'folder'|'file', id, fileId }
 
     function showToast(msg, type = "info") {
       const container = document.getElementById("toastContainer");
@@ -192,7 +192,6 @@
         let currentFolderName = "Home";
 
         if (fbService.isLiveMode) {
-          // Live Cloud Fetch (Filtered by parentId / folderId)
           subFolders = await fbService.getByField("folders", "parentId", currentFolderId);
           dirFiles = await fbService.getByField("files", "folderId", currentFolderId);
           if (currentFolderId !== "root") {
@@ -200,7 +199,6 @@
             if (parentFolder) currentFolderName = parentFolder.name;
           }
         } else {
-          // Local Demo Mode Fetch
           const allFolders = JSON.parse(localStorage.getItem("demo_folders") || "[]");
           const allFiles = JSON.parse(localStorage.getItem("demo_files") || "[]");
           subFolders = allFolders.filter(f => f.parentId === currentFolderId);
@@ -211,7 +209,6 @@
           }
         }
 
-        // Render Breadcrumbs
         if (currentFolderId === "root") {
           breadcrumbs.innerHTML = `<span class="text-blue-600 font-bold"><i class="fa-solid fa-house"></i> Home</span>`;
         } else {
@@ -296,6 +293,7 @@
     document.addEventListener("click", () => {
       document.getElementById("contextMenu").classList.add("hidden");
     });
+
     document.getElementById("backupDataBtn").addEventListener("click", async () => {
       showToast("Preparing ZIP backup...", "info");
       try {
@@ -312,7 +310,6 @@
     
         const zip = new JSZip();
     
-        // Helper to build folder paths recursively
         const getFolderPath = (folderId) => {
           let pathParts = [];
           let currentId = folderId;
@@ -328,15 +325,12 @@
           return pathParts.join("/");
         };
     
-        // Add each file to its corresponding folder in the zip
         for (const fileRecord of files) {
           const chunks = file_chunks
             .filter(c => c.fileId === fileRecord.fileId)
             .sort((a, b) => a.partIndex - b.partIndex);
           
           const fullBase64 = chunks.map(c => c.chunkData).join("");
-          
-          // Convert DataURL (base64) back to binary blob/arraybuffer
           const base64Data = fullBase64.split(',')[1];
           if (!base64Data) continue;
           
@@ -352,7 +346,6 @@
           zip.file(filePath, bytes);
         }
     
-        // Generate the zip file and trigger download
         const content = await zip.generateAsync({ type: "blob" });
         const downloadAnchor = document.createElement('a');
         downloadAnchor.href = URL.createObjectURL(content);
@@ -377,7 +370,6 @@
         if (!confirm("Delete file and its chunks?")) return;
         await fbService.delete("files", contextTarget.id);
         
-        // Delete associated chunks
         const chunks = fbService.isLiveMode ? 
           await fbService.getByField("file_chunks", "fileId", contextTarget.fileId) :
           JSON.parse(localStorage.getItem("demo_file_chunks") || "[]").filter(c => c.fileId === contextTarget.fileId);
@@ -390,6 +382,7 @@
       document.getElementById("contextMenu").classList.add("hidden");
       loadCurrentFolder();
     });
+
     document.getElementById("ctxDownloadBtn").addEventListener("click", async () => {
       if (!contextTarget || contextTarget.type !== 'file') return;
             
@@ -567,23 +560,6 @@
       if (!localStorage.getItem("demo_files")) localStorage.setItem("demo_files", JSON.stringify([]));
       if (!localStorage.getItem("demo_file_chunks")) localStorage.setItem("demo_file_chunks", JSON.stringify([]));
       loadCurrentFolder();
-    }
-
-    // Startup
-    const saved = fbService.getCookie(fbService.cookieName);
-    if (saved) {
-      document.getElementById("configTextarea").value = saved;
-      const parsed = fbService.parseConfig(saved);
-      if (parsed && fbService.connect(parsed)) {
-        renderStatus(true);
-        loadCurrentFolder();
-      } else {
-        renderStatus(false);
-        startLocalDemo();
-      }
-    } else {
-      renderStatus(false);
-      startLocalDemo();
     }
   </script>
 </body>
