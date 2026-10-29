@@ -46,21 +46,21 @@ export class FilePreviewComponent {
     const fileNameLower = fileRecord.title.toLowerCase();
 
     if (fullBase64.startsWith("data:image/")) {
-      this.content.innerHTML = `<img src="${fullBase64}" class="max-h-85 rounded-xl shadow-md object-contain">`;
+      this.content.innerHTML = `<img src="${fullBase64}" class="w-full h-full object-contain">`;
     } else if (fullBase64.startsWith("data:video/")) {
-      this.content.innerHTML = `<video controls class="w-full max-h-85 rounded-xl shadow-md bg-black"><source src="${fullBase64}"></video>`;
+      this.content.innerHTML = `<video controls class="w-full h-full object-contain bg-black"><source src="${fullBase64}"></video>`;
     } else if (fileNameLower.endsWith(".txt") || fullBase64.startsWith("data:text/plain")) {
       try {
         const base64Content = fullBase64.split(',')[1];
         const textContent = atob(base64Content);
-        this.content.innerHTML = `<pre class="w-full max-h-80 overflow-auto p-4 bg-white rounded-xl border border-slate-200 text-xs font-mono whitespace-pre-wrap text-slate-700">${escapeHtml(textContent)}</pre>`;
+        this.content.innerHTML = `<pre class="w-full h-full overflow-auto p-4 bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap">${escapeHtml(textContent)}</pre>`;
       } catch (err) {
-        this.content.innerHTML = `<p class="text-xs text-red-500">Failed to load text preview.</p>`;
+        this.content.innerHTML = `<p class="text-xs text-red-400">Failed to load text preview.</p>`;
       }
     } else if (fileNameLower.endsWith(".pdf") || fullBase64.startsWith("data:application/pdf")) {
-      this.content.innerHTML = `<iframe src="${fullBase64}" class="w-full h-[400px] rounded-xl border border-slate-200 shadow-inner"></iframe>`;
+      this.content.innerHTML = `<iframe src="${fullBase64}" class="w-full h-full border-0 bg-white"></iframe>`;
     } else {
-      this.content.innerHTML = `<div class="text-center py-6"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-sm font-semibold">${escapeHtml(fileRecord.title)}</p></div>`;
+      this.content.innerHTML = `<div class="text-center"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-xs font-semibold text-slate-300">${escapeHtml(fileRecord.title)}</p></div>`;
     }
 
     if (this.downloadBtn) {
