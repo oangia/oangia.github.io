@@ -559,26 +559,6 @@
       document.getElementById("viewContentContainer").innerHTML = "";
       document.getElementById("viewModal").classList.add("hidden");
     });
-    // Config Panel
-    document.getElementById("toggleConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.toggle("hidden"));
-    document.getElementById("closeConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.add("hidden"));
-    document.getElementById("saveConfigBtn").addEventListener("click", () => {
-      const rawText = document.getElementById("configTextarea").value;
-      const parsed = fbService.parseConfig(rawText);
-      if (!parsed) { showToast("Invalid config syntax", "error"); return; }
-      if (document.getElementById("rememberCookie").checked) fbService.setCookie(fbService.cookieName, rawText, 30);
-      if (fbService.connect(parsed)) {
-        renderStatus(true);
-        loadCurrentFolder();
-      }
-      document.getElementById("configPanel").classList.add("hidden");
-    });
-    document.getElementById("clearCookieBtn").addEventListener("click", () => {
-      fbService.eraseCookie(fbService.cookieName);
-      document.getElementById("configTextarea").value = "";
-      showToast("Cookie cleared", "info");
-      startLocalDemo();
-    });
 
     function startLocalDemo() {
       if (!localStorage.getItem("demo_folders")) {
