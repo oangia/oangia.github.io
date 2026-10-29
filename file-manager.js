@@ -1,3 +1,81 @@
+// Helper for HTML escaping
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+// Toast Notification Manager
+export class ToastManager {
+  static show(msg, type = "info") {
+    const container = document.getElementById("toastContainer");
+    if (!container) return;
+    const toast = document.createElement("div");
+    const bgColors = { success: "bg-emerald-600", error: "bg-red-600", info: "bg-slate-900" };
+    toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-xs font-medium text-white ${bgColors[type]} transition-all transform translate-y-2 opacity-0 pointer-events-auto`;
+    toast.innerHTML = `<i class="fa-solid fa-circle-info text-base"></i> <span>${escapeHtml(msg)}</span>`;
+    container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.remove("translate-y-2", "opacity-0"));
+    setTimeout(() => { toast.classList.add("opacity-0", "translate-y-2"); setTimeout(() => toast.remove(), 300); }, 3000);
+  }
+}
+
+// Dedicated File Preview Class
+export class FilePreviewComponent {
+  constructor(config = {}) {
+    this.modal = document.getElementById(config.modalId || "viewModal");
+    this.title = document.getElementById(config.titleId || "viewModalTitle");
+    this.content = document.getElementById(config.contentId || "viewContentContainer");
+    this.downloadBtn = document.getElementById(config.downloadBtnId || "downloadFileBtn");
+    this.date = document.getElementById(config.dateId || "viewDate");
+    this.closeBtn = document.getElementById(config.closeBtnId || "closeViewModalBtn");
+
+    this.closeBtn?.addEventListener("click", () => this.hide());
+  }
+
+  showLoading(fileName) {
+    if (this.title) this.title.textContent = fileName;
+    if (this.date) this.date.innerHTML = `<i class="fa-regular fa-clock"></i> Recent`;
+    if (this.content) {
+      this.content.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i><p class="text-xs text-slate-500">Reassembling file chunks...</p>`;
+    }
+    this.modal?.classList.remove("hidden");
+  }
+
+  render(fileRecord, fullBase64) {
+    if (!this.content) return;
+    const fileNameLower = fileRecord.title.toLowerCase();
+
+    if (fullBase64.startsWith("data:image/")) {
+      this.content.innerHTML = `<img src="${fullBase64}" class="max-h-85 rounded-xl shadow-md object-contain">`;
+    } else if (fullBase64.startsWith("data:video/")) {
+      this.content.innerHTML = `<video controls class="w-full max-h-85 rounded-xl shadow-md bg-black"><source src="${fullBase64}"></video>`;
+    } else if (fileNameLower.endsWith(".txt") || fullBase64.startsWith("data:text/plain")) {
+      try {
+        const base64Content = fullBase64.split(',')[1];
+        const textContent = atob(base64Content);
+        this.content.innerHTML = `<pre class="w-full max-h-80 overflow-auto p-4 bg-white rounded-xl border border-slate-200 text-xs font-mono whitespace-pre-wrap text-slate-700">${escapeHtml(textContent)}</pre>`;
+      } catch (err) {
+        this.content.innerHTML = `<p class="text-xs text-red-500">Failed to load text preview.</p>`;
+      }
+    } else if (fileNameLower.endsWith(".pdf") || fullBase64.startsWith("data:application/pdf")) {
+      this.content.innerHTML = `<iframe src="${fullBase64}" class="w-full h-[400px] rounded-xl border border-slate-200 shadow-inner"></iframe>`;
+    } else {
+      this.content.innerHTML = `<div class="text-center py-6"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-sm font-semibold">${escapeHtml(fileRecord.title)}</p></div>`;
+    }
+
+    if (this.downloadBtn) {
+      this.downloadBtn.href = fullBase64;
+      this.downloadBtn.download = fileRecord.title;
+    }
+  }
+
+  hide() {
+    if (this.content) this.content.innerHTML = "";
+    this.modal?.classList.add("hidden");
+  }
+}
+
+// Main FileManager Class
 export class FileManager {
   constructor(config = {}) {
     this.fbService = config.fbService;
@@ -9,23 +87,7 @@ export class FileManager {
 
     this.currentFolderId = "root";
     this.contextTarget = null;
-  }
-
-  showToast(msg, type = "info") {
-    const container = document.getElementById("toastContainer");
-    if (!container) return;
-    const toast = document.createElement("div");
-    const bgColors = { success: "bg-emerald-600", error: "bg-red-600", info: "bg-slate-900" };
-    toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-xs font-medium text-white ${bgColors[type]} transition-all transform translate-y-2 opacity-0 pointer-events-auto`;
-    toast.innerHTML = `<i class="fa-solid fa-circle-info text-base"></i> <span>${msg}</span>`;
-    container.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.remove("translate-y-2", "opacity-0"));
-    setTimeout(() => { toast.classList.add("opacity-0", "translate-y-2"); setTimeout(() => toast.remove(), 300); }, 3000);
-  }
-
-  escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    this.previewer = new FilePreviewComponent();
   }
 
   async loadCurrentFolder() {
@@ -64,7 +126,7 @@ export class FileManager {
         breadcrumbs.innerHTML = `
           <button onclick="fileManager.navigateToFolder('root')" class="hover:text-blue-600"><i class="fa-solid fa-house"></i> Home</button>
           <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
-          <span class="text-blue-600 font-bold">${this.escapeHtml(currentFolderName)}</span>
+          <span class="text-blue-600 font-bold">${escapeHtml(currentFolderName)}</span>
         `;
       }
 
@@ -75,7 +137,7 @@ export class FileManager {
         html += `
           <div ondblclick="fileManager.navigateToFolder('${folder.id}')" onclick="fileManager.navigateToFolder('${folder.id}')" oncontextmenu="fileManager.openContextMenu(event, 'folder', '${folder.id}')" class="bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition group shadow-sm select-none">
             <i class="fa-solid fa-folder text-amber-400 text-4xl group-hover:scale-110 transition"></i>
-            <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${this.escapeHtml(folder.name)}</span>
+            <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${escapeHtml(folder.name)}</span>
           </div>
         `;
       });
@@ -93,7 +155,7 @@ export class FileManager {
             <div class="w-full flex justify-center items-center h-20 bg-slate-100 rounded-xl overflow-hidden">
               ${thumbHtml}
             </div>
-            <span class="text-xs font-semibold text-slate-800 truncate w-full text-center" title="${this.escapeHtml(file.title)}">${this.escapeHtml(file.title)}</span>
+            <span class="text-xs font-semibold text-slate-800 truncate w-full text-center" title="${escapeHtml(file.title)}">${escapeHtml(file.title)}</span>
             <div class="w-full text-center text-[10px] text-slate-400 pt-1 border-t border-slate-100">
               <span>${file.totalParts || 1} chunks</span>
             </div>
@@ -107,7 +169,7 @@ export class FileManager {
         grid.innerHTML = html;
       }
     } catch (err) {
-      this.showToast(`Error loading folder: ${err.message}`, "error");
+      ToastManager.show(`Error loading folder: ${err.message}`, "error");
     }
   }
 
@@ -167,14 +229,7 @@ export class FileManager {
 
     if (!fileRecord) return;
 
-    document.getElementById("viewModalTitle").textContent = fileRecord.title;
-    document.getElementById("viewDate").innerHTML = `<i class="fa-regular fa-clock"></i> Recent`;
-    
-    const container = document.getElementById("viewContentContainer");
-    const downloadBtn = document.getElementById("downloadFileBtn");
-    
-    container.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i><p class="text-xs text-slate-500">Reassembling file chunks...</p>`;
-    document.getElementById("viewModal").classList.remove("hidden");
+    this.previewer.showLoading(fileRecord.title);
 
     const chunks = this.fbService.isLiveMode ?
       await this.fbService.getByField(this.collections.fileChunks, "fileId", fileRecord.fileId) :
@@ -183,16 +238,7 @@ export class FileManager {
     chunks.sort((a, b) => a.partIndex - b.partIndex);
     const fullBase64 = chunks.map(c => c.chunkData).join("");
 
-    if (fullBase64.startsWith("data:image/")) {
-      container.innerHTML = `<img src="${fullBase64}" class="max-h-85 rounded-xl shadow-md object-contain">`;
-    } else if (fullBase64.startsWith("data:video/")) {
-      container.innerHTML = `<video controls class="w-full max-h-85 rounded-xl shadow-md bg-black"><source src="${fullBase64}"></video>`;
-    } else {
-      container.innerHTML = `<div class="text-center py-6"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-sm font-semibold">${this.escapeHtml(fileRecord.title)}</p></div>`;
-    }
-
-    downloadBtn.href = fullBase64;
-    downloadBtn.download = fileRecord.title;
+    this.previewer.render(fileRecord, fullBase64);
   }
 
   init() {
@@ -201,7 +247,7 @@ export class FileManager {
     });
 
     document.getElementById("backupDataBtn")?.addEventListener("click", async () => {
-      this.showToast("Preparing ZIP backup...", "info");
+      ToastManager.show("Preparing ZIP backup...", "info");
       try {
         let folders = [], files = [], file_chunks = [];
         if (this.fbService.isLiveMode) {
@@ -260,9 +306,9 @@ export class FileManager {
         downloadAnchor.click();
         downloadAnchor.remove();
         
-        this.showToast("ZIP backup downloaded successfully!", "success");
+        ToastManager.show("ZIP backup downloaded successfully!", "success");
       } catch (err) {
-        this.showToast(`Failed to generate ZIP: ${err.message}`, "error");
+        ToastManager.show(`Failed to generate ZIP: ${err.message}`, "error");
       }
     });
 
@@ -271,7 +317,7 @@ export class FileManager {
       if (this.contextTarget.type === 'folder') {
         if (!confirm("Delete folder?")) return;
         await this.fbService.delete(this.collections.folders, this.contextTarget.id);
-        this.showToast("Folder deleted", "success");
+        ToastManager.show("Folder deleted", "success");
       } else if (this.contextTarget.type === 'file') {
         if (!confirm("Delete file and its chunks?")) return;
         await this.fbService.delete(this.collections.files, this.contextTarget.id);
@@ -283,7 +329,7 @@ export class FileManager {
         for (const chunk of chunks) {
           await this.fbService.delete(this.collections.fileChunks, chunk.id);
         }
-        this.showToast("File deleted", "success");
+        ToastManager.show("File deleted", "success");
       }
       document.getElementById("contextMenu").classList.add("hidden");
       this.loadCurrentFolder();
@@ -307,7 +353,7 @@ export class FileManager {
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
-      this.showToast(`Downloaded ${fileRecord.title}`, "success");
+      ToastManager.show(`Downloaded ${fileRecord.title}`, "success");
       document.getElementById("contextMenu").classList.add("hidden");
     });
 
@@ -321,7 +367,7 @@ export class FileManager {
       const name = document.getElementById("folderNameInput").value.trim();
       if (!name) return;
       await this.fbService.create(this.collections.folders, { name, parentId: this.currentFolderId });
-      this.showToast("Folder created!", "success");
+      ToastManager.show("Folder created!", "success");
       document.getElementById("createFolderModal").classList.add("hidden");
       this.loadCurrentFolder();
     });
@@ -377,9 +423,9 @@ export class FileManager {
             });
           }
 
-          this.showToast(`Uploaded: ${file.name}`, "success");
+          ToastManager.show(`Uploaded: ${file.name}`, "success");
         } catch (err) {
-          this.showToast(`Failed to upload ${file.name}: ${err.message}`, "error");
+          ToastManager.show(`Failed to upload ${file.name}: ${err.message}`, "error");
         }
       }
 
@@ -387,11 +433,6 @@ export class FileManager {
       submitBtn.textContent = "Upload File";
       document.getElementById("createFileModal").classList.add("hidden");
       this.loadCurrentFolder();
-    });
-
-    document.getElementById("closeViewModalBtn")?.addEventListener("click", () => {
-      document.getElementById("viewContentContainer").innerHTML = "";
-      document.getElementById("viewModal").classList.add("hidden");
     });
 
     this.loadCurrentFolder();
