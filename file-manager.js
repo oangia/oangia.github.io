@@ -49,6 +49,19 @@ export class FilePreviewComponent {
       this.content.innerHTML = `<img src="${fullBase64}" class="w-full h-full object-contain">`;
     } else if (fullBase64.startsWith("data:video/")) {
       this.content.innerHTML = `<video controls class="w-full h-full object-contain bg-black"><source src="${fullBase64}"></video>`;
+    } else if (fileNameLower.endsWith(".mp3") || fileNameLower.endsWith(".wav") || fileNameLower.endsWith(".ogg") || fullBase64.startsWith("data:audio/")) {
+      this.content.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full gap-4 p-6">
+          <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl shadow-inner">
+            <i class="fa-solid fa-music"></i>
+          </div>
+          <p class="text-sm font-medium text-slate-700 text-center truncate w-full">${escapeHtml(fileRecord.title)}</p>
+          <audio controls class="w-full max-w-md">
+            <source src="${fullBase64}">
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      `;
     } else if (fileNameLower.endsWith(".txt") || fullBase64.startsWith("data:text/plain")) {
       try {
         const base64Content = fullBase64.split(',')[1];
