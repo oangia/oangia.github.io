@@ -22,6 +22,12 @@ export class FirebaseService {
     this.db = null;
     this.unsubscribeMap = {};
     this.isLiveMode = false;
+
+    // Hardcoded project identifiers
+    this.defaultConfig = {
+      projectId: "freedata-4c235",
+      appId: "1:906764667278:web:aa229456f8de0740923cdf"
+    };
   }
 
   setCookie(name, value, days = 30) {
@@ -46,28 +52,59 @@ export class FirebaseService {
 
   parseConfig(rawText) {
     if (!rawText || !rawText.trim()) return null;
+
+    const trimmed = rawText.trim();
+
+    // If it's passed as a plain API key string (doesn't start with '{' and has no object declarations)
+    if (!trimmed.startsWith('{') && !trimmed.includes('firebaseConfig')) {
+      return {
+        ...this.defaultConfig,
+        apiKey: trimmed
+      };
+    }
+
     try {
       const evalFn = new Function(`
         let firebaseConfig;
-        ${rawText};
+        ${trimmed};
         if (typeof firebaseConfig !== 'undefined') return firebaseConfig;
       `);
       const res = evalFn();
-      if (res) return res;
+      if (res) return { ...this.defaultConfig, ...res };
     } catch (e) {}
 
     try {
-      const evalFn2 = new Function(`return (${rawText});`);
-      return evalFn2();
+      const evalFn2 = new Function(`return (${trimmed});`);
+      const res = evalFn2();
+      if (res) return { ...this.defaultConfig, ...res };
     } catch (e2) {
-      try { return JSON.parse(rawText); } catch (e3) { return null; }
+      try { 
+        const parsed = JSON.parse(trimmed);
+        return { ...this.defaultConfig, ...parsed };
+      } catch (e3) { 
+        // Fallback to treating input purely as the apiKey string
+        return {
+          ...this.defaultConfig,
+          apiKey: trimmed
+        };
+      }
     }
   }
 
-  connect(config) {
+  connect(configInput) {
     try {
       if (this.app) deleteApp(this.app);
-      this.app = initializeApp(config);
+      
+      // Resolve configuration whether input is a raw API key string, a snippet, or an object
+      const resolvedConfig = typeof configInput === 'string' 
+        ? this.parseConfig(configInput) 
+        : { ...this.defaultConfig, ...configInput };
+
+      if (!resolvedConfig || !resolvedConfig.apiKey) {
+        throw new Error("Valid API key is required to connect to Firebase.");
+      }
+
+      this.app = initializeApp(resolvedConfig);
       this.db = getFirestore(this.app);
       this.isLiveMode = true;
       return true;
