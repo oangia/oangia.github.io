@@ -126,22 +126,21 @@
     import { ConfigManager } from "./config-manager.js";
 
     const fbService = new FirebaseService();
-  
-    // Initialize the manager by pointing it to your button selector
+    let currentNotes = [];
+
+    // Initialize the reusable Config Manager component
     const configManager = new ConfigManager({
-      buttonSelector: "#toggleConfigBtn", // The button in your header
+      buttonSelector: "#toggleConfigBtn",
       fbService: fbService,
       onConnect: (isLive) => {
         renderStatus(isLive);
-        loadCurrentFolder(); // Refresh your page data
+        initSubscription();
       },
       onDemo: () => {
         renderStatus(false);
-        startLocalDemo(); // Fallback to local demo mode
+        startLocalDemo();
       }
     });
-    
-    let currentNotes = [];
 
     function showToast(msg, type = "info") {
       const container = document.getElementById("toastContainer");
@@ -260,27 +259,6 @@
       showToast("Notes backup downloaded!", "success");
     });
 
-    // Config Panel
-    document.getElementById("toggleConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.toggle("hidden"));
-    document.getElementById("closeConfigBtn").addEventListener("click", () => document.getElementById("configPanel").classList.add("hidden"));
-    document.getElementById("saveConfigBtn").addEventListener("click", () => {
-      const rawText = document.getElementById("configTextarea").value;
-      const parsed = fbService.parseConfig(rawText);
-      if (!parsed) { showToast("Invalid config syntax", "error"); return; }
-      if (document.getElementById("rememberCookie").checked) fbService.setCookie(fbService.cookieName, rawText, 30);
-      if (fbService.connect(parsed)) {
-        showToast("Connected to Firebase!", "success");
-        initSubscription();
-      }
-      document.getElementById("configPanel").classList.add("hidden");
-    });
-    document.getElementById("clearCookieBtn").addEventListener("click", () => {
-      fbService.eraseCookie(fbService.cookieName);
-      document.getElementById("configTextarea").value = "";
-      showToast("Cookie cleared", "info");
-      startLocalDemo();
-    });
-
     function initSubscription() {
       if (fbService.isLiveMode) {
         fbService.subscribe("posts", (data) => renderNotes(data));
@@ -293,23 +271,6 @@
       }
       currentNotes = fbService.getLocal("posts");
       renderNotes(currentNotes);
-    }
-
-    // Startup
-    const saved = fbService.getCookie(fbService.cookieName);
-    if (saved) {
-      document.getElementById("configTextarea").value = saved;
-      const parsed = fbService.parseConfig(saved);
-      if (parsed && fbService.connect(parsed)) {
-        renderStatus(true);
-        initSubscription();
-      } else {
-        renderStatus(false);
-        startLocalDemo();
-      }
-    } else {
-      renderStatus(false);
-      startLocalDemo();
     }
   </script>
 </body>
