@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>File Manager - Memo</title>
+  <title>File Manager App</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,13 +17,13 @@
 
   <!-- Header -->
   <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4 w-full">
       <div class="flex items-center space-x-3">
         <div class="bg-blue-500 p-2 rounded-xl shadow-md text-white">
           <i class="fa-solid fa-folder-tree text-lg"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold tracking-tight">File Manager - Memo</h1>
+          <h1 id="appTitle" class="text-lg font-bold tracking-tight">File Manager - Memo</h1>
           <p class="text-[11px] text-slate-400">Fast On-Demand Loading & Chunked Storage</p>
         </div>
       </div>
@@ -41,8 +41,31 @@
       </div>
     </div>
   </header>
-<!-- Mount target container -->
-  <div id="fileManagerApp" class="flex-1 flex flex-col"></div>
+
+  <!-- Main Workspace Layout -->
+  <div class="flex-1 flex overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-800 text-slate-300 border-r border-slate-700 flex flex-col shrink-0">
+      <div class="p-4 border-b border-slate-700 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+        Navigation
+      </div>
+      <nav class="p-3 space-y-1 flex-1">
+        <button id="navMemo" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white">
+          <i class="fa-solid fa-note-sticky text-base"></i>
+          <span>Memo</span>
+        </button>
+        <button id="navBook" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white">
+          <i class="fa-solid fa-book text-base"></i>
+          <span>Book</span>
+        </button>
+      </nav>
+    </aside>
+
+    <!-- Content Area -->
+    <main class="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
+      <div id="fileManagerApp" class="flex-1 flex flex-col"></div>
+    </main>
+  </div>
 
   <script type="module">
     import { FirebaseService } from "./firebase-service.js";
@@ -51,26 +74,77 @@
 
     const fbService = new FirebaseService();
 
-    window.fileManager = new FileManager({
-      containerId: "fileManagerApp",
-      fbService: fbService,
-      foldersCollection: "folders",
-      filesCollection: "files",
-      fileChunksCollection: "file_chunks"
+    const collectionConfigs = {
+      memo: {
+        title: "File Manager - Memo",
+        foldersCollection: "folders",
+        filesCollection: "files",
+        fileChunksCollection: "file_chunks"
+      },
+      book: {
+        title: "File Manager - Book",
+        foldersCollection: "book_folders",
+        filesCollection: "book_files",
+        fileChunksCollection: "book_file_chunks"
+      }
+    };
+
+    let activeSpace = "memo";
+
+    function loadSpace(spaceKey) {
+      activeSpace = spaceKey;
+      const config = collectionConfigs[spaceKey];
+
+      // Update UI title
+      document.getElementById("appTitle").textContent = config.title;
+
+      // Update active state on sidebar buttons
+      const btnMemo = document.getElementById("navMemo");
+      const btnBook = document.getElementById("navBook");
+
+      if (spaceKey === "memo") {
+        btnMemo.className = "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white";
+        btnBook.className = "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white";
+      } else {
+        btnBook.className = "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white";
+        btnMemo.className = "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white";
+      }
+
+      // Re-initialize FileManager instance for targeted collection
+      window.fileManager = new FileManager({
+        containerId: "fileManagerApp",
+        fbService: fbService,
+        foldersCollection: config.foldersCollection,
+        filesCollection: config.filesCollection,
+        fileChunksCollection: config.fileChunksCollection
+      });
+
+      window.fileManager.init();
+    }
+
+    // Sidebar navigation listeners
+    document.getElementById("navMemo").addEventListener("click", () => {
+      if (activeSpace !== "memo") loadSpace("memo");
     });
 
+    document.getElementById("navBook").addEventListener("click", () => {
+      if (activeSpace !== "book") loadSpace("book");
+    });
+
+    // Configuration setup
     const configManager = new ConfigManager({
       buttonSelector: "#toggleConfigBtn",
       fbService: fbService,
       onConnect: (isLive) => {
-        window.fileManager.loadCurrentFolder();
+        if (window.fileManager) window.fileManager.loadCurrentFolder();
       },
       onDemo: () => {
-        window.fileManager.loadCurrentFolder();
+        if (window.fileManager) window.fileManager.loadCurrentFolder();
       }
     });
 
-    window.fileManager.init();
+    // Initial load
+    loadSpace("memo");
   </script>
 </body>
 </html>
