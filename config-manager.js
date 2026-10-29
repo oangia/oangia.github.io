@@ -42,7 +42,7 @@ export class ConfigManager {
             </button>
           </div>
           <div class="p-5 space-y-4">
-            <input id="fbConfigTextarea" placeholder="Paste your Firebase config object here..." class="w-full h-40 text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 custom-scrollbar focus:outline-none focus:ring-2 focus:ring-blue-500"></input>
+            <input id="fbConfigTextarea" placeholder="Paste your Firebase config object here..." class="w-full text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 custom-scrollbar focus:outline-none focus:ring-2 focus:ring-blue-500"></input>
             <div class="flex items-center justify-between text-xs text-slate-500">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" id="fbRememberCookie" checked class="rounded text-amber-500">
