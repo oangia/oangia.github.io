@@ -25,19 +25,42 @@
 <body class="bg-[#1e1e1e] text-[#cccccc] h-screen flex flex-col overflow-hidden text-[13px] select-none">
 
     <!-- Top Menu Bar -->
-    <div class="bg-[#252526] h-[35px] flex items-center px-4 border-b border-[#3f3f46] justify-between shrink-0">
-        <div class="font-bold text-white flex items-center gap-2">
-            <span>🔲</span> Ps <span class="font-normal text-xs text-[#007acc]">Tailwind Plugin Studio</span>
+    <div class="bg-[#18181b] h-[42px] flex items-center px-4 border-b border-[#27272a] justify-between shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-cyan-600 text-white p-1.5 rounded-lg shadow-sm text-xs font-bold flex items-center justify-center">
+                <span>Ps</span>
+            </div>
+            <div>
+                <span class="font-bold text-white text-xs">Photoshop Web</span>
+                <span class="text-[10px] text-slate-400 border-l border-slate-700 pl-2">Tailwind Plugin Studio</span>
+            </div>
         </div>
+
+        <!-- Suite Quick Navigation Links -->
+        <div class="flex items-center gap-1.5 overflow-x-auto text-xs">
+            <a href="file.html" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5">
+                <span>📁</span><span>Files</span>
+            </a>
+            <a href="data.html" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5">
+                <span>📝</span><span>Notes</span>
+            </a>
+            <a href="index.html" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5">
+                <span>📄</span><span>PDF Extractor</span>
+            </a>
+            <a href="image.html" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5">
+                <span>🎞️</span><span>Frames</span>
+            </a>
+        </div>
+
         <div class="flex gap-2 items-center">
-            <label for="upload-input" class="bg-[#333333] hover:bg-[#3a3d41] text-white border border-[#3f3f46] px-3 py-1 rounded cursor-pointer transition text-xs">Open Image</label>
+            <label for="upload-input" class="bg-[#27272a] hover:bg-[#3f3f46] text-white border border-[#3f3f46] px-3 py-1.5 rounded-xl cursor-pointer transition text-xs font-semibold">Open Image</label>
             <input type="file" id="upload-input" accept="image/*" class="hidden">
-            <button id="save-btn" class="bg-[#007acc] hover:bg-[#0062a3] text-white border border-[#007acc] px-3 py-1 rounded cursor-pointer transition text-xs font-medium">Export JPG</button>
+            <button id="save-btn" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3.5 py-1.5 rounded-xl cursor-pointer transition text-xs font-bold shadow-sm">Export JPG</button>
         </div>
     </div>
 
     <!-- Main Workspace -->
-    <div class="flex flex-1 h-[calc(100vh-35px)] relative overflow-hidden">
+    <div class="flex flex-1 h-[calc(100vh-42px)] relative overflow-hidden">
         
         <!-- Left Toolbar -->
         <div id="toolbar" class="w-[50px] bg-[#252526] border-r border-[#3f3f46] flex flex-col items-center pt-2.5 gap-1.5 shrink-0"></div>
