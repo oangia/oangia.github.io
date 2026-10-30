@@ -116,7 +116,7 @@ class BackupManager {
       downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
       parentDoc.body.appendChild(downloadAnchor);
       downloadAnchor.click();
-      downloadAnchor.remove();
+      #downloadAnchor.remove();
       
       Toast.show("ZIP backup downloaded successfully!", "success");
     } catch (err) {
