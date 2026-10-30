@@ -18,15 +18,6 @@ export class FileManager {
     this.contextTarget = null;
     
     this.previewer = new FilePreviewComponent();
-    
-    // Dedicated Upload Component
-    this.uploader = new FileUploadComponent({
-      fbService: this.fbService,
-      collections: this.collections,
-      getCurrentFolderId: () => this.currentFolderId,
-      onUploadComplete: () => this.loadCurrentFolder()
-    });
-
     this.backupManager = new BackupManager({
       fbService: this.fbService,
       collections: this.collections,
@@ -183,6 +174,14 @@ export class FileManager {
     return val;
   }
 
+  setUploadButtonProgress(isUploading, text) {
+    const btn = document.getElementById("submitFileBtn") || document.querySelector("#createFileForm button[type='submit']");
+    if (btn) {
+      btn.disabled = isUploading;
+      btn.textContent = text;
+    }
+  }
+
   async loadCurrentFolder() {
     this.showLoadingState();
 
@@ -224,6 +223,33 @@ export class FileManager {
     this.showContextMenu(e, type);
   }
 
+  readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  generateThumbnail(base64Str, maxSize = 150) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let w = img.width, h = img.height;
+        if (w > h) { h = Math.round((h * maxSize) / w); w = maxSize; }
+        else { w = Math.round((w * maxSize) / h); h = maxSize; }
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.6));
+      };
+      img.onerror = () => resolve("");
+    });
+  }
+
   async viewFile(id, fileId) {
     const fileRecord = this.fbService.isLiveMode ?
       await this.fbService.getById(this.collections.items, id) :
@@ -242,15 +268,17 @@ export class FileManager {
   }
 
   init() {
-    this.mountMainLayout(); // <--- Injects the UI elements into the DOM first
+    this.mountMainLayout();
     this.previewer.initEvents();
-    this.uploader.initEvents();
 
     document.addEventListener("click", () => this.hideContextMenu());
 
-    // Event Listeners for folder modal triggers
+    // Event Listeners for UI triggers
     document.getElementById("openFolderModalBtn")?.addEventListener("click", () => this.toggleModal("folderModal", true));
     document.getElementById("cancelFolderBtn")?.addEventListener("click", () => this.toggleModal("folderModal", false));
+    document.getElementById("openCreateModalBtn")?.addEventListener("click", () => this.toggleModal("fileModal", true));
+    document.getElementById("closeFileModalBtn")?.addEventListener("click", () => this.toggleModal("fileModal", false));
+    document.getElementById("cancelFileBtn")?.addEventListener("click", () => this.toggleModal("fileModal", false));
 
     document.getElementById("fileListContainer")?.addEventListener("click", (e) => {
       const viewBtn = e.target.closest(".view-file-btn");
@@ -271,6 +299,55 @@ export class FileManager {
       Toast.show("Folder created!", "success");
       this.toggleModal("folderModal", false);
       this.loadCurrentFolder();
+    });
+
+    // Submit File Upload
+    document.getElementById("createFileForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById("chunkFileInput");
+      const files = fileInput.files;
+      if (!files || files.length === 0) return;
+
+      this.setUploadButtonProgress(true, `Uploading (1/${files.length})...`);
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          const base64Data = await this.readFileAsDataURL(file);
+          let thumbnail = "";
+          if (file.type.startsWith("image/")) {
+            thumbnail = await this.generateThumbnail(base64Data, 150);
+          }
+
+          const CHUNK_SIZE = 700000;
+          const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
+          const fileId = "file_" + Date.now() + "_" + i;
+
+          await this.fbService.create(this.collections.items, {
+            fileId,
+            title: file.name,
+            isFolder: false,
+            category: file.type.startsWith("image/") ? "Image" : "Media",
+            parentId: this.currentFolderId,
+            totalParts,
+            thumbnail
+          });
+
+          for (let c = 0; c < totalParts; c++) {
+            const chunkData = base64Data.substring(c * CHUNK_SIZE, (c + 1) * CHUNK_SIZE);
+            await this.fbService.create(this.collections.fileChunks, { fileId, partIndex: c, chunkData });
+          }
+
+          Toast.show(`Uploaded: ${file.name}`, "success");
+        } catch (err) {
+          Toast.show(`Failed to upload ${file.name}: ${err.message}`, "error");
+        }
+      }
+
+      this.setUploadButtonProgress(false, "Upload File");
+      this.toggleModal("fileModal", false);
+      if (fileInput) fileInput.value = "";
+      this.loadCurrentFolder();      
     });
 
     this.loadCurrentFolder();
