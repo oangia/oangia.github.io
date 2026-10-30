@@ -108,17 +108,17 @@ class BackupManager {
 
       const content = await zip.generateAsync({ type: "blob" });
       const blobUrl = URL.createObjectURL(content);
-
-      // Try opening directly in a new context/tab to force download prompt
-      const opened = window.open(blobUrl, '_blank');
       
-      if (!opened) {
-        // Fallback if popups are blocked: alert or direct assignment
-        console.warn("Popup blocked. Trying direct navigation fallback...");
-        window.location.href = blobUrl;
-      }
-
-      Toast.show("ZIP backup generated!", "success");
+      // Directly create and trigger the anchor on the parent page
+      const parentDoc = window.parent.document;
+      const downloadAnchor = parentDoc.createElement('a');
+      downloadAnchor.href = blobUrl;
+      downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
+      parentDoc.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      
+      Toast.show("ZIP backup downloaded successfully!", "success");
     } catch (err) {
       console.error("Backup caught an error:", err);
       Toast.show(`Failed: ${err.message}`, "error");
