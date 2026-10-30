@@ -1,13 +1,83 @@
 import { Toast } from "./toast.js";
 import { FilePreviewComponent } from "./preview.js";
 
+export class FileBackup {
+  constructor(fbService, collections) {
+    this.fbService = fbService;
+    this.collections = collections;
+  }
+
+  async generateZipBlob() {
+    let items = [], file_chunks = [];
+    if (this.fbService.isLiveMode) {
+      items = await this.fbService.getAll(this.collections.items);
+      file_chunks = await this.fbService.getAll(this.collections.fileChunks);
+    } else {
+      items = JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]");
+      file_chunks = JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]");
+    }
+
+    const zip = new JSZip();
+    const folders = items.filter(i => i.isFolder);
+    const files = items.filter(i => !i.isFolder);
+
+    const getFolderPath = (parentId) => {
+      let pathParts = [];
+      let currentId = parentId;
+      while (currentId && currentId !== "root") {
+        const folder = folders.find(f => f.id === currentId);
+        if (folder) {
+          pathParts.unshift(folder.title || folder.name);
+          currentId = folder.parentId;
+        } else {
+          break;
+        }
+      }
+      return pathParts.join("/");
+    };
+
+    for (const fileRecord of files) {
+      const chunks = file_chunks
+        .filter(c => c.fileId === fileRecord.fileId)
+        .sort((a, b) => a.partIndex - b.partIndex);
+
+      const fullBase64 = chunks.map(c => c.chunkData).join("");
+      const base64Data = fullBase64.split(',')[1];
+      if (!base64Data) continue;
+
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const folderPath = getFolderPath(fileRecord.parentId);
+      const filePath = folderPath ? `${folderPath}/${fileRecord.title}` : fileRecord.title;
+      console.log(bytes);
+      zip.file(filePath, bytes);
+    }
+
+    return await zip.generateAsync({ type: "blob" });
+  }
+
+  async downloadBackup() {
+    const content = await this.generateZipBlob();
+    console.log(content);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.href = URL.createObjectURL(content);
+    downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  }
+}
+
 export class FileManager {
   constructor(config = {}) {
     this.containerId = config.containerId || "fileManagerApp";
     this.container = document.getElementById(this.containerId);
     this.fbService = config.fbService;
     
-    // Unified collection configuration (folders and files live together)
     this.collections = {
       items: config.filesCollection || "files",
       fileChunks: config.fileChunksCollection || "file_chunks"
@@ -16,6 +86,7 @@ export class FileManager {
     this.currentFolderId = "root";
     this.contextTarget = null;
     this.previewer = new FilePreviewComponent();
+    this.backupManager = new FileBackup(this.fbService, this.collections);
   }
 
   mountUI() {
@@ -116,7 +187,6 @@ export class FileManager {
         }
       }
 
-      // Separate folders and files from the unified collection using isFolder flag
       const subFolders = allItems.filter(item => item.isFolder === true);
       const dirFiles = allItems.filter(item => !item.isFolder);
 
@@ -126,7 +196,7 @@ export class FileManager {
         breadcrumbs.innerHTML = `
           <button onclick="fileManager.navigateToFolder('root')" class="hover:text-blue-600"><i class="fa-solid fa-house"></i> Home</button>
           <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
-          <span class="text-blue-600 font-bold">$(currentFolderName)}</span>
+          <span class="text-blue-600 font-bold">${currentFolderName}</span>
         `;
       }
 
@@ -251,64 +321,7 @@ export class FileManager {
     this.container.querySelector("#backupDataBtn")?.addEventListener("click", async () => {
       Toast.show("Preparing ZIP backup...", "info");
       try {
-        let items = [], file_chunks = [];
-        if (this.fbService.isLiveMode) {
-          items = await this.fbService.getAll(this.collections.items);
-          file_chunks = await this.fbService.getAll(this.collections.fileChunks);
-        } else {
-          items = JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]");
-          file_chunks = JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]");
-        }
-
-        const zip = new JSZip();
-        const folders = items.filter(i => i.isFolder);
-        const files = items.filter(i => !i.isFolder);
-
-        const getFolderPath = (parentId) => {
-          let pathParts = [];
-          let currentId = parentId;
-          while (currentId && currentId !== "root") {
-            const folder = folders.find(f => f.id === currentId);
-            if (folder) {
-              pathParts.unshift(folder.title || folder.name);
-              currentId = folder.parentId;
-            } else {
-              break;
-            }
-          }
-          return pathParts.join("/");
-        };
-        console.log(files);
-        for (const fileRecord of files) {
-          const chunks = file_chunks
-            .filter(c => c.fileId === fileRecord.fileId)
-            .sort((a, b) => a.partIndex - b.partIndex);
-
-          const fullBase64 = chunks.map(c => c.chunkData).join("");
-          const base64Data = fullBase64.split(',')[1];
-          if (!base64Data) continue;
-
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-
-          const folderPath = getFolderPath(fileRecord.parentId);
-          const filePath = folderPath ? `${folderPath}/${fileRecord.title}` : fileRecord.title;
-          console.log(bytes);
-          zip.file(filePath, bytes);
-        }
-
-        const content = await zip.generateAsync({ type: "blob" });
-        console.log(content);
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.href = URL.createObjectURL(content);
-        downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
-
+        await this.backupManager.downloadBackup();
         Toast.show("ZIP backup downloaded successfully!", "success");
       } catch (err) {
         Toast.show(`Failed to generate ZIP: ${err.message}`, "error");
@@ -372,7 +385,6 @@ export class FileManager {
       document.getElementById("createFolderModal").classList.add("hidden");
     });
 
-    // Create Folder as a record inside the unified items collection
     document.getElementById("submitFolderBtn")?.addEventListener("click", async () => {
       const name = document.getElementById("folderNameInput").value.trim();
       if (!name) return;
@@ -423,7 +435,6 @@ export class FileManager {
           const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
           const fileId = "file_" + Date.now() + "_" + i;
 
-          // Create File record in the unified items collection with isFolder: false
           await this.fbService.create(this.collections.items, {
             fileId,
             title: file.name,
