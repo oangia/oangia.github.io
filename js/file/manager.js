@@ -132,19 +132,15 @@ export class FileManager {
       let allItems = [];
       let currentFolderName = "Home";
 
+      console.log("Loading folder. LiveMode:", this.fbService.isLiveMode, "Collection:", this.collections.items);
+
       if (this.fbService.isLiveMode) {
         allItems = await this.fbService.getByField(this.collections.items, "parentId", this.currentFolderId);
-        if (this.currentFolderId !== "root") {
-          const parentFolder = await this.fbService.getById(this.collections.items, this.currentFolderId);
-          if (parentFolder) currentFolderName = parentFolder.title || parentFolder.name;
-        }
+        console.log("Firebase fetched items:", allItems);
       } else {
         const stored = JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]");
         allItems = stored.filter(item => item.parentId === this.currentFolderId);
-        if (this.currentFolderId !== "root") {
-          const found = stored.find(item => item.id === this.currentFolderId);
-          if (found) currentFolderName = found.title || found.name;
-        }
+        console.log("LocalStorage fetched items:", allItems);
       }
 
       const subFolders = allItems.filter(item => item.isFolder === true);
@@ -152,6 +148,7 @@ export class FileManager {
 
       this.renderItems(subFolders, dirFiles, currentFolderName);
     } catch (err) {
+      console.error("Error in loadCurrentFolder:", err);
       Toast.show(`Error loading folder: ${err.message}`, "error");
     }
   }
