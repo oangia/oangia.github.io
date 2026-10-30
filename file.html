@@ -138,9 +138,7 @@
         items: config.filesCollection,
         fileChunks: config.fileChunksCollection
       };
-      fileManager.backupManager = new FileBackup(fbService, fileManager.collections, "backupDataBtn");
       fileManager.currentFolderId = "root";
-
       // Reload view with the new collection configuration
       fileManager.loadCurrentFolder();
     }
