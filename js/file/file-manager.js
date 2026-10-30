@@ -1,3 +1,6 @@
+import { ToastManager, escapeHtml } from "./toast.js";
+import { FilePreviewComponent } from "./preview.js";
+
 export class FileManager {
   constructor(config = {}) {
     this.containerId = config.containerId || "fileManagerApp";
