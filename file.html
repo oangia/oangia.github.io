@@ -50,13 +50,17 @@
         Navigation
       </div>
       <nav class="p-3 space-y-1 flex-1">
-        <button id="navMemo" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white">
+        <button id="navHome" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white">
+          <i class="fa-solid fa-house text-base"></i>
+          <span>Home</span>
+        </button>
+        <button id="navMemo" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white">
           <i class="fa-solid fa-note-sticky text-base"></i>
           <span>Memo</span>
         </button>
-        <button id="navBook" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white">
-          <i class="fa-solid fa-book text-base"></i>
-          <span>Book</span>
+        <button id="navJav" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white">
+          <i class="fa-solid fa-video text-base"></i>
+          <span>Jav</span>
         </button>
       </nav>
     </aside>
@@ -68,109 +72,123 @@
   </div>
 
   <script type="module">
-    import { FirebaseService } from "./firebase-service.js";
-    import { ConfigManager } from "./config-manager.js";
-    
-    const fbService = new FirebaseService();
-    
-    const collectionConfigs = {
-      memo: {
-        title: "File Manager - Memo",
-        foldersCollection: "folders",
-        filesCollection: "files",
-        fileChunksCollection: "file_chunks"
-      },
-      book: {
-        title: "File Manager - Book",
-        foldersCollection: "book_folders",
-        filesCollection: "book_files",
-        fileChunksCollection: "book_file_chunks"
-      }
-    };
-    
-    let activeSpace = "memo";
-    
-    function loadSpaceInFrame(spaceKey) {
-      activeSpace = spaceKey;
-      const config = collectionConfigs[spaceKey];
-    
-      // Update Main UI Header
-      document.getElementById("appTitle").textContent = config.title;
-    
-      // Update Navigation UI
-      document.getElementById("navMemo").className = spaceKey === "memo" 
-        ? "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white"
-        : "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white";
-    
-      document.getElementById("navBook").className = spaceKey === "book" 
-        ? "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white"
-        : "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white";
-    
-      // Re-inject HTML/JS context cleanly into the iframe
-      const iframe = document.getElementById("appFrame");
-      
-      // Set iframe source or write full document context
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-      iframeDoc.open();
-      iframeDoc.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <script src="https://cdn.tailwindcss.com"><\/script>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-          </head>
-          <body class="p-4 bg-slate-50 text-slate-800">
-            <div id="fileManagerApp"></div>
-            <script type="module">
-              import { FileManager } from "./file-manager.js";
-              
-              // Access parent's FirebaseService or initialize locally
-              const fbService = window.parent.fbService;
-    
-              window.fileManager = new FileManager({
-                containerId: "fileManagerApp",
-                fbService: fbService,
-                foldersCollection: "${config.foldersCollection}",
-                filesCollection: "${config.filesCollection}",
-                fileChunksCollection: "${config.fileChunksCollection}"
-              });
-    
-              window.fileManager.init();
-            <\/script>
-          </body>
-        </html>
-      `);
-      iframeDoc.close();
+  import { FirebaseService } from "./firebase-service.js";
+  import { ConfigManager } from "./config-manager.js";
+
+  const fbService = new FirebaseService();
+
+  // Define collections for all 3 tabs
+  const collectionConfigs = {
+    home: {
+      title: "File Manager - Home",
+      foldersCollection: "home_folders",
+      filesCollection: "home_files",
+      fileChunksCollection: "home_file_chunks"
+    },
+    memo: {
+      title: "File Manager - Memo",
+      foldersCollection: "folders",
+      filesCollection: "files",
+      fileChunksCollection: "file_chunks"
+    },
+    jav: {
+      title: "File Manager - Jav",
+      foldersCollection: "jav_folders",
+      filesCollection: "jav_files",
+      fileChunksCollection: "jav_file_chunks"
     }
-    
-    // Expose fbService to iframe window
-    window.fbService = fbService;
-    
-    // Sidebar navigation listeners
-    document.getElementById("navMemo").addEventListener("click", () => {
-      if (activeSpace !== "memo") loadSpaceInFrame("memo");
+  };
+
+  let activeSpace = "home"; // Default tab
+
+  function loadSpaceInFrame(spaceKey) {
+    activeSpace = spaceKey;
+    const config = collectionConfigs[spaceKey];
+
+    // Update Main UI Header title
+    document.getElementById("appTitle").textContent = config.title;
+
+    // Update Navigation UI active states across all buttons
+    const buttons = {
+      home: document.getElementById("navHome"),
+      memo: document.getElementById("navMemo"),
+      jav: document.getElementById("navJav")
+    };
+
+    Object.keys(buttons).forEach((key) => {
+      if (key === spaceKey) {
+        buttons[key].className = "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white";
+      } else {
+        buttons[key].className = "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white";
+      }
     });
-    
-    document.getElementById("navBook").addEventListener("click", () => {
-      if (activeSpace !== "book") loadSpaceInFrame("book");
-    });
-    
-    // Force-reload button listener
-    document.getElementById("reloadFrameBtn").addEventListener("click", () => {
-      loadSpaceInFrame(activeSpace);
-    });
-    
-    // Config Manager Setup
-    const configManager = new ConfigManager({
-      buttonSelector: "#toggleConfigBtn",
-      fbService: fbService,
-      onConnect: () => loadSpaceInFrame(activeSpace),
-      onDemo: () => loadSpaceInFrame(activeSpace)
-    });
-    
-    // Initial Load
-    loadSpaceInFrame("memo");
-  </script>
+
+    // Re-inject HTML/JS context cleanly into the iframe container
+    const iframe = document.getElementById("appFrame");
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <script src="https://cdn.tailwindcss.com"><\/script>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        </head>
+        <body class="p-4 bg-slate-50 text-slate-800">
+          <div id="fileManagerApp"></div>
+          <script type="module">
+            import { FileManager } from "./file-manager.js";
+            
+            const fbService = window.parent.fbService;
+
+            window.fileManager = new FileManager({
+              containerId: "fileManagerApp",
+              fbService: fbService,
+              foldersCollection: "${config.foldersCollection}",
+              filesCollection: "${config.filesCollection}",
+              fileChunksCollection: "${config.fileChunksCollection}"
+            });
+
+            window.fileManager.init();
+          <\/script>
+        </body>
+      </html>
+    `);
+    iframeDoc.close();
+  }
+
+  // Expose fbService to iframe window
+  window.fbService = fbService;
+
+  // Sidebar navigation listeners
+  document.getElementById("navHome").addEventListener("click", () => {
+    if (activeSpace !== "home") loadSpaceInFrame("home");
+  });
+
+  document.getElementById("navMemo").addEventListener("click", () => {
+    if (activeSpace !== "memo") loadSpaceInFrame("memo");
+  });
+
+  document.getElementById("navJav").addEventListener("click", () => {
+    if (activeSpace !== "jav") loadSpaceInFrame("jav");
+  });
+
+  // Force-reload button listener
+  document.getElementById("reloadFrameBtn").addEventListener("click", () => {
+    loadSpaceInFrame(activeSpace);
+  });
+
+  // Config Manager Setup
+  const configManager = new ConfigManager({
+    buttonSelector: "#toggleConfigBtn",
+    fbService: fbService,
+    onConnect: () => loadSpaceInFrame(activeSpace),
+    onDemo: () => loadSpaceInFrame(activeSpace)
+  });
+
+  // Initial Load with Home as default
+  loadSpaceInFrame("home");
+</script>
 </body>
 </html>
