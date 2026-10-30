@@ -100,7 +100,7 @@ export class UI {
       breadcrumbs.innerHTML = `
         <button onclick="fileManager.navigateToFolder('root')" class="hover:text-blue-600"><i class="fa-solid fa-house"></i> Home</button>
         <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
-        <span class="text-blue-600 font-bold">${escapeHtml(currentFolderName)}</span>
+        <span class="text-blue-600 font-bold">${currentFolderName}</span>
       `;
     }
 
@@ -111,7 +111,7 @@ export class UI {
       html += `
         <div ondblclick="fileManager.navigateToFolder('${folder.id}')" onclick="fileManager.navigateToFolder('${folder.id}')" oncontextmenu="fileManager.openContextMenu(event, 'folder', '${folder.id}')" class="bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition group shadow-sm select-none">
           <i class="fa-solid fa-folder text-amber-400 text-4xl group-hover:scale-110 transition"></i>
-          <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${escapeHtml(folder.title || folder.name)}</span>
+          <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${folder.title || folder.name}</span>
         </div>
       `;
     });
@@ -129,7 +129,7 @@ export class UI {
           <div class="w-full flex justify-center items-center h-20 bg-slate-100 rounded-xl overflow-hidden">
             ${thumbHtml}
           </div>
-          <span class="text-xs font-semibold text-slate-800 truncate w-full text-center" title="${escapeHtml(file.title)}">${escapeHtml(file.title)}</span>
+          <span class="text-xs font-semibold text-slate-800 truncate w-full text-center" title="${file.title}">${file.title}</span>
           <div class="w-full text-center text-[10px] text-slate-400 pt-1 border-t border-slate-100">
             <span>${file.totalParts || 1} chunks</span>
           </div>
