@@ -107,17 +107,18 @@ class BackupManager {
       Toast.show(`Packaging ${processedCount} files into ZIP...`, "info");
 
       const content = await zip.generateAsync({ type: "blob" });
-      console.log("ZIP blob generated successfully. Triggering download link...");
+      const blobUrl = URL.createObjectURL(content);
 
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.href = URL.createObjectURL(content);
-      downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
+      // Try opening directly in a new context/tab to force download prompt
+      const opened = window.open(blobUrl, '_blank');
+      
+      if (!opened) {
+        // Fallback if popups are blocked: alert or direct assignment
+        console.warn("Popup blocked. Trying direct navigation fallback...");
+        window.location.href = blobUrl;
+      }
 
-      Toast.show("ZIP backup downloaded successfully!", "success");
-      console.log("Backup complete.");
+      Toast.show("ZIP backup generated!", "success");
     } catch (err) {
       console.error("Backup caught an error:", err);
       Toast.show(`Failed: ${err.message}`, "error");
