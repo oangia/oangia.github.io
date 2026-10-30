@@ -195,6 +195,7 @@ export class FileManager {
           items = JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]");
           file_chunks = JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]");
         }
+        console.log(items);
 
         const zip = new JSZip();
         const folders = items.filter(i => i.isFolder);
