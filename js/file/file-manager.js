@@ -1,4 +1,10 @@
-import { ToastManager, escapeHtml } from "./toast.js";
+// file-manager.js
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+import { ToastManager } from "./toast.js";
 import { FilePreviewComponent } from "./preview.js";
 
 export class FileManager {
