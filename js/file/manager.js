@@ -5,6 +5,7 @@ import { UI } from "./ui.js"; // Import the new UI manager
 export class FileManager {
   constructor(config = {}) {
     this.containerId = config.containerId || "fileManagerApp";
+    this.container = document.getElementById(this.containerId);
     this.fbService = config.fbService;
     
     this.collections = {
