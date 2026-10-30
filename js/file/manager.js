@@ -296,7 +296,7 @@ export class FileManager {
 
           const folderPath = getFolderPath(fileRecord.parentId);
           const filePath = folderPath ? `${folderPath}/${fileRecord.title}` : fileRecord.title;
-
+          console.log(bytes);
           zip.file(filePath, bytes);
         }
 
