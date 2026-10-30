@@ -1,7 +1,5 @@
-import { Toast } from "./toast.js";
+import { ToastManager } from "./toast.js";
 import { FilePreviewComponent } from "./preview.js";
-import { FileUploadComponent } from "./upload.js";
-import { BackupManager } from "./backup.js";
 
 export class FileManager {
   constructor(config = {}) {
@@ -9,6 +7,7 @@ export class FileManager {
     this.container = document.getElementById(this.containerId);
     this.fbService = config.fbService;
     
+    // Unified collection configuration (folders and files live together)
     this.collections = {
       items: config.filesCollection || "files",
       fileChunks: config.fileChunksCollection || "file_chunks"
@@ -16,174 +15,95 @@ export class FileManager {
 
     this.currentFolderId = "root";
     this.contextTarget = null;
-    
     this.previewer = new FilePreviewComponent();
-    this.backupManager = new BackupManager({
-      fbService: this.fbService,
-      collections: this.collections,
-      buttonId: "backupDataBtn"
-    });
+    this.ensureOverlays();
   }
 
-  mountMainLayout() {
-    if (!this.container) return;
-    this.container.innerHTML = `
-      <div class="flex flex-col h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <!-- Toolbar / Header -->
-        <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-          <div id="breadcrumbContainer" class="flex items-center space-x-2 text-sm"></div>
-          <div class="flex items-center space-x-2">
-            <button id="openFolderModalBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
-              <i class="fa-solid fa-folder-plus mr-1"></i> New Folder
-            </button>
-            <button id="openCreateModalBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
-              <i class="fa-solid fa-upload mr-1"></i> Upload File
-            </button>
-            <button id="backupDataBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
-              <i class="fa-solid fa-file-zipper mr-1"></i> Backup ZIP
-            </button>
-          </div>
-        </div>
+  ensureOverlays() {
+    ToastManager.ensureDOM();
+    if (document.getElementById("contextMenu")) return;
 
-        <!-- File List View -->
-        <div id="fileListContainer" class="flex-1 overflow-y-auto p-4 custom-scrollbar"></div>
+    const overlaysHTML = `
+      <!-- CONTEXT MENU -->
+      <div id="contextMenu" class="hidden fixed z-50 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 w-40 text-xs font-medium text-slate-700">
+        <button id="ctxDownloadBtn" class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 hidden"><i class="fa-solid fa-download text-emerald-600"></i> Download</button>
+        <button id="ctxDeleteBtn" class="w-full text-left px-4 py-2 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 text-slate-700"><i class="fa-solid fa-trash"></i> Delete</button>
       </div>
 
-      <!-- Upload Modal -->
-      <div id="fileModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-100">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-base font-bold text-slate-800">Upload Files</h3>
-            <button id="closeFileModalBtn" class="text-slate-400 hover:text-slate-600">✕</button>
+      <!-- MODAL: NEW FOLDER -->
+      <div id="createFolderModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 space-y-4">
+          <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-folder-plus text-amber-500"></i> Create Folder</h3>
+          <input type="text" id="folderNameInput" placeholder="Folder name..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <div class="flex gap-2 justify-end pt-2">
+            <button type="button" id="cancelFolderBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+            <button type="button" id="submitFolderBtn" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Create</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: UPLOAD FILE -->
+      <div id="createFileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl p-6 space-y-4">
+          <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+            <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Upload File</h3>
+            <button id="closeFileModalBtn" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
           </div>
           <form id="createFileForm" class="space-y-4">
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Select Files</label>
-              <input type="file" id="chunkFileInput" multiple class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+            <div class="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-5 text-center">
+              <label class="cursor-pointer block">
+                <i class="fa-solid fa-file-arrow-up text-blue-500 text-2xl mb-1"></i>
+                <p class="text-xs font-semibold text-slate-700">Select Image, Video, Text or PDF</p>
+                <input type="file" id="chunkFileInput" multiple required class="mt-2 block w-full text-xs text-slate-500 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-blue-50 file:text-blue-700">
+              </label>
             </div>
-            <div class="flex justify-end space-x-2 pt-2">
-              <button type="button" id="cancelFileBtn" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
-              <button type="submit" id="submitFileBtn" class="px-4 py-2 text-xs font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700">Upload File</button>
+            <div class="pt-2 flex gap-3 justify-end">
+              <button type="button" id="cancelFileBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+              <button type="submit" id="submitFileBtn" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Upload File</button>
             </div>
           </form>
         </div>
       </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', overlaysHTML);
+  }
 
-      <!-- Folder Modal -->
-      <div id="folderModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-slate-100">
-          <h3 class="text-base font-bold text-slate-800 mb-3">Create New Folder</h3>
-          <input type="text" id="folderNameInput" placeholder="Folder Name" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm mb-4 focus:outline-none focus:border-blue-500"/>
-          <div class="flex justify-end space-x-2">
-            <button type="button" id="cancelFolderBtn" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
-            <button type="button" id="submitFolderBtn" class="px-4 py-2 text-xs font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700">Create</button>
-          </div>
+  mountUI() {
+    if (!this.container) return;
+    this.container.innerHTML = `
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 justify-between items-center">
+        <div class="flex items-center gap-2"></div>
+        <div class="flex items-center gap-2">
+          <button id="openFolderModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
+            <i class="fa-solid fa-folder-plus text-amber-600"></i> New Folder
+          </button>
+          <button id="openCreateModalBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
+          </button>
+          <button id="backupDataBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
+            <i class="fa-solid fa-file-arrow-down"></i> Backup All Files
+          </button>
         </div>
       </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col space-y-4">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div id="breadcrumbsBar" class="flex items-center gap-2 text-xs font-semibold text-slate-700"></div>
+          <span id="fileCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg">0 items</span>
+        </div>
+        <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+      </div>
     `;
-  }
 
-  showLoadingState() {
-    const listEl = document.getElementById("fileListContainer");
-    if (listEl) {
-      listEl.innerHTML = `<div class="p-4 text-center text-gray-500">Loading contents...</div>`;
-    }
-  }
-
-  renderItems(subFolders, dirFiles, currentFolderName) {
-    const listEl = document.getElementById("fileListContainer");
-    const breadcrumbEl = document.getElementById("breadcrumbContainer");
-    if (!listEl) return;
-
-    if (breadcrumbEl) {
-      breadcrumbEl.innerHTML = `
-        <span class="text-gray-600 font-medium">Current Folder:</span> 
-        <span class="font-bold text-blue-600">${currentFolderName}</span>
-      `;
-    }
-
-    listEl.innerHTML = "";
-
-    if (this.currentFolderId !== "root") {
-      const backDiv = document.createElement("div");
-      backDiv.className = "flex items-center p-3 hover:bg-gray-100 rounded cursor-pointer text-gray-700";
-      backDiv.innerHTML = `<span class="mr-2">📁</span> <strong>... (Go Back)</strong>`;
-      backDiv.onclick = () => this.navigateToFolder("root");
-      listEl.appendChild(backDiv);
-    }
-
-    subFolders.forEach(folder => {
-      const div = document.createElement("div");
-      div.className = "flex items-center justify-between p-3 hover:bg-gray-50 rounded border-b cursor-pointer";
-      div.innerHTML = `
-        <div class="flex items-center space-x-3">
-          <span class="text-xl">📁</span>
-          <span class="font-medium text-gray-800">${folder.title || folder.name}</span>
-        </div>
-        <button class="text-gray-400 hover:text-gray-600 px-2 py-1 context-trigger" data-type="folder" data-id="${folder.id}">⋮</button>
-      `;
-      div.addEventListener("dblclick", () => this.navigateToFolder(folder.id));
-      listEl.appendChild(div);
-    });
-
-    dirFiles.forEach(file => {
-      const div = document.createElement("div");
-      div.className = "flex items-center justify-between p-3 hover:bg-gray-50 rounded border-b cursor-pointer";
-      
-      const thumbHtml = file.thumbnail 
-        ? `<img src="${file.thumbnail}" class="w-8 h-8 object-cover rounded"/>` 
-        : `<span class="text-xl">📄</span>`;
-
-      div.innerHTML = `
-        <div class="flex items-center space-x-3">
-          ${thumbHtml}
-          <span class="font-medium text-gray-800">${file.title}</span>
-        </div>
-        <div class="flex items-center space-x-2">
-          <button class="text-blue-500 hover:underline text-sm view-file-btn" data-id="${file.id}" data-fileid="${file.fileId}">View</button>
-          <button class="text-gray-400 hover:text-gray-600 px-2 py-1 context-trigger" data-type="file" data-id="${file.id}" data-fileid="${file.fileId}">⋮</button>
-        </div>
-      `;
-      listEl.appendChild(div);
-    });
-  }
-
-  toggleModal(modalId, show) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.classList.toggle("hidden", !show);
-  }
-
-  showContextMenu(e, type) {
-    const menu = document.getElementById("contextMenu");
-    if (menu) {
-      menu.style.top = `${e.pageY}px`;
-      menu.style.left = `${e.pageX}px`;
-      menu.classList.remove("hidden");
-    }
-  }
-
-  hideContextMenu() {
-    const menu = document.getElementById("contextMenu");
-    if (menu) menu.classList.add("hidden");
-  }
-
-  getFolderNameInput() {
-    const input = document.getElementById("folderNameInput");
-    const val = input ? input.value.trim() : "";
-    if (input) input.value = "";
-    return val;
-  }
-
-  setUploadButtonProgress(isUploading, text) {
-    const btn = document.getElementById("submitFileBtn") || document.querySelector("#createFileForm button[type='submit']");
-    if (btn) {
-      btn.disabled = isUploading;
-      btn.textContent = text;
-    }
+    this.previewer.initEvents();
   }
 
   async loadCurrentFolder() {
-    this.showLoadingState();
+    const breadcrumbs = this.container.querySelector("#breadcrumbsBar");
+    const grid = this.container.querySelector("#fileGridContainer");
+    if (!grid) return;
+
+    grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-blue-500 block"></i>Loading folder...</div>`;
 
     try {
       let allItems = [];
@@ -204,12 +124,60 @@ export class FileManager {
         }
       }
 
+      // Separate folders and files from the unified collection using isFolder flag
       const subFolders = allItems.filter(item => item.isFolder === true);
       const dirFiles = allItems.filter(item => !item.isFolder);
 
-      this.renderItems(subFolders, dirFiles, currentFolderName);
+      if (this.currentFolderId === "root") {
+        breadcrumbs.innerHTML = `<span class="text-blue-600 font-bold"><i class="fa-solid fa-house"></i> Home</span>`;
+      } else {
+        breadcrumbs.innerHTML = `
+          <button onclick="fileManager.navigateToFolder('root')" class="hover:text-blue-600"><i class="fa-solid fa-house"></i> Home</button>
+          <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+          <span class="text-blue-600 font-bold">${escapeHtml(currentFolderName)}</span>
+        `;
+      }
+
+      this.container.querySelector("#fileCountBadge").textContent = `${subFolders.length} folders, ${dirFiles.length} files`;
+
+      let html = "";
+      subFolders.forEach(folder => {
+        html += `
+          <div ondblclick="fileManager.navigateToFolder('${folder.id}')" onclick="fileManager.navigateToFolder('${folder.id}')" oncontextmenu="fileManager.openContextMenu(event, 'folder', '${folder.id}')" class="bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition group shadow-sm select-none">
+            <i class="fa-solid fa-folder text-amber-400 text-4xl group-hover:scale-110 transition"></i>
+            <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${escapeHtml(folder.title || folder.name)}</span>
+          </div>
+        `;
+      });
+
+      dirFiles.forEach(file => {
+        let thumbHtml = `<i class="fa-solid fa-file-lines text-blue-400 text-4xl"></i>`;
+        if (file.thumbnail) {
+          thumbHtml = `<img src="${file.thumbnail}" class="w-full h-20 object-cover rounded-xl shadow-inner">`;
+        } else if (file.category === 'Media') {
+          thumbHtml = `<i class="fa-solid fa-file-video text-purple-400 text-4xl"></i>`;
+        }
+
+        html += `
+          <div onclick="fileManager.viewFile('${file.id}', '${file.fileId}')" oncontextmenu="fileManager.openContextMenu(event, 'file', '${file.id}', '${file.fileId}')" class="bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-2xl p-3 flex flex-col items-center justify-between gap-2 cursor-pointer transition group shadow-sm select-none">
+            <div class="w-full flex justify-center items-center h-20 bg-slate-100 rounded-xl overflow-hidden">
+              ${thumbHtml}
+            </div>
+            <span class="text-xs font-semibold text-slate-800 truncate w-full text-center" title="${escapeHtml(file.title)}">${escapeHtml(file.title)}</span>
+            <div class="w-full text-center text-[10px] text-slate-400 pt-1 border-t border-slate-100">
+              <span>${file.totalParts || 1} chunks</span>
+            </div>
+          </div>
+        `;
+      });
+
+      if (subFolders.length === 0 && dirFiles.length === 0) {
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300 block"></i>This folder is empty</div>`;
+      } else {
+        grid.innerHTML = html;
+      }
     } catch (err) {
-      Toast.show(`Error loading folder: ${err.message}`, "error");
+      ToastManager.show(`Error loading folder: ${err.message}`, "error");
     }
   }
 
@@ -219,8 +187,20 @@ export class FileManager {
   }
 
   openContextMenu(e, type, id, fileId = null) {
+    e.preventDefault();
     this.contextTarget = { type, id, fileId };
-    this.showContextMenu(e, type);
+    const menu = document.getElementById("contextMenu");
+    const downloadBtn = document.getElementById("ctxDownloadBtn");
+
+    if (type === 'file') {
+      downloadBtn.classList.remove("hidden");
+    } else {
+      downloadBtn.classList.add("hidden");
+    }
+
+    menu.style.top = `${Math.min(e.clientY, window.innerHeight - 120)}px`;
+    menu.style.left = `${Math.min(e.clientX, window.innerWidth - 160)}px`;
+    menu.classList.remove("hidden");
   }
 
   readFileAsDataURL(file) {
@@ -256,6 +236,7 @@ export class FileManager {
       JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]").find(f => f.id === id || f.fileId === fileId);
 
     if (!fileRecord) return;
+
     this.previewer.showLoading(fileRecord.title);
 
     const chunks = this.fbService.isLiveMode ?
@@ -264,56 +245,182 @@ export class FileManager {
 
     chunks.sort((a, b) => a.partIndex - b.partIndex);
     const fullBase64 = chunks.map(c => c.chunkData).join("");
+
     this.previewer.render(fileRecord, fullBase64);
   }
 
   init() {
-    this.mountMainLayout();
-    this.previewer.initEvents();
+    this.mountUI();
 
-    document.addEventListener("click", () => this.hideContextMenu());
+    document.addEventListener("click", () => {
+      document.getElementById("contextMenu")?.classList.add("hidden");
+    });
 
-    // Event Listeners for UI triggers
-    document.getElementById("openFolderModalBtn")?.addEventListener("click", () => this.toggleModal("folderModal", true));
-    document.getElementById("cancelFolderBtn")?.addEventListener("click", () => this.toggleModal("folderModal", false));
-    document.getElementById("openCreateModalBtn")?.addEventListener("click", () => this.toggleModal("fileModal", true));
-    document.getElementById("closeFileModalBtn")?.addEventListener("click", () => this.toggleModal("fileModal", false));
-    document.getElementById("cancelFileBtn")?.addEventListener("click", () => this.toggleModal("fileModal", false));
+    this.container.querySelector("#backupDataBtn")?.addEventListener("click", async () => {
+      ToastManager.show("Preparing ZIP backup...", "info");
+      try {
+        let items = [], file_chunks = [];
+        if (this.fbService.isLiveMode) {
+          items = await this.fbService.getAll(this.collections.items);
+          file_chunks = await this.fbService.getAll(this.collections.fileChunks);
+        } else {
+          items = JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]");
+          file_chunks = JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]");
+        }
 
-    document.getElementById("fileListContainer")?.addEventListener("click", (e) => {
-      const viewBtn = e.target.closest(".view-file-btn");
-      if (viewBtn) {
-        this.viewFile(viewBtn.getAttribute("data-id"), viewBtn.getAttribute("data-fileid"));
+        const zip = new JSZip();
+        const folders = items.filter(i => i.isFolder);
+        const files = items.filter(i => !i.isFolder);
+
+        const getFolderPath = (parentId) => {
+          let pathParts = [];
+          let currentId = parentId;
+          while (currentId && currentId !== "root") {
+            const folder = folders.find(f => f.id === currentId);
+            if (folder) {
+              pathParts.unshift(folder.title || folder.name);
+              currentId = folder.parentId;
+            } else {
+              break;
+            }
+          }
+          return pathParts.join("/");
+        };
+
+        for (const fileRecord of files) {
+          const chunks = file_chunks
+            .filter(c => c.fileId === fileRecord.fileId)
+            .sort((a, b) => a.partIndex - b.partIndex);
+
+          const fullBase64 = chunks.map(c => c.chunkData).join("");
+          const base64Data = fullBase64.split(',')[1];
+          if (!base64Data) continue;
+
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+
+          const folderPath = getFolderPath(fileRecord.parentId);
+          const filePath = folderPath ? `${folderPath}/${fileRecord.title}` : fileRecord.title;
+
+          zip.file(filePath, bytes);
+        }
+
+        const content = await zip.generateAsync({ type: "blob" });
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.href = URL.createObjectURL(content);
+        downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+
+        ToastManager.show("ZIP backup downloaded successfully!", "success");
+      } catch (err) {
+        ToastManager.show(`Failed to generate ZIP: ${err.message}`, "error");
       }
     });
 
-    // Submit Folder
+    document.getElementById("ctxDeleteBtn")?.addEventListener("click", async () => {
+      if (!this.contextTarget) return;
+      if (this.contextTarget.type === 'folder') {
+        if (!confirm("Delete folder?")) return;
+        await this.fbService.delete(this.collections.items, this.contextTarget.id);
+        ToastManager.show("Folder deleted", "success");
+      } else if (this.contextTarget.type === 'file') {
+        if (!confirm("Delete file and its chunks?")) return;
+        const fileRecord = this.fbService.isLiveMode ?
+          await this.fbService.getById(this.collections.items, this.contextTarget.id) :
+          JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]").find(f => f.id === this.contextTarget.id);
+
+        await this.fbService.delete(this.collections.items, this.contextTarget.id);
+
+        const chunks = this.fbService.isLiveMode ?
+          await this.fbService.getByField(this.collections.fileChunks, "fileId", fileRecord?.fileId || this.contextTarget.fileId) :
+          JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]").filter(c => c.fileId === (fileRecord?.fileId || this.contextTarget.fileId));
+
+        for (const chunk of chunks) {
+          await this.fbService.delete(this.collections.fileChunks, chunk.id);
+        }
+        ToastManager.show("File deleted", "success");
+      }
+      document.getElementById("contextMenu").classList.add("hidden");
+      this.loadCurrentFolder();
+    });
+
+    document.getElementById("ctxDownloadBtn")?.addEventListener("click", async () => {
+      if (!this.contextTarget || this.contextTarget.type !== 'file') return;
+
+      const fileRecord = this.fbService.isLiveMode ?
+        await this.fbService.getById(this.collections.items, this.contextTarget.id) :
+        JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]").find(f => f.id === this.contextTarget.id);
+      if (!fileRecord) return;
+      const chunks = this.fbService.isLiveMode ?
+        await this.fbService.getByField(this.collections.fileChunks, "fileId", fileRecord.fileId) :
+        JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]").filter(c => c.fileId === fileRecord.fileId);
+      chunks.sort((a, b) => a.partIndex - b.partIndex);
+      const fullBase64 = chunks.map(c => c.chunkData).join("");
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.href = fullBase64;
+      downloadAnchor.download = fileRecord.title;
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      ToastManager.show(`Downloaded ${fileRecord.title}`, "success");
+      document.getElementById("contextMenu").classList.add("hidden");
+    });
+
+    this.container.querySelector("#openFolderModalBtn")?.addEventListener("click", () => {
+      document.getElementById("folderNameInput").value = "";
+      document.getElementById("createFolderModal").classList.remove("hidden");
+    });
+    document.getElementById("cancelFolderBtn")?.addEventListener("click", () => {
+      document.getElementById("createFolderModal").classList.add("hidden");
+    });
+
+    // Create Folder as a record inside the unified items collection
     document.getElementById("submitFolderBtn")?.addEventListener("click", async () => {
-      const name = this.getFolderNameInput();
+      const name = document.getElementById("folderNameInput").value.trim();
       if (!name) return;
       await this.fbService.create(this.collections.items, {
         title: name,
         isFolder: true,
         parentId: this.currentFolderId
       });
-      Toast.show("Folder created!", "success");
-      this.toggleModal("folderModal", false);
+      ToastManager.show("Folder created!", "success");
+      document.getElementById("createFolderModal").classList.add("hidden");
       this.loadCurrentFolder();
     });
 
-    // Submit File Upload
+    this.container.querySelector("#openCreateModalBtn")?.addEventListener("click", () => {
+      document.getElementById("createFileForm").reset();
+      document.getElementById("createFileModal").classList.remove("hidden");
+    });
+
+    document.getElementById("closeFileModalBtn")?.addEventListener("click", () => {
+      document.getElementById("createFileModal").classList.add("hidden");
+    });
+    document.getElementById("cancelFileBtn")?.addEventListener("click", () => {
+      document.getElementById("createFileModal").classList.add("hidden");
+    });
+
     document.getElementById("createFileForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const fileInput = document.getElementById("chunkFileInput");
       const files = fileInput.files;
       if (!files || files.length === 0) return;
 
-      this.setUploadButtonProgress(true, `Uploading (1/${files.length})...`);
+      const submitBtn = document.getElementById("submitFileBtn");
+      submitBtn.disabled = true;
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading (${i + 1}/${files.length}): ${file.name}`;
+
         try {
           const base64Data = await this.readFileAsDataURL(file);
+
           let thumbnail = "";
           if (file.type.startsWith("image/")) {
             thumbnail = await this.generateThumbnail(base64Data, 150);
@@ -323,6 +430,7 @@ export class FileManager {
           const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
           const fileId = "file_" + Date.now() + "_" + i;
 
+          // Create File record in the unified items collection with isFolder: false
           await this.fbService.create(this.collections.items, {
             fileId,
             title: file.name,
@@ -335,19 +443,23 @@ export class FileManager {
 
           for (let c = 0; c < totalParts; c++) {
             const chunkData = base64Data.substring(c * CHUNK_SIZE, (c + 1) * CHUNK_SIZE);
-            await this.fbService.create(this.collections.fileChunks, { fileId, partIndex: c, chunkData });
+            await this.fbService.create(this.collections.fileChunks, {
+              fileId,
+              partIndex: c,
+              chunkData
+            });
           }
 
-          Toast.show(`Uploaded: ${file.name}`, "success");
+          ToastManager.show(`Uploaded: ${file.name}`, "success");
         } catch (err) {
-          Toast.show(`Failed to upload ${file.name}: ${err.message}`, "error");
+          ToastManager.show(`Failed to upload ${file.name}: ${err.message}`, "error");
         }
       }
 
-      this.setUploadButtonProgress(false, "Upload File");
-      this.toggleModal("fileModal", false);
-      if (fileInput) fileInput.value = "";
-      this.loadCurrentFolder();      
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Upload File";
+      document.getElementById("createFileModal").classList.add("hidden");
+      this.loadCurrentFolder();
     });
 
     this.loadCurrentFolder();
