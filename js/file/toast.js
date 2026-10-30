@@ -1,4 +1,4 @@
-export class ToastManager {
+export class Toast {
   static ensureDOM() {
     if (document.getElementById("toastContainer")) return;
     const containerHTML = `<div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>`;
@@ -6,7 +6,7 @@ export class ToastManager {
   }
 
   static show(msg, type = "info") {
-    ToastManager.ensureDOM();
+    Toast.ensureDOM();
     let container = document.getElementById("toastContainer");
     if (!container) return;
     const toast = document.createElement("div");
