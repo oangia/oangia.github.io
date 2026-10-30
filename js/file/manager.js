@@ -16,7 +16,7 @@ export class FileManager {
     this.currentFolderId = "root";
     this.contextTarget = null;
     this.previewer = new FilePreviewComponent();
-    this.backupManager = new FileBackup(this.fbService, this.collections);
+    this.backupManager = new FileBackup(this.fbService, this.collections, "backupDataBtn");
   }
 
   mountUI() {
@@ -246,16 +246,6 @@ export class FileManager {
 
     document.addEventListener("click", () => {
       document.getElementById("contextMenu")?.classList.add("hidden");
-    });
-
-    this.container.querySelector("#backupDataBtn")?.addEventListener("click", async () => {
-      Toast.show("Preparing ZIP backup...", "info");
-      try {
-        await this.backupManager.downloadBackup();
-        Toast.show("ZIP backup downloaded successfully!", "success");
-      } catch (err) {
-        Toast.show(`Failed to generate ZIP: ${err.message}`, "error");
-      }
     });
 
     document.getElementById("ctxDeleteBtn")?.addEventListener("click", async () => {
