@@ -9,14 +9,11 @@ export class FileBackup {
 
   async generateZipBlob() {
     let items = [], file_chunks = [];
-    if (this.fbService.isLiveMode) {
-      items = await this.fbService.getAll(this.collections.items);
-      file_chunks = await this.fbService.getAll(this.collections.fileChunks);
-    } else {
-      items = JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]");
-      file_chunks = JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]");
+    items = await this.fbService.getAll(this.collections.items);
+    file_chunks = await this.fbService.getAll(this.collections.fileChunks);
+    if (typeof JSZip === 'undefined') {
+      throw new Error("JSZip is not loaded or defined in the global scope.");
     }
-
     const zip = new JSZip();
     const folders = items.filter(i => i.isFolder);
     const files = items.filter(i => !i.isFolder);
@@ -61,7 +58,9 @@ export class FileBackup {
   }
 
   async downloadBackup() {
+    console.log("before");
     const content = await this.generateZipBlob();
+    console.log("content");
     console.log(content);
     const downloadAnchor = document.createElement('a');
     downloadAnchor.href = URL.createObjectURL(content);
