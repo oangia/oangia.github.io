@@ -3,7 +3,10 @@ export class FileBackup {
   constructor(fbService, collections, btnId) {
     this.fbService = fbService;
     this.collections = collections;
-    document.getElementById(btnId)?.addEventListener("click", async () => {
+    document.addEventListener("click", async (e) => {
+      const targetBtn = e.target.closest(`#${btnId}`);
+      if (!targetBtn) return;
+
       Toast.show("Preparing ZIP backup...", "info");
       try {
         await this.downloadBackup();
