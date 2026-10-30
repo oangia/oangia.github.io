@@ -278,7 +278,7 @@ export class FileManager {
           }
           return pathParts.join("/");
         };
-
+        console.log(files);
         for (const fileRecord of files) {
           const chunks = file_chunks
             .filter(c => c.fileId === fileRecord.fileId)
@@ -301,6 +301,7 @@ export class FileManager {
         }
 
         const content = await zip.generateAsync({ type: "blob" });
+        console.log(content);
         const downloadAnchor = document.createElement('a');
         downloadAnchor.href = URL.createObjectURL(content);
         downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
