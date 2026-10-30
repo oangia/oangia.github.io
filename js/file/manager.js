@@ -1,4 +1,4 @@
-import { ToastManager } from "./toast.js";
+import { Toast } from "./toast.js";
 import { FilePreviewComponent } from "./preview.js";
 
 export class FileManager {
@@ -20,7 +20,7 @@ export class FileManager {
   }
 
   ensureOverlays() {
-    ToastManager.ensureDOM();
+    Toast.ensureDOM();
     if (document.getElementById("contextMenu")) return;
 
     const overlaysHTML = `
@@ -177,7 +177,7 @@ export class FileManager {
         grid.innerHTML = html;
       }
     } catch (err) {
-      ToastManager.show(`Error loading folder: ${err.message}`, "error");
+      Toast.show(`Error loading folder: ${err.message}`, "error");
     }
   }
 
@@ -257,7 +257,7 @@ export class FileManager {
     });
 
     this.container.querySelector("#backupDataBtn")?.addEventListener("click", async () => {
-      ToastManager.show("Preparing ZIP backup...", "info");
+      Toast.show("Preparing ZIP backup...", "info");
       try {
         let items = [], file_chunks = [];
         if (this.fbService.isLiveMode) {
@@ -316,9 +316,9 @@ export class FileManager {
         downloadAnchor.click();
         downloadAnchor.remove();
 
-        ToastManager.show("ZIP backup downloaded successfully!", "success");
+        Toast.show("ZIP backup downloaded successfully!", "success");
       } catch (err) {
-        ToastManager.show(`Failed to generate ZIP: ${err.message}`, "error");
+        Toast.show(`Failed to generate ZIP: ${err.message}`, "error");
       }
     });
 
@@ -327,7 +327,7 @@ export class FileManager {
       if (this.contextTarget.type === 'folder') {
         if (!confirm("Delete folder?")) return;
         await this.fbService.delete(this.collections.items, this.contextTarget.id);
-        ToastManager.show("Folder deleted", "success");
+        Toast.show("Folder deleted", "success");
       } else if (this.contextTarget.type === 'file') {
         if (!confirm("Delete file and its chunks?")) return;
         const fileRecord = this.fbService.isLiveMode ?
@@ -343,7 +343,7 @@ export class FileManager {
         for (const chunk of chunks) {
           await this.fbService.delete(this.collections.fileChunks, chunk.id);
         }
-        ToastManager.show("File deleted", "success");
+        Toast.show("File deleted", "success");
       }
       document.getElementById("contextMenu").classList.add("hidden");
       this.loadCurrentFolder();
@@ -367,7 +367,7 @@ export class FileManager {
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
-      ToastManager.show(`Downloaded ${fileRecord.title}`, "success");
+      Toast.show(`Downloaded ${fileRecord.title}`, "success");
       document.getElementById("contextMenu").classList.add("hidden");
     });
 
@@ -388,7 +388,7 @@ export class FileManager {
         isFolder: true,
         parentId: this.currentFolderId
       });
-      ToastManager.show("Folder created!", "success");
+      Toast.show("Folder created!", "success");
       document.getElementById("createFolderModal").classList.add("hidden");
       this.loadCurrentFolder();
     });
@@ -450,9 +450,9 @@ export class FileManager {
             });
           }
 
-          ToastManager.show(`Uploaded: ${file.name}`, "success");
+          Toast.show(`Uploaded: ${file.name}`, "success");
         } catch (err) {
-          ToastManager.show(`Failed to upload ${file.name}: ${err.message}`, "error");
+          Toast.show(`Failed to upload ${file.name}: ${err.message}`, "error");
         }
       }
 
