@@ -1,5 +1,3 @@
-import { ToastManager } from "./toast.js";
-
 export class UI {
   constructor(containerId) {
     this.containerId = containerId;
@@ -8,7 +6,6 @@ export class UI {
   }
 
   ensureOverlays() {
-    ToastManager.ensureDOM();
     if (document.getElementById("contextMenu")) return;
 
     const overlaysHTML = `
