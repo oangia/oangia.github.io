@@ -136,9 +136,10 @@ export class FileManager {
     this.containerId = config.containerId || "fileManagerApp";
     this.container = document.getElementById(this.containerId);
     this.fbService = config.fbService;
+    
+    // Unified collection configuration (folders and files live together)
     this.collections = {
-      folders: config.foldersCollection || "folders",
-      files: config.filesCollection || "files",
+      items: config.filesCollection || "files",
       fileChunks: config.fileChunksCollection || "file_chunks"
     };
 
@@ -235,27 +236,27 @@ export class FileManager {
     grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-blue-500 block"></i>Loading folder...</div>`;
 
     try {
-      let subFolders = [];
-      let dirFiles = [];
+      let allItems = [];
       let currentFolderName = "Home";
 
       if (this.fbService.isLiveMode) {
-        subFolders = await this.fbService.getByField(this.collections.folders, "parentId", this.currentFolderId);
-        dirFiles = await this.fbService.getByField(this.collections.files, "folderId", this.currentFolderId);
+        allItems = await this.fbService.getByField(this.collections.items, "parentId", this.currentFolderId);
         if (this.currentFolderId !== "root") {
-          const parentFolder = await this.fbService.getById(this.collections.folders, this.currentFolderId);
-          if (parentFolder) currentFolderName = parentFolder.name;
+          const parentFolder = await this.fbService.getById(this.collections.items, this.currentFolderId);
+          if (parentFolder) currentFolderName = parentFolder.title || parentFolder.name;
         }
       } else {
-        const allFolders = JSON.parse(localStorage.getItem(`demo_${this.collections.folders}`) || "[]");
-        const allFiles = JSON.parse(localStorage.getItem(`demo_${this.collections.files}`) || "[]");
-        subFolders = allFolders.filter(f => f.parentId === this.currentFolderId);
-        dirFiles = allFiles.filter(f => f.folderId === this.currentFolderId);
+        const stored = JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]");
+        allItems = stored.filter(item => item.parentId === this.currentFolderId);
         if (this.currentFolderId !== "root") {
-          const found = allFolders.find(f => f.id === this.currentFolderId);
-          if (found) currentFolderName = found.name;
+          const found = stored.find(item => item.id === this.currentFolderId);
+          if (found) currentFolderName = found.title || found.name;
         }
       }
+
+      // Separate folders and files from the unified collection using isFolder flag
+      const subFolders = allItems.filter(item => item.isFolder === true);
+      const dirFiles = allItems.filter(item => !item.isFolder);
 
       if (this.currentFolderId === "root") {
         breadcrumbs.innerHTML = `<span class="text-blue-600 font-bold"><i class="fa-solid fa-house"></i> Home</span>`;
@@ -274,7 +275,7 @@ export class FileManager {
         html += `
           <div ondblclick="fileManager.navigateToFolder('${folder.id}')" onclick="fileManager.navigateToFolder('${folder.id}')" oncontextmenu="fileManager.openContextMenu(event, 'folder', '${folder.id}')" class="bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition group shadow-sm select-none">
             <i class="fa-solid fa-folder text-amber-400 text-4xl group-hover:scale-110 transition"></i>
-            <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${escapeHtml(folder.name)}</span>
+            <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${escapeHtml(folder.title || folder.name)}</span>
           </div>
         `;
       });
@@ -361,8 +362,8 @@ export class FileManager {
 
   async viewFile(id, fileId) {
     const fileRecord = this.fbService.isLiveMode ?
-      await this.fbService.getById(this.collections.files, id) :
-      JSON.parse(localStorage.getItem(`demo_${this.collections.files}`) || "[]").find(f => f.id === id || f.fileId === fileId);
+      await this.fbService.getById(this.collections.items, id) :
+      JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]").find(f => f.id === id || f.fileId === fileId);
 
     if (!fileRecord) return;
 
@@ -388,26 +389,26 @@ export class FileManager {
     this.container.querySelector("#backupDataBtn")?.addEventListener("click", async () => {
       ToastManager.show("Preparing ZIP backup...", "info");
       try {
-        let folders = [], files = [], file_chunks = [];
+        let items = [], file_chunks = [];
         if (this.fbService.isLiveMode) {
-          folders = await this.fbService.getAll(this.collections.folders);
-          files = await this.fbService.getAll(this.collections.files);
+          items = await this.fbService.getAll(this.collections.items);
           file_chunks = await this.fbService.getAll(this.collections.fileChunks);
         } else {
-          folders = JSON.parse(localStorage.getItem(`demo_${this.collections.folders}`) || "[]");
-          files = JSON.parse(localStorage.getItem(`demo_${this.collections.files}`) || "[]");
+          items = JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]");
           file_chunks = JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]");
         }
 
         const zip = new JSZip();
+        const folders = items.filter(i => i.isFolder);
+        const files = items.filter(i => !i.isFolder);
 
-        const getFolderPath = (folderId) => {
+        const getFolderPath = (parentId) => {
           let pathParts = [];
-          let currentId = folderId;
+          let currentId = parentId;
           while (currentId && currentId !== "root") {
             const folder = folders.find(f => f.id === currentId);
             if (folder) {
-              pathParts.unshift(folder.name);
+              pathParts.unshift(folder.title || folder.name);
               currentId = folder.parentId;
             } else {
               break;
@@ -431,7 +432,7 @@ export class FileManager {
             bytes[i] = binaryString.charCodeAt(i);
           }
 
-          const folderPath = getFolderPath(fileRecord.folderId);
+          const folderPath = getFolderPath(fileRecord.parentId);
           const filePath = folderPath ? `${folderPath}/${fileRecord.title}` : fileRecord.title;
 
           zip.file(filePath, bytes);
@@ -455,15 +456,19 @@ export class FileManager {
       if (!this.contextTarget) return;
       if (this.contextTarget.type === 'folder') {
         if (!confirm("Delete folder?")) return;
-        await this.fbService.delete(this.collections.folders, this.contextTarget.id);
+        await this.fbService.delete(this.collections.items, this.contextTarget.id);
         ToastManager.show("Folder deleted", "success");
       } else if (this.contextTarget.type === 'file') {
         if (!confirm("Delete file and its chunks?")) return;
-        await this.fbService.delete(this.collections.files, this.contextTarget.id);
+        const fileRecord = this.fbService.isLiveMode ?
+          await this.fbService.getById(this.collections.items, this.contextTarget.id) :
+          JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]").find(f => f.id === this.contextTarget.id);
+
+        await this.fbService.delete(this.collections.items, this.contextTarget.id);
 
         const chunks = this.fbService.isLiveMode ?
-          await this.fbService.getByField(this.collections.fileChunks, "fileId", this.contextTarget.fileId) :
-          JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]").filter(c => c.fileId === this.contextTarget.fileId);
+          await this.fbService.getByField(this.collections.fileChunks, "fileId", fileRecord?.fileId || this.contextTarget.fileId) :
+          JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]").filter(c => c.fileId === (fileRecord?.fileId || this.contextTarget.fileId));
 
         for (const chunk of chunks) {
           await this.fbService.delete(this.collections.fileChunks, chunk.id);
@@ -478,8 +483,8 @@ export class FileManager {
       if (!this.contextTarget || this.contextTarget.type !== 'file') return;
 
       const fileRecord = this.fbService.isLiveMode ?
-        await this.fbService.getById(this.collections.files, this.contextTarget.id) :
-        JSON.parse(localStorage.getItem(`demo_${this.collections.files}`) || "[]").find(f => f.id === this.contextTarget.id);
+        await this.fbService.getById(this.collections.items, this.contextTarget.id) :
+        JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]").find(f => f.id === this.contextTarget.id);
       if (!fileRecord) return;
       const chunks = this.fbService.isLiveMode ?
         await this.fbService.getByField(this.collections.fileChunks, "fileId", fileRecord.fileId) :
@@ -504,10 +509,15 @@ export class FileManager {
       document.getElementById("createFolderModal").classList.add("hidden");
     });
 
+    // Create Folder as a record inside the unified items collection
     document.getElementById("submitFolderBtn")?.addEventListener("click", async () => {
       const name = document.getElementById("folderNameInput").value.trim();
       if (!name) return;
-      await this.fbService.create(this.collections.folders, { name, parentId: this.currentFolderId });
+      await this.fbService.create(this.collections.items, {
+        title: name,
+        isFolder: true,
+        parentId: this.currentFolderId
+      });
       ToastManager.show("Folder created!", "success");
       document.getElementById("createFolderModal").classList.add("hidden");
       this.loadCurrentFolder();
@@ -550,11 +560,13 @@ export class FileManager {
           const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
           const fileId = "file_" + Date.now() + "_" + i;
 
-          await this.fbService.create(this.collections.files, {
+          // Create File record in the unified items collection with isFolder: false
+          await this.fbService.create(this.collections.items, {
             fileId,
             title: file.name,
+            isFolder: false,
             category: file.type.startsWith("image/") ? "Image" : "Media",
-            folderId: this.currentFolderId,
+            parentId: this.currentFolderId,
             totalParts,
             thumbnail
           });
