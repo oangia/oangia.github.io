@@ -53,8 +53,13 @@ export class FileBackup {
       console.log(bytes);
       zip.file(filePath, bytes);
     }
-
-    return await zip.generateAsync({ type: "blob" });
+    let content;
+    try {
+      content = await zip.generateAsync({ type: "blob" });
+    } catch (err) {
+      console.error(`Error processing file`, err);
+    }
+    return content;
   }
 
   async downloadBackup() {
