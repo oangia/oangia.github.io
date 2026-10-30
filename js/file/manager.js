@@ -108,10 +108,11 @@ class BackupManager {
 
       const content = await zip.generateAsync({ type: "blob" });
       const blobUrl = URL.createObjectURL(content);
-      
+      console.log(blobUrl);
       // Directly create and trigger the anchor on the parent page
       const parentDoc = window.parent.document;
       const downloadAnchor = parentDoc.createElement('a');
+      console.log(downloadAnchor);
       downloadAnchor.href = blobUrl;
       downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
       parentDoc.body.appendChild(downloadAnchor);
