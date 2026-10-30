@@ -67,7 +67,7 @@ export class FilePreviewComponent {
           <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl shadow-inner">
             <i class="fa-solid fa-music"></i>
           </div>
-          <p class="text-sm font-medium text-slate-700 text-center truncate w-full">${escapeHtml(fileRecord.title)}</p>
+          <p class="text-sm font-medium text-slate-700 text-center truncate w-full">${fileRecord.title}</p>
           <audio controls class="w-full max-w-md">
             <source src="${fullBase64}">
             Your browser does not support the audio element.
