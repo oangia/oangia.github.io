@@ -174,11 +174,6 @@
     if (activeSpace !== "jav") loadSpaceInFrame("jav");
   });
 
-  // Force-reload button listener
-  document.getElementById("reloadFrameBtn").addEventListener("click", () => {
-    loadSpaceInFrame(activeSpace);
-  });
-
   // Config Manager Setup
   const configManager = new ConfigManager({
     buttonSelector: "#toggleConfigBtn",
