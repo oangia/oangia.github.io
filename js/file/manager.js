@@ -28,8 +28,6 @@ class BackupManager {
     try {
       let items = [], file_chunks = [];
       
-      console.log("Fetching items and chunks from service/localStorage (Live mode:", this.fbService?.isLiveMode, ")...");
-
       if (this.fbService.isLiveMode) {
         items = await this.fbService.getAll(this.collections.items);
         file_chunks = await this.fbService.getAll(this.collections.fileChunks);
@@ -37,8 +35,6 @@ class BackupManager {
         items = JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]");
         file_chunks = JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]");
       }
-
-      console.log(`Fetched successfully: ${items.length} items, ${file_chunks.length} chunks.`);
 
       if (!window.JSZip && typeof JSZip === 'undefined') {
         throw new Error("JSZip library is not loaded!");
@@ -49,11 +45,8 @@ class BackupManager {
       const folders = items.filter(i => i.isFolder);
       const files = items.filter(i => !i.isFolder);
 
-      console.log(`Filtered: ${folders.length} folders, ${files.length} files to process.`);
-
       if (files.length === 0) {
         Toast.show("No files found to backup!", "error");
-        console.warn("Backup aborted: No files found.");
         return;
       }
 
@@ -78,17 +71,11 @@ class BackupManager {
           .filter(c => c.fileId === fileRecord.fileId)
           .sort((a, b) => a.partIndex - b.partIndex);
 
-        if (chunks.length === 0) {
-          console.warn(`File "${fileRecord.title}" has no chunks stored! Skipping.`);
-          continue;
-        }
+        if (chunks.length === 0) continue;
 
         const fullBase64 = chunks.map(c => c.chunkData).join("");
         const base64Data = fullBase64.split(',')[1];
-        if (!base64Data) {
-          console.warn(`File "${fileRecord.title}" has invalid base64 data! Skipping.`);
-          continue;
-        }
+        if (!base64Data) continue;
 
         const binaryString = atob(base64Data);
         const bytes = new Uint8Array(binaryString.length);
@@ -99,27 +86,37 @@ class BackupManager {
         const folderPath = getFolderPath(fileRecord.parentId);
         const filePath = folderPath ? `${folderPath}/${fileRecord.title}` : fileRecord.title;
 
-        zip.file(filePath, bytes);
+        zip.file(filePath, bytes, { compression: "STORE" });
         processedCount++;
       }
 
-      console.log(`Successfully packed ${processedCount} files into ZIP archive. Generating blob...`);
-      Toast.show(`Packaging ${processedCount} files into ZIP...`, "info");
+      console.log(`Successfully packed ${processedCount} files. Calling generateAsync...`);
+      Toast.show(`Generating ZIP archive...`, "info");
 
-      const content = await zip.generateAsync({ type: "blob" });
+      // Isolated test for generateAsync
+      let content;
+      try {
+        content = await zip.generateAsync({ type: "blob" });
+        console.log("generateAsync succeeded! Blob object:", content);
+      } catch (genErr) {
+        console.error("generateAsync threw an error:", genErr);
+        throw new Error("ZIP generation failed: " + genErr.message);
+      }
+
       const blobUrl = URL.createObjectURL(content);
-      console.log(blobUrl);
-      // Directly create and trigger the anchor on the parent page
+      console.log("blobUrl created successfully:", blobUrl);
+
+      // Trigger download via parent
       const parentDoc = window.parent.document;
       const downloadAnchor = parentDoc.createElement('a');
-      console.log(downloadAnchor);
       downloadAnchor.href = blobUrl;
       downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
       parentDoc.body.appendChild(downloadAnchor);
       downloadAnchor.click();
-      //downloadAnchor.remove();
-      
+      downloadAnchor.remove();
+
       Toast.show("ZIP backup downloaded successfully!", "success");
+      console.log("Backup complete.");
     } catch (err) {
       console.error("Backup caught an error:", err);
       Toast.show(`Failed: ${err.message}`, "error");
