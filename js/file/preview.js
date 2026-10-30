@@ -78,14 +78,14 @@ export class FilePreviewComponent {
       try {
         const base64Content = fullBase64.split(',')[1];
         const textContent = atob(base64Content);
-        el.content.innerHTML = `<pre class="w-full h-full overflow-auto p-4 bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap">${escapeHtml(textContent)}</pre>`;
+        el.content.innerHTML = `<pre class="w-full h-full overflow-auto p-4 bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap">${textContent}</pre>`;
       } catch (err) {
         el.content.innerHTML = `<p class="text-xs text-red-400">Failed to load text preview.</p>`;
       }
     } else if (fileNameLower.endsWith(".pdf") || fullBase64.startsWith("data:application/pdf")) {
       el.content.innerHTML = `<iframe src="${fullBase64}" class="w-full h-full border-0 bg-white"></iframe>`;
     } else {
-      el.content.innerHTML = `<div class="text-center"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-xs font-semibold text-slate-300">${escapeHtml(fileRecord.title)}</p></div>`;
+      el.content.innerHTML = `<div class="text-center"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-xs font-semibold text-slate-300">${fileRecord.title}</p></div>`;
     }
 
     if (el.downloadBtn) {
