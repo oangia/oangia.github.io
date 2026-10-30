@@ -1,4 +1,4 @@
-import { ToastManager } from "./toast.js";
+import { Toast } from "./toast.js";
 import { FilePreviewComponent } from "./preview.js";
 import { UI } from "./ui.js"; // Import the new UI manager
 
@@ -48,7 +48,7 @@ export class FileManager {
       // Delegate rendering to FileUIManager
       this.ui.renderItems(subFolders, dirFiles, this.currentFolderId, currentFolderName);
     } catch (err) {
-      ToastManager.show(`Error loading folder: ${err.message}`, "error");
+      Toast.show(`Error loading folder: ${err.message}`, "error");
     }
   }
 
@@ -128,7 +128,7 @@ export class FileManager {
         isFolder: true,
         parentId: this.currentFolderId
       });
-      ToastManager.show("Folder created!", "success");
+      Toast.show("Folder created!", "success");
       this.ui.toggleFolderModal(false);
       this.loadCurrentFolder();
     });
@@ -170,9 +170,9 @@ export class FileManager {
             await this.fbService.create(this.collections.fileChunks, { fileId, partIndex: c, chunkData });
           }
 
-          ToastManager.show(`Uploaded: ${file.name}`, "success");
+          Toast.show(`Uploaded: ${file.name}`, "success");
         } catch (err) {
-          ToastManager.show(`Failed to upload ${file.name}: ${err.message}`, "error");
+          Toast.show(`Failed to upload ${file.name}: ${err.message}`, "error");
         }
       }
 
@@ -184,7 +184,7 @@ export class FileManager {
     this.loadCurrentFolder();
     // Backup Data Listener
     this.container.querySelector("#backupDataBtn")?.addEventListener("click", async () => {
-      ToastManager.show("Preparing ZIP backup...", "info");
+      Toast.show("Preparing ZIP backup...", "info");
       try {
         let items = [], file_chunks = [];
         if (this.fbService.isLiveMode) {
@@ -243,9 +243,9 @@ export class FileManager {
         downloadAnchor.click();
         downloadAnchor.remove();
 
-        ToastManager.show("ZIP backup downloaded successfully!", "success");
+        Toast.show("ZIP backup downloaded successfully!", "success");
       } catch (err) {
-        ToastManager.show(`Failed to generate ZIP: ${err.message}`, "error");
+        Toast.show(`Failed to generate ZIP: ${err.message}`, "error");
       }
     });
   }
