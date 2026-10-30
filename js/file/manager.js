@@ -261,23 +261,23 @@ export class FileManager {
       this.loadCurrentFolder();
     });
 
-    // Submit File Upload
     document.getElementById("createFileForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const fileInput = document.getElementById("chunkFileInput");
       const files = fileInput.files;
       if (!files || files.length === 0) return;
 
-      this.ui.setUploadButtonProgress(true, `Uploading (1/${files.length})...`);
+      const submitBtn = document.getElementById("submitFileBtn") || document.querySelector("#createFileForm button[type='submit']");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = `Uploading (1/${files.length})...`;
+      }
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         try {
           const base64Data = await this.readFileAsDataURL(file);
-          let thumbnail = "";
-          if (file.type.startsWith("image/")) {
-            thumbnail = await this.generateThumbnail(base64Data, 150);
-          }
+          let thumbnail = file.type.startsWith("image/") ? await this.generateThumbnail(base64Data, 150) : "";
 
           const CHUNK_SIZE = 700000;
           const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
@@ -304,8 +304,12 @@ export class FileManager {
         }
       }
 
-      this.ui.setUploadButtonProgress(false, "Upload File");
-      this.ui.toggleFileModal(false);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Upload File";
+      }
+      this.toggleModal("fileModal", false);
+      fileInput.value = "";
       this.loadCurrentFolder();      
     });
 
