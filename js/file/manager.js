@@ -16,13 +16,34 @@ export class FileManager {
     this.currentFolderId = "root";
     this.contextTarget = null;
     this.previewer = new FilePreviewComponent();
-    this.ensureOverlays();
   }
 
-  ensureOverlays() {
-    Toast.ensureDOM();
-    if (document.getElementById("contextMenu")) return;
+  mountUI() {
+    if (!this.container) return;
+    this.container.innerHTML = `
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 justify-between items-center">
+        <div class="flex items-center gap-2"></div>
+        <div class="flex items-center gap-2">
+          <button id="openFolderModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
+            <i class="fa-solid fa-folder-plus text-amber-600"></i> New Folder
+          </button>
+          <button id="openCreateModalBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
+          </button>
+          <button id="backupDataBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
+            <i class="fa-solid fa-file-arrow-down"></i> Backup All Files
+          </button>
+        </div>
+      </div>
 
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col space-y-4">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div id="breadcrumbsBar" class="flex items-center gap-2 text-xs font-semibold text-slate-700"></div>
+          <span id="fileCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg">0 items</span>
+        </div>
+        <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+      </div>
+    `;
     const overlaysHTML = `
       <!-- CONTEXT MENU -->
       <div id="contextMenu" class="hidden fixed z-50 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 w-40 text-xs font-medium text-slate-700">
@@ -66,35 +87,6 @@ export class FileManager {
       </div>
     `;
     document.body.insertAdjacentHTML('beforeend', overlaysHTML);
-  }
-
-  mountUI() {
-    if (!this.container) return;
-    this.container.innerHTML = `
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 justify-between items-center">
-        <div class="flex items-center gap-2"></div>
-        <div class="flex items-center gap-2">
-          <button id="openFolderModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
-            <i class="fa-solid fa-folder-plus text-amber-600"></i> New Folder
-          </button>
-          <button id="openCreateModalBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm">
-            <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
-          </button>
-          <button id="backupDataBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
-            <i class="fa-solid fa-file-arrow-down"></i> Backup All Files
-          </button>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col space-y-4">
-        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-          <div id="breadcrumbsBar" class="flex items-center gap-2 text-xs font-semibold text-slate-700"></div>
-          <span id="fileCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg">0 items</span>
-        </div>
-        <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
-      </div>
-    `;
-
     this.previewer.initEvents();
   }
 
