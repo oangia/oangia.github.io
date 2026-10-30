@@ -12,7 +12,7 @@ export class ToastManager {
     const toast = document.createElement("div");
     const bgColors = { success: "bg-emerald-600", error: "bg-red-600", info: "bg-slate-900" };
     toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-xs font-medium text-white ${bgColors[type] || bgColors.info} transition-all transform translate-y-2 opacity-0 pointer-events-auto`;
-    toast.innerHTML = `<i class="fa-solid fa-circle-info text-base"></i> <span>${escapeHtml(msg)}</span>`;
+    toast.innerHTML = `<i class="fa-solid fa-circle-info text-base"></i> <span>${msg}</span>`;
     container.appendChild(toast);
     requestAnimationFrame(() => toast.classList.remove("translate-y-2", "opacity-0"));
     setTimeout(() => {
