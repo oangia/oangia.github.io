@@ -1,7 +1,17 @@
+import { Toast } from "./toast.js";
 export class FileBackup {
-  constructor(fbService, collections) {
+  constructor(fbService, collections, btnId) {
     this.fbService = fbService;
     this.collections = collections;
+    document.getElementById(btnId)?.addEventListener("click", async () => {
+      Toast.show("Preparing ZIP backup...", "info");
+      try {
+        await this.downloadBackup();
+        Toast.show("ZIP backup downloaded successfully!", "success");
+      } catch (err) {
+        Toast.show(`Failed to generate ZIP: ${err.message}`, "error");
+      }
+    });
   }
 
   async generateZipBlob() {
