@@ -184,6 +184,7 @@ export class FileManager {
   }
 
   init() {
+    console.log("init");
     this.previewer.initEvents();
     this.uploader.initEvents(); // Initialize upload component events
 
