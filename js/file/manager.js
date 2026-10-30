@@ -34,6 +34,64 @@ export class FileManager {
     });
   }
 
+  mountMainLayout() {
+    if (!this.container) return;
+    this.container.innerHTML = `
+      <div class="flex flex-col h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <!-- Toolbar / Header -->
+        <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+          <div id="breadcrumbContainer" class="flex items-center space-x-2 text-sm"></div>
+          <div class="flex items-center space-x-2">
+            <button id="openFolderModalBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+              <i class="fa-solid fa-folder-plus mr-1"></i> New Folder
+            </button>
+            <button id="openCreateModalBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+              <i class="fa-solid fa-upload mr-1"></i> Upload File
+            </button>
+            <button id="backupDataBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+              <i class="fa-solid fa-file-zipper mr-1"></i> Backup ZIP
+            </button>
+          </div>
+        </div>
+
+        <!-- File List View -->
+        <div id="fileListContainer" class="flex-1 overflow-y-auto p-4 custom-scrollbar"></div>
+      </div>
+
+      <!-- Upload Modal -->
+      <div id="fileModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-100">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-base font-bold text-slate-800">Upload Files</h3>
+            <button id="closeFileModalBtn" class="text-slate-400 hover:text-slate-600">✕</button>
+          </div>
+          <form id="createFileForm" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Select Files</label>
+              <input type="file" id="chunkFileInput" multiple class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2">
+              <button type="button" id="cancelFileBtn" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+              <button type="submit" id="submitFileBtn" class="px-4 py-2 text-xs font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700">Upload File</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Folder Modal -->
+      <div id="folderModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-slate-100">
+          <h3 class="text-base font-bold text-slate-800 mb-3">Create New Folder</h3>
+          <input type="text" id="folderNameInput" placeholder="Folder Name" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm mb-4 focus:outline-none focus:border-blue-500"/>
+          <div class="flex justify-end space-x-2">
+            <button type="button" id="cancelFolderBtn" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+            <button type="button" id="submitFolderBtn" class="px-4 py-2 text-xs font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700">Create</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   showLoadingState() {
     const listEl = document.getElementById("fileListContainer");
     if (listEl) {
@@ -132,15 +190,19 @@ export class FileManager {
       let allItems = [];
       let currentFolderName = "Home";
 
-      console.log("Loading folder. LiveMode:", this.fbService.isLiveMode, "Collection:", this.collections.items);
-
       if (this.fbService.isLiveMode) {
         allItems = await this.fbService.getByField(this.collections.items, "parentId", this.currentFolderId);
-        console.log("Firebase fetched items:", allItems);
+        if (this.currentFolderId !== "root") {
+          const parentFolder = await this.fbService.getById(this.collections.items, this.currentFolderId);
+          if (parentFolder) currentFolderName = parentFolder.title || parentFolder.name;
+        }
       } else {
         const stored = JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]");
         allItems = stored.filter(item => item.parentId === this.currentFolderId);
-        console.log("LocalStorage fetched items:", allItems);
+        if (this.currentFolderId !== "root") {
+          const found = stored.find(item => item.id === this.currentFolderId);
+          if (found) currentFolderName = found.title || found.name;
+        }
       }
 
       const subFolders = allItems.filter(item => item.isFolder === true);
@@ -148,7 +210,6 @@ export class FileManager {
 
       this.renderItems(subFolders, dirFiles, currentFolderName);
     } catch (err) {
-      console.error("Error in loadCurrentFolder:", err);
       Toast.show(`Error loading folder: ${err.message}`, "error");
     }
   }
@@ -181,9 +242,9 @@ export class FileManager {
   }
 
   init() {
-    console.log("init");
+    this.mountMainLayout(); // <--- Injects the UI elements into the DOM first
     this.previewer.initEvents();
-    this.uploader.initEvents(); // Initialize upload component events
+    this.uploader.initEvents();
 
     document.addEventListener("click", () => this.hideContextMenu());
 
