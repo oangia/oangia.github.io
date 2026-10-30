@@ -86,9 +86,8 @@
     },
     memo: {
       title: "File Manager - Memo",
-      foldersCollection: "folders",
-      filesCollection: "files",
-      fileChunksCollection: "file_chunks"
+      filesCollection: "memo_files",
+      fileChunksCollection: "memo_file_chunks"
     },
     jav: {
       title: "File Manager - Jav",
@@ -143,7 +142,6 @@
             window.fileManager = new FileManager({
               containerId: "fileManagerApp",
               fbService: fbService,
-              foldersCollection: "${config.foldersCollection}",
               filesCollection: "${config.filesCollection}",
               fileChunksCollection: "${config.fileChunksCollection}"
             });
