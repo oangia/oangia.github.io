@@ -53,12 +53,13 @@ export class FileBackup {
       console.log(bytes);
       zip.file(filePath, bytes);
     }
-    let content;
-    try {
-      content = await zip.generateAsync({ type: "blob" });
-    } catch (err) {
-      console.error(`Error processing file`, err);
-    }
+    console.log("Generating ZIP as uint8array...");
+    // Generate as uint8array instead of blob to avoid frame/sandbox blob builder issues
+    const uint8ArrayData = await zip.generateAsync({ type: "uint8array" });
+    
+    // Manually create the Blob from the raw array
+    const content = new Blob([uint8ArrayData], { type: "application/zip" });
+    console.log("ZIP blob successfully created manually:", content);
     return content;
   }
 
