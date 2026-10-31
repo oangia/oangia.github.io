@@ -391,6 +391,7 @@ export class FileManager {
   switch(collections) {
     // Switch collection config and reset path back to root
     this.collections = collections;
+    this.backupManager.switch(collections);
     this.currentFolderId = "root";
     // Reload view with the new collection configuration
     this.loadCurrentFolder();
