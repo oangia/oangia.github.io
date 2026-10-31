@@ -126,12 +126,10 @@
     }).mount();
 
     // Config Manager Setup
-    const configManager = new ConfigManager({
-      buttonSelector: "#toggleConfigBtn",
-      fbService: fbService,
-      onConnect: () => switchSpace(activeSpace)
+    const configManager = new ConfigManager('toggleConfigBtn', {
+      fbService: fbService
     });
-    
+    switchSpace(activeSpace);
     new DailyTaskTracker({
       Music: ['Learn songs', 'Practice singing'],
       Basic: ['Exercises', 'Reading', 'Learn an expression', 'Diet']      
