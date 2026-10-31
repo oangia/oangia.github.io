@@ -156,16 +156,6 @@
     document.getElementById("navJav").addEventListener("click", () => {
       if (activeSpace !== "jav") switchSpace("jav");
     });
-
-    // Config Manager Setup
-    const configManager = new ConfigManager({
-      buttonSelector: "#toggleConfigBtn",
-      fbService: fbService,
-      onConnect: () => switchSpace(activeSpace),
-      onDemo: () => switchSpace(activeSpace)
-    });
-    
-    new DailyTaskTracker(["Learn songs", "Practice singing", "Write a song", "Learn an expression","Exercises", "Diet"]);
     new AppHeader({
       title: "File Manager - Home",
       subtitle: "Fast On-Demand Loading & Chunked Storage",
@@ -178,6 +168,17 @@
         icon: "fa-solid fa-gear" 
       }
     }).mount();
+
+    // Config Manager Setup
+    const configManager = new ConfigManager({
+      buttonSelector: "#toggleConfigBtn",
+      fbService: fbService,
+      onConnect: () => switchSpace(activeSpace),
+      onDemo: () => switchSpace(activeSpace)
+    });
+    
+    new DailyTaskTracker(["Learn songs", "Practice singing", "Write a song", "Learn an expression","Exercises", "Diet"]);
+    
   </script>
 </body>
 </html>
