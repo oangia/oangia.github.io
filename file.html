@@ -137,7 +137,10 @@
       onConnect: () => switchSpace(activeSpace)
     });
     
-    new DailyTaskTracker(["Learn songs / singing", "Reading", "Learn an expression", "Exercises"]);
+    new DailyTaskTracker(tasks = {
+      Basic: ['Exercises', 'Reading', 'Learn an expression', 'Diet'],
+      Music: ['Learn songs', 'Practice singing']
+    });
     
   </script>
 </body>
