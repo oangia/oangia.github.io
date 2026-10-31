@@ -138,13 +138,14 @@
     import { PdfExtractorWidget } from './js/pdf.js';
     import { MediaFrameExtractorWidget } from './js/image.js';
     import { PhotoshopWidget } from './js/pts.js';
+    
+    new MediaFrameExtractorWidget();
+    new PhotoshopWidget();
+    new PdfExtractorWidget();
     new DailyTaskTracker({
       Music: ['Learn songs', 'Practice singing'],
       Basic: ['Exercises', 'Reading', 'Learn an expression', 'Diet']      
     });
-    new PdfExtractorWidget();
-    new MediaFrameExtractorWidget();
-    new PhotoshopWidget();
   </script>
 </body>
 </html>
