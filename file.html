@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>File Manager App</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/js/utils.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -16,7 +17,7 @@
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
   <!-- Header -->
-  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
+  <!--<header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4 w-full">
       <div class="flex items-center space-x-3">
         <div class="bg-blue-500 p-2 rounded-xl shadow-md text-white">
@@ -40,7 +41,7 @@
         </button>
       </div>
     </div>
-  </header>
+  </header>-->
 
   <!-- Main Workspace Layout -->
   <div class="flex-1 flex overflow-hidden">
@@ -165,6 +166,18 @@
     });
     
     new DailyTaskTracker(["Learn songs", "Practice singing", "Write a song", "Learn an expression","Exercises", "Diet"]);
+    new AppHeader({
+      title: "File Manager - Home",
+      subtitle: "Fast On-Demand Loading & Chunked Storage",
+      icon: "fa-solid fa-folder-tree",
+      iconBg: "bg-blue-500 text-white",
+      status: { text: "Status", color: "amber" },
+      actionButton: { 
+        id: "toggleConfigBtn", 
+        text: "Config", 
+        icon: "fa-solid fa-gear" 
+      }
+    }).mount();
   </script>
 </body>
 </html>
