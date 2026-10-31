@@ -58,20 +58,8 @@
       ],
       onToast: (msg, type) => Toast.show(msg, type)
     });
-
-    // Initialize Config Manager
-    new ConfigManager({
-      buttonSelector: "#toggleConfigBtn",
-      fbService: fbService,
-      onConnect: (isLive) => {
-        renderStatus(isLive);
-        crudApp.refresh();
-      },
-      onDemo: () => {
-        renderStatus(false);
-        crudApp.refresh();
-      }
-    });
+    
+    new ConfigManager("toggleConfigBtn", {fbService: fbService});
   </script>
 </body>
 </html>
