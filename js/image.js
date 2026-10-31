@@ -184,7 +184,7 @@ export class MediaFrameExtractorWidget {
             </div>
 
             <!-- Frames Grid Container (Scrollable) -->
-            <div class="widget-frames-grid hidden flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+            <div class="widget-frames-grid hidden flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar pr-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
           </div>
         </div>
 
@@ -299,7 +299,7 @@ export class MediaFrameExtractorWidget {
       md: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3',
       lg: 'grid-cols-1 sm:grid-cols-2 gap-4'
     };
-    this.dom.framesGrid.className = `widget-frames-grid flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 grid ${gridClasses[this.currentThumbSize]}`;
+    this.dom.framesGrid.className = `widget-frames-grid flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar pr-1 grid ${gridClasses[this.currentThumbSize]}`;
   }
 
   showToast(msg, type = 'info') {
