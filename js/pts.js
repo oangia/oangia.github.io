@@ -1,5 +1,8 @@
-export class PhotoshopWidget {
+import { BaseWidget } from './BaseWidget.js';
+
+export class PhotoshopWidget extends BaseWidget {
   constructor(options = {}) {
+    super(options);
     this.cropperCssUrl = options.cropperCssUrl || 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css';
     this.cropperJsUrl = options.cropperJsUrl || 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js';
     this.initialImageUrl = options.initialImageUrl || 'https://images.unsplash.com/photo-1575936123452-b67c3203c357?auto=format&fit=crop&w=800&q=80';
@@ -29,7 +32,6 @@ export class PhotoshopWidget {
   }
 
   loadDependencies() {
-    // Inject Cropper CSS if missing
     if (!document.getElementById('cropper-css')) {
       const link = document.createElement('link');
       link.id = 'cropper-css';
@@ -38,7 +40,6 @@ export class PhotoshopWidget {
       document.head.appendChild(link);
     }
 
-    // Inject Cropper JS if missing
     if (typeof Cropper === 'undefined' && !document.getElementById('cropper-js')) {
       const script = document.createElement('script');
       script.id = 'cropper-js';
@@ -48,12 +49,12 @@ export class PhotoshopWidget {
   }
 
   createUI() {
-    // Floating Trigger Button
+    // Floating Trigger Button appended to the shared vertical stack wrapper
     this.floatBtn = document.createElement('button');
     this.floatBtn.type = 'button';
     this.floatBtn.ariaLabel = 'Open Photoshop Web';
     this.floatBtn.className =
-      'fixed bottom-6 right-24 w-14 h-14 bg-cyan-600 hover:bg-cyan-700 text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer z-50 transition-all duration-200 hover:scale-105';
+      'w-14 h-14 bg-cyan-600 hover:bg-cyan-700 text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer transition-all duration-200 hover:scale-105';
     this.floatBtn.innerHTML = `<span class="font-bold text-lg">Ps</span>`;
 
     // Modal Drawer / Panel Container
@@ -102,7 +103,7 @@ export class PhotoshopWidget {
 
             <!-- Center Canvas Container -->
             <div class="widget-scroll-viewport flex-1 widget-custom-checkered flex justify-center items-center relative overflow-auto">
-                <div class="relative inline-block shadow-2xl transition-transform duration-100 ease-out origin-center" class="widget-canvas-container">
+                <div class="relative inline-block shadow-2xl transition-transform duration-100 ease-out origin-center widget-canvas-container">
                     <div class="widget-tool-cursor absolute border border-white shadow-[0_0_2px_#000] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2 hidden z-10"></div>
                     <canvas class="widget-image-canvas block max-w-none"></canvas>
                     <img class="widget-cropper-img max-w-full hidden" alt="Crop Area">
@@ -119,7 +120,8 @@ export class PhotoshopWidget {
       </div>
     `;
 
-    document.body.appendChild(this.floatBtn);
+    // Append trigger to BaseWidget wrapper stack instead of body
+    this.wrapper.appendChild(this.floatBtn);
     document.body.appendChild(this.modal);
   }
 
@@ -129,7 +131,7 @@ export class PhotoshopWidget {
     this.ctx = this.canvas.getContext('2d');
     this.toolbar = m.querySelector('.widget-toolbar');
     this.propertiesPanel = m.querySelector('.widget-properties-panel');
-    this.canvasContainer = m.querySelector('.widget-image-canvas').parentElement;
+    this.canvasContainer = m.querySelector('.widget-canvas-container');
     this.scrollViewport = m.querySelector('.widget-scroll-viewport');
     this.cursor = m.querySelector('.widget-tool-cursor');
     this.dimensionsLabel = document.createElement('span');
@@ -162,7 +164,6 @@ export class PhotoshopWidget {
   }
 
   initEditor() {
-    // Bind modal toggles
     this.floatBtn.addEventListener('click', () => {
       this.modal.classList.remove('hidden');
       this.modal.classList.add('flex');
@@ -189,10 +190,8 @@ export class PhotoshopWidget {
     this.bindGlobalEvents();
     this.initGlobalPanels();
 
-    // Register Plugins
     const self = this;
 
-    // --- BASE PLUGIN SCHEMA ---
     class EditorPlugin {
       constructor(name, icon) {
         this.name = name;
@@ -209,7 +208,6 @@ export class PhotoshopWidget {
       }
     }
 
-    // --- 1. BRUSH TOOL PLUGIN ---
     class BrushPlugin extends EditorPlugin {
       constructor() {
         super('Brush Tool', '🖌️');
@@ -282,7 +280,6 @@ export class PhotoshopWidget {
       }
     }
 
-    // --- 2. ERASER TOOL PLUGIN ---
     class EraserPlugin extends EditorPlugin {
       constructor() {
         super('Eraser Tool', '🧹');
@@ -345,7 +342,6 @@ export class PhotoshopWidget {
       }
     }
 
-    // --- 3. EYEDROPPER TOOL PLUGIN ---
     class EyedropperPlugin extends EditorPlugin {
       constructor() {
         super('Eyedropper Tool', '💧');
@@ -379,7 +375,6 @@ export class PhotoshopWidget {
       }
     }
 
-    // --- 4. CROP TOOL PLUGIN ---
     class CropPlugin extends EditorPlugin {
       constructor() {
         super('Crop Tool', '📐');
@@ -427,7 +422,6 @@ export class PhotoshopWidget {
       }
     }
 
-    // --- 5. RECTANGLE TOOL PLUGIN ---
     class RectanglePlugin extends EditorPlugin {
       constructor() {
         super('Rectangle Tool', '⏹️');
@@ -491,7 +485,6 @@ export class PhotoshopWidget {
       }
     }
 
-    // --- 6. TEXT TOOL PLUGIN ---
     class TextPlugin extends EditorPlugin {
       constructor() {
         super('Text Tool', '✍️');
@@ -524,7 +517,6 @@ export class PhotoshopWidget {
       }
     }
 
-    // --- 7. BLUR EFFECT PLUGIN ---
     class BlurPlugin extends EditorPlugin {
       constructor() {
         super('Blur Filter', '💧');
@@ -619,7 +611,6 @@ export class PhotoshopWidget {
   }
 
   initGlobalPanels() {
-    // Filters & Tones Panel
     const filterSection = document.createElement('div');
     filterSection.className = 'bg-[#333333] rounded-md p-2.5 flex flex-col gap-2';
     filterSection.innerHTML = `
@@ -634,7 +625,6 @@ export class PhotoshopWidget {
     `;
     this.propertiesPanel.appendChild(filterSection);
 
-    // Zoom Navigator Panel
     const zoomSection = document.createElement('div');
     zoomSection.className = 'bg-[#333333] rounded-md p-2.5 flex flex-col gap-2';
     zoomSection.innerHTML = `
@@ -647,7 +637,6 @@ export class PhotoshopWidget {
     `;
     this.propertiesPanel.appendChild(zoomSection);
 
-    // Canvas Info Panel
     const infoSection = document.createElement('div');
     infoSection.className = 'bg-[#333333] rounded-md p-2.5 flex flex-col gap-2';
     infoSection.innerHTML = `
@@ -659,7 +648,6 @@ export class PhotoshopWidget {
     infoSection.querySelector('.flex').appendChild(this.dimensionsLabel);
     this.propertiesPanel.appendChild(infoSection);
 
-    // Bind Global Actions
     filterSection.querySelector('#w-filter-grayscale').onclick = () => {
         const imgData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
         const data = imgData.data;
