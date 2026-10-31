@@ -1,8 +1,11 @@
-export class MediaFrameExtractorWidget {
+import { BaseWidget } from './BaseWidget.js';
+
+export class MediaFrameExtractorWidget extends BaseWidget {
   constructor(options = {}) {
+    super(options);
     this.omggifWorkerSrc = options.omggifWorkerSrc || 'https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js';
     this.currentFile = null;
-    this.currentThumbSize = 'md'; // sm, md, lg
+    this.currentThumbSize = 'md';
     this.extractedBlobs = [];
 
     this.init();
@@ -25,12 +28,12 @@ export class MediaFrameExtractorWidget {
   }
 
   createUI() {
-    // Floating Trigger Button
+    // Floating Trigger Button (No fixed positioning classes needed, handled by flex stack)
     this.floatBtn = document.createElement('button');
     this.floatBtn.type = 'button';
     this.floatBtn.ariaLabel = 'Open Frame Extractor';
     this.floatBtn.className =
-      'fixed bottom-6 right-24 w-14 h-14 bg-purple-600 hover:bg-purple-700 text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer z-50 transition-all duration-200 hover:scale-105';
+      'w-14 h-14 bg-purple-600 hover:bg-purple-700 text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer transition-all duration-200 hover:scale-105';
     this.floatBtn.innerHTML = `<i class="fa-solid fa-film text-xl"></i>`;
 
     // Modal Drawer / Panel Container
@@ -40,7 +43,6 @@ export class MediaFrameExtractorWidget {
 
     this.modal.innerHTML = `
       <div class="bg-slate-100 text-slate-800 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden">
-        
         <!-- Header / Toolbar -->
         <div class="bg-white px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4 shrink-0">
           <div class="flex items-center gap-3">
@@ -53,7 +55,6 @@ export class MediaFrameExtractorWidget {
             </div>
           </div>
 
-          <!-- Controls -->
           <div class="flex items-center flex-wrap gap-4">
             <div class="flex items-center gap-2">
               <span class="text-xs text-slate-500 font-medium">Grid Size:</span>
@@ -63,8 +64,6 @@ export class MediaFrameExtractorWidget {
                 <button type="button" data-size="lg" class="widget-size-btn px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition">Large</button>
               </div>
             </div>
-
-            <!-- Close Modal -->
             <button type="button" class="widget-close-btn text-slate-400 hover:text-slate-700 text-xl px-2 py-1 transition">&times;</button>
           </div>
         </div>
@@ -91,36 +90,27 @@ export class MediaFrameExtractorWidget {
 
         <!-- Content Body -->
         <div class="flex-1 flex flex-col lg:flex-row gap-4 p-5 overflow-hidden min-h-0">
-          
-          <!-- Left Column: Upload & Settings -->
           <div class="w-full lg:w-80 flex flex-col gap-4 shrink-0 overflow-y-auto custom-scrollbar">
-            <!-- Dropzone Card -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-center">
               <div class="widget-dropzone border-2 border-dashed border-slate-300 hover:border-purple-500 bg-slate-50/70 hover:bg-purple-50/20 transition-all rounded-xl p-6 text-center flex flex-col items-center justify-center cursor-pointer min-h-[180px] relative group overflow-hidden">
                 <input type="file" class="widget-media-input absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/gif,video/mp4,video/webm,video/ogg,video/quicktime">
-                
                 <div class="pointer-events-none flex flex-col items-center justify-center">
                   <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center text-xl group-hover:scale-105 transition-transform mb-2 shadow-inner">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
                   </div>
-                  
                   <p class="text-xs font-bold text-slate-800">
                     Drop GIF/Video or <span class="text-purple-600 underline">browse</span>
                   </p>
-                  <p class="text-[10px] text-slate-500 mt-1">
-                    Supports MP4, WebM, MOV, OGG, GIF
-                  </p>
+                  <p class="text-[10px] text-slate-500 mt-1">Supports MP4, WebM, MOV, OGG, GIF</p>
                 </div>
               </div>
             </div>
 
-            <!-- Extraction Settings Card -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
               <div>
                 <h4 class="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
                   <i class="fa-solid fa-sliders text-purple-600"></i> Extraction Settings
                 </h4>
-
                 <div class="mb-4 bg-slate-50 border border-slate-200/80 rounded-xl p-3">
                   <div class="flex justify-between items-center mb-2">
                     <label class="text-[11px] font-semibold text-slate-700">Target Frame Count</label>
@@ -128,17 +118,7 @@ export class MediaFrameExtractorWidget {
                   </div>
                   <input type="range" class="widget-frame-count-input w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600" min="2" max="100" value="20">
                 </div>
-
-                <div class="p-2.5 bg-purple-50/50 border border-purple-100 rounded-xl">
-                  <div class="flex items-start gap-2">
-                    <i class="fa-solid fa-lightbulb text-purple-500 text-xs mt-0.5"></i>
-                    <p class="text-[10px] text-slate-600 leading-relaxed">
-                      Clicking any frame copies it straight to your clipboard and opens Google Lens.
-                    </p>
-                  </div>
-                </div>
               </div>
-
               <button type="button" class="widget-extract-btn mt-5 w-full py-2.5 px-4 bg-purple-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed hover:bg-purple-700 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
                 <i class="fa-solid fa-play"></i>
                 <span>Extract Frames</span>
@@ -146,10 +126,7 @@ export class MediaFrameExtractorWidget {
             </div>
           </div>
 
-          <!-- Right Column: Gallery & Progress -->
           <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col space-y-4 overflow-hidden min-h-0">
-            
-            <!-- Progress Bar Card -->
             <div class="widget-progress-container hidden bg-slate-50 border border-slate-200 rounded-xl p-3 shrink-0">
               <div class="flex justify-between items-center mb-1.5 text-xs">
                 <span class="widget-progress-text font-medium text-slate-700">Processing media...</span>
@@ -160,7 +137,6 @@ export class MediaFrameExtractorWidget {
               </div>
             </div>
 
-            <!-- Gallery Header -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 shrink-0">
               <div class="flex items-center gap-3">
                 <h4 class="text-xs font-bold text-slate-800 flex items-center gap-2">
@@ -169,12 +145,8 @@ export class MediaFrameExtractorWidget {
                 </h4>
                 <span class="widget-extracted-badge hidden text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded-lg border border-purple-200 font-semibold">0 frames</span>
               </div>
-              <p class="text-[11px] text-slate-500">
-                <i class="fa-solid fa-circle-info text-purple-500 mr-1"></i> Click frame to copy &amp; launch Lens.
-              </p>
             </div>
 
-            <!-- Empty State -->
             <div class="widget-empty-state flex-1 bg-slate-50 border border-dashed border-slate-200 rounded-xl p-8 flex flex-col items-center justify-center text-center">
               <div class="w-12 h-12 bg-white text-slate-400 rounded-2xl flex items-center justify-center text-xl mb-3 shadow-sm border border-slate-200">
                 <i class="fa-regular fa-images"></i>
@@ -183,20 +155,17 @@ export class MediaFrameExtractorWidget {
               <p class="text-[11px] text-slate-500 mt-1 max-w-xs">Upload a video or GIF and click 'Extract Frames' to sample image thumbnails.</p>
             </div>
 
-            <!-- Frames Grid Container (Scrollable) -->
             <div class="widget-frames-grid hidden flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar pr-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
           </div>
         </div>
 
-        <!-- Hidden Video Element -->
         <video class="widget-hidden-video hidden" preload="auto" muted playsinline></video>
-
-        <!-- Toast Notification Container -->
         <div class="widget-toast-container absolute bottom-4 right-4 pointer-events-none flex flex-col gap-2 z-50"></div>
       </div>
     `;
 
-    document.body.appendChild(this.floatBtn);
+    // Append to wrapper inside the shared vertical container
+    this.wrapper.appendChild(this.floatBtn);
     document.body.appendChild(this.modal);
   }
 
