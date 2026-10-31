@@ -230,19 +230,16 @@ export class MediaFrameExtractorWidget {
   }
 
   attachEvents() {
-    // Modal Open / Close
     this.floatBtn.addEventListener('click', () => this.openModal());
     this.dom.closeBtn.addEventListener('click', () => this.closeModal());
     this.modal.addEventListener('click', (e) => {
       if (e.target === this.modal) this.closeModal();
     });
 
-    // Slider
     this.dom.frameCountInput.addEventListener('input', (e) => {
       this.dom.frameCountVal.textContent = `${e.target.value} frames`;
     });
 
-    // Grid Size toggles
     this.dom.sizeBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
         this.dom.sizeBtns.forEach((b) => {
@@ -254,7 +251,6 @@ export class MediaFrameExtractorWidget {
       });
     });
 
-    // File input & Drag drop
     this.dom.mediaInput.addEventListener('change', () => this.handleFileSelect());
 
     ['dragenter', 'dragover'].forEach((eventName) => {
@@ -279,7 +275,6 @@ export class MediaFrameExtractorWidget {
       }
     });
 
-    // Extract Button
     this.dom.extractBtn.addEventListener('click', () => this.startExtraction());
   }
 
