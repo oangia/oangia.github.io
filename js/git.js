@@ -47,7 +47,7 @@ export class GithubWidget extends BaseWidget {
   }
 
   createUI() {
-    // 1. Floating Trigger Button (managed inside the BaseWidget vertical stack wrapper)
+    // 1. Floating Trigger Button appended to the BaseWidget vertical stack wrapper
     this.floatBtn = document.createElement('button');
     this.floatBtn.type = 'button';
     this.floatBtn.ariaLabel = 'Open GitHub File Manager';
@@ -55,18 +55,19 @@ export class GithubWidget extends BaseWidget {
       'w-14 h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer transition-all duration-200 hover:scale-105';
     this.floatBtn.innerHTML = `<i class="fa-brands fa-github text-2xl"></i>`;
 
-    // 2. Modal Container
+    // 2. Exact modal overlay containing your precise HTML layout
     this.modal = document.createElement('div');
     this.modal.className =
-      'fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4 md:p-6 font-sans';
+      'fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm hidden items-center justify-center p-4 font-sans';
 
     this.modal.innerHTML = `
-      <div class="bg-slate-900 text-slate-100 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-7xl h-[92vh] flex flex-col overflow-hidden">
-        <!-- Main Workspace Area -->
-        <div class="flex-1 overflow-hidden p-4 md:p-6 flex flex-col gap-5 max-w-7xl mx-auto w-full">
+      <div class="bg-slate-900 text-slate-100 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-7xl h-[92vh] flex flex-col overflow-hidden relative">
+        <button type="button" id="gw-close-modal-btn" class="absolute top-4 right-4 z-20 text-slate-400 hover:text-white text-lg p-2 transition"><i class="fa-solid fa-xmark"></i></button>
+        
+        <main class="flex-1 overflow-hidden p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
             
             <!-- Input Form Card -->
-            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl shrink-0">
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl shrink-0">
                 <form id="gw-repo-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div class="md:col-span-2">
                         <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">GitHub Repository Link</label>
@@ -75,12 +76,12 @@ export class GithubWidget extends BaseWidget {
                     <div>
                         <div class="flex justify-between items-center mb-1.5">
                             <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">GitHub Token</label>
-                            <span id="gw-token-status" class="text-[10px] text-emerald-400 font-mono hidden"><i class="fa-solid fa-cookie-bite mr-1"></i>Saved Cookie</span>
+                            <span id="gw-token-status" class="text-[10px] text-emerald-400 font-mono hidden"><i class="fa-solid fa-cookie-bite mr-1"></i>Saved in Cookie</span>
                         </div>
                         <input type="password" id="gw-token" placeholder="ghp_..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
                     </div>
                     <div>
-                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-medium py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2">
+                        <button type="submit" id="gw-fetch-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-medium py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2">
                             <i class="fa-solid fa-magnifying-glass"></i>
                             <span>Fetch Files</span>
                         </button>
@@ -104,8 +105,8 @@ export class GithubWidget extends BaseWidget {
                 </div>
             </div>
 
-            <!-- Active Repository Workspace Grid -->
-            <div id="gw-workspace" class="hidden flex-1 grid grid-cols-1 lg:grid-cols-3 gap-5 overflow-hidden">
+            <!-- Workspace Area -->
+            <div id="gw-workspace" class="hidden flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden">
                 
                 <!-- File Explorer Pane -->
                 <div class="lg:col-span-1 bg-slate-800 border border-slate-700 rounded-2xl flex flex-col overflow-hidden shadow-xl">
@@ -116,7 +117,7 @@ export class GithubWidget extends BaseWidget {
                         </div>
                         <button type="button" id="gw-open-create-modal-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow transition flex items-center space-x-1 shrink-0">
                             <i class="fa-solid fa-plus"></i>
-                            <span>New</span>
+                            <span>New File</span>
                         </button>
                         <button type="button" id="gw-download-zip-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow transition flex items-center space-x-1.5 shrink-0">
                             <i class="fa-solid fa-file-zipper"></i>
@@ -161,7 +162,7 @@ export class GithubWidget extends BaseWidget {
 
             </div>
 
-        </div>
+        </main>
       </div>
 
       <!-- Modal: Create & Push New File -->
@@ -172,7 +173,7 @@ export class GithubWidget extends BaseWidget {
                       <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i>
                       <span>Create & Push New File</span>
                   </h3>
-                  <button type="button" id="gw-close-create-modal-btn" class="text-slate-400 hover:text-white text-sm p-1">
+                  <button type="button" id="gw-close-modal-btn-inner" class="text-slate-400 hover:text-white text-sm p-1">
                       <i class="fa-solid fa-xmark"></i>
                   </button>
               </div>
@@ -191,7 +192,7 @@ export class GithubWidget extends BaseWidget {
                   </div>
               </div>
               <div class="p-4 border-t border-slate-700 bg-slate-800/80 flex justify-end gap-3">
-                  <button type="button" id="gw-cancel-create-modal-btn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-xs font-medium text-slate-200 rounded-xl transition">Cancel</button>
+                  <button type="button" id="gw-cancel-modal-btn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-xs font-medium text-slate-200 rounded-xl transition">Cancel</button>
                   <button type="button" id="gw-push-file-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white rounded-xl shadow-lg transition flex items-center gap-1.5">
                       <i class="fa-solid fa-paper-plane"></i>
                       <span>Push File</span>
@@ -200,14 +201,13 @@ export class GithubWidget extends BaseWidget {
           </div>
       </div>
 
-      <!-- Toast Notification Container -->
+      <!-- Custom Toast Notification -->
       <div id="gw-notification" class="fixed bottom-6 right-6 z-[60] transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3">
           <i id="gw-notification-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
           <span id="gw-notification-message" class="text-sm font-medium">Notification message</span>
       </div>
     `;
 
-    // Append to wrapper stack managed by BaseWidget
     this.wrapper.appendChild(this.floatBtn);
     document.body.appendChild(this.modal);
   }
@@ -215,7 +215,7 @@ export class GithubWidget extends BaseWidget {
   cacheDomReferences() {
     const m = this.modal;
     this.dom = {
-      closeBtn: m.querySelector('.gw-close-modal-btn'),
+      closeBtn: m.querySelector('#gw-close-modal-btn'),
       repoForm: m.querySelector('#gw-repo-form'),
       repoUrlInput: m.querySelector('#gw-repo-url'),
       tokenInput: m.querySelector('#gw-token'),
@@ -239,16 +239,14 @@ export class GithubWidget extends BaseWidget {
       previewPlaceholder: m.querySelector('#gw-preview-placeholder'),
       editorTextarea: m.querySelector('#gw-editor-textarea'),
       
-      // Create Modal elements
       createModal: m.querySelector('#gw-create-file-modal'),
-      closeCreateModalBtn: m.querySelector('#gw-close-create-modal-btn'),
-      cancelCreateModalBtn: m.querySelector('#gw-cancel-create-modal-btn'),
+      closeCreateModalBtn: m.querySelector('#gw-close-modal-btn-inner'),
+      cancelCreateModalBtn: m.querySelector('#gw-cancel-modal-btn'),
       pushFileBtn: m.querySelector('#gw-push-file-btn'),
       newFilePath: m.querySelector('#gw-new-file-path'),
       newFileMessage: m.querySelector('#gw-new-file-message'),
       newFileContent: m.querySelector('#gw-new-file-content'),
 
-      // Notification
       notification: m.querySelector('#gw-notification'),
       notificationIcon: m.querySelector('#gw-notification-icon'),
       notificationMessage: m.querySelector('#gw-notification-message')
@@ -256,7 +254,6 @@ export class GithubWidget extends BaseWidget {
   }
 
   bindEvents() {
-    // Open/Close Main Modal
     this.floatBtn.addEventListener('click', () => {
       this.modal.classList.remove('hidden');
       this.modal.classList.add('flex');
@@ -272,7 +269,6 @@ export class GithubWidget extends BaseWidget {
       if (e.target === this.modal) closeModal();
     });
 
-    // Token persistent cookies handling
     this.dom.tokenInput.addEventListener('input', (e) => {
       const val = e.target.value.trim();
       if (val) {
@@ -284,29 +280,21 @@ export class GithubWidget extends BaseWidget {
       }
     });
 
-    // Repo Form Submission
     this.dom.repoForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       await this.fetchRepositoryTree();
     });
 
-    // File filtering
     this.dom.fileFilter.addEventListener('input', (e) => {
       const query = e.target.value.toLowerCase();
       const filtered = this.currentRepoData.files.filter(f => f.path.toLowerCase().includes(query));
       this.renderFileList(filtered);
     });
 
-    // Save edited file
     this.dom.saveEditBtn.addEventListener('click', () => this.saveEditedFile());
-
-    // Download single file
     this.dom.downloadSingleBtn.addEventListener('click', () => this.downloadSingleFile());
-
-    // Download ZIP archive
     this.dom.downloadZipBtn.addEventListener('click', () => this.downloadZipArchive());
 
-    // Create Modal Toggles
     const toggleCreateModal = (show) => {
       if (show) this.dom.createModal.classList.remove('hidden');
       else this.dom.createModal.classList.add('hidden');
@@ -319,11 +307,9 @@ export class GithubWidget extends BaseWidget {
       if (e.target === this.dom.createModal) toggleCreateModal(false);
     });
 
-    // Push New File Action
     this.dom.pushFileBtn.addEventListener('click', () => this.pushNewFile());
   }
 
-  // --- COOKIE HELPERS ---
   setCookie(name, value, days = 30) {
     const expires = new Date(Date.now() + days * 864e5).toUTCString();
     document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
@@ -375,7 +361,6 @@ export class GithubWidget extends BaseWidget {
     this.dom.progressBar.style.width = `${percent}%`;
   }
 
-  // --- FETCH REPO FILE TREE ---
   async fetchRepositoryTree() {
     const repoUrl = this.dom.repoUrlInput.value.trim();
     const token = this.dom.tokenInput.value.trim();
