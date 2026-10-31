@@ -135,16 +135,16 @@
     switchSpace(activeSpace);
     
     import { DailyTaskTracker } from "./js/tracker.js";
+    import { PdfExtractorWidget } from './js/pdf.js';
+    import { MediaFrameExtractorWidget } from './js/image.js';
+    import { PhotoshopWidget } from './js/pts.js';
     new DailyTaskTracker({
       Music: ['Learn songs', 'Practice singing'],
       Basic: ['Exercises', 'Reading', 'Learn an expression', 'Diet']      
     });
-    //import { PdfExtractorWidget } from './js/pdf.js';
-    //new PdfExtractorWidget();
-    import { MediaFrameExtractorWidget } from './js/image.js';
+    new PdfExtractorWidget();
     new MediaFrameExtractorWidget();
-    //import { PhotoshopWidget } from './js/pts.js';
-    //new PhotoshopWidget();
+    new PhotoshopWidget();
   </script>
 </body>
 </html>
