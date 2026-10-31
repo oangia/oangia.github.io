@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub File Manager & Extractor</title>
+    <title>GitHub File Manager & Editor</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- JSZip for bulk downloading -->
@@ -25,7 +25,7 @@
             </div>
             <div>
                 <h1 class="text-xl font-bold tracking-tight">GitHub File Manager</h1>
-                <p class="text-xs text-slate-400">Extract, explore, preview, and push files directly in your browser</p>
+                <p class="text-xs text-slate-400">Extract, edit, preview, and push files directly in your browser</p>
             </div>
         </div>
         <div class="text-xs text-slate-400 hidden sm:block">
@@ -44,7 +44,10 @@
                     <input type="url" id="repo-url" required value="https://github.com/oangia/oangia.github.io" placeholder="https://github.com/owner/repository" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">GitHub Token <span class="text-xs text-indigo-400 font-normal">(Required to Push)</span></label>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">GitHub Token</label>
+                        <span id="token-status" class="text-[10px] text-emerald-400 font-mono hidden"><i class="fa-solid fa-cookie-bite mr-1"></i>Saved in Cookie</span>
+                    </div>
                     <input type="password" id="token" placeholder="ghp_..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
                 </div>
                 <div>
@@ -108,21 +111,26 @@
                 <div class="p-3.5 border-b border-slate-700 flex items-center justify-between bg-slate-800/50 shrink-0">
                     <div class="flex items-center space-x-2 truncate">
                         <i class="fa-regular fa-file-code text-indigo-400"></i>
-                        <span id="preview-filename" class="text-sm font-medium text-slate-200 truncate">Select a file to preview</span>
+                        <span id="preview-filename" class="text-sm font-medium text-slate-200 truncate">Select a file to preview or edit</span>
                     </div>
                     <div class="flex items-center space-x-2 shrink-0">
+                        <button id="save-edit-btn" disabled class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-xs text-white px-3 py-1.5 rounded-lg transition flex items-center space-x-1">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span>Save Changes</span>
+                        </button>
                         <button id="download-single-btn" disabled class="bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-xs text-white px-3 py-1.5 rounded-lg transition flex items-center space-x-1">
                             <i class="fa-solid fa-download"></i>
                             <span>Download</span>
                         </button>
                     </div>
                 </div>
-                <div class="flex-1 bg-slate-950 overflow-auto p-4 relative">
-                    <div id="preview-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-center p-6">
+                <div class="flex-1 bg-slate-950 overflow-hidden relative flex flex-col">
+                    <div id="preview-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-center p-6 z-10">
                         <i class="fa-regular fa-folder-open text-4xl mb-3 text-slate-600"></i>
-                        <p class="text-sm">Click on any file from the left panel to inspect content, or create a new file.</p>
+                        <p class="text-sm">Click on any file from the left panel to edit its content directly, or create a new file.</p>
                     </div>
-                    <pre id="preview-content" class="hidden text-xs font-mono text-slate-300 whitespace-pre-wrap leading-relaxed"></pre>
+                    <!-- Textarea for direct file editing -->
+                    <textarea id="editor-textarea" class="hidden w-full h-full bg-slate-950 p-4 text-xs font-mono text-slate-200 focus:outline-none resize-none leading-relaxed border-none"></textarea>
                 </div>
             </div>
 
@@ -130,13 +138,13 @@
 
     </main>
 
-    <!-- Modal: Create & Push File -->
+    <!-- Modal: Create & Push New File -->
     <div id="create-file-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl flex flex-col overflow-hidden">
             <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/80">
                 <h3 class="text-base font-semibold text-slate-100 flex items-center gap-2">
                     <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i>
-                    <span>Create & Push File to GitHub</span>
+                    <span>Create & Push New File</span>
                 </h3>
                 <button id="close-modal-btn" class="text-slate-400 hover:text-white text-sm p-1">
                     <i class="fa-solid fa-xmark"></i>
@@ -176,6 +184,40 @@
     <script>
         let currentRepoData = { owner: '', repo: '', branch: '', token: '', files: [] };
         let selectedFile = null;
+
+        // --- COOKIE HELPERS ---
+        function setCookie(name, value, days = 30) {
+            const expires = new Date(Date.now() + days * 864e5).toUTCString();
+            document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+        }
+
+        function getCookie(name) {
+            return document.cookie.split('; ').reduce((r, v) => {
+                const parts = v.split('=');
+                return parts[0] === name ? decodeURIComponent(parts[1]) : r;
+            }, '');
+        }
+
+        // --- AUTO-LOAD SAVED TOKEN FROM COOKIE ---
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedToken = getCookie('github_token');
+            if (savedToken) {
+                document.getElementById('token').value = savedToken;
+                document.getElementById('token-status').classList.remove('hidden');
+            }
+        });
+
+        // Save token to cookie on input change
+        document.getElementById('token').addEventListener('input', (e) => {
+            const tokenVal = e.target.value.trim();
+            if (tokenVal) {
+                setCookie('github_token', tokenVal, 30);
+                document.getElementById('token-status').classList.remove('hidden');
+            } else {
+                setCookie('github_token', '', -1); // Clear cookie
+                document.getElementById('token-status').classList.add('hidden');
+            }
+        });
 
         function showNotification(message, type = 'success') {
             const notif = document.getElementById('notification');
@@ -220,6 +262,11 @@
 
             const repoUrlInput = document.getElementById('repo-url').value.trim();
             const token = document.getElementById('token').value.trim();
+
+            if (token) {
+                setCookie('github_token', token, 30);
+                document.getElementById('token-status').classList.remove('hidden');
+            }
 
             const match = repoUrlInput.match(/github\.com\/([^/]+)\/([^/]+)/);
             if (!match) {
@@ -312,18 +359,20 @@
             renderFileList(filtered);
         });
 
-        // --- PREVIEW FILE CONTENT ---
+        // --- PREVIEW & EDIT FILE CONTENT ---
         async function selectFile(file) {
             selectedFile = file;
             document.getElementById('preview-filename').textContent = file.path;
             const placeholder = document.getElementById('preview-placeholder');
-            const contentPre = document.getElementById('preview-content');
+            const editorTextarea = document.getElementById('editor-textarea');
             const downloadBtn = document.getElementById('download-single-btn');
+            const saveEditBtn = document.getElementById('save-edit-btn');
 
             placeholder.classList.remove('hidden');
-            contentPre.classList.add('hidden');
-            placeholder.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-2xl text-indigo-400 mb-2"></i><p class="text-xs text-slate-400">Loading content...</p>`;
+            editorTextarea.classList.add('hidden');
+            placeholder.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-2xl text-indigo-400 mb-2"></i><p class="text-xs text-slate-400">Loading file for editing...</p>`;
             downloadBtn.disabled = true;
+            saveEditBtn.disabled = true;
 
             try {
                 const rawUrl = `https://raw.githubusercontent.com/${currentRepoData.owner}/${currentRepoData.repo}/${currentRepoData.branch}/${file.path}`;
@@ -331,21 +380,81 @@
                 if (!res.ok) throw new Error('Failed to fetch file content.');
                 
                 const text = await res.text();
-                contentPre.textContent = text;
+                editorTextarea.value = text;
+                selectedFile.originalContent = text; // Track original state
+                
                 placeholder.classList.add('hidden');
-                contentPre.classList.remove('hidden');
+                editorTextarea.classList.remove('hidden');
                 downloadBtn.disabled = false;
+                saveEditBtn.disabled = false;
             } catch (err) {
                 placeholder.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-2xl text-amber-400 mb-2"></i><p class="text-xs text-amber-300">${err.message}</p>`;
             }
         }
 
+        // --- SAVE EDITED FILE BACK TO GITHUB ---
+        document.getElementById('save-edit-btn').addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const token = currentRepoData.token || getCookie('github_token');
+            if (!token) {
+                showNotification('GitHub Token required to save edits', 'error');
+                return;
+            }
+
+            const updatedContent = document.getElementById('editor-textarea').value;
+            const path = selectedFile.path;
+
+            setStatus(true, 'Saving changes...', `Pushing updated ${path} to GitHub`);
+
+            try {
+                // Fetch the current file SHA (required by GitHub API to update existing files)
+                const checkUrl = `https://api.github.com/repos/${currentRepoData.owner}/${currentRepoData.repo}/contents/${path}`;
+                const checkRes = await fetch(checkUrl, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' }
+                });
+
+                if (!checkRes.ok) throw new Error('Could not verify file SHA on remote');
+                const fileData = await checkRes.json();
+
+                // Base64 encode updated content
+                const base64Content = btoa(unescape(encodeURIComponent(updatedContent)));
+
+                // PUT update request
+                const saveRes = await fetch(checkUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github+json'
+                    },
+                    body: JSON.stringify({
+                        message: `Update ${path} via browser editor`,
+                        content: base64Content,
+                        sha: fileData.sha,
+                        branch: currentRepoData.branch
+                    })
+                });
+
+                if (!saveRes.ok) {
+                    const errData = await saveRes.json();
+                    throw new Error(errData.message || 'Failed to update file');
+                }
+
+                setStatus(false);
+                showNotification(`Successfully saved changes to ${path}!`);
+
+            } catch (err) {
+                setStatus(false);
+                showNotification(err.message, 'error');
+            }
+        });
+
         // --- DOWNLOAD SINGLE FILE ---
         document.getElementById('download-single-btn').addEventListener('click', async () => {
             if (!selectedFile) return;
-            const rawUrl = `https://raw.githubusercontent.com/${currentRepoData.owner}/${currentRepoData.repo}/${currentRepoData.branch}/${selectedFile.path}`;
-            const res = await fetch(rawUrl);
-            const blob = await res.blob();
+            const content = document.getElementById('editor-textarea').value;
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
             
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -369,8 +478,9 @@
             const total = currentRepoData.files.length;
             let completed = 0;
 
+            const token = currentRepoData.token || getCookie('github_token');
             const headers = {};
-            if (currentRepoData.token) headers['Authorization'] = `Bearer ${currentRepoData.token}`;
+            if (token) headers['Authorization'] = `Bearer ${token}`;
 
             for (const file of currentRepoData.files) {
                 try {
@@ -402,7 +512,7 @@
             showNotification('Repository downloaded as ZIP!');
         });
 
-        // --- CREATE & PUSH FILE VIA BROWSER JS ---
+        // --- CREATE & PUSH NEW FILE ---
         const modal = document.getElementById('create-file-modal');
         document.getElementById('open-create-modal-btn').addEventListener('click', () => modal.classList.remove('hidden'));
         document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
@@ -412,14 +522,14 @@
             const path = document.getElementById('new-file-path').value.trim();
             const message = document.getElementById('new-file-message').value.trim() || `Add ${path} via Browser JS`;
             const content = document.getElementById('new-file-content').value;
-            const token = currentRepoData.token;
+            const token = currentRepoData.token || getCookie('github_token');
 
             if (!path) {
                 showNotification('Please specify a file path', 'error');
                 return;
             }
             if (!token) {
-                showNotification('GitHub Token required in header to push files', 'error');
+                showNotification('GitHub Token required to push files', 'error');
                 return;
             }
 
@@ -427,7 +537,6 @@
             setStatus(true, 'Pushing file to GitHub...', `Creating ${path} on ${currentRepoData.owner}/${currentRepoData.repo}`);
 
             try {
-                // Check if file already exists to retrieve SHA for updates
                 let sha = null;
                 const checkUrl = `https://api.github.com/repos/${currentRepoData.owner}/${currentRepoData.repo}/contents/${path}`;
                 const checkRes = await fetch(checkUrl, {
@@ -439,10 +548,8 @@
                     sha = existingData.sha;
                 }
 
-                // Base64 encode in browser
                 const base64Content = btoa(unescape(encodeURIComponent(content)));
 
-                // Send PUT request
                 const pushRes = await fetch(checkUrl, {
                     method: 'PUT',
                     headers: {
@@ -466,7 +573,6 @@
                 setStatus(false);
                 showNotification(`Pushed ${path} successfully!`);
 
-                // Reset modal inputs & refresh file list
                 document.getElementById('new-file-path').value = '';
                 document.getElementById('new-file-content').value = '';
                 document.getElementById('repo-form').dispatchEvent(new Event('submit'));
