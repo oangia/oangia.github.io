@@ -62,21 +62,6 @@ export class GithubWidget extends BaseWidget {
 
     this.modal.innerHTML = `
       <div class="bg-slate-900 text-slate-100 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-7xl h-[92vh] flex flex-col overflow-hidden">
-        
-        <!-- Header Bar -->
-        <div class="bg-slate-800/80 px-6 py-4 border-b border-slate-700/80 flex items-center justify-between shrink-0">
-            <div class="flex items-center space-x-3">
-                <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-md flex items-center justify-center">
-                    <i class="fa-brands fa-github text-lg"></i>
-                </div>
-                <div>
-                    <h2 class="text-base font-bold text-white">GitHub File Manager & Editor</h2>
-                    <p class="text-xs text-slate-400">Inspect, edit, push, and download repository trees instantly</p>
-                </div>
-            </div>
-            <button type="button" class="gw-close-modal-btn text-slate-400 hover:text-white text-xl p-2 transition rounded-xl hover:bg-slate-700/50">&times;</button>
-        </div>
-
         <!-- Main Workspace Area -->
         <div class="flex-1 overflow-hidden p-4 md:p-6 flex flex-col gap-5 max-w-7xl mx-auto w-full">
             
