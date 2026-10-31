@@ -42,7 +42,7 @@ export class MediaFrameExtractorWidget {
       <div class="bg-slate-100 text-slate-800 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden">
         
         <!-- Header / Toolbar -->
-        <div class="bg-white px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="bg-white px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4 shrink-0">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-lg shadow-inner">
               <i class="fa-solid fa-film"></i>
@@ -70,7 +70,7 @@ export class MediaFrameExtractorWidget {
         </div>
 
         <!-- Meta Status Bar -->
-        <div class="bg-slate-50 border-b border-slate-200 px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="bg-slate-50 border-b border-slate-200 px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shrink-0">
           <div class="flex items-center flex-wrap gap-2.5">
             <span class="widget-file-badge hidden font-medium px-2.5 py-1 rounded-lg bg-slate-200 text-slate-700 items-center gap-1.5">
               <i class="widget-file-icon fa-solid fa-file text-purple-600"></i>
@@ -90,30 +90,32 @@ export class MediaFrameExtractorWidget {
         </div>
 
         <!-- Content Body -->
-        <div class="flex-1 flex flex-col lg:flex-row gap-4 p-5 overflow-hidden">
+        <div class="flex-1 flex flex-col lg:flex-row gap-4 p-5 overflow-hidden min-h-0">
           
           <!-- Left Column: Upload & Settings -->
           <div class="w-full lg:w-80 flex flex-col gap-4 shrink-0 overflow-y-auto custom-scrollbar">
             <!-- Dropzone Card -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-center">
-              <div class="widget-dropzone border-2 border-dashed border-slate-300 hover:border-purple-500 bg-slate-50/70 hover:bg-purple-50/20 transition-all rounded-xl p-6 text-center flex flex-col items-center justify-center cursor-pointer min-h-[180px] relative group">
-                <input type="file" class="widget-media-input accept="image/gif,video/mp4,video/webm,video/ogg,video/quicktime" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+              <div class="widget-dropzone border-2 border-dashed border-slate-300 hover:border-purple-500 bg-slate-50/70 hover:bg-purple-50/20 transition-all rounded-xl p-6 text-center flex flex-col items-center justify-center cursor-pointer min-h-[180px] relative group overflow-hidden">
+                <input type="file" class="widget-media-input absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" accept="image/gif,video/mp4,video/webm,video/ogg,video/quicktime">
                 
-                <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center text-xl group-hover:scale-105 transition-transform mb-2 shadow-inner">
-                  <i class="fa-solid fa-cloud-arrow-up"></i>
+                <div class="pointer-events-none flex flex-col items-center justify-center">
+                  <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center text-xl group-hover:scale-105 transition-transform mb-2 shadow-inner">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                  </div>
+                  
+                  <p class="text-xs font-bold text-slate-800">
+                    Drop GIF/Video or <span class="text-purple-600 underline">browse</span>
+                  </p>
+                  <p class="text-[10px] text-slate-500 mt-1">
+                    Supports MP4, WebM, MOV, OGG, GIF
+                  </p>
                 </div>
-                
-                <p class="text-xs font-bold text-slate-800">
-                  Drop GIF/Video or <span class="text-purple-600 underline">browse</span>
-                </p>
-                <p class="text-[10px] text-slate-500 mt-1">
-                  Supports MP4, WebM, MOV, OGG, GIF
-                </p>
               </div>
             </div>
 
             <!-- Extraction Settings Card -->
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between flex-1">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
               <div>
                 <h4 class="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
                   <i class="fa-solid fa-sliders text-purple-600"></i> Extraction Settings
@@ -145,10 +147,10 @@ export class MediaFrameExtractorWidget {
           </div>
 
           <!-- Right Column: Gallery & Progress -->
-          <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col space-y-4 overflow-hidden">
+          <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col space-y-4 overflow-hidden min-h-0">
             
             <!-- Progress Bar Card -->
-            <div class="widget-progress-container hidden bg-slate-50 border border-slate-200 rounded-xl p-3">
+            <div class="widget-progress-container hidden bg-slate-50 border border-slate-200 rounded-xl p-3 shrink-0">
               <div class="flex justify-between items-center mb-1.5 text-xs">
                 <span class="widget-progress-text font-medium text-slate-700">Processing media...</span>
                 <span class="widget-progress-percent font-bold text-purple-600">0%</span>
@@ -159,7 +161,7 @@ export class MediaFrameExtractorWidget {
             </div>
 
             <!-- Gallery Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 shrink-0">
               <div class="flex items-center gap-3">
                 <h4 class="text-xs font-bold text-slate-800 flex items-center gap-2">
                   <i class="fa-solid fa-images text-purple-600"></i>
@@ -181,8 +183,8 @@ export class MediaFrameExtractorWidget {
               <p class="text-[11px] text-slate-500 mt-1 max-w-xs">Upload a video or GIF and click 'Extract Frames' to sample image thumbnails.</p>
             </div>
 
-            <!-- Frames Grid Container -->
-            <div class="widget-frames-grid hidden flex-1 overflow-y-auto custom-scrollbar pr-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+            <!-- Frames Grid Container (Scrollable) -->
+            <div class="widget-frames-grid hidden flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
           </div>
         </div>
 
@@ -297,7 +299,7 @@ export class MediaFrameExtractorWidget {
       md: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3',
       lg: 'grid-cols-1 sm:grid-cols-2 gap-4'
     };
-    this.dom.framesGrid.className = `widget-frames-grid flex-1 overflow-y-auto custom-scrollbar pr-1 grid ${gridClasses[this.currentThumbSize]}`;
+    this.dom.framesGrid.className = `widget-frames-grid flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 grid ${gridClasses[this.currentThumbSize]}`;
   }
 
   showToast(msg, type = 'info') {
@@ -503,7 +505,7 @@ export class MediaFrameExtractorWidget {
 
     const card = document.createElement('div');
     card.className =
-      'group relative bg-white border border-slate-200 hover:border-purple-500 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col cursor-pointer';
+      'group relative bg-white border border-slate-200 hover:border-purple-500 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col cursor-pointer shrink-0';
 
     card.innerHTML = `
       <div class="relative aspect-video w-full bg-slate-900 flex items-center justify-center overflow-hidden">
