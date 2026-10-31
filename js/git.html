@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub File Extractor</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- JSZip for bulk downloading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 h-full flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-500/30">
+                <i class="fa-solid fa-code-branch text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight">GitHub File Extractor</h1>
+                <p class="text-xs text-slate-400">Extract, explore, and download files directly in your browser</p>
+            </div>
+        </div>
+        <div class="text-xs text-slate-400 hidden sm:block">
+            <span class="bg-slate-700 px-2.5 py-1 rounded-full border border-slate-600"><i class="fa-brands fa-github mr-1"></i> Client-Side Only</span>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 overflow-hidden p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        
+        <!-- Input Form Card -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl shrink-0">
+            <form id="repo-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Owner / User</label>
+                    <input type="text" id="owner" required placeholder="e.g. facebook" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Repository</label>
+                    <input type="text" id="repo" required placeholder="e.g. react" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Branch</label>
+                    <input type="text" id="branch" value="main" required placeholder="main / master" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">GitHub Token <span class="text-slate-500 font-normal">(Optional)</span></label>
+                    <input type="password" id="token" placeholder="ghp_..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <button type="submit" id="fetch-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-medium py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <span>Fetch Files</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Status & Messages Box -->
+        <div id="status-box" class="hidden bg-slate-800/80 border border-slate-700 rounded-xl p-4 flex items-center justify-between shrink-0">
+            <div class="flex items-center space-x-3">
+                <div id="status-spinner" class="animate-spin text-indigo-400 text-lg">
+                    <i class="fa-solid fa-circle-notch"></i>
+                </div>
+                <div>
+                    <p id="status-text" class="text-sm font-medium text-slate-200">Connecting to GitHub repository...</p>
+                    <p id="status-subtext" class="text-xs text-slate-400">Fetching git tree structure</p>
+                </div>
+            </div>
+            <div id="progress-container" class="hidden w-48 bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                <div id="progress-bar" class="bg-indigo-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Workspace Area (Hidden by default) -->
+        <div id="workspace" class="hidden flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden">
+            
+            <!-- File Explorer Pane -->
+            <div class="lg:col-span-1 bg-slate-800 border border-slate-700 rounded-2xl flex flex-col overflow-hidden shadow-xl">
+                <!-- Toolbar -->
+                <div class="p-3.5 border-b border-slate-700 flex items-center justify-between bg-slate-800/50 shrink-0 gap-2">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-filter absolute left-3 top-3 text-slate-500 text-xs"></i>
+                        <input type="text" id="file-filter" placeholder="Filter files..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                    </div>
+                    <button id="download-zip-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow transition flex items-center space-x-1.5 shrink-0">
+                        <i class="fa-solid fa-file-zipper"></i>
+                        <span>Download ZIP</span>
+                    </button>
+                </div>
+
+                <!-- Stats summary -->
+                <div class="px-4 py-2 bg-slate-900/50 border-b border-slate-700/60 text-xs text-slate-400 flex justify-between items-center shrink-0">
+                    <span id="file-count-label">0 files found</span>
+                    <span id="repo-branch-label" class="font-mono text-slate-300"></span>
+                </div>
+
+                <!-- File Tree List -->
+                <div id="file-list" class="flex-1 overflow-y-auto divide-y divide-slate-700/40 p-2 space-y-1">
+                    <!-- Dynamically populated files -->
+                </div>
+            </div>
+
+            <!-- File Preview Pane -->
+            <div class="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-2xl flex flex-col overflow-hidden shadow-xl">
+                <div class="p-3.5 border-b border-slate-700 flex items-center justify-between bg-slate-800/50 shrink-0">
+                    <div class="flex items-center space-x-2 truncate">
+                        <i class="fa-regular fa-file-code text-indigo-400"></i>
+                        <span id="preview-filename" class="text-sm font-medium text-slate-200 truncate">Select a file to preview</span>
+                    </div>
+                    <div class="flex items-center space-x-2 shrink-0">
+                        <button id="download-single-btn" disabled class="bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-xs text-white px-3 py-1.5 rounded-lg transition flex items-center space-x-1">
+                            <i class="fa-solid fa-download"></i>
+                            <span>Download File</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 bg-slate-950 overflow-auto p-4 relative">
+                    <div id="preview-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-center p-6">
+                        <i class="fa-regular fa-folder-open text-4xl mb-3 text-slate-600"></i>
+                        <p class="text-sm">Click on any file from the left panel to inspect its content or download it individually.</p>
+                    </div>
+                    <pre id="preview-content" class="hidden text-xs font-mono text-slate-300 whitespace-pre-wrap leading-relaxed"></pre>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Custom Notification Box -->
+    <div id="notification" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3">
+        <i id="notification-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="notification-message" class="text-sm font-medium">Notification message</span>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        let currentRepoData = {
+            owner: '',
+            repo: '',
+            branch: '',
+            token: '',
+            files: []
+        };
+
+        let selectedFile = null;
+
+        function showNotification(message, type = 'success') {
+            const notif = document.getElementById('notification');
+            const icon = document.getElementById('notification-icon');
+            const msg = document.getElementById('notification-message');
+
+            msg.textContent = message;
+            if (type === 'success') {
+                icon.className = 'fa-solid fa-circle-check text-emerald-400 text-lg';
+            } else {
+                icon.className = 'fa-solid fa-triangle-exclamation text-amber-400 text-lg';
+            }
+
+            notif.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                notif.classList.add('translate-y-20', 'opacity-0');
+            }, 3500);
+        }
+
+        function setStatus(visible, text = '', subtext = '', showSpinner = true, showProgress = false) {
+            const statusBox = document.getElementById('status-box');
+            const spinner = document.getElementById('status-spinner');
+            const statusText = document.getElementById('status-text');
+            const statusSubtext = document.getElementById('status-subtext');
+            const progressContainer = document.getElementById('progress-container');
+
+            if (!visible) {
+                statusBox.classList.add('hidden');
+                return;
+            }
+
+            statusBox.classList.remove('hidden');
+            statusText.textContent = text;
+            statusSubtext.textContent = subtext;
+            spinner.style.display = showSpinner ? 'block' : 'none';
+            progressContainer.style.display = showProgress ? 'block' : 'none';
+        }
+
+        function updateProgress(percent) {
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.width = `${percent}%`;
+        }
+
+        document.getElementById('repo-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const owner = document.getElementById('owner').value.trim();
+            const repo = document.getElementById('repo').value.trim();
+            const branch = document.getElementById('branch').value.trim();
+            const token = document.getElementById('token').value.trim();
+
+            currentRepoData = { owner, repo, branch, token, files: [] };
+
+            setStatus(true, 'Connecting to GitHub...', `Fetching tree for ${owner}/${repo}@${branch}`);
+            document.getElementById('workspace').classList.add('hidden');
+
+            const headers = {
+                'Accept': 'application/vnd.github+json'
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            try {
+                // 1. Get tree recursively
+                const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
+                const response = await fetch(treeUrl, { headers });
+
+                if (!response.ok) {
+                    if (response.status === 404) throw new Error('Repository or branch not found.');
+                    if (response.status === 403) throw new Error('API rate limit exceeded. Provide a GitHub token.');
+                    throw new Error(`Failed to fetch repository tree: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.truncated) {
+                    showNotification('Warning: Repository tree was truncated by GitHub because it is too large.', 'warning');
+                }
+
+                // Filter only blobs (files)
+                const files = data.tree.filter(item => item.type === 'blob');
+                currentRepoData.files = files;
+
+                if (files.length === 0) {
+                    throw new Error('No files found in this repository branch.');
+                }
+
+                // Render File Explorer
+                renderFileList(files);
+                document.getElementById('file-count-label').textContent = `${files.length} files extracted`;
+                document.getElementById('repo-branch-label').textContent = `${owner}/${repo}:${branch}`;
+                
+                setStatus(false);
+                document.getElementById('workspace').classList.remove('hidden');
+                document.getElementById('workspace').classList.add('grid');
+                showNotification(`Successfully fetched ${files.length} files!`);
+
+            } catch (err) {
+                setStatus(false);
+                showNotification(err.message, 'error');
+            }
+        });
+
+        function renderFileList(files) {
+            const listContainer = document.getElementById('file-list');
+            listContainer.innerHTML = '';
+
+            files.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'file-item group flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-700/50 cursor-pointer transition';
+                item.dataset.path = file.path;
+
+                // File Icon determination
+                let iconClass = 'fa-regular fa-file text-slate-400';
+                const ext = file.path.split('.').pop().toLowerCase();
+                if (['js', 'ts', 'jsx', 'tsx'].includes(ext)) iconClass = 'fa-brands fa-js text-amber-400';
+                else if (['html', 'htm'].includes(ext)) iconClass = 'fa-brands fa-html5 text-orange-400';
+                else if (['css', 'scss', 'less'].includes(ext)) iconClass = 'fa-brands fa-css3-alt text-blue-400';
+                else if (['json'].includes(ext)) iconClass = 'fa-solid fa-brackets-curly text-yellow-300';
+                else if (['md', 'txt'].includes(ext)) iconClass = 'fa-regular fa-file-lines text-slate-300';
+                else if (['png', 'jpg', 'jpeg', 'svg', 'gif'].includes(ext)) iconClass = 'fa-regular fa-file-image text-emerald-400';
+
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2.5 truncate mr-2">
+                        <i class="${iconClass} text-base shrink-0"></i>
+                        <span class="text-xs font-medium text-slate-300 group-hover:text-white truncate">${file.path}</span>
+                    </div>
+                    <span class="text-[10px] font-mono text-slate-500 shrink-0">${formatBytes(file.size || 0)}</span>
+                `;
+
+                item.addEventListener('click', () => selectFile(file));
+                listContainer.appendChild(item);
+            });
+        }
+
+        // Filter search listener
+        document.getElementById('file-filter').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = currentRepoData.files.filter(f => f.path.toLowerCase().includes(query));
+            renderFileList(filtered);
+        });
+
+        async function selectFile(file) {
+            selectedFile = file;
+            document.getElementById('preview-filename').textContent = file.path;
+            const placeholder = document.getElementById('preview-placeholder');
+            const contentPre = document.getElementById('preview-content');
+            const downloadBtn = document.getElementById('download-single-btn');
+
+            placeholder.classList.remove('hidden');
+            contentPre.classList.add('hidden');
+            placeholder.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-2xl text-indigo-400 mb-2"></i><p class="text-xs text-slate-400">Loading file content...</p>`;
+            downloadBtn.disabled = true;
+
+            try {
+                const rawUrl = `https://raw.githubusercontent.com/${currentRepoData.owner}/${currentRepoData.repo}/${currentRepoData.branch}/${file.path}`;
+                const res = await fetch(rawUrl);
+                if (!res.ok) throw new Error('Failed to fetch file content.');
+                
+                const text = await res.text();
+                contentPre.textContent = text;
+                placeholder.classList.add('hidden');
+                contentPre.classList.remove('hidden');
+                downloadBtn.disabled = false;
+            } catch (err) {
+                placeholder.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-2xl text-amber-400 mb-2"></i><p class="text-xs text-amber-300">${err.message}</p>`;
+            }
+        }
+
+        // Download single file
+        document.getElementById('download-single-btn').addEventListener('click', async () => {
+            if (!selectedFile) return;
+            try {
+                const rawUrl = `https://raw.githubusercontent.com/${currentRepoData.owner}/${currentRepoData.repo}/${currentRepoData.branch}/${selectedFile.path}`;
+                const res = await fetch(rawUrl);
+                const blob = await res.blob();
+                
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = selectedFile.path.split('/').pop();
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification(`Downloaded ${selectedFile.path}`);
+            } catch (err) {
+                showNotification('Failed to download file.', 'error');
+            }
+        });
+
+        // Download All as ZIP
+        document.getElementById('download-zip-btn').addEventListener('click', async () => {
+            if (currentRepoData.files.length === 0) return;
+
+            setStatus(true, 'Preparing ZIP archive...', 'Fetching repository files in bulk', false, true);
+            updateProgress(0);
+
+            const zip = new JSZip();
+            const total = currentRepoData.files.length;
+            let completed = 0;
+
+            const headers = {};
+            if (currentRepoData.token) headers['Authorization'] = `Bearer ${currentRepoData.token}`;
+
+            for (const file of currentRepoData.files) {
+                try {
+                    const rawUrl = `https://raw.githubusercontent.com/${currentRepoData.owner}/${currentRepoData.repo}/${currentRepoData.branch}/${file.path}`;
+                    const res = await fetch(rawUrl, { headers });
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        zip.file(file.path, blob);
+                    }
+                } catch (e) {
+                    console.error(`Skipped ${file.path} due to network error`);
+                }
+
+                completed++;
+                const percent = Math.round((completed / total) * 100);
+                updateProgress(percent);
+                document.getElementById('status-subtext').textContent = `Downloaded ${completed} of ${total} files`;
+            }
+
+            setStatus(true, 'Compressing files into ZIP...', 'Generating archive blob', false, false);
+
+            try {
+                const content = await zip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${currentRepoData.repo}-${currentRepoData.branch}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                setStatus(false);
+                showNotification('Repository successfully downloaded as ZIP!');
+            } catch (err) {
+                setStatus(false);
+                showNotification('Failed to generate ZIP file.', 'error');
+            }
+        });
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>
