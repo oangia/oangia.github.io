@@ -1,16 +1,7 @@
 export class ConfigManager {
-  /**
-   * @param {Object} options
-   * @param {string} options.buttonSelector - CSS selector for the toggle button (e.g., '#toggleConfigBtn')
-   * @param {Object} options.fbService - An instance of your FirebaseService
-   * @param {Function} [options.onConnect] - Callback triggered when config is successfully saved/connected
-   * @param {Function} [options.onDemo] - Callback triggered when cookie is cleared and reverted to demo mode
-   */
-  constructor({ buttonSelector, fbService, onConnect, onDemo }) {
+  constructor(btnId, { fbService }) {
     this.fbService = fbService;
-    this.onConnect = onConnect;
-    this.onDemo = onDemo;
-    this.toggleBtn = document.querySelector(buttonSelector);
+    this.toggleBtn = document.getElementById(btnId);
 
     if (!this.toggleBtn) {
       console.warn(`ConfigManager: Button "${buttonSelector}" not found.`);
@@ -109,9 +100,6 @@ export class ConfigManager {
 
     if (this.fbService.connect(parsed)) {
       this.close();
-      if (typeof this.onConnect === "function") this.onConnect(true);
-    } else {
-      if (typeof this.onConnect === "function") this.onConnect(false);
     }
   }
 
@@ -119,7 +107,6 @@ export class ConfigManager {
     this.fbService.eraseCookie(this.fbService.cookieName);
     this.textarea.value = "";
     this.close();
-    if (typeof this.onDemo === "function") this.onDemo();
   }
 
   _checkInitialCookie() {
@@ -128,10 +115,8 @@ export class ConfigManager {
       this.textarea.value = saved;
       const parsed = this.fbService.parseConfig(saved);
       if (parsed && this.fbService.connect(parsed)) {
-        if (typeof this.onConnect === "function") this.onConnect(true);
         return;
       }
     }
-    if (typeof this.onDemo === "function") this.onDemo();
   }
 }
