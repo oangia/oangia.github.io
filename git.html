@@ -38,18 +38,10 @@
         
         <!-- Input Form Card -->
         <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl shrink-0">
-            <form id="repo-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Owner / User</label>
-                    <input type="text" id="owner" required placeholder="e.g. facebook" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Repository</label>
-                    <input type="text" id="repo" required placeholder="e.g. react" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Branch</label>
-                    <input type="text" id="branch" value="main" required placeholder="main / master" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+            <form id="repo-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">GitHub Repository Link</label>
+                    <input type="url" id="repo-url" required value="https://github.com/oangia/oangia.github.io" placeholder="https://github.com/owner/repository" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">GitHub Token <span class="text-slate-500 font-normal">(Optional)</span></label>
@@ -199,14 +191,20 @@
         document.getElementById('repo-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const owner = document.getElementById('owner').value.trim();
-            const repo = document.getElementById('repo').value.trim();
-            const branch = document.getElementById('branch').value.trim();
+            const repoUrlInput = document.getElementById('repo-url').value.trim();
             const token = document.getElementById('token').value.trim();
 
-            currentRepoData = { owner, repo, branch, token, files: [] };
+            // Parse owner and repo from URL
+            const match = repoUrlInput.match(/github\.com\/([^/]+)\/([^/]+)/);
+            if (!match) {
+                showNotification('Invalid GitHub URL format', 'error');
+                return;
+            }
 
-            setStatus(true, 'Connecting to GitHub...', `Fetching tree for ${owner}/${repo}@${branch}`);
+            const owner = match[1];
+            const repo = match[2].replace(/\.git$/, '');
+
+            setStatus(true, 'Connecting to GitHub...', `Resolving default branch for ${owner}/${repo}`);
             document.getElementById('workspace').classList.add('hidden');
 
             const headers = {
@@ -217,20 +215,31 @@
             }
 
             try {
-                // 1. Get tree recursively
+                // 1. Fetch default branch name
+                const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+                if (!repoRes.ok) {
+                    if (repoRes.status === 404) throw new Error('Repository not found or private.');
+                    if (repoRes.status === 403) throw new Error('API rate limit exceeded. Provide a token.');
+                    throw new Error(`Failed to fetch repo info: ${repoRes.statusText}`);
+                }
+                const repoInfo = await repoRes.json();
+                const branch = repoInfo.default_branch || 'main';
+
+                currentRepoData = { owner, repo, branch, token, files: [] };
+
+                // 2. Get tree recursively
+                setStatus(true, 'Fetching file tree...', `Loading tree structure for ${owner}/${repo}@${branch}`);
                 const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
                 const response = await fetch(treeUrl, { headers });
 
                 if (!response.ok) {
-                    if (response.status === 404) throw new Error('Repository or branch not found.');
-                    if (response.status === 403) throw new Error('API rate limit exceeded. Provide a GitHub token.');
-                    throw new Error(`Failed to fetch repository tree: ${response.statusText}`);
+                    throw new Error(`Failed to fetch tree: ${response.statusText}`);
                 }
 
                 const data = await response.json();
                 
                 if (data.truncated) {
-                    showNotification('Warning: Repository tree was truncated by GitHub because it is too large.', 'warning');
+                    showNotification('Warning: Repository tree was truncated by GitHub.', 'warning');
                 }
 
                 // Filter only blobs (files)
@@ -261,7 +270,7 @@
             const listContainer = document.getElementById('file-list');
             listContainer.innerHTML = '';
 
-            files.forEach((file, index) => {
+            files.forEach((file) => {
                 const item = document.createElement('div');
                 item.className = 'file-item group flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-700/50 cursor-pointer transition';
                 item.dataset.path = file.path;
