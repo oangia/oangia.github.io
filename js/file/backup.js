@@ -84,4 +84,8 @@ export class FileBackup {
     downloadAnchor.click();
     downloadAnchor.remove();
   }
+
+  switch(collections) {
+    this.collections = collections;
+  }
 }
