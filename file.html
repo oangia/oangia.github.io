@@ -73,7 +73,7 @@
       fileChunksCollection: collectionConfigs.home.fileChunksCollection
     });
     fileManager.init();
-
+    window.fileManager = fileManager;
     function switchSpace(spaceKey) {
       activeSpace = spaceKey;
       const config = collectionConfigs[spaceKey];
