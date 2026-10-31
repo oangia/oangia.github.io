@@ -1,10 +1,14 @@
-export class DailyTaskTracker {
+import { BaseWidget } from './BaseWidget.js';
+
+export class DailyTaskTracker extends BaseWidget {
   constructor(
     tasks = {
       Basic: ['Exercises', 'Reading', 'Learn an expression', 'Diet'],
       Music: ['Learn songs', 'Practice singing']
-    }
+    },
+    options = {}
   ) {
+    super(options);
     this.tasks = tasks;
     this.cookieName = 'daily_tasks_status';
     this.init();
@@ -20,13 +24,13 @@ export class DailyTaskTracker {
     // Floating Checklist Icon Button
     this.floatBtn = document.createElement('div');
     this.floatBtn.className =
-      'fixed bottom-6 right-6 w-14 h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer z-50 transition-all duration-200 hover:scale-105';
+      'w-14 h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer transition-all duration-200 hover:scale-105';
     this.floatBtn.innerHTML = `<i class="fa-solid fa-list-check text-xl"></i>`;
 
-    // Pop-up Card
+    // Pop-up Card (Positioned above or alongside nicely in the stack)
     this.popup = document.createElement('div');
     this.popup.className =
-      'fixed bottom-24 right-6 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 hidden flex-col z-50 overflow-hidden font-sans';
+      'absolute bottom-20 right-0 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 hidden flex-col z-50 overflow-hidden font-sans';
 
     const header = document.createElement('div');
     header.className =
@@ -75,8 +79,9 @@ export class DailyTaskTracker {
     this.popup.appendChild(header);
     this.popup.appendChild(container);
 
-    document.body.appendChild(this.floatBtn);
-    document.body.appendChild(this.popup);
+    // Append both to the wrapper managed by BaseWidget
+    this.wrapper.appendChild(this.floatBtn);
+    this.wrapper.appendChild(this.popup);
   }
 
   attachEvents() {
