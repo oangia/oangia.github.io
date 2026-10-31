@@ -1,5 +1,8 @@
-export class PdfExtractorWidget {
+import { BaseWidget } from './BaseWidget.js';
+
+export class PdfExtractorWidget extends BaseWidget {
   constructor(options = {}) {
+    super(options);
     this.workerSrc = options.workerSrc || 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     this.currentFile = null;
 
@@ -20,12 +23,12 @@ export class PdfExtractorWidget {
   }
 
   createUI() {
-    // Floating Trigger Button
+    // Floating Trigger Button (Positioning handled by the shared vertical container)
     this.floatBtn = document.createElement('button');
     this.floatBtn.type = 'button';
     this.floatBtn.ariaLabel = 'Open PDF Extractor';
     this.floatBtn.className =
-      'fixed bottom-6 right-24 w-14 h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer z-50 transition-all duration-200 hover:scale-105';
+      'w-14 h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer transition-all duration-200 hover:scale-105';
     this.floatBtn.innerHTML = `<i class="fa-solid fa-file-pdf text-xl"></i>`;
 
     // Modal Drawer / Panel Container
@@ -131,7 +134,8 @@ export class PdfExtractorWidget {
       </div>
     `;
 
-    document.body.appendChild(this.floatBtn);
+    // Append to wrapper inside the shared vertical container managed by BaseWidget
+    this.wrapper.appendChild(this.floatBtn);
     document.body.appendChild(this.modal);
   }
 
@@ -162,14 +166,12 @@ export class PdfExtractorWidget {
   }
 
   attachEvents() {
-    // Toggle Modal
     this.floatBtn.addEventListener('click', () => this.openModal());
     this.dom.closeBtn.addEventListener('click', () => this.closeModal());
     this.modal.addEventListener('click', (e) => {
       if (e.target === this.modal) this.closeModal();
     });
 
-    // File Input & Browse
     this.dom.browseBtn.addEventListener('click', () => this.dom.fileInput.click());
     this.dom.fileInput.addEventListener('change', (e) => {
       if (e.target.files && e.target.files[0]) {
@@ -178,7 +180,6 @@ export class PdfExtractorWidget {
       }
     });
 
-    // Mode Selection Change
     this.dom.modeRadios.forEach((radio) => {
       radio.addEventListener('change', () => {
         const mode = this.getSelectedMode();
@@ -187,7 +188,6 @@ export class PdfExtractorWidget {
       });
     });
 
-    // Drag and Drop
     ['dragenter', 'dragover'].forEach((eventName) => {
       this.dom.dropZone.addEventListener(eventName, (e) => {
         e.preventDefault();
@@ -216,7 +216,6 @@ export class PdfExtractorWidget {
       }
     });
 
-    // Actions
     this.dom.copyBtn.addEventListener('click', () => this.copyOutput());
     this.dom.downloadBtn.addEventListener('click', () => this.downloadMd());
   }
