@@ -1,7 +1,6 @@
 export class Widget {
   constructor(options = {}) {
     this.id = options.id || Math.random().toString(36).substring(2, 9);
-    this.floatBtn.ariaLabel = 'Open Widget';
     this.createLayout();
   }
   
