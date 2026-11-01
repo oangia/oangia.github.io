@@ -1,12 +1,8 @@
-import { Widget } from './widget.js';
+import { Widget } from './Widget.js';
 
 export class PhotoshopWidget extends Widget {
   constructor(options = {}) {
-    super({
-      ...options,
-      icon: '<span class="font-bold text-lg">Ps</span>',
-      bgClass: 'bg-cyan-600 hover:bg-cyan-700'
-    });
+    super(options);
     this.cropperCssUrl = options.cropperCssUrl || 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css';
     this.cropperJsUrl = options.cropperJsUrl || 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js';
     this.initialImageUrl = options.initialImageUrl || 'https://images.unsplash.com/photo-1575936123452-b67c3203c357?auto=format&fit=crop&w=800&q=80';
@@ -28,6 +24,13 @@ export class PhotoshopWidget extends Widget {
     this.init();
   }
 
+  init() {
+    this.loadDependencies();
+    this.createUI();
+    this.cacheDomReferences();
+    this.initEditor();
+  }
+
   loadDependencies() {
     if (!document.getElementById('cropper-css')) {
       const link = document.createElement('link');
@@ -45,18 +48,15 @@ export class PhotoshopWidget extends Widget {
     }
   }
 
-  init() {
-    this.loadDependencies();
-    this.createUI();
-    this.cacheDomReferences();
-    this.initEditor();
-  }
-
   createUI() {
-    // Floating Trigger Button is handled by parent Widget constructor & createFloatButton()
+    // 1. Create floating trigger button using parent helper
+    this.createFloatButton(
+      `<span class="font-bold text-lg">Ps</span>`,
+      'bg-cyan-600 hover:bg-cyan-700'
+    );
     this.floatBtn.ariaLabel = 'Open Photoshop Web';
 
-    // Modal Drawer / Panel Container
+    // 2. Modal Drawer / Panel Container
     this.modal = document.createElement('div');
     this.modal.className =
       'fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4 font-sans';
@@ -119,8 +119,9 @@ export class PhotoshopWidget extends Widget {
       </div>
     `;
 
-    // Append modal to wrapper managed by parent Widget and wire up flow
-    this.wrapper.appendChild(this.modal);
+    document.body.appendChild(this.modal);
+
+    // 3. Bind toggle behavior using parent helper
     this.bindToggle(this.modal, '.widget-close-btn');
   }
 
@@ -163,14 +164,6 @@ export class PhotoshopWidget extends Widget {
   }
 
   initEditor() {
-    this.modal.addEventListener('click', (e) => {
-      if (e.target === this.modal) {
-        this.close();
-      }
-    });
-
-    this.dom.uploadLabel.addEventListener('click', () => this.dom.uploadInput.click());
-
     this.loadedImage.crossOrigin = 'anonymous';
     this.loadedImage.src = this.initialImageUrl;
     this.loadedImage.onload = () => this.resetCanvasToImage(this.loadedImage);
@@ -689,6 +682,9 @@ export class PhotoshopWidget extends Widget {
     zoomSection.querySelector('#w-zoom-out').onclick = () => {
         if (this.zoomLevel > 0.5) { this.zoomLevel -= 0.25; this.applyZoom(zoomSection); }
     };
+
+    // 3. Bind toggle using parent helper
+    this.bindToggle(this.modal, '.widget-close-btn');
   }
 
   applyZoom(zoomSection) {
