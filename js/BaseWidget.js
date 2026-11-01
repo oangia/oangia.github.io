@@ -2,10 +2,12 @@ export class BaseWidget {
   constructor(options = {}) {
     // ✅ Fixed: .toString(36) is called first, then .substring()
     this.id = options.id || Math.random().toString(36).substring(2, 9);
-    this.initBaseUI();
+    this.createLayout();
   }
-
-  initBaseUI() {
+  
+  loadDependencies() { }
+  createUI() {}
+  createLayout() {
     let container = document.getElementById('floating-widgets-container');
     if (!container) {
       container = document.createElement('div');
