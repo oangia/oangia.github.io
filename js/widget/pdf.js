@@ -1,4 +1,4 @@
-import { Widget } from './widget.js';
+import { Widget } from './Widget.js';
 
 export class PdfExtractorWidget extends Widget {
   constructor(options = {}) {
@@ -23,11 +23,14 @@ export class PdfExtractorWidget extends Widget {
   }
 
   createUI() {
-    // 1. Let parent handle floating trigger button creation
-    this.createFloatButton('<i class="fa-solid fa-file-pdf text-xl"></i>', 'bg-rose-600 hover:bg-rose-700');
+    // 1. Create floating trigger button using parent helper
+    this.createFloatButton(
+      `<i class="fa-solid fa-file-pdf text-xl"></i>`,
+      'bg-rose-600 hover:bg-rose-700'
+    );
     this.floatBtn.ariaLabel = 'Open PDF Extractor';
 
-    // 2. Modal Drawer / Panel Container
+    // 2. Create Modal Drawer / Panel Container
     this.modal = document.createElement('div');
     this.modal.className =
       'fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4 font-sans';
@@ -116,7 +119,7 @@ export class PdfExtractorWidget extends Widget {
             </div>
             <h3 class="text-sm font-bold text-slate-800 mb-1">Select a PDF file to begin extraction</h3>
             <p class="text-xs text-slate-500 max-w-sm mb-4">Extract clean Markdown headings, structured lists, and formatted document content right in your browser.</p>
-            <button type="button" class="widget-browse-btn bg-rose-600 hover:bg-rose-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm">
+            <button type="button" class="widget-browse-btn bg-rose-600 hover:bg-rose-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm pointer-events-none">
               <i class="fa-solid fa-folder-open"></i> Browse PDF
             </button>
           </div>
@@ -130,10 +133,9 @@ export class PdfExtractorWidget extends Widget {
       </div>
     `;
 
-    // Append modal to wrapper managed by parent Widget
-    this.wrapper.appendChild(this.modal);
+    document.body.appendChild(this.modal);
 
-    // 3. Let parent handle shared toggle & close behavior
+    // 3. Bind toggle behavior using parent helper
     this.bindToggle(this.modal, '.widget-close-btn');
   }
 
@@ -164,11 +166,7 @@ export class PdfExtractorWidget extends Widget {
   }
 
   attachEvents() {
-    this.modal.addEventListener('click', (e) => {
-      if (e.target === this.modal) this.bindToggle(this.modal); // closes modal via toggle flow if clicking backdrop
-    });
-
-    this.dom.browseBtn.addEventListener('click', () => this.dom.fileInput.click());
+    this.dom.dropZone.addEventListener('click', () => this.dom.fileInput.click());
     this.dom.fileInput.addEventListener('change', (e) => {
       if (e.target.files && e.target.files[0]) {
         this.currentFile = e.target.files[0];
