@@ -1,12 +1,8 @@
-import { Widget } from './widget.js';
+import { Widget } from './Widget.js';
 
 export class MediaFrameExtractorWidget extends Widget {
   constructor(options = {}) {
-    super({
-      ...options,
-      icon: '<i class="fa-solid fa-film text-xl"></i>',
-      bgClass: 'bg-purple-600 hover:bg-purple-700'
-    });
+    super(options);
     this.omggifWorkerSrc = options.omggifWorkerSrc || 'https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js';
     this.currentFile = null;
     this.currentThumbSize = 'md';
@@ -15,7 +11,14 @@ export class MediaFrameExtractorWidget extends Widget {
     this.init();
   }
 
-  loadDependencies() {
+  init() {
+    this.loadOmggifScript();
+    this.createUI();
+    this.cacheDomReferences();
+    this.attachEvents();
+  }
+
+  loadOmggifScript() {
     if (typeof GifReader === 'undefined' && !document.getElementById('omggif-script')) {
       const script = document.createElement('script');
       script.id = 'omggif-script';
@@ -24,18 +27,15 @@ export class MediaFrameExtractorWidget extends Widget {
     }
   }
 
-  init() {
-    this.loadDependencies();
-    this.createUI();
-    this.cacheDomReferences();
-    this.attachEvents();
-  }
-
   createUI() {
-    // Floating button and container setup are handled by parent Widget constructor & createFloatButton()
+    // 1. Create floating trigger button using parent helper
+    this.createFloatButton(
+      `<i class="fa-solid fa-film text-xl"></i>`,
+      'bg-purple-600 hover:bg-purple-700'
+    );
     this.floatBtn.ariaLabel = 'Open Frame Extractor';
 
-    // Modal Drawer / Panel Container
+    // 2. Create Modal Drawer / Panel Container
     this.modal = document.createElement('div');
     this.modal.className =
       'fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4 font-sans';
@@ -163,8 +163,9 @@ export class MediaFrameExtractorWidget extends Widget {
       </div>
     `;
 
-    // Append modal to wrapper managed by parent Widget and wire up flow
-    this.wrapper.appendChild(this.modal);
+    document.body.appendChild(this.modal);
+
+    // 3. Bind toggle behavior using parent helper
     this.bindToggle(this.modal, '.widget-close-btn');
   }
 
@@ -199,7 +200,7 @@ export class MediaFrameExtractorWidget extends Widget {
 
   attachEvents() {
     this.modal.addEventListener('click', (e) => {
-      if (e.target === this.modal) this.close();
+      if (e.target === this.modal) this.closeModal();
     });
 
     this.dom.frameCountInput.addEventListener('input', (e) => {
@@ -242,6 +243,18 @@ export class MediaFrameExtractorWidget extends Widget {
     });
 
     this.dom.extractBtn.addEventListener('click', () => this.startExtraction());
+  }
+
+  // Override close/open modal if custom cleanup is needed, or rely on bindToggle.
+  // We can also alias openModal/closeModal explicitly for internal methods:
+  openModal() {
+    this.modal.classList.remove('hidden');
+    this.modal.classList.add('flex');
+  }
+
+  closeModal() {
+    this.modal.classList.remove('flex');
+    this.modal.classList.add('hidden');
   }
 
   updateGridSizeClass() {
