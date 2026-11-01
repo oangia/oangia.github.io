@@ -121,7 +121,7 @@ export class PhotoshopWidget extends Widget {
 
     document.body.appendChild(this.modal);
 
-    // 3. Bind toggle behavior using parent helper
+    // 3. Safely bind toggle behavior using parent helper immediately
     this.bindToggle(this.modal, '.widget-close-btn');
   }
 
@@ -682,9 +682,6 @@ export class PhotoshopWidget extends Widget {
     zoomSection.querySelector('#w-zoom-out').onclick = () => {
         if (this.zoomLevel > 0.5) { this.zoomLevel -= 0.25; this.applyZoom(zoomSection); }
     };
-
-    // 3. Bind toggle using parent helper
-    this.bindToggle(this.modal, '.widget-close-btn');
   }
 
   applyZoom(zoomSection) {
