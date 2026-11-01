@@ -1,4 +1,4 @@
-import { Widget } from './Widget.js';
+import { Widget } from './widget.js';
 
 export class MediaFrameExtractorWidget extends Widget {
   constructor(options = {}) {
