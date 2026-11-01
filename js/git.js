@@ -44,10 +44,31 @@ export class GithubWidget extends BaseWidget {
       script.src = this.jszipUrl;
       document.head.appendChild(script);
     }
+
+    if (!document.getElementById('github-widget-prism-css')) {
+      const link = document.createElement('link');
+      link.id = 'github-widget-prism-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css';
+      document.head.appendChild(link);
+    }
+
+    if (!document.getElementById('github-widget-prism-js')) {
+      const script = document.createElement('script');
+      script.id = 'github-widget-prism-js';
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js';
+      document.head.appendChild(script);
+    }
+
+    if (!document.getElementById('github-widget-prism-autoloader')) {
+      const script = document.createElement('script');
+      script.id = 'github-widget-prism-autoloader';
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js';
+      document.head.appendChild(script);
+    }
   }
 
   createUI() {
-    // 1. Floating Trigger Button appended to the BaseWidget vertical stack wrapper
     this.floatBtn = document.createElement('button');
     this.floatBtn.type = 'button';
     this.floatBtn.ariaLabel = 'Open GitHub File Manager';
@@ -55,7 +76,6 @@ export class GithubWidget extends BaseWidget {
       'w-14 h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer transition-all duration-200 hover:scale-105';
     this.floatBtn.innerHTML = `<i class="fa-brands fa-github text-2xl"></i>`;
 
-    // 2. Exact modal overlay containing your precise HTML layout
     this.modal = document.createElement('div');
     this.modal.className =
       'fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm hidden items-center justify-center p-4 font-sans';
@@ -156,7 +176,12 @@ export class GithubWidget extends BaseWidget {
                             <i class="fa-regular fa-folder-open text-4xl mb-3 text-slate-600"></i>
                             <p class="text-sm">Click on any file from the left panel to edit its content directly, or create a new file.</p>
                         </div>
-                        <textarea id="gw-editor-textarea" class="hidden w-full h-full bg-slate-950 p-4 text-xs font-mono text-slate-200 focus:outline-none resize-none leading-relaxed border-none"></textarea>
+                        
+                        <!-- Dual-layer Editor Container for HTML/JS styling with tab support & scroll sync -->
+                        <div id="gw-editor-container" class="hidden absolute inset-0 overflow-auto bg-[#272822]">
+                            <textarea id="gw-editor-textarea" class="absolute inset-0 w-full h-full p-4 text-xs font-mono text-transparent bg-transparent caret-white focus:outline-none resize-none leading-relaxed border-none z-10 whitespace-pre wrap-none" spellcheck="false"></textarea>
+                            <pre aria-hidden="true" class="absolute inset-0 w-full h-full m-0 p-4 text-xs font-mono leading-relaxed bg-transparent pointer-events-none z-0"><code id="gw-editor-code" class="language-javascript"></code></pre>
+                        </div>
                     </div>
                 </div>
 
@@ -237,7 +262,9 @@ export class GithubWidget extends BaseWidget {
       saveEditBtn: m.querySelector('#gw-save-edit-btn'),
       downloadSingleBtn: m.querySelector('#gw-download-single-btn'),
       previewPlaceholder: m.querySelector('#gw-preview-placeholder'),
+      editorContainer: m.querySelector('#gw-editor-container'),
       editorTextarea: m.querySelector('#gw-editor-textarea'),
+      editorCode: m.querySelector('#gw-editor-code'),
       
       createModal: m.querySelector('#gw-create-file-modal'),
       closeCreateModalBtn: m.querySelector('#gw-close-modal-btn-inner'),
@@ -295,6 +322,28 @@ export class GithubWidget extends BaseWidget {
     this.dom.downloadSingleBtn.addEventListener('click', () => this.downloadSingleFile());
     this.dom.downloadZipBtn.addEventListener('click', () => this.downloadZipArchive());
 
+    // Bind real-time syntax highlighter update & tab indentation support
+    this.dom.editorTextarea.addEventListener('input', () => {
+      this.updateEditorHighlight();
+    });
+
+    // Scroll synchronization between textarea and code background
+    this.dom.editorContainer.addEventListener('scroll', () => {
+      // Handled natively via absolute alignment of both layers inside container
+    });
+
+    this.dom.editorTextarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = this.dom.editorTextarea.selectionStart;
+        const end = this.dom.editorTextarea.selectionEnd;
+        const val = this.dom.editorTextarea.value;
+        this.dom.editorTextarea.value = val.substring(0, start) + '  ' + val.substring(end);
+        this.dom.editorTextarea.selectionStart = this.dom.editorTextarea.selectionEnd = start + 2;
+        this.updateEditorHighlight();
+      }
+    });
+
     const toggleCreateModal = (show) => {
       if (show) this.dom.createModal.classList.remove('hidden');
       else this.dom.createModal.classList.add('hidden');
@@ -308,6 +357,35 @@ export class GithubWidget extends BaseWidget {
     });
 
     this.dom.pushFileBtn.addEventListener('click', () => this.pushNewFile());
+  }
+
+  updateEditorHighlight() {
+    const codeEl = this.dom.editorCode;
+    const text = this.dom.editorTextarea.value;
+    codeEl.textContent = text;
+    
+    // Set appropriate language class based on file extension
+    if (this.selectedFile) {
+      const ext = this.selectedFile.path.split('.').pop().toLowerCase();
+      codeEl.className = '';
+      if (['html', 'htm'].includes(ext)) {
+        codeEl.className = 'language-markup';
+      } else if (['js', 'mjs', 'cjs', 'ts', 'jsx', 'tsx'].includes(ext)) {
+        codeEl.className = 'language-javascript';
+      } else if (['css', 'scss', 'less'].includes(ext)) {
+        codeEl.className = 'language-css';
+      } else if (['json'].includes(ext)) {
+        codeEl.className = 'language-json';
+      } else if (['md'].includes(ext)) {
+        codeEl.className = 'language-markdown';
+      } else {
+        codeEl.className = 'language-none';
+      }
+    }
+
+    if (window.Prism) {
+      window.Prism.highlightElement(codeEl);
+    }
   }
 
   setCookie(name, value, days = 30) {
@@ -455,12 +533,13 @@ export class GithubWidget extends BaseWidget {
     this.selectedFile = file;
     this.dom.previewFilename.textContent = file.path;
     const placeholder = this.dom.previewPlaceholder;
+    const editorContainer = this.dom.editorContainer;
     const editorTextarea = this.dom.editorTextarea;
     const downloadBtn = this.dom.downloadSingleBtn;
     const saveEditBtn = this.dom.saveEditBtn;
 
     placeholder.classList.remove('hidden');
-    editorTextarea.classList.add('hidden');
+    editorContainer.classList.add('hidden');
     placeholder.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-2xl text-indigo-400 mb-2"></i><p class="text-xs text-slate-400">Loading file for editing...</p>`;
     downloadBtn.disabled = true;
     saveEditBtn.disabled = true;
@@ -474,8 +553,10 @@ export class GithubWidget extends BaseWidget {
       editorTextarea.value = text;
       this.selectedFile.originalContent = text;
       
+      this.updateEditorHighlight();
+
       placeholder.classList.add('hidden');
-      editorTextarea.classList.remove('hidden');
+      editorContainer.classList.remove('hidden');
       downloadBtn.disabled = false;
       saveEditBtn.disabled = false;
     } catch (err) {
