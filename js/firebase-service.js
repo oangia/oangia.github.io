@@ -16,8 +16,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
 export class FirebaseService {
-  constructor(cookieName = "firebase_config_cookie") {
-    this.cookieName = cookieName;
+  constructor() {
     this.app = null;
     this.db = null;
     this.unsubscribeMap = {};
@@ -28,18 +27,6 @@ export class FirebaseService {
       projectId: "freedata-4c235",
       appId: "1:906764667278:web:aa229456f8de0740923cdf"
     };
-  }
-
-  setCookie(name, value, days = 30) {
-    Cookie.set(name, value, days);
-  }
-
-  getCookie(name) {
-    return Cookie.get(name);
-  }
-
-  eraseCookie(name) {
-    Cookie.erase(name);
   }
 
   parseConfig(rawText) {
