@@ -44,28 +44,6 @@ export class GithubWidget extends BaseWidget {
       script.src = this.jszipUrl;
       document.head.appendChild(script);
     }
-
-    if (!document.getElementById('github-widget-prism-css')) {
-      const link = document.createElement('link');
-      link.id = 'github-widget-prism-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css';
-      document.head.appendChild(link);
-    }
-
-    if (!document.getElementById('github-widget-prism-js')) {
-      const script = document.createElement('script');
-      script.id = 'github-widget-prism-js';
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js';
-      document.head.appendChild(script);
-    }
-
-    if (!document.getElementById('github-widget-prism-autoloader')) {
-      const script = document.createElement('script');
-      script.id = 'github-widget-prism-autoloader';
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js';
-      document.head.appendChild(script);
-    }
   }
 
   createUI() {
@@ -175,17 +153,12 @@ export class GithubWidget extends BaseWidget {
                             </button>
                         </div>
                     </div>
-                    <div class="flex-1 bg-[#272822] overflow-hidden relative flex flex-col">
-                        <div id="gw-preview-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-center p-6 z-20 bg-[#272822]">
+                    <div class="flex-1 bg-slate-950 overflow-hidden relative flex flex-col">
+                        <div id="gw-preview-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-center p-6 z-10 bg-slate-950">
                             <i class="fa-regular fa-folder-open text-4xl mb-3 text-slate-600"></i>
                             <p class="text-sm">Click on any file from the left panel to edit its content directly, or create a new file.</p>
                         </div>
-                        
-                        <!-- Dual-layer Editor Container for HTML/JS styling with tab support & scroll sync -->
-                        <div id="gw-editor-container" class="hidden absolute inset-0 overflow-auto bg-[#272822]">
-                            <textarea id="gw-editor-textarea" class="absolute inset-0 w-full h-full p-4 text-xs font-mono text-transparent bg-transparent caret-white focus:outline-none resize-none leading-relaxed border-none z-10 whitespace-pre" spellcheck="false"></textarea>
-                            <pre aria-hidden="true" class="absolute inset-0 w-full h-full m-0 p-4 text-xs font-mono leading-relaxed bg-transparent pointer-events-none z-0 whitespace-pre"><code id="gw-editor-code" class="language-javascript"></code></pre>
-                        </div>
+                        <textarea id="gw-editor-textarea" class="hidden w-full h-full bg-slate-950 p-4 text-xs font-mono text-slate-200 focus:outline-none resize-none leading-relaxed border-none"></textarea>
                     </div>
                 </div>
 
@@ -267,9 +240,7 @@ export class GithubWidget extends BaseWidget {
       deleteFileBtn: m.querySelector('#gw-delete-file-btn'),
       downloadSingleBtn: m.querySelector('#gw-download-single-btn'),
       previewPlaceholder: m.querySelector('#gw-preview-placeholder'),
-      editorContainer: m.querySelector('#gw-editor-container'),
       editorTextarea: m.querySelector('#gw-editor-textarea'),
-      editorCode: m.querySelector('#gw-editor-code'),
       
       createModal: m.querySelector('#gw-create-file-modal'),
       closeCreateModalBtn: m.querySelector('#gw-close-modal-btn-inner'),
@@ -328,16 +299,7 @@ export class GithubWidget extends BaseWidget {
     this.dom.downloadSingleBtn.addEventListener('click', () => this.downloadSingleFile());
     this.dom.downloadZipBtn.addEventListener('click', () => this.downloadZipArchive());
 
-    // Sync scroll position between textarea and background code view
-    this.dom.editorTextarea.addEventListener('scroll', () => {
-      this.dom.editorCode.parentElement.scrollTop = this.dom.editorTextarea.scrollTop;
-      this.dom.editorCode.parentElement.scrollLeft = this.dom.editorTextarea.scrollLeft;
-    });
-
-    this.dom.editorTextarea.addEventListener('input', () => {
-      this.updateEditorHighlight();
-    });
-
+    // Tab indentation support in textarea
     this.dom.editorTextarea.addEventListener('keydown', (e) => {
       if (e.key === 'Tab') {
         e.preventDefault();
@@ -346,7 +308,6 @@ export class GithubWidget extends BaseWidget {
         const val = this.dom.editorTextarea.value;
         this.dom.editorTextarea.value = val.substring(0, start) + '  ' + val.substring(end);
         this.dom.editorTextarea.selectionStart = this.dom.editorTextarea.selectionEnd = start + 2;
-        this.updateEditorHighlight();
       }
     });
 
@@ -363,34 +324,6 @@ export class GithubWidget extends BaseWidget {
     });
 
     this.dom.pushFileBtn.addEventListener('click', () => this.pushNewFile());
-  }
-
-  updateEditorHighlight() {
-    const codeEl = this.dom.editorCode;
-    const text = this.dom.editorTextarea.value;
-    codeEl.textContent = text;
-    
-    if (this.selectedFile) {
-      const ext = this.selectedFile.path.split('.').pop().toLowerCase();
-      codeEl.className = '';
-      if (['html', 'htm'].includes(ext)) {
-        codeEl.className = 'language-markup';
-      } else if (['js', 'mjs', 'cjs', 'ts', 'jsx', 'tsx'].includes(ext)) {
-        codeEl.className = 'language-javascript';
-      } else if (['css', 'scss', 'less'].includes(ext)) {
-        codeEl.className = 'language-css';
-      } else if (['json'].includes(ext)) {
-        codeEl.className = 'language-json';
-      } else if (['md'].includes(ext)) {
-        codeEl.className = 'language-markdown';
-      } else {
-        codeEl.className = 'language-none';
-      }
-    }
-
-    if (window.Prism) {
-      window.Prism.highlightElement(codeEl);
-    }
   }
 
   setCookie(name, value, days = 30) {
@@ -538,14 +471,13 @@ export class GithubWidget extends BaseWidget {
     this.selectedFile = file;
     this.dom.previewFilename.textContent = file.path;
     const placeholder = this.dom.previewPlaceholder;
-    const editorContainer = this.dom.editorContainer;
     const editorTextarea = this.dom.editorTextarea;
     const downloadBtn = this.dom.downloadSingleBtn;
     const saveEditBtn = this.dom.saveEditBtn;
     const deleteFileBtn = this.dom.deleteFileBtn;
 
     placeholder.classList.remove('hidden');
-    editorContainer.classList.add('hidden');
+    editorTextarea.classList.add('hidden');
     placeholder.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-2xl text-indigo-400 mb-2"></i><p class="text-xs text-slate-400">Loading file for editing...</p>`;
     downloadBtn.disabled = true;
     saveEditBtn.disabled = true;
@@ -560,10 +492,8 @@ export class GithubWidget extends BaseWidget {
       editorTextarea.value = text;
       this.selectedFile.originalContent = text;
       
-      this.updateEditorHighlight();
-
       placeholder.classList.add('hidden');
-      editorContainer.classList.remove('hidden');
+      editorTextarea.classList.remove('hidden');
       downloadBtn.disabled = false;
       saveEditBtn.disabled = false;
       deleteFileBtn.disabled = false;
@@ -675,7 +605,7 @@ export class GithubWidget extends BaseWidget {
 
       this.selectedFile = null;
       this.dom.previewFilename.textContent = 'Select a file to preview or edit';
-      this.dom.editorContainer.classList.add('hidden');
+      this.dom.editorTextarea.classList.add('hidden');
       this.dom.previewPlaceholder.classList.remove('hidden');
       this.dom.previewPlaceholder.innerHTML = `<i class="fa-regular fa-folder-open text-4xl mb-3 text-slate-600"></i><p class="text-sm">Click on any file from the left panel to edit its content directly, or create a new file.</p>`;
       this.dom.saveEditBtn.disabled = true;
