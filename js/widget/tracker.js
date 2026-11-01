@@ -1,4 +1,4 @@
-import { Widget } from './Widget.js';
+import { Widget } from './widget.js';
 
 export class DailyTaskTracker extends Widget {
   constructor(
