@@ -165,6 +165,10 @@ export class GithubWidget extends BaseWidget {
                                 <i class="fa-solid fa-cloud-arrow-up"></i>
                                 <span>Save Changes</span>
                             </button>
+                            <button type="button" id="gw-delete-file-btn" disabled class="bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-xs text-white px-3 py-1.5 rounded-lg transition flex items-center space-x-1">
+                                <i class="fa-solid fa-trash-can"></i>
+                                <span>Delete</span>
+                            </button>
                             <button type="button" id="gw-download-single-btn" disabled class="bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-xs text-white px-3 py-1.5 rounded-lg transition flex items-center space-x-1">
                                 <i class="fa-solid fa-download"></i>
                                 <span>Download</span>
@@ -260,6 +264,7 @@ export class GithubWidget extends BaseWidget {
       fileList: m.querySelector('#gw-file-list'),
       previewFilename: m.querySelector('#gw-preview-filename'),
       saveEditBtn: m.querySelector('#gw-save-edit-btn'),
+      deleteFileBtn: m.querySelector('#gw-delete-file-btn'),
       downloadSingleBtn: m.querySelector('#gw-download-single-btn'),
       previewPlaceholder: m.querySelector('#gw-preview-placeholder'),
       editorContainer: m.querySelector('#gw-editor-container'),
@@ -319,17 +324,13 @@ export class GithubWidget extends BaseWidget {
     });
 
     this.dom.saveEditBtn.addEventListener('click', () => this.saveEditedFile());
+    this.dom.deleteFileBtn.addEventListener('click', () => this.deleteCurrentFile());
     this.dom.downloadSingleBtn.addEventListener('click', () => this.downloadSingleFile());
     this.dom.downloadZipBtn.addEventListener('click', () => this.downloadZipArchive());
 
     // Bind real-time syntax highlighter update & tab indentation support
     this.dom.editorTextarea.addEventListener('input', () => {
       this.updateEditorHighlight();
-    });
-
-    // Scroll synchronization between textarea and code background
-    this.dom.editorContainer.addEventListener('scroll', () => {
-      // Handled natively via absolute alignment of both layers inside container
     });
 
     this.dom.editorTextarea.addEventListener('keydown', (e) => {
@@ -364,7 +365,6 @@ export class GithubWidget extends BaseWidget {
     const text = this.dom.editorTextarea.value;
     codeEl.textContent = text;
     
-    // Set appropriate language class based on file extension
     if (this.selectedFile) {
       const ext = this.selectedFile.path.split('.').pop().toLowerCase();
       codeEl.className = '';
@@ -537,12 +537,14 @@ export class GithubWidget extends BaseWidget {
     const editorTextarea = this.dom.editorTextarea;
     const downloadBtn = this.dom.downloadSingleBtn;
     const saveEditBtn = this.dom.saveEditBtn;
+    const deleteFileBtn = this.dom.deleteFileBtn;
 
     placeholder.classList.remove('hidden');
     editorContainer.classList.add('hidden');
     placeholder.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-2xl text-indigo-400 mb-2"></i><p class="text-xs text-slate-400">Loading file for editing...</p>`;
     downloadBtn.disabled = true;
     saveEditBtn.disabled = true;
+    deleteFileBtn.disabled = true;
 
     try {
       const rawUrl = `https://raw.githubusercontent.com/${this.currentRepoData.owner}/${this.currentRepoData.repo}/${this.currentRepoData.branch}/${file.path}`;
@@ -559,6 +561,7 @@ export class GithubWidget extends BaseWidget {
       editorContainer.classList.remove('hidden');
       downloadBtn.disabled = false;
       saveEditBtn.disabled = false;
+      deleteFileBtn.disabled = false;
     } catch (err) {
       placeholder.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-2xl text-amber-400 mb-2"></i><p class="text-xs text-amber-300">${err.message}</p>`;
     }
@@ -611,6 +614,71 @@ export class GithubWidget extends BaseWidget {
 
       this.setStatus(false);
       this.showNotification(`Successfully saved changes to ${path}!`);
+
+    } catch (err) {
+      this.setStatus(false);
+      this.showNotification(err.message, 'error');
+    }
+  }
+
+  async deleteCurrentFile() {
+    if (!this.selectedFile) return;
+
+    const token = this.currentRepoData.token || this.getCookie('github_token');
+    if (!token) {
+      this.showNotification('GitHub Token required to delete files', 'error');
+      return;
+    }
+
+    const path = this.selectedFile.path;
+    if (!confirm(`Are you sure you want to delete "${path}" from the repository?`)) {
+      return;
+    }
+
+    this.setStatus(true, 'Deleting file...', `Removing ${path} from GitHub`);
+
+    try {
+      const checkUrl = `https://api.github.com/repos/${this.currentRepoData.owner}/${this.currentRepoData.repo}/contents/${path}`;
+      const checkRes = await fetch(checkUrl, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' }
+      });
+
+      if (!checkRes.ok) throw new Error('Could not verify file SHA on remote');
+      const fileData = await checkRes.json();
+
+      const deleteRes = await fetch(checkUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github+json'
+        },
+        body: JSON.stringify({
+          message: `Delete ${path} via browser editor`,
+          sha: fileData.sha,
+          branch: this.currentRepoData.branch
+        })
+      });
+
+      if (!deleteRes.ok) {
+        const errData = await deleteRes.json();
+        throw new Error(errData.message || 'Failed to delete file');
+      }
+
+      this.setStatus(false);
+      this.showNotification(`Successfully deleted ${path}!`);
+
+      // Reset editor view and refresh tree
+      this.selectedFile = null;
+      this.dom.previewFilename.textContent = 'Select a file to preview or edit';
+      this.dom.editorContainer.classList.add('hidden');
+      this.dom.previewPlaceholder.classList.remove('hidden');
+      this.dom.previewPlaceholder.innerHTML = `<i class="fa-regular fa-folder-open text-4xl mb-3 text-slate-600"></i><p class="text-sm">Click on any file from the left panel to edit its content directly, or create a new file.</p>`;
+      this.dom.saveEditBtn.disabled = true;
+      this.dom.deleteFileBtn.disabled = true;
+      this.dom.downloadSingleBtn.disabled = true;
+
+      await this.fetchRepositoryTree();
 
     } catch (err) {
       this.setStatus(false);
