@@ -2,11 +2,7 @@ import { Widget } from './widget.js';
 
 export class GithubWidget extends Widget {
   constructor(options = {}) {
-    super({
-      ...options,
-      icon: '<i class="fa-brands fa-github text-2xl"></i>',
-      bgClass: 'bg-indigo-600 hover:bg-indigo-500'
-    });
+    super(options);
     this.jszipUrl = options.jszipUrl || 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
     this.fontAwesomeUrl = options.fontAwesomeUrl || 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
     this.interFontUrl = options.interFontUrl || 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap';
@@ -51,9 +47,14 @@ export class GithubWidget extends Widget {
   }
 
   createUI() {
-    // Floating Trigger Button is handled by parent Widget constructor & createFloatButton()
+    // 1. Create floating trigger button using parent helper
+    this.createFloatButton(
+      `<i class="fa-brands fa-github text-2xl"></i>`,
+      'bg-indigo-600 hover:bg-indigo-500'
+    );
     this.floatBtn.ariaLabel = 'Open GitHub File Manager';
 
+    // 2. Modal Drawer / Panel Container
     this.modal = document.createElement('div');
     this.modal.className =
       'fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm hidden items-center justify-center p-4 font-sans';
@@ -210,8 +211,9 @@ export class GithubWidget extends Widget {
       </div>
     `;
 
-    // Append modal to wrapper managed by parent Widget and wire up flow
-    this.wrapper.appendChild(this.modal);
+    document.body.appendChild(this.modal);
+
+    // 3. Bind toggle using parent helper
     this.bindToggle(this.modal, '#gw-close-modal-btn');
   }
 
@@ -258,12 +260,6 @@ export class GithubWidget extends Widget {
   }
 
   bindEvents() {
-    this.modal.addEventListener('click', (e) => {
-      if (e.target === this.modal) {
-        this.close();
-      }
-    });
-
     this.dom.tokenInput.addEventListener('input', (e) => {
       const val = e.target.value.trim();
       if (val) {
