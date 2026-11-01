@@ -1,10 +1,11 @@
 export class ConfigManager {
-  constructor(btnId, { fbService }) {
+  constructor(btnId, { fbService, cookieName = "firebase_config_cookie" } = {}) {
     this.fbService = fbService;
+    this.cookieName = cookieName;
     this.toggleBtn = document.getElementById(btnId);
 
     if (!this.toggleBtn) {
-      console.warn(`ConfigManager: Button "${buttonSelector}" not found.`);
+      console.warn(`ConfigManager: Button "${btnId}" not found.`);
       return;
     }
 
@@ -33,7 +34,7 @@ export class ConfigManager {
             </button>
           </div>
           <div class="p-5 space-y-4">
-            <input id="fbConfigTextarea" placeholder="Paste your Firebase config object here..." class="w-full text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 custom-scrollbar focus:outline-none focus:ring-2 focus:ring-blue-500"></input>
+            <textarea id="fbConfigTextarea" placeholder="Paste your Firebase config object here..." class="w-full text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 custom-scrollbar focus:outline-none focus:ring-2 focus:ring-blue-500" rows="6"></textarea>
             <div class="flex items-center justify-between text-xs text-slate-500">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" id="fbRememberCookie" checked class="rounded text-amber-500">
@@ -72,7 +73,7 @@ export class ConfigManager {
   }
 
   open() {
-    const saved = this.fbService.getCookie(this.fbService.cookieName);
+    const saved = Cookie.get(this.cookieName);
     if (saved) {
       this.textarea.value = saved;
     }
@@ -93,9 +94,9 @@ export class ConfigManager {
     }
 
     if (this.rememberCheckbox.checked) {
-      this.fbService.setCookie(this.fbService.cookieName, rawText, 30);
+      Cookie.set(this.cookieName, rawText, 30);
     } else {
-      this.fbService.eraseCookie(this.fbService.cookieName);
+      Cookie.erase(this.cookieName);
     }
 
     if (this.fbService.connect(parsed)) {
@@ -104,13 +105,13 @@ export class ConfigManager {
   }
 
   _handleClear() {
-    this.fbService.eraseCookie(this.fbService.cookieName);
+    Cookie.erase(this.cookieName);
     this.textarea.value = "";
     this.close();
   }
 
   _checkInitialCookie() {
-    const saved = this.fbService.getCookie(this.fbService.cookieName);
+    const saved = Cookie.get(this.cookieName);
     if (saved) {
       this.textarea.value = saved;
       const parsed = this.fbService.parseConfig(saved);
