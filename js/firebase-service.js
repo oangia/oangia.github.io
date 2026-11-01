@@ -31,23 +31,15 @@ export class FirebaseService {
   }
 
   setCookie(name, value, days = 30) {
-    const date = new Date();
-    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-    document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/;SameSite=Strict`;
+    Cookie.set(name, value, days);
   }
 
   getCookie(name) {
-    const nameEQ = name + "=";
-    const ca = document.cookie.split(';');
-    for (let i = 0; i < ca.length; i++) {
-      let c = ca[i].trim();
-      if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length));
-    }
-    return null;
+    return Cookie.get(name);
   }
 
   eraseCookie(name) {
-    document.cookie = `${name}=; Max-Age=-99999999; path=/;`;
+    Cookie.erase(name);
   }
 
   parseConfig(rawText) {
