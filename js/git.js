@@ -175,16 +175,16 @@ export class GithubWidget extends BaseWidget {
                             </button>
                         </div>
                     </div>
-                    <div class="flex-1 bg-slate-950 overflow-hidden relative flex flex-col">
-                        <div id="gw-preview-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-center p-6 z-10">
+                    <div class="flex-1 bg-[#272822] overflow-hidden relative flex flex-col">
+                        <div id="gw-preview-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-center p-6 z-20 bg-[#272822]">
                             <i class="fa-regular fa-folder-open text-4xl mb-3 text-slate-600"></i>
                             <p class="text-sm">Click on any file from the left panel to edit its content directly, or create a new file.</p>
                         </div>
                         
                         <!-- Dual-layer Editor Container for HTML/JS styling with tab support & scroll sync -->
                         <div id="gw-editor-container" class="hidden absolute inset-0 overflow-auto bg-[#272822]">
-                            <textarea id="gw-editor-textarea" class="absolute inset-0 w-full h-full p-4 text-xs font-mono text-transparent bg-transparent caret-white focus:outline-none resize-none leading-relaxed border-none z-10 whitespace-pre wrap-none" spellcheck="false"></textarea>
-                            <pre aria-hidden="true" class="absolute inset-0 w-full h-full m-0 p-4 text-xs font-mono leading-relaxed bg-transparent pointer-events-none z-0"><code id="gw-editor-code" class="language-javascript"></code></pre>
+                            <textarea id="gw-editor-textarea" class="absolute inset-0 w-full h-full p-4 text-xs font-mono text-transparent bg-transparent caret-white focus:outline-none resize-none leading-relaxed border-none z-10 whitespace-pre" spellcheck="false"></textarea>
+                            <pre aria-hidden="true" class="absolute inset-0 w-full h-full m-0 p-4 text-xs font-mono leading-relaxed bg-transparent pointer-events-none z-0 whitespace-pre"><code id="gw-editor-code" class="language-javascript"></code></pre>
                         </div>
                     </div>
                 </div>
@@ -328,7 +328,12 @@ export class GithubWidget extends BaseWidget {
     this.dom.downloadSingleBtn.addEventListener('click', () => this.downloadSingleFile());
     this.dom.downloadZipBtn.addEventListener('click', () => this.downloadZipArchive());
 
-    // Bind real-time syntax highlighter update & tab indentation support
+    // Sync scroll position between textarea and background code view
+    this.dom.editorTextarea.addEventListener('scroll', () => {
+      this.dom.editorCode.parentElement.scrollTop = this.dom.editorTextarea.scrollTop;
+      this.dom.editorCode.parentElement.scrollLeft = this.dom.editorTextarea.scrollLeft;
+    });
+
     this.dom.editorTextarea.addEventListener('input', () => {
       this.updateEditorHighlight();
     });
@@ -668,7 +673,6 @@ export class GithubWidget extends BaseWidget {
       this.setStatus(false);
       this.showNotification(`Successfully deleted ${path}!`);
 
-      // Reset editor view and refresh tree
       this.selectedFile = null;
       this.dom.previewFilename.textContent = 'Select a file to preview or edit';
       this.dom.editorContainer.classList.add('hidden');
