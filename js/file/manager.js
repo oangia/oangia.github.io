@@ -98,22 +98,12 @@ export class FileManager {
     grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-blue-500 block"></i>Loading folder...</div>`;
 
     try {
-      let allItems = [];
+      let allItems = await this.fbService.getByField(this.collections.items, "parentId", this.currentFolderId);
       let currentFolderName = "Home";
 
-      if (this.fbService.isLiveMode) {
-        allItems = await this.fbService.getByField(this.collections.items, "parentId", this.currentFolderId);
-        if (this.currentFolderId !== "root") {
-          const parentFolder = await this.fbService.getById(this.collections.items, this.currentFolderId);
-          if (parentFolder) currentFolderName = parentFolder.title || parentFolder.name;
-        }
-      } else {
-        const stored = JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]");
-        allItems = stored.filter(item => item.parentId === this.currentFolderId);
-        if (this.currentFolderId !== "root") {
-          const found = stored.find(item => item.id === this.currentFolderId);
-          if (found) currentFolderName = found.title || found.name;
-        }
+      if (this.currentFolderId !== "root") {
+        const parentFolder = await this.fbService.getById(this.collections.items, this.currentFolderId);
+        if (parentFolder) currentFolderName = parentFolder.title || parentFolder.name;
       }
 
       const subFolders = allItems.filter(item => item.isFolder === true);
@@ -194,46 +184,13 @@ export class FileManager {
     menu.classList.remove("hidden");
   }
 
-  readFileAsDataURL(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = (err) => reject(err);
-      reader.readAsDataURL(file);
-    });
-  }
-
-  generateThumbnail(base64Str, maxSize = 150) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.src = base64Str;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let w = img.width, h = img.height;
-        if (w > h) { h = Math.round((h * maxSize) / w); w = maxSize; }
-        else { w = Math.round((w * maxSize) / h); h = maxSize; }
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.6));
-      };
-      img.onerror = () => resolve("");
-    });
-  }
-
   async viewFile(id, fileId) {
-    const fileRecord = this.fbService.isLiveMode ?
-      await this.fbService.getById(this.collections.items, id) :
-      JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]").find(f => f.id === id || f.fileId === fileId);
-
+    const fileRecord = await this.fbService.getById(this.collections.items, id);
     if (!fileRecord) return;
 
     this.previewer.showLoading(fileRecord.title);
 
-    const chunks = this.fbService.isLiveMode ?
-      await this.fbService.getByField(this.collections.fileChunks, "fileId", fileRecord.fileId) :
-      JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]").filter(c => c.fileId === fileRecord.fileId);
-
+    const chunks = await this.fbService.getByField(this.collections.fileChunks, "fileId", fileRecord.fileId);
     chunks.sort((a, b) => a.partIndex - b.partIndex);
     const fullBase64 = chunks.map(c => c.chunkData).join("");
 
@@ -255,15 +212,11 @@ export class FileManager {
         Toast.show("Folder deleted", "success");
       } else if (this.contextTarget.type === 'file') {
         if (!confirm("Delete file and its chunks?")) return;
-        const fileRecord = this.fbService.isLiveMode ?
-          await this.fbService.getById(this.collections.items, this.contextTarget.id) :
-          JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]").find(f => f.id === this.contextTarget.id);
+        const fileRecord = await this.fbService.getById(this.collections.items, this.contextTarget.id);
 
         await this.fbService.delete(this.collections.items, this.contextTarget.id);
 
-        const chunks = this.fbService.isLiveMode ?
-          await this.fbService.getByField(this.collections.fileChunks, "fileId", fileRecord?.fileId || this.contextTarget.fileId) :
-          JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]").filter(c => c.fileId === (fileRecord?.fileId || this.contextTarget.fileId));
+        const chunks = await this.fbService.getByField(this.collections.fileChunks, "fileId", fileRecord?.fileId || this.contextTarget.fileId);
 
         for (const chunk of chunks) {
           await this.fbService.delete(this.collections.fileChunks, chunk.id);
@@ -277,13 +230,9 @@ export class FileManager {
     document.getElementById("ctxDownloadBtn")?.addEventListener("click", async () => {
       if (!this.contextTarget || this.contextTarget.type !== 'file') return;
 
-      const fileRecord = this.fbService.isLiveMode ?
-        await this.fbService.getById(this.collections.items, this.contextTarget.id) :
-        JSON.parse(localStorage.getItem(`demo_${this.collections.items}`) || "[]").find(f => f.id === this.contextTarget.id);
+      const fileRecord = await this.fbService.getById(this.collections.items, this.contextTarget.id);
       if (!fileRecord) return;
-      const chunks = this.fbService.isLiveMode ?
-        await this.fbService.getByField(this.collections.fileChunks, "fileId", fileRecord.fileId) :
-        JSON.parse(localStorage.getItem(`demo_${this.collections.fileChunks}`) || "[]").filter(c => c.fileId === fileRecord.fileId);
+      const chunks = await this.fbService.getByField(this.collections.fileChunks, "fileId", fileRecord.fileId);
       chunks.sort((a, b) => a.partIndex - b.partIndex);
       const fullBase64 = chunks.map(c => c.chunkData).join("");
       const downloadAnchor = document.createElement('a');
@@ -365,11 +314,9 @@ export class FileManager {
   }
   
   switch(collections) {
-    // Switch collection config and reset path back to root
     this.collections = collections;
     this.backupManager.switch(collections);
     this.currentFolderId = "root";
-    // Reload view with the new collection configuration
     this.loadCurrentFolder();
   }
 }
