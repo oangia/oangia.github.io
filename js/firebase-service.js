@@ -19,138 +19,54 @@ export class FirebaseService {
   constructor() {
     this.app = null;
     this.db = null;
-    this.unsubscribeMap = {};
-    this.isLiveMode = false;
-
-    // Hardcoded project identifiers
-    this.defaultConfig = {
-      apiKey: window.APP_CONFIG?.apiKey,
-      projectId: "freedata-4c235",
-      appId: "1:906764667278:web:aa229456f8de0740923cdf"
-    };
-  }
-
-  connect(configInput) {
-    try {
-      if (this.app) deleteApp(this.app);
-      
-      // Resolve configuration whether input is a raw API key string, a snippet, or an object
-      const resolvedConfig = typeof configInput === 'string' 
-        ? this.parseConfig(configInput) 
-        : { ...this.defaultConfig, ...configInput };
-
-      if (!resolvedConfig || !resolvedConfig.apiKey) {
-        throw new Error("Valid API key is required to connect to Firebase.");
-      }
-
-      this.app = initializeApp(resolvedConfig);
-      this.db = getFirestore(this.app);
-      this.isLiveMode = true;
-      return true;
-    } catch (err) {
-      console.error("Firebase connect failed:", err);
-      this.isLiveMode = false;
-      return false;
-    }
-  }
-
-  // Generic Realtime Listener for any collection
-  subscribe(collectionName, callback) {
-    if (!this.db || !this.isLiveMode) return;
-    
-    if (this.unsubscribeMap[collectionName]) {
-      this.unsubscribeMap[collectionName]();
-    }
-
-    const q = query(collection(this.db, collectionName), orderBy("createdAt", "desc"));
-    this.unsubscribeMap[collectionName] = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(docSnap => {
-        const data = docSnap.data();
-        let formattedDate = "Just now";
-        if (data && data.createdAt && typeof data.createdAt.toDate === "function") {
-          formattedDate = data.createdAt.toDate().toLocaleString();
-        }
-        return { id: docSnap.id, ...data, formattedDate };
+    if (window.APP_CONFIG?.apiKey) {
+      this.app = initializeApp({
+        projectId: "freedata-4c235",
+        appId: "1:906764667278:web:aa229456f8de0740923cdf",
+        apiKey: window.APP_CONFIG?.apiKey
       });
-      callback(items);
-    });
+      
+      this.db = getFirestore(this.app);
+    }
   }
-
   // On-Demand Fetch Methods
   async getAll(collectionName) {
-    if (this.isLiveMode && this.db) {
-      const q = query(collection(this.db, collectionName), orderBy("createdAt", "desc"));
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-    } else {
-      return this.getLocal(collectionName);
-    }
+    if (!this.db) return [];
+    const q = query(collection(this.db, collectionName), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
   }
 
   async getById(collectionName, id) {
-    if (this.isLiveMode && this.db) {
-      const docRef = doc(this.db, collectionName, id);
-      const docSnap = await getDoc(docRef);
-      return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
-    } else {
-      const items = this.getLocal(collectionName);
-      return items.find(i => i.id === id) || null;
-    }
+    if (!this.db) return null;
+    const docRef = doc(this.db, collectionName, id);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
   }
 
   async getByField(collectionName, fieldName, value) {
-    if (this.isLiveMode && this.db) {
-      const q = query(collection(this.db, collectionName), where(fieldName, "==", value));
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-    } else {
-      const items = this.getLocal(collectionName);
-      return items.filter(i => i[fieldName] === value);
-    }
+    if (!this.db) return [];
+    const q = query(collection(this.db, collectionName), where(fieldName, "==", value));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
   }
 
-  // Generic CRUD
   async create(collectionName, data) {
-    if (this.isLiveMode && this.db) {
-      return await addDoc(collection(this.db, collectionName), {
-        ...data,
-        createdAt: serverTimestamp()
-      });
-    } else {
-      const key = `demo_${collectionName}`;
-      const items = JSON.parse(localStorage.getItem(key) || "[]");
-      const newItem = { 
-        id: "local-" + Date.now(), 
-        ...data, 
-        createdAt: new Date().toISOString(),
-        formattedDate: new Date().toLocaleString()
-      };
-      items.unshift(newItem);
-      localStorage.setItem(key, JSON.stringify(items));
-      return newItem;
-    }
+    if (!this.db) throw new Error("Firebase database not initialized.");
+    return await addDoc(collection(this.db, collectionName), {
+      ...data,
+      createdAt: serverTimestamp()
+    });
   }
 
   async update(collectionName, id, updatedFields) {
-    if (this.isLiveMode && this.db) {
-      return await updateDoc(doc(this.db, collectionName, id), updatedFields);
-    } else {
-      const key = `demo_${collectionName}`;
-      let items = JSON.parse(localStorage.getItem(key) || "[]");
-      items = items.map(i => i.id === id ? { ...i, ...updatedFields } : i);
-      localStorage.setItem(key, JSON.stringify(items));
-    }
+    if (!this.db) throw new Error("Firebase database not initialized.");
+    return await updateDoc(doc(this.db, collectionName, id), updatedFields);
   }
 
   async delete(collectionName, id) {
-    if (this.isLiveMode && this.db) {
-      return await deleteDoc(doc(this.db, collectionName, id));
-    } else {
-      const key = `demo_${collectionName}`;
-      let items = JSON.parse(localStorage.getItem(key) || "[]");
-      items = items.filter(i => i.id !== id);
-      localStorage.setItem(key, JSON.stringify(items));
-    }
+    if (!this.db) throw new Error("Firebase database not initialized.");
+    return await deleteDoc(doc(this.db, collectionName, id));
   }
 
   async uploadFile(collections, currentFolderId, file, onProgress = () => {}) {
@@ -216,12 +132,6 @@ export class FirebaseService {
     }
 
     return file.name;
-  }
-
-  getLocal(collectionName) {
-    const key = `demo_${collectionName}`;
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : [];
   }
 }
 
