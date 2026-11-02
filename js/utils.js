@@ -67,7 +67,6 @@ class ConfigManager {
     });
 
     this.saveBtn.addEventListener("click", () => this._handleSave());
-    this.clearBtn.addEventListener("click", () => this._handleClear());
   }
 
   open() {
