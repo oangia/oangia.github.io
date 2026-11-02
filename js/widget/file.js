@@ -1,6 +1,6 @@
 import { Widget } from './base.js';
 
-export class FolderUploadWidget extends Widget {
+export class FileManagerWidget extends Widget {
   constructor(options = {}) {
     super(options);
     this.folderData = [];
