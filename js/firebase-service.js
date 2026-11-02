@@ -27,6 +27,7 @@ export class FirebaseService {
       });
       
       this.db = getFirestore(this.app);
+      console.log("connect fb");
     }
   }
   // On-Demand Fetch Methods
