@@ -3,9 +3,8 @@ import { Widget } from './base.js';
 export class FileManagerWidget extends Widget {
   constructor(options = {}) {
     super(options);
-    this.folderData = [];
-    this.currentPath = '';
     this.folderStructure = {};
+    this.currentPath = '';
 
     this.init();
   }
@@ -30,22 +29,23 @@ export class FileManagerWidget extends Widget {
     this.modal.innerHTML = `
       <div class="bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden">
         
-        <!-- Header (Hidden initially, appears when folder is loaded) -->
-        <div class="widget-header-bar bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0 hidden">
+        <!-- Top Toolbar Header (Always visible) -->
+        <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg shadow-inner">
               <i class="fa-solid fa-folder-tree"></i>
             </div>
             <div>
               <h3 class="text-sm font-bold text-slate-900">System Folder Manager</h3>
-              <p class="widget-path-subtitle text-[11px] text-slate-500">Root folder</p>
+              <p class="widget-path-subtitle text-[11px] text-slate-500">No folder loaded</p>
             </div>
           </div>
 
           <div class="flex items-center gap-2">
+            <!-- Method 1: Top Header Selection Button -->
             <label class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer">
-              <i class="fa-solid fa-folder-plus"></i> Change Folder
-              <input type="file" class="widget-folder-input hidden" webkitdirectory directory multiple>
+              <i class="fa-solid fa-folder-plus"></i> Select Folder
+              <input type="file" class="widget-folder-input-header hidden" webkitdirectory directory multiple>
             </label>
             <button type="button" class="widget-close-btn text-slate-400 hover:text-slate-700 text-xl px-2 py-1 transition ml-2 cursor-pointer">&times;</button>
           </div>
@@ -69,7 +69,7 @@ export class FileManagerWidget extends Widget {
         <!-- Main Content Area -->
         <div class="flex-1 bg-slate-50/50 p-5 overflow-hidden flex flex-col min-h-0 relative">
           
-          <!-- Initial Full-Content Select Section -->
+          <!-- Method 2: Initial Full-Content Select Section -->
           <div class="widget-select-screen flex-1 border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white transition-all rounded-2xl p-8 flex flex-col items-center justify-center text-center relative cursor-pointer group">
             <input type="file" class="widget-folder-input-main absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" webkitdirectory directory multiple>
             <div class="pointer-events-none flex flex-col items-center justify-center">
@@ -77,11 +77,11 @@ export class FileManagerWidget extends Widget {
                 <i class="fa-solid fa-folder-open"></i>
               </div>
               <h4 class="text-sm font-bold text-slate-800 mb-1">Click anywhere to select a folder</h4>
-              <p class="text-xs text-slate-400 max-w-sm">Loads your local directory structure instantly into a file manager interface.</p>
+              <p class="text-xs text-slate-400 max-w-sm">Or use the 'Select Folder' button in the top bar anytime.</p>
             </div>
           </div>
 
-          <!-- File Manager Table View (Hidden initially) -->
+          <!-- File Manager View (Hidden initially until folder selection) -->
           <div class="widget-browser-container hidden flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
             <div class="grid grid-cols-12 bg-slate-100 px-4 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 shrink-0">
               <div class="col-span-8">Name</div>
@@ -103,11 +103,10 @@ export class FileManagerWidget extends Widget {
   cacheDomReferences() {
     const m = this.modal;
     this.dom = {
-      headerBar: m.querySelector('.widget-header-bar'),
       breadcrumbBar: m.querySelector('.widget-breadcrumb-bar'),
       selectScreen: m.querySelector('.widget-select-screen'),
       folderInputMain: m.querySelector('.widget-folder-input-main'),
-      folderInputHeader: m.querySelector('.widget-folder-input'),
+      folderInputHeader: m.querySelector('.widget-folder-input-header'),
       closeBtn: m.querySelector('.widget-close-btn'),
       backBtn: m.querySelector('.widget-back-btn'),
       subtitle: m.querySelector('.widget-path-subtitle'),
@@ -148,7 +147,7 @@ export class FileManagerWidget extends Widget {
       for (let j = 0; j < parts.length; j++) {
         const part = parts[j];
         if (j === parts.length - 1) {
-          currentLevel[part] = { __is들File: true, size: file.size };
+          currentLevel[part] = { __isFile: true, size: file.size };
         } else {
           if (!currentLevel[part]) {
             currentLevel[part] = {};
@@ -158,9 +157,8 @@ export class FileManagerWidget extends Widget {
       }
     }
 
-    // Switch view from select screen to file manager view
+    // Hide select dropzone screen & show file manager view
     this.dom.selectScreen.classList.add('hidden');
-    this.dom.headerBar.classList.remove('hidden');
     this.dom.breadcrumbBar.classList.remove('hidden');
     this.dom.browserContainer.classList.remove('hidden');
 
@@ -168,7 +166,7 @@ export class FileManagerWidget extends Widget {
     this.dom.subtitle.textContent = rootFolderName;
 
     this.renderCurrentDirectory();
-    this.showToast(`Loaded folder structure successfully!`, 'success');
+    this.showToast(`Loaded ${files.length} paths successfully!`, 'success');
   }
 
   renderCurrentDirectory() {
@@ -183,8 +181,8 @@ export class FileManagerWidget extends Widget {
     }
 
     const keys = Object.keys(currentObj).sort((a, b) => {
-      const aIsDir = !currentObj[a].__is들File;
-      const bIsDir = !currentObj[b].__is들File;
+      const aIsDir = !currentObj[a].__isFile;
+      const bIsDir = !currentObj[b].__isFile;
       if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
       return a.localeCompare(b);
     });
@@ -200,7 +198,7 @@ export class FileManagerWidget extends Widget {
 
     for (const key of keys) {
       const item = currentObj[key];
-      const isDir = !item.__is들File;
+      const isDir = !item.__isFile;
 
       const row = document.createElement('div');
       row.className = 'grid grid-cols-12 px-4 py-2.5 items-center hover:bg-slate-50 transition text-xs cursor-pointer group';
