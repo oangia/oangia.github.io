@@ -76,7 +76,7 @@ export class FileManagerWidget extends Widget {
                 <i class="fa-solid fa-folder-open"></i>
               </div>
               <h4 class="text-sm font-bold text-slate-800 mb-1">Click anywhere to select a folder</h4>
-              <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with instant file previews.</p>
+              <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with rich file previews (images, text, audio, video).</p>
             </div>
           </div>
 
@@ -216,8 +216,12 @@ export class FileManagerWidget extends Widget {
         });
       } else {
         const file = item.fileRef;
+        const ext = key.split('.').pop().toLowerCase();
+        
         const isImage = file.type.startsWith('image/');
-        const isText = file.type.startsWith('text/') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.html') || file.name.endsWith('.css') || file.name.endsWith('.md');
+        const isVideo = file.type.startsWith('video/');
+        const isAudio = file.type.startsWith('audio/');
+        const isText = file.type.startsWith('text/') || ['json', 'js', 'html', 'css', 'md', 'txt', 'xml', 'svg', 'csv'].includes(ext);
 
         card.innerHTML = `
           <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
@@ -234,21 +238,27 @@ export class FileManagerWidget extends Widget {
         if (isImage) {
           const imgUrl = URL.createObjectURL(file);
           previewContainer.innerHTML = `<img src="${imgUrl}" alt="${key}" class="w-full h-full object-cover rounded-lg" />`;
+        } else if (isVideo) {
+          const videoUrl = URL.createObjectURL(file);
+          previewContainer.innerHTML = `<video src="${videoUrl}" class="w-full h-full object-cover rounded-lg pointer-events-none muted playsinline preload="metadata"></video>`;
+        } else if (isAudio) {
+          previewContainer.innerHTML = `
+            <div class="flex flex-col items-center justify-center text-blue-500">
+              <i class="fa-solid fa-file-audio text-3xl mb-1"></i>
+              <span class="text-[9px] font-mono text-slate-500 uppercase">${ext}</span>
+            </div>`;
         } else if (isText) {
           const reader = new FileReader();
           reader.onload = (e) => {
-            const textSnippet = e.target.result.substring(0, 150);
-            previewContainer.innerHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1 overflow-hidden w-full h-full select-none opacity-80">${this.escapeHtml(textSnippet)}</pre>`;
+            const textSnippet = e.target.result.substring(0, 180);
+            previewContainer.innerHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1.5 overflow-hidden w-full h-full select-none opacity-80">${this.escapeHtml(textSnippet)}</pre>`;
           };
-          reader.readAsText(file.slice(0, 200));
+          reader.readAsText(file.slice(0, 300));
         }
 
         card.addEventListener('click', () => {
-          if (isImage) {
-            window.open(URL.createObjectURL(file), '_blank');
-          } else {
-            this.showToast(`Selected file: ${key}`, 'info');
-          }
+          const fileUrl = URL.createObjectURL(file);
+          window.open(fileUrl, '_blank');
         });
       }
 
