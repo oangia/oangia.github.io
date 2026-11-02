@@ -27,10 +27,10 @@ export class FileManagerWidget extends Widget {
       'fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4 font-sans';
 
     this.modal.innerHTML = `
-      <div class="bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden">
+      <div class="bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden">
         
-        <!-- Top Toolbar Header (Always visible) -->
-        <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
+        <!-- Header -->
+        <div class="bg-slate-50 px-5 py-3 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg shadow-inner">
               <i class="fa-solid fa-folder-tree"></i>
@@ -42,7 +42,6 @@ export class FileManagerWidget extends Widget {
           </div>
 
           <div class="flex items-center gap-2">
-            <!-- Method 1: Top Header Selection Button -->
             <label class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer">
               <i class="fa-solid fa-folder-plus"></i> Select Folder
               <input type="file" class="widget-folder-input-header hidden" webkitdirectory directory multiple>
@@ -51,13 +50,13 @@ export class FileManagerWidget extends Widget {
           </div>
         </div>
 
-        <!-- Breadcrumb Bar (Hidden initially) -->
-        <div class="widget-breadcrumb-bar bg-white border-b border-slate-200 px-5 py-2.5 flex items-center justify-between gap-3 text-xs shrink-0 hidden">
+        <!-- Breadcrumb & Control Bar -->
+        <div class="widget-breadcrumb-bar bg-white border-b border-slate-200 px-5 py-2 flex items-center justify-between gap-3 text-xs shrink-0 hidden">
           <div class="flex items-center gap-2">
             <button type="button" class="widget-back-btn bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer" disabled>
               <i class="fa-solid fa-arrow-left"></i> Back
             </button>
-            <div class="widget-breadcrumb-text text-slate-500 font-medium pl-2 border-l border-slate-200 truncate">
+            <div class="widget-breadcrumb-text text-slate-500 font-medium pl-2 border-l border-slate-200 truncate font-mono text-[11px]">
               /
             </div>
           </div>
@@ -66,28 +65,24 @@ export class FileManagerWidget extends Widget {
           </div>
         </div>
 
-        <!-- Main Content Area -->
-        <div class="flex-1 bg-slate-50/50 p-5 overflow-hidden flex flex-col min-h-0 relative">
+        <!-- Main Content Area (Zero Padding, Full Bleed) -->
+        <div class="flex-1 bg-slate-50 overflow-hidden flex flex-col min-h-0 relative">
           
-          <!-- Method 2: Initial Full-Content Select Section -->
-          <div class="widget-select-screen flex-1 border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white transition-all rounded-2xl p-8 flex flex-col items-center justify-center text-center relative cursor-pointer group">
+          <!-- Full-Screen Dropzone -->
+          <div class="widget-select-screen flex-1 bg-white hover:bg-blue-50/20 transition-all p-8 flex flex-col items-center justify-center text-center relative cursor-pointer group border-2 border-dashed border-slate-200 hover:border-blue-500">
             <input type="file" class="widget-folder-input-main absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" webkitdirectory directory multiple>
             <div class="pointer-events-none flex flex-col items-center justify-center">
               <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center text-3xl group-hover:scale-105 transition-transform mb-4 shadow-inner">
                 <i class="fa-solid fa-folder-open"></i>
               </div>
               <h4 class="text-sm font-bold text-slate-800 mb-1">Click anywhere to select a folder</h4>
-              <p class="text-xs text-slate-400 max-w-sm">Or use the 'Select Folder' button in the top bar anytime.</p>
+              <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with instant file previews.</p>
             </div>
           </div>
 
-          <!-- File Manager View (Hidden initially until folder selection) -->
-          <div class="widget-browser-container hidden flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
-            <div class="grid grid-cols-12 bg-slate-100 px-4 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 shrink-0">
-              <div class="col-span-8">Name</div>
-              <div class="col-span-4 text-right">Type</div>
-            </div>
-            <div class="widget-files-list flex-1 overflow-y-auto divide-y divide-slate-100 custom-scrollbar"></div>
+          <!-- File Grid Manager View -->
+          <div class="widget-browser-container hidden flex-1 overflow-y-auto p-4 custom-scrollbar">
+            <div class="widget-files-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
           </div>
 
         </div>
@@ -113,7 +108,7 @@ export class FileManagerWidget extends Widget {
       breadcrumbText: m.querySelector('.widget-breadcrumb-text'),
       itemCount: m.querySelector('.widget-item-count'),
       browserContainer: m.querySelector('.widget-browser-container'),
-      filesList: m.querySelector('.widget-files-list'),
+      filesGrid: m.querySelector('.widget-files-grid'),
       toastContainer: m.querySelector('.widget-toast-container')
     };
   }
@@ -147,7 +142,7 @@ export class FileManagerWidget extends Widget {
       for (let j = 0; j < parts.length; j++) {
         const part = parts[j];
         if (j === parts.length - 1) {
-          currentLevel[part] = { __isFile: true, size: file.size };
+          currentLevel[part] = { __isFile: true, fileRef: file };
         } else {
           if (!currentLevel[part]) {
             currentLevel[part] = {};
@@ -157,7 +152,6 @@ export class FileManagerWidget extends Widget {
       }
     }
 
-    // Hide select dropzone screen & show file manager view
     this.dom.selectScreen.classList.add('hidden');
     this.dom.breadcrumbBar.classList.remove('hidden');
     this.dom.browserContainer.classList.remove('hidden');
@@ -166,11 +160,11 @@ export class FileManagerWidget extends Widget {
     this.dom.subtitle.textContent = rootFolderName;
 
     this.renderCurrentDirectory();
-    this.showToast(`Loaded ${files.length} paths successfully!`, 'success');
+    this.showToast(`Loaded ${files.length} items successfully!`, 'success');
   }
 
   renderCurrentDirectory() {
-    this.dom.filesList.innerHTML = '';
+    this.dom.filesGrid.innerHTML = '';
 
     let currentObj = this.folderStructure;
     if (this.currentPath !== '') {
@@ -192,7 +186,10 @@ export class FileManagerWidget extends Widget {
     this.dom.itemCount.textContent = `${keys.length} items`;
 
     if (keys.length === 0) {
-      this.dom.filesList.innerHTML = `<div class="p-8 text-center text-slate-400 text-xs italic">This folder is empty.</div>`;
+      this.dom.filesGrid.innerHTML = `
+        <div class="col-span-full py-16 text-center text-slate-400 text-xs italic">
+          This folder is empty.
+        </div>`;
       return;
     }
 
@@ -200,30 +197,75 @@ export class FileManagerWidget extends Widget {
       const item = currentObj[key];
       const isDir = !item.__isFile;
 
-      const row = document.createElement('div');
-      row.className = 'grid grid-cols-12 px-4 py-2.5 items-center hover:bg-slate-50 transition text-xs cursor-pointer group';
+      const card = document.createElement('div');
+      card.className =
+        'group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden';
 
-      const iconClass = isDir ? 'fa-folder text-amber-500' : 'fa-file-lines text-blue-500';
-
-      row.innerHTML = `
-        <div class="col-span-8 flex items-center gap-2.5 truncate font-medium text-slate-700 group-hover:text-blue-600">
-          <i class="fa-solid ${iconClass} text-sm shrink-0"></i>
-          <span class="truncate">${key}</span>
-        </div>
-        <div class="col-span-4 text-right text-slate-400 text-[11px]">
-          ${isDir ? 'Folder' : 'File'}
-        </div>
-      `;
-
-      row.addEventListener('click', () => {
-        if (isDir) {
+      if (isDir) {
+        card.innerHTML = `
+          <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
+            <i class="fa-solid fa-folder text-5xl"></i>
+          </div>
+          <div class="w-full text-xs font-bold text-slate-700 truncate pt-2 border-t border-slate-100">
+            ${key}
+          </div>
+        `;
+        card.addEventListener('click', () => {
           this.currentPath = this.currentPath ? `${this.currentPath}/${key}` : key;
           this.renderCurrentDirectory();
-        }
-      });
+        });
+      } else {
+        const file = item.fileRef;
+        const isImage = file.type.startsWith('image/');
+        const isText = file.type.startsWith('text/') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.html') || file.name.endsWith('.css') || file.name.endsWith('.md');
 
-      this.dom.filesList.appendChild(row);
+        card.innerHTML = `
+          <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
+            <i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>
+          </div>
+          <div class="w-full text-xs font-semibold text-slate-700 truncate pt-2 border-t border-slate-100 flex items-center justify-between">
+            <span class="truncate text-[11px]" title="${key}">${key}</span>
+            <span class="text-[9px] text-slate-400 font-mono shrink-0 ml-1">${this.formatBytes(file.size)}</span>
+          </div>
+        `;
+
+        const previewContainer = card.querySelector('.widget-preview-area');
+
+        if (isImage) {
+          const imgUrl = URL.createObjectURL(file);
+          previewContainer.innerHTML = `<img src="${imgUrl}" alt="${key}" class="w-full h-full object-cover rounded-lg" />`;
+        } else if (isText) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const textSnippet = e.target.result.substring(0, 150);
+            previewContainer.innerHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1 overflow-hidden w-full h-full select-none opacity-80">${this.escapeHtml(textSnippet)}</pre>`;
+          };
+          reader.readAsText(file.slice(0, 200));
+        }
+
+        card.addEventListener('click', () => {
+          if (isImage) {
+            window.open(URL.createObjectURL(file), '_blank');
+          } else {
+            this.showToast(`Selected file: ${key}`, 'info');
+          }
+        });
+      }
+
+      this.dom.filesGrid.appendChild(card);
     }
+  }
+
+  escapeHtml(str) {
+    return str.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  formatBytes(bytes) {
+    if (bytes === 0) return '0B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(0)) + sizes[i];
   }
 
   showToast(msg, type = 'info') {
