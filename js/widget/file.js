@@ -76,7 +76,7 @@ export class FileManagerWidget extends Widget {
                 <i class="fa-solid fa-folder-open"></i>
               </div>
               <h4 class="text-sm font-bold text-slate-800 mb-1">Click anywhere to select a folder</h4>
-              <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with instant file previews (images, text, audio, video).</p>
+              <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with instant previews and computed folder sizes.</p>
             </div>
           </div>
 
@@ -142,12 +142,17 @@ export class FileManagerWidget extends Widget {
       for (let j = 0; j < parts.length; j++) {
         const part = parts[j];
         if (j === parts.length - 1) {
-          currentLevel[part] = { __isFile: true, fileRef: file };
+          currentLevel[part] = { __isFile: true, fileRef: file, size: file.size };
         } else {
           if (!currentLevel[part]) {
-            currentLevel[part] = {};
+            currentLevel[part] = { __isFile: false, __children: {} };
           }
-          currentLevel = currentLevel[part];
+          // Normalize folder node storage if plain object
+          if (!currentLevel[part].__children) {
+            const oldObj = currentLevel[part];
+            currentLevel[part] = { __isFile: false, __children: oldObj };
+          }
+          currentLevel = currentLevel[part].__children;
         }
       }
     }
@@ -163,6 +168,21 @@ export class FileManagerWidget extends Widget {
     this.showToast(`Loaded ${files.length} items successfully!`, 'success');
   }
 
+  getFolderSize(node) {
+    let totalSize = 0;
+    const children = node.__children || node;
+    for (const key in children) {
+      if (key.startsWith('__')) continue;
+      const child = children[key];
+      if (child.__isFile) {
+        totalSize += child.size || 0;
+      } else {
+        totalSize += this.getFolderSize(child);
+      }
+    }
+    return totalSize;
+  }
+
   renderCurrentDirectory() {
     this.dom.filesGrid.innerHTML = '';
 
@@ -170,11 +190,13 @@ export class FileManagerWidget extends Widget {
     if (this.currentPath !== '') {
       const parts = this.currentPath.split('/');
       for (const p of parts) {
-        if (currentObj[p]) currentObj = currentObj[p];
+        if (currentObj[p]) {
+          currentObj = currentObj[p].__children || currentObj[p];
+        }
       }
     }
 
-    const keys = Object.keys(currentObj).sort((a, b) => {
+    const keys = Object.keys(currentObj).filter(k => !k.startsWith('__')).sort((a, b) => {
       const aIsDir = !currentObj[a].__isFile;
       const bIsDir = !currentObj[b].__isFile;
       if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
@@ -202,12 +224,14 @@ export class FileManagerWidget extends Widget {
         'group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden';
 
       if (isDir) {
+        const folderSize = this.getFolderSize(item);
         card.innerHTML = `
           <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
             <i class="fa-solid fa-folder text-5xl"></i>
           </div>
-          <div class="w-full text-xs font-bold text-slate-700 truncate pt-2 border-t border-slate-100">
-            ${key}
+          <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+            <span class="w-full text-xs font-bold text-slate-700 truncate" title="${key}">${key}</span>
+            <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(folderSize)}</span>
           </div>
         `;
         card.addEventListener('click', () => {
@@ -227,9 +251,9 @@ export class FileManagerWidget extends Widget {
           <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
             <i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>
           </div>
-          <div class="w-full text-xs font-semibold text-slate-700 truncate pt-2 border-t border-slate-100 flex items-center justify-between">
-            <span class="truncate text-[11px]" title="${key}">${key}</span>
-            <span class="text-[9px] text-slate-400 font-mono shrink-0 ml-1">${this.formatBytes(file.size)}</span>
+          <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+            <span class="w-full text-xs font-semibold text-slate-700 truncate text-[11px]" title="${key}">${key}</span>
+            <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(file.size)}</span>
           </div>
         `;
 
@@ -278,11 +302,11 @@ export class FileManagerWidget extends Widget {
   }
 
   formatBytes(bytes) {
-    if (bytes === 0) return '0B';
+    if (bytes === 0 ||isNaN(bytes)) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(0)) + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
   showToast(msg, type = 'info') {
