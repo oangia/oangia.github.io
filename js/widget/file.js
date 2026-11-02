@@ -3,7 +3,8 @@ import { Widget } from './base.js';
 export class FileManagerWidget extends Widget {
   constructor(options = {}) {
     super(options);
-    this.folderData = [];
+    this.currentHandle = null;
+    this.currentPathStack = [];
 
     this.init();
   }
@@ -15,165 +16,191 @@ export class FileManagerWidget extends Widget {
   }
 
   createUI() {
-    // 1. Create floating trigger button using parent helper
     this.createFloatButton(
-      `<i class="fa-solid fa-folder-tree text-xl"></i>`,
-      'bg-emerald-600 hover:bg-emerald-700'
+      `<i class="fa-solid fa-folder-open text-xl"></i>`,
+      'bg-blue-600 hover:bg-blue-700'
     );
-    this.floatBtn.ariaLabel = 'Open Folder Info Reader';
+    this.floatBtn.ariaLabel = 'Open System File Manager';
 
-    // 2. Create Modal Container
     this.modal = document.createElement('div');
     this.modal.className =
       'fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4 font-sans';
 
     this.modal.innerHTML = `
-      <div class="bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden">
+      <div class="bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden">
         
-        <!-- Header -->
+        <!-- Top Toolbar Header -->
         <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
           <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg shadow-inner">
-              <i class="fa-solid fa-folder-open"></i>
+            <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg shadow-inner">
+              <i class="fa-solid fa-folder-tree"></i>
             </div>
             <div>
-              <h3 class="text-sm font-bold text-slate-900">Folder Information Reader</h3>
-              <p class="text-[11px] text-slate-500">Extracts path, size, and file structure from a local folder</p>
+              <h3 class="text-sm font-bold text-slate-900">System Folder Manager</h3>
+              <p class="widget-path-subtitle text-[11px] text-slate-500 truncate max-w-md">No folder selected</p>
             </div>
           </div>
-          <button type="button" class="widget-close-btn text-slate-400 hover:text-slate-700 text-xl px-2 py-1 transition cursor-pointer">&times;</button>
+
+          <div class="flex items-center gap-2">
+            <button type="button" class="widget-select-folder-btn bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer">
+              <i class="fa-solid fa-folder-plus"></i> Select Folder
+            </button>
+            <button type="button" class="widget-close-btn text-slate-400 hover:text-slate-700 text-xl px-2 py-1 transition ml-2 cursor-pointer">&times;</button>
+          </div>
         </div>
 
-        <!-- Body Content -->
-        <div class="flex-1 p-5 overflow-hidden flex flex-col gap-4 bg-slate-50/50 min-h-0">
-          
-          <!-- Dropzone / Selection Box -->
-          <div class="widget-dropzone border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-white transition-all rounded-2xl p-6 text-center flex flex-col items-center justify-center cursor-pointer relative group shrink-0">
-            <!-- webkitdirectory enables full folder selection -->
-            <input type="file" class="widget-folder-input absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" webkitdirectory directory multiple>
-            <div class="pointer-events-none flex flex-col items-center justify-center">
-              <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl group-hover:scale-105 transition-transform mb-2 shadow-inner">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-              </div>
-              <p class="text-xs font-bold text-slate-800">
-                Click to select a folder or <span class="text-emerald-600 underline">browse</span>
-              </p>
-              <p class="text-[10px] text-slate-400 mt-1">Reads all nested files and sub-directories instantly</p>
+        <!-- Navigation Bar / Breadcrumbs -->
+        <div class="bg-white border-b border-slate-200 px-5 py-2.5 flex items-center justify-between gap-3 text-xs shrink-0">
+          <div class="flex items-center gap-2">
+            <button type="button" class="widget-back-btn bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer" disabled>
+              <i class="fa-solid fa-arrow-left"></i> Back
+            </button>
+            <div class="widget-breadcrumb-text text-slate-500 font-medium pl-2 border-l border-slate-200 truncate">
+              Root view
             </div>
           </div>
+          <div class="widget-item-count text-slate-400 font-medium text-[11px]">
+            0 items
+          </div>
+        </div>
 
-          <!-- Summary Bar -->
-          <div class="widget-summary-bar hidden bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs font-medium text-slate-600 shrink-0">
-            <span class="widget-total-files">0 files found</span>
-            <span class="widget-total-size text-slate-400">Total size: 0 KB</span>
+        <!-- Main Content Area -->
+        <div class="flex-1 bg-slate-50/50 p-5 overflow-hidden flex flex-col min-h-0">
+          
+          <!-- Empty State -->
+          <div class="widget-empty-state flex-1 border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-white">
+            <div class="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center text-2xl mb-3 shadow-inner">
+              <i class="fa-solid fa-folder-open"></i>
+            </div>
+            <h4 class="text-sm font-bold text-slate-700 mb-1">No System Folder Connected</h4>
+            <p class="text-xs text-slate-400 max-w-sm mb-4">Click 'Select Folder' to lazily browse your local directory structure without heavy pre-scanning.</p>
+            <button type="button" class="widget-empty-select-btn bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-4 py-2 rounded-xl text-xs transition border border-blue-200 cursor-pointer">
+              Choose Local Directory
+            </button>
           </div>
 
           <!-- File List Table -->
-          <div class="widget-table-container hidden flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
+          <div class="widget-browser-container hidden flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
             <div class="grid grid-cols-12 bg-slate-100 px-4 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 shrink-0">
-              <div class="col-span-8">Relative Path</div>
-              <div class="col-span-2">Type</div>
-              <div class="col-span-2 text-right">Size</div>
+              <div class="col-span-8">Name</div>
+              <div class="col-span-4 text-right">Type</div>
             </div>
-            <div class="widget-file-list flex-1 overflow-y-auto divide-y divide-slate-100 custom-scrollbar"></div>
-          </div>
-
-          <!-- Empty State -->
-          <div class="widget-empty-state flex-1 bg-white border border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center text-center">
-            <i class="fa-regular fa-folder-open text-3xl text-slate-300 mb-2"></i>
-            <p class="text-xs font-bold text-slate-600">No folder loaded yet</p>
-            <p class="text-[11px] text-slate-400 mt-0.5">Select a folder using the box above to analyze its contents.</p>
+            <div class="widget-files-list flex-1 overflow-y-auto divide-y divide-slate-100 custom-scrollbar"></div>
           </div>
 
         </div>
 
-        <!-- Toast Container -->
         <div class="widget-toast-container absolute bottom-4 right-4 pointer-events-none flex flex-col gap-2 z-50"></div>
       </div>
     `;
 
     document.body.appendChild(this.modal);
-
-    // 3. Bind toggle behavior using parent helper
     this.bindToggle(this.modal, '.widget-close-btn');
   }
 
   cacheDomReferences() {
     const m = this.modal;
     this.dom = {
-      folderInput: m.querySelector('.widget-folder-input'),
-      dropzone: m.querySelector('.widget-dropzone'),
-      summaryBar: m.querySelector('.widget-summary-bar'),
-      totalFiles: m.querySelector('.widget-total-files'),
-      totalSize: m.querySelector('.widget-total-size'),
-      tableContainer: m.querySelector('.widget-table-container'),
-      fileList: m.querySelector('.widget-file-list'),
+      selectBtn: m.querySelector('.widget-select-folder-btn'),
+      emptySelectBtn: m.querySelector('.widget-empty-select-btn'),
+      backBtn: m.querySelector('.widget-back-btn'),
+      subtitle: m.querySelector('.widget-path-subtitle'),
+      breadcrumb: m.querySelector('.widget-breadcrumb-text'),
+      itemCount: m.querySelector('.widget-item-count'),
       emptyState: m.querySelector('.widget-empty-state'),
+      browserContainer: m.querySelector('.widget-browser-container'),
+      filesList: m.querySelector('.widget-files-list'),
       toastContainer: m.querySelector('.widget-toast-container')
     };
   }
 
   attachEvents() {
-    this.dom.folderInput.addEventListener('change', (e) => this.handleFolderSelect(e));
+    const handleSelectClick = () => this.pickSystemFolder();
+    this.dom.selectBtn.addEventListener('click', handleSelectClick);
+    this.dom.emptySelectBtn.addEventListener('click', handleSelectClick);
+
+    this.dom.backBtn.addEventListener('click', () => {
+      if (this.currentPathStack.length > 0) {
+        this.currentHandle = this.currentPathStack.pop();
+        this.loadDirectory(this.currentHandle);
+      }
+    });
   }
 
-  handleFolderSelect(e) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  async pickSystemFolder() {
+    try {
+      if (!window.showDirectoryPicker) {
+        this.showToast('File System Access API is not supported in this browser.', 'error');
+        return;
+      }
 
-    this.folderData = [];
-    let totalBytes = 0;
+      const handle = await window.showDirectoryPicker();
+      this.currentHandle = handle;
+      this.currentPathStack = [];
+      
+      this.loadDirectory(handle);
+      this.showToast(`Connected to: ${handle.name}`, 'success');
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error(err);
+        this.showToast('Failed to access directory.', 'error');
+      }
+    }
+  }
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      totalBytes += file.size;
+  async loadDirectory(dirHandle) {
+    this.dom.emptyState.classList.add('hidden');
+    this.dom.browserContainer.classList.remove('hidden');
+    this.dom.filesList.innerHTML = '';
 
-      this.folderData.push({
-        name: file.name,
-        path: file.webkitRelativePath || file.name, // Keeps full sub-folder nesting path
-        size: file.size,
-        type: file.type || 'Unknown'
-      });
+    this.dom.subtitle.textContent = dirHandle.name;
+    this.dom.breadcrumb.textContent = dirHandle.name;
+    this.dom.backBtn.disabled = this.currentPathStack.length === 0;
+
+    const entries = [];
+    for await (const entry of dirHandle.values()) {
+      entries.push(entry);
     }
 
-    // Sort files by relative path alphabetically
-    this.folderData.sort((a, b) => a.path.localeCompare(b.path));
+    entries.sort((a, b) => {
+      if (a.kind === b.kind) return a.name.localeCompare(b.name);
+      return a.kind === 'directory' ? -1 : 1;
+    });
 
-    this.renderFolderInfo(totalBytes);
-    this.showToast(`Loaded folder with ${files.length} files successfully!`, 'success');
-  }
+    this.dom.itemCount.textContent = `${entries.length} items`;
 
-  renderFolderInfo(totalBytes) {
-    this.dom.emptyState.classList.add('hidden');
-    this.dom.summaryBar.classList.remove('hidden');
-    this.dom.tableContainer.classList.remove('hidden');
+    if (entries.length === 0) {
+      this.dom.filesList.innerHTML = `<div class="p-8 text-center text-slate-400 text-xs italic">This folder is empty.</div>`;
+      return;
+    }
 
-    this.dom.totalFiles.textContent = `${this.folderData.length} files parsed`;
-    this.dom.totalSize.textContent = `Total size: ${this.formatBytes(totalBytes)}`;
-    
-    this.dom.fileList.innerHTML = '';
-
-    for (const item of this.folderData) {
+    for (const entry of entries) {
       const row = document.createElement('div');
-      row.className = 'grid grid-cols-12 px-4 py-2 items-center text-xs hover:bg-slate-50 transition';
+      row.className = 'grid grid-cols-12 px-4 py-2.5 items-center hover:bg-slate-50 transition text-xs cursor-pointer group';
+      
+      const isDir = entry.kind === 'directory';
+      const iconClass = isDir ? 'fa-folder text-amber-500' : 'fa-file-lines text-blue-500';
 
       row.innerHTML = `
-        <div class="col-span-8 font-mono text-slate-700 truncate pr-2" title="${item.path}">
-          <i class="fa-regular fa-file-lines text-emerald-500 mr-1.5"></i>${item.path}
+        <div class="col-span-8 flex items-center gap-2.5 truncate font-medium text-slate-700 group-hover:text-blue-600">
+          <i class="fa-solid ${iconClass} text-sm shrink-0"></i>
+          <span class="truncate">${entry.name}</span>
         </div>
-        <div class="col-span-2 text-slate-400 truncate text-[11px]">${item.type.split('/')[1] || item.type}</div>
-        <div class="col-span-2 text-right font-mono text-slate-500 text-[11px]">${this.formatBytes(item.size)}</div>
+        <div class="col-span-4 text-right text-slate-400 text-[11px]">
+          ${isDir ? 'Folder' : 'File'}
+        </div>
       `;
-      this.dom.fileList.appendChild(row);
-    }
-  }
 
-  formatBytes(bytes) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+      row.addEventListener('click', async () => {
+        if (isDir) {
+          this.currentPathStack.push(this.currentHandle);
+          this.currentHandle = entry;
+          this.loadDirectory(entry);
+        }
+      });
+
+      this.dom.filesList.appendChild(row);
+    }
   }
 
   showToast(msg, type = 'info') {
