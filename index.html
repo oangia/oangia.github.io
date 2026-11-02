@@ -175,22 +175,7 @@
       if (activeSpace !== "jav") switchSpace("jav");
     });
     
-    import { DailyTaskTracker } from "./js/widget/tracker.js";
-    import { PdfExtractorWidget } from './js/widget/pdf.js';
-    import { MediaFrameExtractorWidget } from './js/widget/image.js';
-    import { PhotoshopWidget } from './js/widget/pts.js';
-    import { GithubWidget } from "./js/widget/git.js";
-    import { FileManagerWidget } from "./js/widget/file.js";
-    
-    new MediaFrameExtractorWidget();
-    new PhotoshopWidget();
-    new PdfExtractorWidget();
-    new FileManagerWidget();
-    new GithubWidget();
-    new DailyTaskTracker({
-      Music: ['Learn/write songs', 'Practice singing'],
-      Basic: ['Exercises', 'Reading', 'Learn an expression', 'Diet']     
-    });
+    import "./js/widget/widget.js";
   </script>
 </body>
 </html>
