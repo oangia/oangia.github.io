@@ -189,10 +189,24 @@ export class GithubWidget extends Widget {
 
     document.body.appendChild(this.modal);
 
-    // 3. Bind toggle using parent helper, and auto-fetch repository on open
-    this.bindToggle(this.modal, '#gw-close-modal-btn', () => {
-      this.fetchRepositoryTree();
+    // 3. Bind toggle using parent helper, and use a MutationObserver to watch when the modal opens to fetch automatically
+    this.bindToggle(this.modal, '#gw-close-modal-btn');
+    this.observeModalOpen();
+  }
+
+  observeModalOpen() {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          const isHidden = this.modal.classList.contains('hidden');
+          // If modal is now visible and files haven't been fetched yet for this session
+          if (!isHidden && (!this.currentRepoData.files || this.currentRepoData.files.length === 0)) {
+            this.fetchRepositoryTree();
+          }
+        }
+      });
     });
+    observer.observe(this.modal, { attributes: true });
   }
 
   cacheDomReferences() {
