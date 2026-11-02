@@ -36,12 +36,6 @@ class ConfigManager {
           </div>
           <div class="p-5 space-y-4">
             <textarea id="appConfigTextarea" placeholder="Paste your JSON configuration here..." class="w-full text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 custom-scrollbar focus:outline-none focus:ring-2 focus:ring-blue-500" rows="8"></textarea>
-            <div class="flex items-center justify-between text-xs text-slate-500">
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" id="appRememberCookie" checked class="rounded text-amber-500">
-                <span>Save in cookie (30 days)</span>
-              </label>
-            </div>
             <button type="button" id="appSaveConfigBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition">
               <i class="fa-solid fa-floppy-disk"></i> Apply & Save Config
             </button>
@@ -55,7 +49,6 @@ class ConfigManager {
   _initElements() {
     this.modal = document.getElementById("appConfigModal");
     this.textarea = document.getElementById("appConfigTextarea");
-    this.rememberCheckbox = document.getElementById("appRememberCookie");
     this.saveBtn = document.getElementById("appSaveConfigBtn");
     this.closeBtn = document.getElementById("appCloseConfigBtn");
   }
@@ -109,11 +102,7 @@ class ConfigManager {
       return;
     }
 
-    if (this.rememberCheckbox.checked) {
-      Cookie.set(this.cookieName, rawText, 30);
-    } else {
-      Cookie.erase(this.cookieName);
-    }
+    Cookie.set(this.cookieName, rawText, 365);
 
     this.close();
   }
