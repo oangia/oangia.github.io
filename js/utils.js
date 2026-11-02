@@ -1,7 +1,8 @@
 class Cookie{static set(e,t,o=30){const n=new Date;n.setTime(n.getTime()+24*o*60*60*1e3),document.cookie=`${e}=${encodeURIComponent(t)};expires=${n.toUTCString()};path=/;SameSite=Strict`}static get(e){const t=e+"=",o=document.cookie.split(";");for(let e=0;e<o.length;e++){let n=o[e].trim();if(0===n.indexOf(t))return decodeURIComponent(n.substring(t.length))}return null}static erase(e){document.cookie=`${e}=; Max-Age=-99999999; path=/;`}}
 class ConfigManager {
-  constructor(btnId, { cookieName = "app_config_cookie" } = {}) {
-    this.cookieName = cookieName;
+  constructor(btnId) {
+    this.cookieName = "app_config";
+    this.globalKey = "APP_CONFIG";
     this.toggleBtn = document.getElementById(btnId);
 
     if (!this.toggleBtn) {
@@ -21,6 +22,7 @@ class ConfigManager {
     const container = document.createElement("div");
     container.id = "appConfigModalContainer";
     container.innerHTML = `
+      <!-- Config Panel / Modal Overlay -->
       <div id="appConfigModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-200">
           <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
@@ -32,13 +34,12 @@ class ConfigManager {
             </button>
           </div>
           <div class="p-5 space-y-4">
-            <textarea id="appConfigTextarea" placeholder="Paste your JSON config here..." class="w-full text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 custom-scrollbar focus:outline-none focus:ring-2 focus:ring-blue-500" rows="8"></textarea>
+            <textarea id="appConfigTextarea" placeholder="Paste your JSON configuration here..." class="w-full text-xs font-mono p-3 bg-slate-900 text-emerald-400 rounded-xl border border-slate-700 custom-scrollbar focus:outline-none focus:ring-2 focus:ring-blue-500" rows="8"></textarea>
             <div class="flex items-center justify-between text-xs text-slate-500">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" id="appRememberCookie" checked class="rounded text-amber-500">
                 <span>Save in cookie (30 days)</span>
               </label>
-              <button type="button" id="appClearCookieBtn" class="text-red-500 underline font-medium hover:text-red-600">Clear Cookie</button>
             </div>
             <button type="button" id="appSaveConfigBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition">
               <i class="fa-solid fa-floppy-disk"></i> Apply & Save Config
@@ -55,7 +56,6 @@ class ConfigManager {
     this.textarea = document.getElementById("appConfigTextarea");
     this.rememberCheckbox = document.getElementById("appRememberCookie");
     this.saveBtn = document.getElementById("appSaveConfigBtn");
-    this.clearBtn = document.getElementById("appClearCookieBtn");
     this.closeBtn = document.getElementById("appCloseConfigBtn");
   }
 
@@ -82,13 +82,30 @@ class ConfigManager {
     this.modal.classList.add("hidden");
   }
 
+  _applyConfig(rawText) {
+    try {
+      const parsed = JSON.parse(rawText);
+      
+      // Set global variable
+      window[this.globalKey] = parsed;
+
+      return true;
+    } catch (error) {
+      console.error("ConfigManager: Invalid JSON format.", error);
+      alert("Invalid JSON format. Please check your syntax.");
+      return false;
+    }
+  }
+
   _handleSave() {
     const rawText = this.textarea.value.trim();
 
-    try {
-      window.APP_CONFIG = JSON.parse(rawText);
-    } catch (e) {
-      alert("Invalid JSON format.");
+    if (!rawText) {
+      alert("Configuration cannot be empty.");
+      return;
+    }
+
+    if (!this._applyConfig(rawText)) {
       return;
     }
 
@@ -101,22 +118,11 @@ class ConfigManager {
     this.close();
   }
 
-  _handleClear() {
-    Cookie.erase(this.cookieName);
-    this.textarea.value = "";
-    window.APP_CONFIG = undefined;
-    this.close();
-  }
-
   _checkInitialCookie() {
     const saved = Cookie.get(this.cookieName);
     if (saved) {
       this.textarea.value = saved;
-      try {
-        window.APP_CONFIG = JSON.parse(saved);
-      } catch (e) {
-        console.error("Invalid initial config cookie JSON");
-      }
+      this._applyConfig(saved);
     }
   }
 }
