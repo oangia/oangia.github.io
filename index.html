@@ -22,6 +22,10 @@
           <i class="fa-solid fa-house text-base"></i>
           <span>Home</span>
         </button>
+        <button id="navFile" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white">
+          <i class="fa-solid fa-folder text-base"></i>
+          <span>File</span>
+        </button>
         <button id="navMemo" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white">
           <i class="fa-solid fa-note-sticky text-base"></i>
           <span>Memo</span>
@@ -38,7 +42,7 @@
     </aside>
 
     <!-- Content Area Container -->
-    <main id="fileManagerApp" class="flex-1 flex flex-col bg-slate-50 p-4 overflow-y-auto custom-scrollbar" data-class="w-full h-full flex flex-col">
+    <main id="appContent" class="flex-1 flex flex-col bg-slate-50 p-4 overflow-y-auto custom-scrollbar">
     </main>
   </div>
 
@@ -50,8 +54,8 @@
     const fbService = new FirebaseService();
 
     const collectionConfigs = {
-      home: {
-        title: "File Manager - Home",
+      file: {
+        title: "File Manager - File",
         filesCollection: "book_files",
         fileChunksCollection: "book_file_chunks"
       },
@@ -76,28 +80,28 @@
 
     // Initialize FileManager instance ONCE
     const fileManager = new FileManager({
-      containerId: "fileManagerApp",
+      containerId: "appContent",
       fbService: fbService,
-      filesCollection: collectionConfigs.home.filesCollection,
-      fileChunksCollection: collectionConfigs.home.fileChunksCollection
+      filesCollection: collectionConfigs.file.filesCollection,
+      fileChunksCollection: collectionConfigs.file.fileChunksCollection
     });
-    fileManager.init();
-    window.fileManager = fileManager;
+
+    function renderHome() {
+      const container = document.getElementById("appContent");
+      container.innerHTML = `
+        <div class="max-w-4xl mx-auto p-6 space-y-6">
+          <h1 class="text-2xl font-bold text-slate-800">Welcome to Home</h1>
+          <p class="text-slate-600">This is the home page dashboard.</p>
+        </div>
+      `;
+    }
 
     function switchSpace(spaceKey) {
       activeSpace = spaceKey;
-      const config = collectionConfigs[spaceKey];
-      fileManager.switch({
-        items: config.filesCollection,
-        fileChunks: config.fileChunksCollection
-      });
       
-      // Update Header Title
-      document.getElementById("appTitle").textContent = config.title;
-
-      // Update Sidebar Button Styles
       const buttons = {
         home: document.getElementById("navHome"),
+        file: document.getElementById("navFile"),
         memo: document.getElementById("navMemo"),
         code: document.getElementById("navCode"),
         jav: document.getElementById("navJav")
@@ -110,11 +114,31 @@
           buttons[key].className = "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white";
         }
       });
+
+      if (spaceKey === "home") {
+        document.getElementById("appTitle").textContent = "File Manager - Home";
+        renderHome();
+      } else {
+        const config = collectionConfigs[spaceKey];
+        document.getElementById("appTitle").textContent = config.title;
+        document.getElementById("appContent").innerHTML = `<div id="fileManagerApp" class="w-full h-full flex flex-col"></div>`;
+        fileManager.containerId = "fileManagerApp";
+        fileManager.init();
+        fileManager.switch({
+          items: config.filesCollection,
+          fileChunks: config.fileChunksCollection
+        });
+        window.fileManager = fileManager;
+      }
     }
 
     // Navigation Listeners
     document.getElementById("navHome").addEventListener("click", () => {
       if (activeSpace !== "home") switchSpace("home");
+    });
+
+    document.getElementById("navFile").addEventListener("click", () => {
+      if (activeSpace !== "file") switchSpace("file");
     });
 
     document.getElementById("navMemo").addEventListener("click", () => {
@@ -154,14 +178,16 @@
     import { MediaFrameExtractorWidget } from './js/widget/image.js';
     import { PhotoshopWidget } from './js/widget/pts.js';
     import { GithubWidget } from "./js/widget/git.js";
+    import { FileManagerWidget } from "./js/widget/file.js";
     
     new MediaFrameExtractorWidget();
     new PhotoshopWidget();
     new PdfExtractorWidget();
+    new FileManagerWidget();
     new GithubWidget();
     new DailyTaskTracker({
       Music: ['Learn/write songs', 'Practice singing'],
-      Basic: ['Exercises', 'Reading', 'Learn an expression', 'Diet']      
+      Basic: ['Exercises', 'Reading', 'Learn an expression', 'Diet']     
     });
   </script>
 </body>
