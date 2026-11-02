@@ -76,7 +76,7 @@ export class FileManagerWidget extends Widget {
                 <i class="fa-solid fa-folder-open"></i>
               </div>
               <h4 class="text-sm font-bold text-slate-800 mb-1">Click anywhere to select a folder</h4>
-              <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with rich file previews (images, text, audio, video).</p>
+              <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with instant file previews (images, text, audio, video).</p>
             </div>
           </div>
 
@@ -240,7 +240,14 @@ export class FileManagerWidget extends Widget {
           previewContainer.innerHTML = `<img src="${imgUrl}" alt="${key}" class="w-full h-full object-cover rounded-lg" />`;
         } else if (isVideo) {
           const videoUrl = URL.createObjectURL(file);
-          previewContainer.innerHTML = `<video src="${videoUrl}" class="w-full h-full object-cover rounded-lg pointer-events-none muted playsinline preload="metadata"></video>`;
+          previewContainer.innerHTML = `
+            <video src="${videoUrl}" class="w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
+            <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
+          `;
+          const videoEl = previewContainer.querySelector('video');
+          videoEl.addEventListener('loadedmetadata', () => {
+            videoEl.currentTime = Math.min(1, videoEl.duration / 4);
+          });
         } else if (isAudio) {
           previewContainer.innerHTML = `
             <div class="flex flex-col items-center justify-center text-blue-500">
