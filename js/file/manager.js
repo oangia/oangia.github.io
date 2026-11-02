@@ -340,39 +340,15 @@ export class FileManager {
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading (${i + 1}/${files.length}): ${file.name}`;
-
         try {
-          const base64Data = await this.readFileAsDataURL(file);
-
-          let thumbnail = "";
-          if (file.type.startsWith("image/")) {
-            thumbnail = await this.generateThumbnail(base64Data, 150);
-          }
-
-          const CHUNK_SIZE = 700000;
-          const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
-          const fileId = "file_" + Date.now() + "_" + i;
-
-          await this.fbService.create(this.collections.items, {
-            fileId,
-            title: file.name,
-            isFolder: false,
-            category: file.type.startsWith("image/") ? "Image" : "Media",
-            parentId: this.currentFolderId,
-            totalParts,
-            thumbnail
-          });
-
-          for (let c = 0; c < totalParts; c++) {
-            const chunkData = base64Data.substring(c * CHUNK_SIZE, (c + 1) * CHUNK_SIZE);
-            await this.fbService.create(this.collections.fileChunks, {
-              fileId,
-              partIndex: c,
-              chunkData
-            });
-          }
-
+          await this.fbService.uploadFile(
+            this.collections,
+            this.currentFolderId,
+            file,
+            (statusText) => {
+              submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> (${i + 1}/${files.length}) ${statusText}`;
+            }
+          );
           Toast.show(`Uploaded: ${file.name}`, "success");
         } catch (err) {
           Toast.show(`Failed to upload ${file.name}: ${err.message}`, "error");
