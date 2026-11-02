@@ -115,6 +115,3 @@ class ConfigManager {
     }
   }
 }
-!function(){if(document.getElementById("fontAwesomeCDN"))return;const e=document.createElement("script");e.src="https://cdn.tailwindcss.com",document.head.appendChild(e)}();
-!function(){if(document.getElementById("customScrollbarStyle"))return;const r=document.createElement("style");r.id="customScrollbarStyle",r.innerHTML="\n    .custom-scrollbar::-webkit-scrollbar { width: 6px; }\n    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }\n    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }\n  ",document.head.appendChild(r)}();
-!function(){if(document.getElementById("fontAwesomeCDN"))return;const e=document.createElement("link");e.rel="stylesheet",e.href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",document.head.appendChild(e)}();
