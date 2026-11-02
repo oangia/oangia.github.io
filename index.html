@@ -75,8 +75,6 @@
     };
 
     let activeSpace = "home";
-    const configManager = new ConfigManager("toggleConfigBtn");
-    const fbService = new FirebaseService();
     new AppHeader({
       title: "File Manager - Home",
       subtitle: "Fast On-Demand Loading & Chunked Storage",
@@ -89,6 +87,8 @@
         icon: "fa-solid fa-gear" 
       }
     }).mount();
+    const configManager = new ConfigManager("toggleConfigBtn");
+    const fbService = new FirebaseService();
     
     // Initialize FileManager instance ONCE
     const fileManager = new FileManager({
