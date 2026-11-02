@@ -18,7 +18,6 @@ export class GithubWidget extends Widget {
     this.createUI();
     this.cacheDomReferences();
     this.bindEvents();
-    this.checkSavedToken();
   }
 
   loadDependencies() {
@@ -65,31 +64,8 @@ export class GithubWidget extends Widget {
         
         <main class="flex-1 overflow-hidden p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
             
-            <!-- Input Form Card -->
-            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl shrink-0">
-                <form id="gw-repo-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">GitHub Repository Link</label>
-                        <input type="url" id="gw-repo-url" required value="https://github.com/oangia/oangia.github.io" placeholder="https://github.com/owner/repository" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
-                    </div>
-                    <div>
-                        <div class="flex justify-between items-center mb-1.5">
-                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">GitHub Token</label>
-                            <span id="gw-token-status" class="text-[10px] text-emerald-400 font-mono hidden"><i class="fa-solid fa-cookie-bite mr-1"></i>Saved in Cookie</span>
-                        </div>
-                        <input type="password" id="gw-token" placeholder="ghp_..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
-                    </div>
-                    <div>
-                        <button type="submit" id="gw-fetch-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-medium py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <span>Fetch Files</span>
-                        </button>
-                    </div>
-                </form>
-            </div>
-
             <!-- Status & Messages Box -->
-            <div id="gw-status-box" class="hidden bg-slate-800/80 border border-slate-700 rounded-xl p-4 flex items-center justify-between shrink-0">
+            <div id="gw-status-box" class="bg-slate-800/80 border border-slate-700 rounded-xl p-4 flex items-center justify-between shrink-0">
                 <div class="flex items-center space-x-3">
                     <div id="gw-status-spinner" class="animate-spin text-indigo-400 text-lg">
                         <i class="fa-solid fa-circle-notch"></i>
@@ -213,18 +189,16 @@ export class GithubWidget extends Widget {
 
     document.body.appendChild(this.modal);
 
-    // 3. Bind toggle using parent helper
-    this.bindToggle(this.modal, '#gw-close-modal-btn');
+    // 3. Bind toggle using parent helper, and auto-fetch repository on open
+    this.bindToggle(this.modal, '#gw-close-modal-btn', () => {
+      this.fetchRepositoryTree();
+    });
   }
 
   cacheDomReferences() {
     const m = this.modal;
     this.dom = {
       closeBtn: m.querySelector('#gw-close-modal-btn'),
-      repoForm: m.querySelector('#gw-repo-form'),
-      repoUrlInput: m.querySelector('#gw-repo-url'),
-      tokenInput: m.querySelector('#gw-token'),
-      tokenStatus: m.querySelector('#gw-token-status'),
       statusBox: m.querySelector('#gw-status-box'),
       statusSpinner: m.querySelector('#gw-status-spinner'),
       statusText: m.querySelector('#gw-status-text'),
@@ -260,22 +234,6 @@ export class GithubWidget extends Widget {
   }
 
   bindEvents() {
-    this.dom.tokenInput.addEventListener('input', (e) => {
-      const val = e.target.value.trim();
-      if (val) {
-        this.setCookie('github_token', val, 30);
-        this.dom.tokenStatus.classList.remove('hidden');
-      } else {
-        this.setCookie('github_token', '', -1);
-        this.dom.tokenStatus.classList.add('hidden');
-      }
-    });
-
-    this.dom.repoForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      await this.fetchRepositoryTree();
-    });
-
     this.dom.fileFilter.addEventListener('input', (e) => {
       const query = e.target.value.toLowerCase();
       const filtered = this.currentRepoData.files.filter(f => f.path.toLowerCase().includes(query));
@@ -314,26 +272,6 @@ export class GithubWidget extends Widget {
     this.dom.pushFileBtn.addEventListener('click', () => this.pushNewFile());
   }
 
-  setCookie(name, value, days = 30) {
-    const expires = new Date(Date.now() + days * 864e5).toUTCString();
-    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
-  }
-
-  getCookie(name) {
-    return document.cookie.split('; ').reduce((r, v) => {
-      const parts = v.split('=');
-      return parts[0] === name ? decodeURIComponent(parts[1]) : r;
-    }, '');
-  }
-
-  checkSavedToken() {
-    const saved = this.getCookie('github_token');
-    if (saved) {
-      this.dom.tokenInput.value = saved;
-      this.dom.tokenStatus.classList.remove('hidden');
-    }
-  }
-
   showNotification(message, type = 'success') {
     const notif = this.dom.notification;
     const icon = this.dom.notificationIcon;
@@ -366,17 +304,18 @@ export class GithubWidget extends Widget {
   }
 
   async fetchRepositoryTree() {
-    const repoUrl = this.dom.repoUrlInput.value.trim();
-    const token = this.dom.tokenInput.value.trim();
+    const repoUrl = window.APP_CONFIG?.git;
+    const token = window.APP_CONFIG?.gitToken;
 
-    if (token) {
-      this.setCookie('github_token', token, 30);
-      this.dom.tokenStatus.classList.remove('hidden');
+    if (!repoUrl) {
+      this.setStatus(false);
+      this.showNotification('window.APP_CONFIG.git is not configured', 'error');
+      return;
     }
 
     const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
     if (!match) {
-      this.showNotification('Invalid GitHub URL format', 'error');
+      this.showNotification('Invalid GitHub URL format in window.APP_CONFIG.git', 'error');
       return;
     }
 
@@ -392,8 +331,8 @@ export class GithubWidget extends Widget {
     try {
       const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
       if (!repoRes.ok) {
-        if (repoRes.status === 404) throw new Error('Repository not found or is private.');
-        if (repoRes.status === 403) throw new Error('API rate limit reached. Provide a token.');
+        if (repoRes.status === 404) throw new Error('Repository not found or is private/token lacking permissions.');
+        if (repoRes.status === 403) throw new Error('API rate limit reached or token invalid.');
         throw new Error(`Failed to fetch repo: ${repoRes.statusText}`);
       }
       const repoInfo = await repoRes.json();
@@ -493,9 +432,9 @@ export class GithubWidget extends Widget {
   async saveEditedFile() {
     if (!this.selectedFile) return;
 
-    const token = this.currentRepoData.token || this.getCookie('github_token');
+    const token = window.APP_CONFIG?.gitToken;
     if (!token) {
-      this.showNotification('GitHub Token required to save edits', 'error');
+      this.showNotification('window.APP_CONFIG.gitToken required to save edits', 'error');
       return;
     }
 
@@ -547,9 +486,9 @@ export class GithubWidget extends Widget {
   async deleteCurrentFile() {
     if (!this.selectedFile) return;
 
-    const token = this.currentRepoData.token || this.getCookie('github_token');
+    const token = window.APP_CONFIG?.gitToken;
     if (!token) {
-      this.showNotification('GitHub Token required to delete files', 'error');
+      this.showNotification('window.APP_CONFIG.gitToken required to delete files', 'error');
       return;
     }
 
@@ -634,7 +573,7 @@ export class GithubWidget extends Widget {
     const total = this.currentRepoData.files.length;
     let completed = 0;
 
-    const token = this.currentRepoData.token || this.getCookie('github_token');
+    const token = window.APP_CONFIG?.gitToken;
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -672,14 +611,14 @@ export class GithubWidget extends Widget {
     const path = this.dom.newFilePath.value.trim();
     const message = this.dom.newFileMessage.value.trim() || `Add ${path} via Browser JS`;
     const content = this.dom.newFileContent.value;
-    const token = this.currentRepoData.token || this.getCookie('github_token');
+    const token = window.APP_CONFIG?.gitToken;
 
     if (!path) {
       this.showNotification('Please specify a file path', 'error');
       return;
     }
     if (!token) {
-      this.showNotification('GitHub Token required to push files', 'error');
+      this.showNotification('window.APP_CONFIG.gitToken required to push files', 'error');
       return;
     }
 
