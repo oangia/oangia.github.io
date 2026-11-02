@@ -193,6 +193,71 @@ export class FirebaseService {
     }
   }
 
+  async uploadFile(collections, currentFolderId, file, onProgress = () => {}) {
+    const readFileAsDataURL = (fileObj) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(fileObj);
+      });
+    };
+
+    const generateThumbnail = (base64Str, maxSize = 150) => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let w = img.width, h = img.height;
+          if (w > h) { h = Math.round((h * maxSize) / w); w = maxSize; }
+          else { w = Math.round((w * maxSize) / h); h = maxSize; }
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.6));
+        };
+        img.onerror = () => resolve("");
+      });
+    };
+
+    onProgress("Reading file...");
+    const base64Data = await readFileAsDataURL(file);
+
+    let thumbnail = "";
+    if (file.type.startsWith("image/")) {
+      onProgress("Generating thumbnail...");
+      thumbnail = await generateThumbnail(base64Data, 150);
+    }
+
+    const CHUNK_SIZE = 700000;
+    const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
+    const fileId = "file_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5);
+
+    onProgress(`Saving file record...`);
+    await this.create(collections.items, {
+      fileId,
+      title: file.name,
+      isFolder: false,
+      category: file.type.startsWith("image/") ? "Image" : "Media",
+      parentId: currentFolderId,
+      totalParts,
+      thumbnail
+    });
+
+    for (let c = 0; c < totalParts; c++) {
+      onProgress(`Uploading chunk ${c + 1}/${totalParts}...`);
+      const chunkData = base64Data.substring(c * CHUNK_SIZE, (c + 1) * CHUNK_SIZE);
+      await this.create(collections.fileChunks, {
+        fileId,
+        partIndex: c,
+        chunkData
+      });
+    }
+
+    return file.name;
+  }
+
   getLocal(collectionName) {
     const key = `demo_${collectionName}`;
     const raw = localStorage.getItem(key);
