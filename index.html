@@ -166,10 +166,7 @@
       }
     }).mount();
 
-    // Config Manager Setup
-    const configManager = new ConfigManager('toggleConfigBtn', {
-      fbService: fbService
-    });
+    const configManager = new ConfigManager("toggleConfigBtn");
     
     switchSpace(activeSpace);
     
