@@ -160,10 +160,10 @@
         window.fileManager = fileManager;
       }
     }
-
+    switchSpace(activeSpace);
     // Navigation Listeners
     document.getElementById("navHome").addEventListener("click", () => {
-      if (activeSpace !== "home") renderHome();
+      if (activeSpace !== "home") switchSpace('home');
     });
 
     document.getElementById("navFile").addEventListener("click", () => {
