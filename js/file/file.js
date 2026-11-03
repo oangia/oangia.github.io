@@ -381,7 +381,9 @@ export class FileManager {
   }
 
   async createFolder(name, parentId) {
-    await this.service.createFolder(name, parentId);
+    if (typeof this.service.createFolder === 'function') {
+      await this.service.createFolder(name, parentId);
+    }
     Toast.show("Folder created!", "success");
     this.loadCurrentFolder();
   }
@@ -390,14 +392,12 @@ export class FileManager {
     const submitBtn = document.getElementById("submitFileBtn");
     if (submitBtn) submitBtn.disabled = true;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      try {
-        await this.service.switch(files); // Or service upload method
-        Toast.show(`Uploaded: ${file.name}`, "success");
-      } catch (err) {
-        Toast.show(`Failed to upload ${file.name}: ${err.message}`, "error");
-      }
+    try {
+      // Support service switch or multi-file upload
+      await this.switch(files);
+      Toast.show(`Uploaded ${files.length} file(s)`, "success");
+    } catch (err) {
+      Toast.show(`Failed to upload files: ${err.message}`, "error");
     }
 
     if (submitBtn) {
@@ -411,14 +411,34 @@ export class FileManager {
   async deleteItem(target) {
     if (target.type === "folder") {
       if (!confirm("Delete folder?")) return;
-      await this.service.deleteFolder(target.id);
+      if (typeof this.service.deleteFolder === 'function') {
+        await this.service.deleteFolder(target.id);
+      }
       Toast.show("Folder deleted", "success");
     } else {
       if (!confirm("Delete file?")) return;
-      await this.service.deleteFile(target.id, target.fileId);
+      if (typeof this.service.deleteFile === 'function') {
+        await this.service.deleteFile(target.id, target.fileId);
+      }
       Toast.show("File deleted", "success");
     }
     this.loadCurrentFolder();
+  }
+
+  async downloadFile(target) {
+    const fileRecord = await this.service.getFileRecord(target.id);
+    if (!fileRecord) return;
+
+    const fullBase64 = await this.service.getFullBase64(fileRecord.fileId);
+
+    const a = document.createElement("a");
+    a.href = fullBase64;
+    a.download = fileRecord.title;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    Toast.show(`Downloaded ${fileRecord.title}`, "success");
   }
 
   async viewFile(id, fileId) {
@@ -490,7 +510,7 @@ export class FileManager {
 
     document.getElementById("ctxDownloadBtn")?.addEventListener("click", () => {
       if (!this.contextTarget || this.contextTarget.type !== "file") return;
-      this.viewFile(this.contextTarget.id, this.contextTarget.fileId);
+      this.downloadFile(this.contextTarget);
       document.getElementById("contextMenu").classList.add("hidden");
     });
 
@@ -522,7 +542,7 @@ export class FileManager {
       e.preventDefault();
       const files = document.getElementById("chunkFileInput").files;
       if (!files?.length) return;
-      this.switch(files);
+      this.uploadFiles(files, this.currentFolderId);
       document.getElementById("createFileModal").classList.add("hidden");
     });
   }
