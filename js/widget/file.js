@@ -115,13 +115,28 @@ class FileAdapterService {
     }
   }
 
+  _calculateFolderSize(node) {
+    let totalSize = 0;
+    const children = node.__children || {};
+    const files = node.__files || [];
+    
+    for (const file of files) {
+      totalSize += file.size || 0;
+    }
+    for (const key in children) {
+      totalSize += this._calculateFolderSize(children[key]);
+    }
+    return totalSize;
+  }
+
   async getFolderContents(folderId) {
     const node = this.nodeMap.get(folderId) || this.folderStructure;
     
     const folders = Object.values(node.__children).map(child => ({
       id: child.id,
       title: child.name,
-      name: child.name
+      name: child.name,
+      size: this._calculateFolderSize(child) // Pre-calculate the total recursive size here!
     }));
 
     const files = node.__files || [];
