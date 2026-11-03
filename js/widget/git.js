@@ -538,15 +538,8 @@ export class GithubWidget extends Widget {
     deleteFileBtn.disabled = true;
 
     try {
-      // Add a timestamp query parameter to bypass CDN/browser caching
-      const rawUrl = `https://raw.githubusercontent.com/${this.currentRepoData.owner}/${this.currentRepoData.repo}/${this.currentRepoData.branch}/${file.path}?t=${Date.now()}`;
-      
-      const headers = {};
-      // If it's a private repo, raw.githubusercontent.com might need the token headers as well
-      const token = window.APP_CONFIG?.gitToken;
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(rawUrl, { headers });
+      const rawUrl = `https://raw.githubusercontent.com/${this.currentRepoData.owner}/${this.currentRepoData.repo}/${this.currentRepoData.branch}/${file.path}`;
+      const res = await fetch(rawUrl);
       if (!res.ok) throw new Error('Failed to fetch file content.');
       
       const text = await res.text();
@@ -562,7 +555,7 @@ export class GithubWidget extends Widget {
       placeholder.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-2xl text-amber-400 mb-2"></i><p class="text-xs text-amber-300">${err.message}</p>`;
     }
   }
-
+  
   async saveEditedFile() {
     if (!this.selectedFile) return;
 
