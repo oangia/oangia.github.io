@@ -19,6 +19,11 @@ export class FileManagerWrapper {
       containerId: this.containerId,
       firebaseService: this.firebase
     });
+    this.backupManager = new FileBackup(
+      this.fbService,
+      this.collections,
+      "backupDataBtn"
+    );
   }
 
   /** Only public method you need */
@@ -32,5 +37,6 @@ export class FileManagerWrapper {
       fileChunks: collections.fileChunks || this.collections.fileChunks
     };
     this.fileManager.switch(this.collections);
+    this.backupManager.switch(this.collections);
   }
 }
