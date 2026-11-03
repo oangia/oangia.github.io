@@ -1,11 +1,219 @@
 import { Widget } from './base.js';
 
-export class FileManagerWidget extends Widget {
-  constructor(options = {}) {
-    super(options);
+class FileManager {
+  constructor() {
+    this.folderStructure = {};
+    this.currentPath = '';
+  }
+
+  /**
+   * Processes raw files, generates previews/URLs, and builds the internal tree.
+   */
+  async loadFiles(fileList) {
     this.folderStructure = {};
     this.currentPath = '';
 
+    const files = Array.from(fileList);
+    if (!files.length) return;
+
+    for (const file of files) {
+      const relativePath = file.webkitRelativePath || file.name;
+      const parts = relativePath.split('/');
+
+      let currentLevel = this.folderStructure;
+      for (let j = 0; j < parts.length; j++) {
+        const part = parts[j];
+        if (j === parts.length - 1) {
+          currentLevel[part] = {
+            __isFile: true,
+            size: file.size,
+            type: file.type,
+            fileUrl: URL.createObjectURL(file),
+            ...await this.processFilePreview(file, part)
+          };
+        } else {
+          if (!currentLevel[part]) {
+            currentLevel[part] = { __isFile: false, __children: {} };
+          }
+          if (!currentLevel[part].__children) {
+            const oldObj = currentLevel[part];
+            currentLevel[part] = { __isFile: false, __children: oldObj };
+          }
+          currentLevel = currentLevel[part].__children;
+        }
+      }
+    }
+  }
+
+  async processFilePreview(file, filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    const isAudio = file.type.startsWith('audio/');
+    const isText = file.type.startsWith('text/') || ['json', 'js', 'html', 'css', 'md', 'txt', 'xml', 'svg', 'csv'].includes(ext);
+
+    let previewType = 'generic';
+    let previewData = null;
+
+    if (isImage) {
+      previewType = 'image';
+      previewData = URL.createObjectURL(file);
+    } else if (isVideo) {
+      previewType = 'video';
+      previewData = URL.createObjectURL(file);
+    } else if (isAudio) {
+      previewType = 'audio';
+    } else if (isText) {
+      previewType = 'text';
+      previewData = await this.readTextSnippet(file);
+    }
+
+    return { extension: ext, previewType, previewData };
+  }
+
+  readTextSnippet(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result.substring(0, 180));
+      reader.onerror = () => resolve('');
+      reader.readAsText(file.slice(0, 300));
+    });
+  }
+
+  getRootFolderName() {
+    return Object.keys(this.folderStructure)[0] || 'Folder';
+  }
+
+  navigateTo(path) {
+    this.currentPath = path;
+  }
+
+  navigateUp() {
+    const parts = this.currentPath.split('/').filter(Boolean);
+    parts.pop();
+    this.currentPath = parts.join('/');
+  }
+
+  getFolderSize(node) {
+    let totalSize = 0;
+    const children = node.__children || node;
+    for (const key in children) {
+      if (key.startsWith('__')) continue;
+      const child = children[key];
+      if (child.__isFile) {
+        totalSize += child.size || 0;
+      } else {
+        totalSize += this.getFolderSize(child);
+      }
+    }
+    return totalSize;
+  }
+
+  formatBytes(bytes) {
+    if (bytes === 0 || isNaN(bytes)) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  /**
+   * FileManager completely renders the HTML for the current directory contents.
+   */
+  renderDirectoryHTML(onFolderClick) {
+    let currentObj = this.folderStructure;
+    if (this.currentPath !== '') {
+      const parts = this.currentPath.split('/');
+      for (const p of parts) {
+        if (currentObj[p]) {
+          currentObj = currentObj[p].__children || currentObj[p];
+        }
+      }
+    }
+
+    const keys = Object.keys(currentObj)
+      .filter((k) => !k.startsWith('__'))
+      .sort((a, b) => {
+        const aIsDir = !currentObj[a].__isFile;
+        const bIsDir = !currentObj[b].__isFile;
+        if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
+        return a.localeCompare(b);
+      });
+
+    if (keys.length === 0) {
+      return {
+        html: `<div class="col-span-full py-16 text-center text-slate-400 text-xs italic">This folder is empty.</div>`,
+        itemCount: 0,
+        pathText: '/' + this.currentPath
+      };
+    }
+
+    let html = '';
+
+    for (const key of keys) {
+      const item = currentObj[key];
+      const isDir = !item.__isFile;
+
+      if (isDir) {
+        const folderSize = this.getFolderSize(item);
+        html += `
+          <div class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden" data-type="folder" data-name="${key}">
+            <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
+              <i class="fa-solid fa-folder text-5xl"></i>
+            </div>
+            <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+              <span class="w-full text-xs font-bold text-slate-700 truncate" title="${key}">${key}</span>
+              <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(folderSize)}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        let previewHTML = `<i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>`;
+
+        if (item.previewType === 'image') {
+          previewHTML = `<img src="${item.previewData}" alt="${key}" class="w-full h-full object-cover rounded-lg" />`;
+        } else if (item.previewType === 'video') {
+          previewHTML = `
+            <video src="${item.previewData}" class="w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
+            <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
+          `;
+        } else if (item.previewType === 'audio') {
+          previewHTML = `
+            <div class="flex flex-col items-center justify-center text-blue-500">
+              <i class="fa-solid fa-file-audio text-3xl mb-1"></i>
+              <span class="text-[9px] font-mono text-slate-500 uppercase">${item.extension}</span>
+            </div>`;
+        } else if (item.previewType === 'text' && item.previewData) {
+          const escapedText = item.previewData.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+          previewHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1.5 overflow-hidden w-full h-full select-none opacity-80">${escapedText}</pre>`;
+        }
+
+        html += `
+          <div class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden" data-type="file" data-url="${item.fileUrl}">
+            <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
+              ${previewHTML}
+            </div>
+            <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+              <span class="w-full text-xs font-semibold text-slate-700 truncate text-[11px]" title="${key}">${key}</span>
+              <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(item.size)}</span>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    return {
+      html,
+      itemCount: keys.length,
+      pathText: '/' + this.currentPath
+    };
+  }
+}
+
+export class FileManagerWidget extends Widget {
+  constructor(options = {}) {
+    super(options);
+    this.fileManager = new FileManager();
     this.init();
   }
 
@@ -65,7 +273,7 @@ export class FileManagerWidget extends Widget {
           </div>
         </div>
 
-        <!-- Main Content Area (Zero Padding, Full Bleed) -->
+        <!-- Main Content Area -->
         <div class="flex-1 bg-slate-50 overflow-hidden flex flex-col min-h-0 relative">
           
           <!-- Full-Screen Dropzone -->
@@ -114,215 +322,65 @@ export class FileManagerWidget extends Widget {
   }
 
   attachEvents() {
-    const handleSelect = (e) => this.handleFolderSelect(e);
+    const handleSelect = async (e) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      // Feed raw files to the manager
+      await this.fileManager.loadFiles(files);
+
+      this.dom.selectScreen.classList.add('hidden');
+      this.dom.breadcrumbBar.classList.remove('hidden');
+      this.dom.browserContainer.classList.remove('hidden');
+
+      this.dom.subtitle.textContent = this.fileManager.getRootFolderName();
+
+      this.renderCurrentDirectory();
+      Toast.success(`Loaded ${files.length} items successfully!`);
+    };
+
     this.dom.folderInputMain.addEventListener('change', handleSelect);
     this.dom.folderInputHeader.addEventListener('change', handleSelect);
 
     this.dom.backBtn.addEventListener('click', () => {
-      const parts = this.currentPath.split('/').filter(Boolean);
-      parts.pop();
-      this.currentPath = parts.join('/');
+      this.fileManager.navigateUp();
       this.renderCurrentDirectory();
     });
-  }
 
-  handleFolderSelect(e) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    // Delegate grid clicks to let FileManager handle navigation or file opening
+    this.dom.filesGrid.addEventListener('click', (e) => {
+      const card = e.target.closest('[data-type]');
+      if (!card) return;
 
-    this.folderStructure = {};
-    this.currentPath = '';
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const relativePath = file.webkitRelativePath || file.name;
-      const parts = relativePath.split('/');
-
-      let currentLevel = this.folderStructure;
-      for (let j = 0; j < parts.length; j++) {
-        const part = parts[j];
-        if (j === parts.length - 1) {
-          currentLevel[part] = { __isFile: true, fileRef: file, size: file.size };
-        } else {
-          if (!currentLevel[part]) {
-            currentLevel[part] = { __isFile: false, __children: {} };
-          }
-          // Normalize folder node storage if plain object
-          if (!currentLevel[part].__children) {
-            const oldObj = currentLevel[part];
-            currentLevel[part] = { __isFile: false, __children: oldObj };
-          }
-          currentLevel = currentLevel[part].__children;
-        }
+      const type = card.getAttribute('data-type');
+      if (type === 'folder') {
+        const folderName = card.getAttribute('data-name');
+        const nextPath = this.fileManager.currentPath
+          ? `${this.fileManager.currentPath}/${folderName}`
+          : folderName;
+        this.fileManager.navigateTo(nextPath);
+        this.renderCurrentDirectory();
+      } else if (type === 'file') {
+        const fileUrl = card.getAttribute('data-url');
+        if (fileUrl) window.open(fileUrl, '_blank');
       }
-    }
-
-    this.dom.selectScreen.classList.add('hidden');
-    this.dom.breadcrumbBar.classList.remove('hidden');
-    this.dom.browserContainer.classList.remove('hidden');
-
-    const rootFolderName = Object.keys(this.folderStructure)[0] || 'Folder';
-    this.dom.subtitle.textContent = rootFolderName;
-
-    this.renderCurrentDirectory();
-    this.showToast(`Loaded ${files.length} items successfully!`, 'success');
-  }
-
-  getFolderSize(node) {
-    let totalSize = 0;
-    const children = node.__children || node;
-    for (const key in children) {
-      if (key.startsWith('__')) continue;
-      const child = children[key];
-      if (child.__isFile) {
-        totalSize += child.size || 0;
-      } else {
-        totalSize += this.getFolderSize(child);
-      }
-    }
-    return totalSize;
+    });
   }
 
   renderCurrentDirectory() {
-    this.dom.filesGrid.innerHTML = '';
+    // Ask FileManager for the fully rendered HTML output
+    const rendered = this.fileManager.renderDirectoryHTML();
 
-    let currentObj = this.folderStructure;
-    if (this.currentPath !== '') {
-      const parts = this.currentPath.split('/');
-      for (const p of parts) {
-        if (currentObj[p]) {
-          currentObj = currentObj[p].__children || currentObj[p];
-        }
-      }
-    }
+    this.dom.filesGrid.innerHTML = rendered.html;
+    this.dom.breadcrumbText.textContent = rendered.pathText;
+    this.dom.backBtn.disabled = this.fileManager.currentPath === '';
+    this.dom.itemCount.textContent = `${rendered.itemCount} items`;
 
-    const keys = Object.keys(currentObj).filter(k => !k.startsWith('__')).sort((a, b) => {
-      const aIsDir = !currentObj[a].__isFile;
-      const bIsDir = !currentObj[b].__isFile;
-      if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
-      return a.localeCompare(b);
+    // Initialize any video elements if present
+    this.dom.filesGrid.querySelectorAll('video').forEach((videoEl) => {
+      videoEl.addEventListener('loadedmetadata', () => {
+        videoEl.currentTime = Math.min(1, videoEl.duration / 4);
+      });
     });
-
-    this.dom.breadcrumbText.textContent = '/' + this.currentPath;
-    this.dom.backBtn.disabled = this.currentPath === '';
-    this.dom.itemCount.textContent = `${keys.length} items`;
-
-    if (keys.length === 0) {
-      this.dom.filesGrid.innerHTML = `
-        <div class="col-span-full py-16 text-center text-slate-400 text-xs italic">
-          This folder is empty.
-        </div>`;
-      return;
-    }
-
-    for (const key of keys) {
-      const item = currentObj[key];
-      const isDir = !item.__isFile;
-
-      const card = document.createElement('div');
-      card.className =
-        'group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden';
-
-      if (isDir) {
-        const folderSize = this.getFolderSize(item);
-        card.innerHTML = `
-          <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
-            <i class="fa-solid fa-folder text-5xl"></i>
-          </div>
-          <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
-            <span class="w-full text-xs font-bold text-slate-700 truncate" title="${key}">${key}</span>
-            <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(folderSize)}</span>
-          </div>
-        `;
-        card.addEventListener('click', () => {
-          this.currentPath = this.currentPath ? `${this.currentPath}/${key}` : key;
-          this.renderCurrentDirectory();
-        });
-      } else {
-        const file = item.fileRef;
-        const ext = key.split('.').pop().toLowerCase();
-        
-        const isImage = file.type.startsWith('image/');
-        const isVideo = file.type.startsWith('video/');
-        const isAudio = file.type.startsWith('audio/');
-        const isText = file.type.startsWith('text/') || ['json', 'js', 'html', 'css', 'md', 'txt', 'xml', 'svg', 'csv'].includes(ext);
-
-        card.innerHTML = `
-          <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
-            <i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>
-          </div>
-          <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
-            <span class="w-full text-xs font-semibold text-slate-700 truncate text-[11px]" title="${key}">${key}</span>
-            <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(file.size)}</span>
-          </div>
-        `;
-
-        const previewContainer = card.querySelector('.widget-preview-area');
-
-        if (isImage) {
-          const imgUrl = URL.createObjectURL(file);
-          previewContainer.innerHTML = `<img src="${imgUrl}" alt="${key}" class="w-full h-full object-cover rounded-lg" />`;
-        } else if (isVideo) {
-          const videoUrl = URL.createObjectURL(file);
-          previewContainer.innerHTML = `
-            <video src="${videoUrl}" class="w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
-            <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
-          `;
-          const videoEl = previewContainer.querySelector('video');
-          videoEl.addEventListener('loadedmetadata', () => {
-            videoEl.currentTime = Math.min(1, videoEl.duration / 4);
-          });
-        } else if (isAudio) {
-          previewContainer.innerHTML = `
-            <div class="flex flex-col items-center justify-center text-blue-500">
-              <i class="fa-solid fa-file-audio text-3xl mb-1"></i>
-              <span class="text-[9px] font-mono text-slate-500 uppercase">${ext}</span>
-            </div>`;
-        } else if (isText) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const textSnippet = e.target.result.substring(0, 180);
-            previewContainer.innerHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1.5 overflow-hidden w-full h-full select-none opacity-80">${this.escapeHtml(textSnippet)}</pre>`;
-          };
-          reader.readAsText(file.slice(0, 300));
-        }
-
-        card.addEventListener('click', () => {
-          const fileUrl = URL.createObjectURL(file);
-          window.open(fileUrl, '_blank');
-        });
-      }
-
-      this.dom.filesGrid.appendChild(card);
-    }
-  }
-
-  escapeHtml(str) {
-    return str.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-  }
-
-  formatBytes(bytes) {
-    if (bytes === 0 ||isNaN(bytes)) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  }
-
-  showToast(msg, type = 'info') {
-    const toast = document.createElement('div');
-    const bgColors = { success: 'bg-emerald-600', error: 'bg-red-600', info: 'bg-slate-900' };
-    toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-xs font-medium text-white ${
-      bgColors[type] || bgColors.info
-    } transition-all transform translate-y-2 opacity-0 pointer-events-auto`;
-    toast.innerHTML = `<i class="fa-solid fa-circle-info text-base"></i> <span>${msg}</span>`;
-
-    this.dom.toastContainer.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.remove('translate-y-2', 'opacity-0'));
-
-    setTimeout(() => {
-      toast.classList.add('opacity-0', 'translate-y-2');
-      setTimeout(() => toast.remove(), 300);
-    }, 3000);
   }
 }
