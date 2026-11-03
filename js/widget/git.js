@@ -247,11 +247,40 @@ export class GithubWidget extends Widget {
     };
   }
 
+  renderFlatFileList(files) {
+    const listContainer = this.dom.fileList;
+    listContainer.innerHTML = '';
+    
+    files.forEach((file) => {
+      const item = document.createElement('div');
+      item.className = 'file-item group flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-700/50 cursor-pointer transition';
+      
+      let iconClass = 'fa-regular fa-file text-slate-400';
+      const ext = file.path.split('.').pop().toLowerCase();
+      // (Keep your icon selection logic here)
+      
+      item.innerHTML = `
+          <div class="flex items-center space-x-2.5 truncate mr-2">
+              <i class="${iconClass} text-base shrink-0"></i>
+              <span class="text-xs font-medium text-slate-300 group-hover:text-white truncate">${file.path}</span>
+          </div>
+          <span class="text-[10px] font-mono text-slate-500 shrink-0">${this.formatBytes(file.size || 0)}</span>
+      `;
+      item.addEventListener('click', () => this.selectFile(file));
+      listContainer.appendChild(item);
+    });
+  }
+
   bindEvents() {
     this.dom.fileFilter.addEventListener('input', (e) => {
       const query = e.target.value.toLowerCase();
+      if (!query) {
+        this.renderFileList(this.currentRepoData.files);
+        return;
+      }
+      // If filtering, display matching files in a flat style for quick access
       const filtered = this.currentRepoData.files.filter(f => f.path.toLowerCase().includes(query));
-      this.renderFileList(filtered);
+      this.renderFlatFileList(filtered);
     });
 
     this.dom.saveEditBtn.addEventListener('click', () => this.saveEditedFile());
