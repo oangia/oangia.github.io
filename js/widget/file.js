@@ -1,5 +1,5 @@
 import { Widget } from './base.js';
-import { FileManager } from "./../file.js";
+import { FileManager } from "./../file/file.js";
 /**
  * FilePreviewComponent placeholder to imitate the second architecture's preview handling.
  */
