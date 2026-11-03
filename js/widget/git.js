@@ -379,33 +379,117 @@ export class GithubWidget extends Widget {
     }
   }
 
+  buildFileTree(files) {
+    const root = { name: '', path: '', type: 'dir', children: {}, files: [] };
+
+    files.forEach(file => {
+      const parts = file.path.split('/');
+      let currentNode = root;
+
+      parts.forEach((part, index) => {
+        const isFile = index === parts.length - 1;
+        
+        if (isFile) {
+          currentNode.files.push({ ...file, name: part });
+        } else {
+          if (!currentNode.children[part]) {
+            const currentPath = parts.slice(0, index + 1).join('/');
+            currentNode.children[part] = {
+              name: part,
+              path: currentPath,
+              type: 'dir',
+              children: {},
+              files: []
+            };
+          }
+          currentNode = currentNode.children[part];
+        }
+      });
+    });
+
+    return root;
+  }
+
   renderFileList(files) {
     const listContainer = this.dom.fileList;
     listContainer.innerHTML = '';
 
-    files.forEach((file) => {
-      const item = document.createElement('div');
-      item.className = 'file-item group flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-700/50 cursor-pointer transition';
-      
-      let iconClass = 'fa-regular fa-file text-slate-400';
-      const ext = file.path.split('.').pop().toLowerCase();
-      if (['js', 'ts', 'jsx', 'tsx'].includes(ext)) iconClass = 'fa-brands fa-js text-amber-400';
-      else if (['html', 'htm'].includes(ext)) iconClass = 'fa-brands fa-html5 text-orange-400';
-      else if (['css', 'scss'].includes(ext)) iconClass = 'fa-brands fa-css3-alt text-blue-400';
-      else if (['json'].includes(ext)) iconClass = 'fa-solid fa-brackets-curly text-yellow-300';
-      else if (['md', 'txt'].includes(ext)) iconClass = 'fa-regular fa-file-lines text-slate-300';
+    const tree = this.buildFileTree(files);
 
-      item.innerHTML = `
-          <div class="flex items-center space-x-2.5 truncate mr-2">
-              <i class="${iconClass} text-base shrink-0"></i>
-              <span class="text-xs font-medium text-slate-300 group-hover:text-white truncate">${file.path}</span>
+    const renderNode = (node, container, depth = 0) => {
+      // Sort directories first, then files alphabetically
+      const sortedDirs = Object.values(node.children).sort((a, b) => a.name.localeCompare(b.name));
+      const sortedFiles = node.files.sort((a, b) => a.name.localeCompare(b.name));
+
+      // Render directories
+      sortedDirs.forEach(dir => {
+        const dirWrapper = document.createElement('div');
+        dirWrapper.className = 'flex flex-col select-none';
+
+        const dirHeader = document.createElement('div');
+        dirHeader.className = 'flex items-center justify-between p-2 rounded-xl hover:bg-slate-700/50 cursor-pointer transition text-xs text-slate-300 hover:text-white';
+        dirHeader.style.paddingLeft = `${Math.max(8, depth * 16)}px`;
+
+        dirHeader.innerHTML = `
+          <div class="flex items-center space-x-2 truncate mr-2">
+              <i class="fa-solid fa-chevron-right text-[10px] text-slate-500 transition-transform duration-200 gw-folder-chevron"></i>
+              <i class="fa-solid fa-folder text-amber-400 text-sm shrink-0"></i>
+              <span class="font-medium truncate">${dir.name}</span>
           </div>
-          <span class="text-[10px] font-mono text-slate-500 shrink-0">${this.formatBytes(file.size || 0)}</span>
-      `;
+        `;
 
-      item.addEventListener('click', () => this.selectFile(file));
-      listContainer.appendChild(item);
-    });
+        const childrenContainer = document.createElement('div');
+        childrenContainer.className = 'flex flex-col space-y-0.5 hidden pl-2'; // Collapsed by default
+
+        dirHeader.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const chevron = dirHeader.querySelector('.gw-folder-chevron');
+          const isHidden = childrenContainer.classList.contains('hidden');
+          if (isHidden) {
+            childrenContainer.classList.remove('hidden');
+            chevron.style.transform = 'rotate(90deg)';
+          } else {
+            childrenContainer.classList.add('hidden');
+            chevron.style.transform = 'rotate(0deg)';
+          }
+        });
+
+        dirWrapper.appendChild(dirHeader);
+        dirWrapper.appendChild(childrenContainer);
+        container.appendChild(dirWrapper);
+
+        // Recurse into subdirectory
+        renderNode(dir, childrenContainer, depth + 1);
+      });
+
+      // Render files in current directory
+      sortedFiles.forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'file-item group flex items-center justify-between p-2 rounded-xl hover:bg-slate-700/50 cursor-pointer transition';
+        item.style.paddingLeft = `${Math.max(16, depth * 16 + 8)}px`;
+        
+        let iconClass = 'fa-regular fa-file text-slate-400';
+        const ext = file.path.split('.').pop().toLowerCase();
+        if (['js', 'ts', 'jsx', 'tsx'].includes(ext)) iconClass = 'fa-brands fa-js text-amber-400';
+        else if (['html', 'htm'].includes(ext)) iconClass = 'fa-brands fa-html5 text-orange-400';
+        else if (['css', 'scss'].includes(ext)) iconClass = 'fa-brands fa-css3-alt text-blue-400';
+        else if (['json'].includes(ext)) iconClass = 'fa-solid fa-brackets-curly text-yellow-300';
+        else if (['md', 'txt'].includes(ext)) iconClass = 'fa-regular fa-file-lines text-slate-300';
+
+        item.innerHTML = `
+            <div class="flex items-center space-x-2.5 truncate mr-2">
+                <i class="${iconClass} text-sm shrink-0"></i>
+                <span class="text-xs font-medium text-slate-300 group-hover:text-white truncate">${file.name}</span>
+            </div>
+            <span class="text-[10px] font-mono text-slate-500 shrink-0">${this.formatBytes(file.size || 0)}</span>
+        `;
+
+        item.addEventListener('click', () => this.selectFile(file));
+        container.appendChild(item);
+      });
+    };
+
+    renderNode(tree, listContainer, 0);
   }
 
   async selectFile(file) {
