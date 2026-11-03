@@ -425,8 +425,15 @@ export class GithubWidget extends Widget {
     deleteFileBtn.disabled = true;
 
     try {
-      const rawUrl = `https://raw.githubusercontent.com/${this.currentRepoData.owner}/${this.currentRepoData.repo}/${this.currentRepoData.branch}/${file.path}`;
-      const res = await fetch(rawUrl);
+      // Add a timestamp query parameter to bypass CDN/browser caching
+      const rawUrl = `https://raw.githubusercontent.com/${this.currentRepoData.owner}/${this.currentRepoData.repo}/${this.currentRepoData.branch}/${file.path}?t=${Date.now()}`;
+      
+      const headers = {};
+      // If it's a private repo, raw.githubusercontent.com might need the token headers as well
+      const token = window.APP_CONFIG?.gitToken;
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(rawUrl, { headers });
       if (!res.ok) throw new Error('Failed to fetch file content.');
       
       const text = await res.text();
