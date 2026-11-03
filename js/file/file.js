@@ -100,7 +100,6 @@ class FilePreviewComponent {
     el.modal?.classList.add("hidden");
   }
 }
-
 export class FileManager {
   constructor(config = {}) {
     this.containerId = config.containerId || "fileManagerApp";
@@ -117,8 +116,8 @@ export class FileManager {
   // Public
   // --------------------------------------------------
   init() {
-    this.mountUI();
-    this.bindEvents();
+    this._mountUI();
+    this._bindEvents();
     this.loadCurrentFolder();
   }
 
@@ -131,7 +130,7 @@ export class FileManager {
   // --------------------------------------------------
   // Mount UI (action buttons stay, view area uses new style)
   // --------------------------------------------------
-  mountUI() {
+  _mountUI() {
     if (!this.container) return;
 
     this.container.innerHTML = `
@@ -236,7 +235,7 @@ export class FileManager {
     this.previewer.initEvents();
   }
 
-  formatBytes(bytes) {
+  _formatBytes(bytes) {
     if (bytes === 0 || isNaN(bytes) || bytes == null) return "0 B";
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB"];
@@ -346,7 +345,7 @@ export class FileManager {
         }
 
         const sizeLabel = file.size != null
-          ? this.formatBytes(file.size)
+          ? this._formatBytes(file.size)
           : `${file.totalParts || 1} chunks`;
 
         html += `
@@ -376,8 +375,6 @@ export class FileManager {
   }
 
   navigateUp() {
-    // Simple: always go to root when not already there
-    // (extend later if you store parent chain)
     if (this.currentFolderId !== "root") {
       this.navigateToFolder("root");
     }
@@ -461,7 +458,7 @@ export class FileManager {
   // --------------------------------------------------
   // Events
   // --------------------------------------------------
-  bindEvents() {
+  _bindEvents() {
     document.addEventListener("click", () => {
       document.getElementById("contextMenu")?.classList.add("hidden");
     });
