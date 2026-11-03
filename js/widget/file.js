@@ -14,15 +14,14 @@ class FileManager {
     }
   }
 
-  async loadFiles(fileList) {
+  loadData(items = []) {
     this.folderStructure = {};
     this.currentPath = '';
 
-    const files = Array.from(fileList);
-    if (!files.length) return;
+    if (!items.length) return;
 
-    for (const file of files) {
-      const relativePath = file.webkitRelativePath || file.name;
+    for (const item of items) {
+      const relativePath = item.path || item.name;
       const parts = relativePath.split('/');
 
       let currentLevel = this.folderStructure;
@@ -31,10 +30,7 @@ class FileManager {
         if (j === parts.length - 1) {
           currentLevel[part] = {
             __isFile: true,
-            size: file.size,
-            type: file.type,
-            fileUrl: URL.createObjectURL(file),
-            ...await this.processFilePreview(file, part)
+            ...item
           };
         } else {
           if (!currentLevel[part]) {
@@ -50,45 +46,6 @@ class FileManager {
     }
 
     this.render();
-  }
-
-  async processFilePreview(file, filename) {
-    const ext = filename.split('.').pop().toLowerCase();
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    const isAudio = file.type.startsWith('audio/');
-    const isText = file.type.startsWith('text/') || ['json', 'js', 'html', 'css', 'md', 'txt', 'xml', 'svg', 'csv'].includes(ext);
-
-    let previewType = 'generic';
-    let previewData = null;
-
-    if (isImage) {
-      previewType = 'image';
-      previewData = URL.createObjectURL(file);
-    } else if (isVideo) {
-      previewType = 'video';
-      previewData = URL.createObjectURL(file);
-    } else if (isAudio) {
-      previewType = 'audio';
-    } else if (isText) {
-      previewType = 'text';
-      previewData = await this.readTextSnippet(file);
-    }
-
-    return { extension: ext, previewType, previewData };
-  }
-
-  readTextSnippet(file) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result.substring(0, 180));
-      reader.onerror = () => resolve('');
-      reader.readAsText(file.slice(0, 300));
-    });
-  }
-
-  getRootFolderName() {
-    return Object.keys(this.folderStructure)[0] || 'Folder';
   }
 
   navigateTo(path) {
@@ -278,10 +235,8 @@ export class FileManagerWidget extends Widget {
   init() {
     this.createUI();
     this.cacheDomReferences();
-    
     // Instantiate FileManager and pass it the container element ID or reference
     this.fileManager = new FileManager('widget-browser-wrapper');
-    
     this.attachEvents();
   }
 
@@ -307,7 +262,6 @@ export class FileManagerWidget extends Widget {
             </div>
             <div>
               <h3 class="text-sm font-bold text-slate-900">System Folder Manager</h3>
-              <p class="widget-path-subtitle text-[11px] text-slate-500">No folder loaded</p>
             </div>
           </div>
 
@@ -322,7 +276,6 @@ export class FileManagerWidget extends Widget {
 
         <!-- Main Content Container assigned to FileManager -->
         <div id="widget-browser-wrapper" class="flex-1 bg-slate-50 overflow-hidden flex flex-col min-h-0 relative">
-          
           <!-- Full-Screen Dropzone -->
           <div class="widget-select-screen flex-1 bg-white hover:bg-blue-50/20 transition-all p-8 flex flex-col items-center justify-center text-center relative cursor-pointer group border-2 border-dashed border-slate-200 hover:border-blue-500">
             <input type="file" class="widget-folder-input-main absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" webkitdirectory directory multiple>
@@ -334,10 +287,7 @@ export class FileManagerWidget extends Widget {
               <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with instant previews and computed folder sizes.</p>
             </div>
           </div>
-
         </div>
-
-        <div class="widget-toast-container absolute bottom-4 right-4 pointer-events-none flex flex-col gap-2 z-50"></div>
       </div>
     `;
 
@@ -349,23 +299,70 @@ export class FileManagerWidget extends Widget {
     const m = this.modal;
     this.dom = {
       folderInputMain: m.querySelector('.widget-folder-input-main'),
-      folderInputHeader: m.querySelector('.widget-folder-input-header'),
-      subtitle: m.querySelector('.widget-path-subtitle')
+      folderInputHeader: m.querySelector('.widget-folder-input-header')
     };
   }
 
   attachEvents() {
-    // Widget only handles file selection and feeds the data to FileManager
+    // Widget handles file selection, processes previews, and feeds standard JSON data payload to FileManager
     const handleSelect = async (e) => {
       const files = e.target.files;
-      console.log(files);
       if (!files || files.length === 0) return;
 
-      await this.fileManager.loadFiles(files);
+      const fileArray = Array.from(files);
+      const standardPayload = [];
+
+      for (const file of fileArray) {
+        const relativePath = file.webkitRelativePath || file.name;
+        const ext = relativePath.split('.').pop().toLowerCase();
+        
+        const isImage = file.type.startsWith('image/');
+        const isVideo = file.type.startsWith('video/');
+        const isAudio = file.type.startsWith('audio/');
+        const isText = file.type.startsWith('text/') || ['json', 'js', 'html', 'css', 'md', 'txt', 'xml', 'svg', 'csv'].includes(ext);
+
+        let previewType = 'generic';
+        let previewData = null;
+        const fileUrl = URL.createObjectURL(file);
+
+        if (isImage) {
+          previewType = 'image';
+          previewData = fileUrl;
+        } else if (isVideo) {
+          previewType = 'video';
+          previewData = fileUrl;
+        } else if (isAudio) {
+          previewType = 'audio';
+        } else if (isText) {
+          previewType = 'text';
+          previewData = await this.readTextSnippet(file);
+        }
+
+        standardPayload.push({
+          path: relativePath,
+          size: file.size,
+          type: file.type,
+          extension: ext,
+          fileUrl,
+          previewType,
+          previewData
+        });
+      }
+
+      this.fileManager.loadData(standardPayload);
       Toast.success(`Loaded ${files.length} items successfully!`);
     };
 
     this.dom.folderInputMain.addEventListener('change', handleSelect);
     this.dom.folderInputHeader.addEventListener('change', handleSelect);
+  }
+
+  readTextSnippet(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result.substring(0, 180));
+      reader.onerror = () => resolve('');
+      reader.readAsText(file.slice(0, 300));
+    });
   }
 }
