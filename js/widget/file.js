@@ -154,19 +154,18 @@ class FileAdapterService {
 
 class FileManager {
   constructor(config = {}) {
-    this.containerId = config.containerId || 'widget-browser-wrapper';
-    this.container = typeof this.containerId === 'string'
-      ? document.getElementById(this.containerId)
-      : this.containerId;
+    this.containerId = config.containerId;
+    this.container = document.getElementById(this.containerId);
 
-    this.service = config.service || new FileAdapterService();
+    this.service = config.service;
+    
     this.currentFolderId = 'root';
     this.contextTarget = null;
     this.previewer = new FilePreviewComponent();
+  }
 
-    if (this.container) {
-      this.attachManagerEvents();
-    }
+  init() {
+    this.attachManagerEvents();
   }
 
   async switch(fileList) {
@@ -355,6 +354,7 @@ export class FileManagerWidget extends Widget {
       containerId: 'widget-browser-wrapper',
       service: this.service
     });
+    this.fileManager.init();
     this.attachEvents();
   }
 
