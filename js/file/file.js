@@ -321,6 +321,7 @@ export class FileManager {
         let folderSubtext = "Folder";
         try {
           const calculatedSize = this.getFolderSize(folder);
+          console.log(calculatedSize);
           if (calculatedSize > 0) {
             folderSubtext = this._formatBytes(calculatedSize);
           }
