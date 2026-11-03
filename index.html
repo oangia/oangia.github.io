@@ -77,8 +77,7 @@
 
   <script type="module">
     import { FirebaseService } from "./js/firebase-service.js";
-    import { FileManager } from "./js/file/manager.js";
-    import { FileBackup } from "./js/file/backup.js";
+    import { FileManagerWrapper } from "./js/file/manager.js";
 
     const collectionConfigs = {
       file: {
@@ -108,7 +107,7 @@
     const fbService = new FirebaseService();
     
     // Initialize FileManager instance ONCE
-    const fileManager = new FileManager({
+    const fileManager = new FileManagerWrapper({
       containerId: "appContent",
       fbService: fbService,
       filesCollection: collectionConfigs.file.filesCollection,
