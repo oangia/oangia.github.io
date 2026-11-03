@@ -99,9 +99,7 @@ class FilePreviewComponent {
     if (el.content) el.content.innerHTML = "";
     el.modal?.classList.add("hidden");
   }
-}
-
-export class FileManager {
+}export class FileManager {
   constructor(config = {}) {
     this.containerId = config.containerId || "fileManagerApp";
     this.container = document.getElementById(this.containerId);
@@ -129,7 +127,7 @@ export class FileManager {
   }
 
   // --------------------------------------------------
-  // Mount UI
+  // Mount UI (action buttons stay, view area uses new style)
   // --------------------------------------------------
   _mountUI() {
     if (!this.container) return;
@@ -281,7 +279,7 @@ export class FileManager {
     }
   }
 
-  render(folders = [], files = [], currentFolderName = "root") {
+  render(folders = [], files = [], currentFolderName = "Home") {
     const grid = this.container.querySelector("#fileGridContainer");
     const pathText = this.container.querySelector("#pathText");
     const countBadge = this.container.querySelector("#fileCountBadge");
@@ -290,6 +288,7 @@ export class FileManager {
 
     const isRoot = this.currentFolderId === "root";
 
+    // Path + Back button state
     pathText.textContent = isRoot ? "/" : `/${currentFolderName}`;
     countBadge.textContent = `${folders.length + files.length} items`;
 
@@ -311,9 +310,10 @@ export class FileManager {
           This folder is empty.
         </div>`;
     } else {
-      // Folders
+      // Folders with safe optional size calculation
       folders.forEach(folder => {
         const name = folder.title || folder.name || "Untitled";
+        
         const folderSubtext = folder.size > 0 ? this._formatBytes(folder.size) : "Folder";
 
         html += `
@@ -330,7 +330,7 @@ export class FileManager {
           </div>`;
       });
 
-      // Files with preview extraction from FileAdapterService
+      // Files - Rendering rich previews matching FileAdapterService specs
       files.forEach(file => {
         const name = file.title || "Untitled";
         const ext = file.extension || name.split(".").pop()?.toLowerCase() || "";
@@ -383,7 +383,7 @@ export class FileManager {
 
     grid.innerHTML = html;
 
-    // Bind video duration hooks for inline video frame selection
+    // Bind video duration hooks for inline video frame previews
     grid.querySelectorAll('.widget-video-preview').forEach((videoEl) => {
       videoEl.addEventListener('loadedmetadata', () => {
         videoEl.currentTime = Math.min(1, videoEl.duration / 4);
@@ -406,9 +406,7 @@ export class FileManager {
   }
 
   async createFolder(name, parentId) {
-    if (typeof this.service.createFolder === 'function') {
-      await this.service.createFolder(name, parentId);
-    }
+    await this.service.createFolder(name, parentId);
     Toast.show("Folder created!", "success");
     this.loadCurrentFolder();
   }
@@ -417,11 +415,22 @@ export class FileManager {
     const submitBtn = document.getElementById("submitFileBtn");
     if (submitBtn) submitBtn.disabled = true;
 
-    try {
-      await this.switch(files);
-      Toast.show(`Uploaded ${files.length} file(s)`, "success");
-    } catch (err) {
-      Toast.show(`Failed to upload files: ${err.message}`, "error");
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        await this.service.uploadFile(
+          file,
+          parentId,
+          (statusText) => {
+            if (submitBtn) {
+              submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> (${i + 1}/${files.length}) ${statusText}`;
+            }
+          }
+        );
+        Toast.show(`Uploaded: ${file.name}`, "success");
+      } catch (err) {
+        Toast.show(`Failed to upload ${file.name}: ${err.message}`, "error");
+      }
     }
 
     if (submitBtn) {
@@ -435,15 +444,11 @@ export class FileManager {
   async deleteItem(target) {
     if (target.type === "folder") {
       if (!confirm("Delete folder?")) return;
-      if (typeof this.service.deleteFolder === 'function') {
-        await this.service.deleteFolder(target.id);
-      }
+      await this.service.deleteFolder(target.id);
       Toast.show("Folder deleted", "success");
     } else {
-      if (!confirm("Delete file?")) return;
-      if (typeof this.service.deleteFile === 'function') {
-        await this.service.deleteFile(target.id, target.fileId);
-      }
+      if (!confirm("Delete file and its chunks?")) return;
+      await this.service.deleteFile(target.id, target.fileId);
       Toast.show("File deleted", "success");
     }
     this.loadCurrentFolder();
@@ -470,6 +475,7 @@ export class FileManager {
     if (!fileRecord) return;
 
     this.previewer.showLoading(fileRecord.title);
+
     const fullBase64 = await this.service.getFullBase64(fileRecord.fileId);
     this.previewer.render(fileRecord, fullBase64);
   }
@@ -482,10 +488,12 @@ export class FileManager {
       document.getElementById("contextMenu")?.classList.add("hidden");
     });
 
+    // Back button
     this.container.querySelector("#backBtn")?.addEventListener("click", () => {
       this.navigateUp();
     });
 
+    // Navigate / View
     this.container.addEventListener("click", (e) => {
       const target = e.target.closest("[data-action]");
       if (!target) return;
@@ -501,6 +509,7 @@ export class FileManager {
       }
     });
 
+    // Context menu
     this.container.addEventListener("contextmenu", (e) => {
       const target = e.target.closest("[data-context]");
       if (!target) return;
@@ -526,18 +535,21 @@ export class FileManager {
       menu.classList.remove("hidden");
     });
 
+    // Delete
     document.getElementById("ctxDeleteBtn")?.addEventListener("click", () => {
       if (!this.contextTarget) return;
       this.deleteItem(this.contextTarget);
       document.getElementById("contextMenu").classList.add("hidden");
     });
 
+    // Download
     document.getElementById("ctxDownloadBtn")?.addEventListener("click", () => {
       if (!this.contextTarget || this.contextTarget.type !== "file") return;
       this.downloadFile(this.contextTarget);
       document.getElementById("contextMenu").classList.add("hidden");
     });
 
+    // New Folder
     this.container.querySelector("#openFolderModalBtn")?.addEventListener("click", () => {
       document.getElementById("folderNameInput").value = "";
       document.getElementById("createFolderModal").classList.remove("hidden");
@@ -552,6 +564,7 @@ export class FileManager {
       document.getElementById("createFolderModal").classList.add("hidden");
     });
 
+    // Upload
     this.container.querySelector("#openCreateModalBtn")?.addEventListener("click", () => {
       document.getElementById("createFileForm").reset();
       document.getElementById("createFileModal").classList.remove("hidden");
