@@ -242,6 +242,7 @@ export class FileManager {
     const files = node.__files || [];
     
     for (const file of files) {
+      console.log(file.size);
       totalSize += file.size || 0;
     }
     for (const key in children) {
