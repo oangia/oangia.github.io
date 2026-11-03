@@ -129,7 +129,7 @@ export class FileManager {
   }
 
   // --------------------------------------------------
-  // Mount UI (action buttons stay, view area uses new style)
+  // Mount UI
   // --------------------------------------------------
   _mountUI() {
     if (!this.container) return;
@@ -236,21 +236,6 @@ export class FileManager {
     this.previewer.initEvents();
   }
 
-  getFolderSize(node) {
-    let totalSize = 0;
-    const children = node.__children || {};
-    const files = node.__files || [];
-    
-    for (const file of files) {
-      console.log(file.size);
-      totalSize += file.size || 0;
-    }
-    for (const key in children) {
-      totalSize += this.getFolderSize(children[key]);
-    }
-    return totalSize;
-  }
-
   _formatBytes(bytes) {
     if (bytes === 0 || isNaN(bytes) || bytes == null) return "0 B";
     const k = 1024;
@@ -282,7 +267,7 @@ export class FileManager {
     }
   }
 
-  render(folders = [], files = [], currentFolderName = "Home") {
+  render(folders = [], files = [], currentFolderName = "root") {
     const grid = this.container.querySelector("#fileGridContainer");
     const pathText = this.container.querySelector("#pathText");
     const countBadge = this.container.querySelector("#fileCountBadge");
@@ -291,7 +276,6 @@ export class FileManager {
 
     const isRoot = this.currentFolderId === "root";
 
-    // Path + Back button state
     pathText.textContent = isRoot ? "/" : `/${currentFolderName}`;
     countBadge.textContent = `${folders.length + files.length} items`;
 
@@ -313,11 +297,9 @@ export class FileManager {
           This folder is empty.
         </div>`;
     } else {
-      // Folders with safe optional size calculation
+      // Folders
       folders.forEach(folder => {
         const name = folder.title || folder.name || "Untitled";
-        
-        // Calculate size if internal nested structures exist, otherwise fallback to "Folder"
         const folderSubtext = folder.size > 0 ? this._formatBytes(folder.size) : "Folder";
 
         html += `
@@ -334,39 +316,30 @@ export class FileManager {
           </div>`;
       });
 
-      // Files
+      // Files with preview extraction matching FileAdapterService specs
       files.forEach(file => {
         const name = file.title || "Untitled";
-        const ext = name.split(".").pop()?.toLowerCase() || "";
         let previewHTML = `<i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>`;
 
-        if (file.thumbnail) {
-          previewHTML = `<img src="${file.thumbnail}" alt="${name}" class="w-full h-full object-cover rounded-lg" />`;
-        } else if (file.category === "Media" || ["mp4", "webm", "mov"].includes(ext)) {
+        if (file.previewType === 'image') {
+          previewHTML = `<img src="${file.previewData}" alt="${name}" class="w-full h-full object-cover rounded-lg" />`;
+        } else if (file.previewType === 'video') {
           previewHTML = `
-            <div class="flex flex-col items-center justify-center text-purple-500">
-              <i class="fa-solid fa-file-video text-3xl mb-1"></i>
-              <span class="text-[9px] font-mono text-slate-500 uppercase">${ext}</span>
-            </div>`;
-        } else if (["mp3", "wav", "ogg"].includes(ext)) {
+            <video src="${file.previewData}" class="widget-video-preview w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
+            <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
+          `;
+        } else if (file.previewType === 'audio') {
           previewHTML = `
             <div class="flex flex-col items-center justify-center text-blue-500">
               <i class="fa-solid fa-file-audio text-3xl mb-1"></i>
-              <span class="text-[9px] font-mono text-slate-500 uppercase">${ext}</span>
+              <span class="text-[9px] font-mono text-slate-500 uppercase">${file.extension}</span>
             </div>`;
-        } else if (["js", "ts", "jsx", "tsx"].includes(ext)) {
-          previewHTML = `<i class="fa-brands fa-js text-amber-400 text-3xl"></i>`;
-        } else if (["html", "htm"].includes(ext)) {
-          previewHTML = `<i class="fa-brands fa-html5 text-orange-400 text-3xl"></i>`;
-        } else if (["css", "scss"].includes(ext)) {
-          previewHTML = `<i class="fa-brands fa-css3-alt text-blue-500 text-3xl"></i>`;
-        } else if (ext === "json") {
-          previewHTML = `<i class="fa-solid fa-brackets-curly text-yellow-500 text-3xl"></i>`;
+        } else if (file.previewType === 'text' && file.previewData) {
+          const escapedText = file.previewData.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+          previewHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1.5 overflow-hidden w-full h-full select-none opacity-80">${escapedText}</pre>`;
         }
 
-        const sizeLabel = file.size != null
-          ? this._formatBytes(file.size)
-          : `${file.totalParts || 1} chunks`;
+        const sizeLabel = this._formatBytes(file.size);
 
         html += `
           <div data-action="view" data-id="${file.id}" data-file-id="${file.fileId}"
@@ -384,6 +357,13 @@ export class FileManager {
     }
 
     grid.innerHTML = html;
+
+    // Bind video duration hooks for inline video frame selection
+    grid.querySelectorAll('.widget-video-preview').forEach((videoEl) => {
+      videoEl.addEventListener('loadedmetadata', () => {
+        videoEl.currentTime = Math.min(1, videoEl.duration / 4);
+      });
+    });
   }
 
   // --------------------------------------------------
@@ -413,15 +393,7 @@ export class FileManager {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
-        await this.service.uploadFile(
-          file,
-          parentId,
-          (statusText) => {
-            if (submitBtn) {
-              submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> (${i + 1}/${files.length}) ${statusText}`;
-            }
-          }
-        );
+        await this.service.switch(files); // Or service upload method
         Toast.show(`Uploaded: ${file.name}`, "success");
       } catch (err) {
         Toast.show(`Failed to upload ${file.name}: ${err.message}`, "error");
@@ -442,27 +414,11 @@ export class FileManager {
       await this.service.deleteFolder(target.id);
       Toast.show("Folder deleted", "success");
     } else {
-      if (!confirm("Delete file and its chunks?")) return;
+      if (!confirm("Delete file?")) return;
       await this.service.deleteFile(target.id, target.fileId);
       Toast.show("File deleted", "success");
     }
     this.loadCurrentFolder();
-  }
-
-  async downloadFile(target) {
-    const fileRecord = await this.service.getFileRecord(target.id);
-    if (!fileRecord) return;
-
-    const fullBase64 = await this.service.getFullBase64(fileRecord.fileId);
-
-    const a = document.createElement("a");
-    a.href = fullBase64;
-    a.download = fileRecord.title;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-    Toast.show(`Downloaded ${fileRecord.title}`, "success");
   }
 
   async viewFile(id, fileId) {
@@ -470,7 +426,6 @@ export class FileManager {
     if (!fileRecord) return;
 
     this.previewer.showLoading(fileRecord.title);
-
     const fullBase64 = await this.service.getFullBase64(fileRecord.fileId);
     this.previewer.render(fileRecord, fullBase64);
   }
@@ -483,12 +438,10 @@ export class FileManager {
       document.getElementById("contextMenu")?.classList.add("hidden");
     });
 
-    // Back button
     this.container.querySelector("#backBtn")?.addEventListener("click", () => {
       this.navigateUp();
     });
 
-    // Navigate / View
     this.container.addEventListener("click", (e) => {
       const target = e.target.closest("[data-action]");
       if (!target) return;
@@ -504,7 +457,6 @@ export class FileManager {
       }
     });
 
-    // Context menu
     this.container.addEventListener("contextmenu", (e) => {
       const target = e.target.closest("[data-context]");
       if (!target) return;
@@ -530,21 +482,18 @@ export class FileManager {
       menu.classList.remove("hidden");
     });
 
-    // Delete
     document.getElementById("ctxDeleteBtn")?.addEventListener("click", () => {
       if (!this.contextTarget) return;
       this.deleteItem(this.contextTarget);
       document.getElementById("contextMenu").classList.add("hidden");
     });
 
-    // Download
     document.getElementById("ctxDownloadBtn")?.addEventListener("click", () => {
       if (!this.contextTarget || this.contextTarget.type !== "file") return;
-      this.downloadFile(this.contextTarget);
+      this.viewFile(this.contextTarget.id, this.contextTarget.fileId);
       document.getElementById("contextMenu").classList.add("hidden");
     });
 
-    // New Folder
     this.container.querySelector("#openFolderModalBtn")?.addEventListener("click", () => {
       document.getElementById("folderNameInput").value = "";
       document.getElementById("createFolderModal").classList.remove("hidden");
@@ -559,7 +508,6 @@ export class FileManager {
       document.getElementById("createFolderModal").classList.add("hidden");
     });
 
-    // Upload
     this.container.querySelector("#openCreateModalBtn")?.addEventListener("click", () => {
       document.getElementById("createFileForm").reset();
       document.getElementById("createFileModal").classList.remove("hidden");
@@ -574,7 +522,7 @@ export class FileManager {
       e.preventDefault();
       const files = document.getElementById("chunkFileInput").files;
       if (!files?.length) return;
-      this.uploadFiles(files, this.currentFolderId);
+      this.switch(files);
       document.getElementById("createFileModal").classList.add("hidden");
     });
   }
