@@ -25,7 +25,7 @@ export class FileManagerWrapper {
 
       Toast.show("Preparing ZIP backup...", "info");
       try {
-        await this.fileManager.downloadBackup();
+        await this.fileManager.service.downloadBackup();
         Toast.show("ZIP backup downloaded successfully!", "success");
       } catch (err) {
         Toast.show(`Failed to generate ZIP: ${err.message}`, "error");
