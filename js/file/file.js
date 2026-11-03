@@ -1,5 +1,4 @@
 import { FilePreviewComponent } from "./preview.js";
-import { FileBackup } from "./backup.js";
 
 export class FileManager {
   constructor(config = {}) {
@@ -464,7 +463,6 @@ export class FileManager {
 
   switch(collections) {
     this.firebase.switch(collections);
-    this.backupManager.switch(collections);
     this.currentFolderId = "root";
     this.loadCurrentFolder();
   }
