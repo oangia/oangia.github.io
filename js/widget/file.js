@@ -1,19 +1,78 @@
 import { Widget } from './base.js';
 
 /**
- * Dedicated Adapter to handle file parsing, previews, and standardization
+ * FilePreviewComponent placeholder to imitate the second architecture's preview handling.
  */
-class FileAdapter {
-  static async standardize(fileList) {
-    const files = Array.from(fileList);
-    if (!files.length) return [];
+class FilePreviewComponent {
+  initEvents() {
+    // Event hooks for preview overlay/modal if needed
+  }
 
-    const standardPayload = [];
+  showLoading(title) {
+    console.log(`Loading preview for: ${title}`);
+  }
+
+  render(fileRecord, fullBase64) {
+    if (fileRecord.previewType === 'image' || fileRecord.previewType === 'video') {
+      window.open(fullBase64, '_blank');
+    } else {
+      console.log('Rendering file preview:', fileRecord);
+    }
+  }
+}
+
+/**
+ * Service Adapter acting as both the file parser and folder tree state service.
+ */
+class FileAdapterService {
+  constructor() {
+    this.folderStructure = {};
+    this.nodeMap = new Map(); // Maps folder IDs to tree nodes
+    this.fileMap = new Map();  // Maps file IDs to file objects
+  }
+
+  async switch(fileList) {
+    const files = Array.from(fileList);
+    this.folderStructure = {
+      id: 'root',
+      name: 'root',
+      __children: {},
+      __files: []
+    };
+    this.nodeMap.clear();
+    this.fileMap.clear();
+    this.nodeMap.set('root', this.folderStructure);
+
+    if (!files.length) return;
+
+    let folderIdCounter = 1;
+    let fileIdCounter = 1;
 
     for (const file of files) {
       const relativePath = file.webkitRelativePath || file.name;
-      const ext = relativePath.split('.').pop().toLowerCase();
+      const parts = relativePath.split('/');
+      const fileName = parts.pop();
       
+      let currentLevelNode = this.folderStructure;
+
+      // Build folder hierarchy
+      for (const part of parts) {
+        if (!currentLevelNode.__children[part]) {
+          const newFolderId = `folder_${folderIdCounter++}`;
+          const newFolderNode = {
+            id: newFolderId,
+            name: part,
+            __children: {},
+            __files: []
+          };
+          currentLevelNode.__children[part] = newFolderNode;
+          this.nodeMap.set(newFolderId, newFolderNode);
+        }
+        currentLevelNode = currentLevelNode.__children[part];
+      }
+
+      // Process file payload
+      const ext = fileName.split('.').pop().toLowerCase();
       const isImage = file.type.startsWith('image/');
       const isVideo = file.type.startsWith('video/');
       const isAudio = file.type.startsWith('audio/');
@@ -36,21 +95,54 @@ class FileAdapter {
         previewData = await this.readTextSnippet(file);
       }
 
-      standardPayload.push({
+      const fileId = `file_${fileIdCounter++}`;
+      const fileRecord = {
+        id: fileId,
+        fileId: fileId,
+        title: fileName,
         path: relativePath,
         size: file.size,
         type: file.type,
         extension: ext,
         fileUrl,
         previewType,
-        previewData
-      });
-    }
+        previewData,
+        thumbnail: previewType === 'image' ? fileUrl : null
+      };
 
-    return standardPayload;
+      currentLevelNode.__files.push(fileRecord);
+      this.fileMap.set(fileId, fileRecord);
+    }
   }
 
-  static readTextSnippet(file) {
+  async getFolderContents(folderId) {
+    const node = this.nodeMap.get(folderId) || this.folderStructure;
+    
+    const folders = Object.values(node.__children).map(child => ({
+      id: child.id,
+      title: child.name,
+      name: child.name
+    }));
+
+    const files = node.__files || [];
+
+    return {
+      folders,
+      files,
+      currentFolderName: node.name
+    };
+  }
+
+  async getFileRecord(id) {
+    return this.fileMap.get(id);
+  }
+
+  async getFullBase64(fileId) {
+    const file = this.fileMap.get(fileId);
+    return file ? file.fileUrl : null;
+  }
+
+  readTextSnippet(file) {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => resolve(e.target.result.substring(0, 180));
@@ -61,90 +153,73 @@ class FileAdapter {
 }
 
 class FileManager {
-  constructor(containerElementOrId) {
-    this.container = typeof containerElementOrId === 'string' 
-      ? document.getElementById(containerElementOrId) 
-      : containerElementOrId;
-      
-    this.folderStructure = {};
-    this.currentPath = '';
+  constructor(config = {}) {
+    this.containerId = config.containerId || 'widget-browser-wrapper';
+    this.container = typeof this.containerId === 'string'
+      ? document.getElementById(this.containerId)
+      : this.containerId;
+
+    this.service = config.service || new FileAdapterService();
+    this.currentFolderId = 'root';
+    this.contextTarget = null;
+    this.previewer = new FilePreviewComponent();
 
     if (this.container) {
       this.attachManagerEvents();
     }
   }
 
-  loadData(items = []) {
-    this.folderStructure = {};
-    this.currentPath = '';
-
-    if (!items.length) return;
-
-    for (const item of items) {
-      const relativePath = item.path || item.name;
-      const parts = relativePath.split('/');
-
-      let currentLevel = this.folderStructure;
-      for (let j = 0; j < parts.length; j++) {
-        const part = parts[j];
-        if (j === parts.length - 1) {
-          currentLevel[part] = {
-            __isFile: true,
-            ...item
-          };
-        } else {
-          if (!currentLevel[part]) {
-            currentLevel[part] = { __isFile: false, __children: {} };
-          }
-          if (!currentLevel[part].__children) {
-            const oldObj = currentLevel[part];
-            currentLevel[part] = { __isFile: false, __children: oldObj };
-          }
-          currentLevel = currentLevel[part].__children;
-        }
-      }
-    }
-
-    this.render();
+  async switch(fileList) {
+    await this.service.switch(fileList);
+    this.currentFolderId = 'root';
+    this.loadCurrentFolder();
   }
 
-  navigateTo(path) {
-    this.currentPath = path;
-    this.render();
+  navigateToFolder(folderId) {
+    this.currentFolderId = folderId;
+    this.loadCurrentFolder();
   }
 
   navigateUp() {
-    const parts = this.currentPath.split('/').filter(Boolean);
-    parts.pop();
-    this.currentPath = parts.join('/');
-    this.render();
+    if (this.currentFolderId !== 'root') {
+      this.navigateToFolder('root');
+    }
   }
 
   getFolderSize(node) {
     let totalSize = 0;
-    const children = node.__children || node;
+    const children = node.__children || {};
+    const files = node.__files || [];
+    
+    for (const file of files) {
+      totalSize += file.size || 0;
+    }
     for (const key in children) {
-      if (key.startsWith('__')) continue;
-      const child = children[key];
-      if (child.__isFile) {
-        totalSize += child.size || 0;
-      } else {
-        totalSize += this.getFolderSize(child);
-      }
+      totalSize += this.getFolderSize(children[key]);
     }
     return totalSize;
   }
 
   formatBytes(bytes) {
-    if (bytes === 0 || isNaN(bytes)) return '0 B';
+    if (bytes === 0 || isNaN(bytes) || bytes == null) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
+  async loadCurrentFolder() {
+    if (!this.container) return;
+
+    try {
+      const { folders, files, currentFolderName } = await this.service.getFolderContents(this.currentFolderId);
+      this.render(folders, files, currentFolderName);
+    } catch (err) {
+      console.error('Error loading folder contents:', err);
+    }
+  }
+
   attachManagerEvents() {
-    // FileManager handles all its own internal click interactions entirely
     this.container.addEventListener('click', (e) => {
       const backBtn = e.target.closest('.widget-back-btn');
       if (backBtn && !backBtn.disabled) {
@@ -152,104 +227,84 @@ class FileManager {
         return;
       }
 
-      const card = e.target.closest('[data-type]');
+      const card = e.target.closest('[data-action]');
       if (!card) return;
 
-      const type = card.getAttribute('data-type');
-      if (type === 'folder') {
-        const folderName = card.getAttribute('data-name');
-        const nextPath = this.currentPath
-          ? `${this.currentPath}/${folderName}`
-          : folderName;
-        this.navigateTo(nextPath);
-      } else if (type === 'file') {
+      const action = card.getAttribute('data-action');
+      const id = card.getAttribute('data-id');
+
+      if (action === 'navigate') {
+        this.navigateToFolder(id);
+      } else if (action === 'view') {
         const fileUrl = card.getAttribute('data-url');
         if (fileUrl) window.open(fileUrl, '_blank');
       }
     });
   }
 
-  render() {
+  render(folders = [], files = [], currentFolderName = 'root') {
     if (!this.container) return;
 
-    let currentObj = this.folderStructure;
-    if (this.currentPath !== '') {
-      const parts = this.currentPath.split('/');
-      for (const p of parts) {
-        if (currentObj[p]) {
-          currentObj = currentObj[p].__children || currentObj[p];
-        }
-      }
-    }
-
-    const keys = Object.keys(currentObj)
-      .filter((k) => !k.startsWith('__'))
-      .sort((a, b) => {
-        const aIsDir = !currentObj[a].__isFile;
-        const bIsDir = !currentObj[b].__isFile;
-        if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
-        return a.localeCompare(b);
-      });
-
-    const isRoot = this.currentPath === '';
-    const pathText = '/' + this.currentPath;
-    const itemCountText = `${keys.length} items`;
+    const isRoot = this.currentFolderId === 'root';
+    const pathText = isRoot ? '/' : `/${currentFolderName}`;
+    const totalItemsCount = folders.length + files.length;
+    const itemCountText = `${totalItemsCount} items`;
 
     let gridHTML = '';
 
-    if (keys.length === 0) {
+    if (totalItemsCount === 0) {
       gridHTML = `<div class="col-span-full py-16 text-center text-slate-400 text-xs italic">This folder is empty.</div>`;
     } else {
-      for (const key of keys) {
-        const item = currentObj[key];
-        const isDir = !item.__isFile;
-
-        if (isDir) {
-          const folderSize = this.getFolderSize(item);
-          gridHTML += `
-            <div class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden" data-type="folder" data-name="${key}">
-              <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
-                <i class="fa-solid fa-folder text-5xl"></i>
-              </div>
-              <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
-                <span class="w-full text-xs font-bold text-slate-700 truncate" title="${key}">${key}</span>
-                <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(folderSize)}</span>
-              </div>
+      // Render Folders
+      for (const folder of folders) {
+        const name = folder.title || folder.name;
+        gridHTML += `
+          <div class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden" data-action="navigate" data-id="${folder.id}">
+            <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
+              <i class="fa-solid fa-folder text-5xl"></i>
             </div>
-          `;
-        } else {
-          let previewHTML = `<i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>`;
-
-          if (item.previewType === 'image') {
-            previewHTML = `<img src="${item.previewData}" alt="${key}" class="w-full h-full object-cover rounded-lg" />`;
-          } else if (item.previewType === 'video') {
-            previewHTML = `
-              <video src="${item.previewData}" class="widget-video-preview w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
-              <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
-            `;
-          } else if (item.previewType === 'audio') {
-            previewHTML = `
-              <div class="flex flex-col items-center justify-center text-blue-500">
-                <i class="fa-solid fa-file-audio text-3xl mb-1"></i>
-                <span class="text-[9px] font-mono text-slate-500 uppercase">${item.extension}</span>
-              </div>`;
-          } else if (item.previewType === 'text' && item.previewData) {
-            const escapedText = item.previewData.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-            previewHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1.5 overflow-hidden w-full h-full select-none opacity-80">${escapedText}</pre>`;
-          }
-
-          gridHTML += `
-            <div class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden" data-type="file" data-url="${item.fileUrl}">
-              <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
-                ${previewHTML}
-              </div>
-              <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
-                <span class="w-full text-xs font-semibold text-slate-700 truncate text-[11px]" title="${key}">${key}</span>
-                <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(item.size)}</span>
-              </div>
+            <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+              <span class="w-full text-xs font-bold text-slate-700 truncate" title="${name}">${name}</span>
+              <span class="text-[9px] text-slate-400 font-mono mt-0.5">Folder</span>
             </div>
+          </div>
+        `;
+      }
+
+      // Render Files
+      for (const file of files) {
+        const name = file.title || 'Untitled';
+        let previewHTML = `<i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>`;
+
+        if (file.previewType === 'image') {
+          previewHTML = `<img src="${file.previewData}" alt="${name}" class="w-full h-full object-cover rounded-lg" />`;
+        } else if (file.previewType === 'video') {
+          previewHTML = `
+            <video src="${file.previewData}" class="widget-video-preview w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
+            <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
           `;
+        } else if (file.previewType === 'audio') {
+          previewHTML = `
+            <div class="flex flex-col items-center justify-center text-blue-500">
+              <i class="fa-solid fa-file-audio text-3xl mb-1"></i>
+              <span class="text-[9px] font-mono text-slate-500 uppercase">${file.extension}</span>
+            </div>`;
+        } else if (file.previewType === 'text' && file.previewData) {
+          const escapedText = file.previewData.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+          previewHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1.5 overflow-hidden w-full h-full select-none opacity-80">${escapedText}</pre>`;
         }
+
+        gridHTML += `
+          <div class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden" data-action="view" data-url="${file.fileUrl}">
+            <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
+              ${previewHTML}
+            </div>
+            <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+              <span class="w-full text-xs font-semibold text-slate-700 truncate text-[11px]" title="${name}">${name}</span>
+              <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(file.size)}</span>
+            </div>
+          </div>
+        `;
       }
     }
 
@@ -295,8 +350,11 @@ export class FileManagerWidget extends Widget {
   init() {
     this.createUI();
     this.cacheDomReferences();
-    // Instantiate FileManager and pass it the container element ID or reference
-    this.fileManager = new FileManager('widget-browser-wrapper');
+    this.service = new FileAdapterService();
+    this.fileManager = new FileManager({
+      containerId: 'widget-browser-wrapper',
+      service: this.service
+    });
     this.attachEvents();
   }
 
@@ -364,15 +422,13 @@ export class FileManagerWidget extends Widget {
   }
 
   attachEvents() {
-    // Widget uses FileAdapter to standardize files, then feeds standardized JSON data payload to FileManager
     const handleSelect = async (e) => {
       const files = e.target.files;
       if (!files || files.length === 0) return;
 
-      const standardPayload = await FileAdapter.standardize(files);
-
-      this.fileManager.loadData(standardPayload);
-      Toast.success(`Loaded ${files.length} items successfully!`);
+      await this.fileManager.switch(files);
+      this.fileManager.loadCurrentFolder();
+      console.log(`Loaded ${files.length} items successfully via service switch!`);
     };
 
     this.dom.folderInputMain.addEventListener('change', handleSelect);
