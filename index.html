@@ -18,27 +18,28 @@
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
   <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30 w-full">
-        <div class="max-w-8xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4 w-full">
-          <!-- Logo & Titles -->
-          <div class="flex items-center space-x-3">
-            <div class="bg-blue-500 text-white p-2 rounded-xl shadow-md">
-              <i class="fa-solid fa-folder-tree text-lg"></i>
-            </div>
-            <div>
-              <h1 id="appTitle" class="text-lg font-bold tracking-tight">File Manager - Code</h1>
-              <p class="text-[11px] text-slate-400">Fast On-Demand Loading &amp; Chunked Storage</p>
-            </div>
-          </div>
-
-          <!-- Status & Action Button -->
-          <div class="flex items-center space-x-3">  
-                <button id="toggleConfigBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-2 border border-slate-700">
-                  <i class="fa-solid fa-gear"></i>
-                  <span>Config</span>
-                </button>
-          </div>
+    <div class="max-w-8xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4 w-full">
+      <!-- Logo & Titles -->
+      <div class="flex items-center space-x-3">
+        <div class="bg-blue-500 text-white p-2 rounded-xl shadow-md">
+          <i class="fa-solid fa-folder-tree text-lg"></i>
         </div>
-      </header>
+        <div>
+          <h1 id="appTitle" class="text-lg font-bold tracking-tight">File Manager - Home</h1>
+          <p class="text-[11px] text-slate-400">Fast On-Demand Loading &amp; Chunked Storage</p>
+        </div>
+      </div>
+
+      <!-- Status & Action Button -->
+      <div class="flex items-center space-x-3">  
+        <button id="toggleConfigBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-2 border border-slate-700">
+          <i class="fa-solid fa-gear"></i>
+          <span>Config</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
   <!-- Main Workspace Layout -->
   <div class="flex-1 flex overflow-hidden">
     <!-- Sidebar -->
@@ -58,14 +59,6 @@
         <button id="navMemo" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white">
           <i class="fa-solid fa-note-sticky text-base"></i>
           <span>Memo</span>
-        </button>
-        <button id="navCode" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white">
-          <i class="fa-solid fa-code text-base"></i>
-          <span>Code</span>
-        </button>
-        <button id="navJav" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white">
-          <i class="fa-solid fa-video text-base"></i>
-          <span>Jav</span>
         </button>
       </nav>
     </aside>
@@ -89,16 +82,6 @@
         title: "File Manager - Memo",
         filesCollection: "memo_files",
         fileChunksCollection: "memo_file_chunks"
-      },
-      code: {
-        title: "File Manager - Code",
-        filesCollection: "code_files",
-        fileChunksCollection: "code_file_chunks"
-      },
-      jav: {
-        title: "File Manager - Jav",
-        filesCollection: "jav_files",
-        fileChunksCollection: "jav_file_chunks"
       }
     };
 
@@ -130,9 +113,7 @@
       const buttons = {
         home: document.getElementById("navHome"),
         file: document.getElementById("navFile"),
-        memo: document.getElementById("navMemo"),
-        code: document.getElementById("navCode"),
-        jav: document.getElementById("navJav")
+        memo: document.getElementById("navMemo")
       };
 
       Object.keys(buttons).forEach((key) => {
@@ -159,10 +140,12 @@
         window.fileManager = fileManager;
       }
     }
+
     switchSpace(activeSpace);
+
     // Navigation Listeners
     document.getElementById("navHome").addEventListener("click", () => {
-      if (activeSpace !== "home") switchSpace('home');
+      if (activeSpace !== "home") switchSpace("home");
     });
 
     document.getElementById("navFile").addEventListener("click", () => {
@@ -171,14 +154,6 @@
 
     document.getElementById("navMemo").addEventListener("click", () => {
       if (activeSpace !== "memo") switchSpace("memo");
-    });
-
-    document.getElementById("navCode").addEventListener("click", () => {
-      if (activeSpace !== "code") switchSpace("code");
-    });
-
-    document.getElementById("navJav").addEventListener("click", () => {
-      if (activeSpace !== "jav") switchSpace("jav");
     });
     
     import "./js/widget/widget.js";
