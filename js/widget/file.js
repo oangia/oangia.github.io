@@ -358,10 +358,10 @@ export class FileManagerWidget extends Widget {
     // Widget only handles file selection and feeds the data to FileManager
     const handleSelect = async (e) => {
       const files = e.target.files;
+      console.log(files);
       if (!files || files.length === 0) return;
 
       await this.fileManager.loadFiles(files);
-      this.dom.subtitle.textContent = this.fileManager.getRootFolderName();
       Toast.success(`Loaded ${files.length} items successfully!`);
     };
 
