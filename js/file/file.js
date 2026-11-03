@@ -318,16 +318,7 @@ export class FileManager {
         const name = folder.title || folder.name || "Untitled";
         
         // Calculate size if internal nested structures exist, otherwise fallback to "Folder"
-        let folderSubtext = "Folder";
-        try {
-          const calculatedSize = this.getFolderSize(folder);
-          console.log(calculatedSize);
-          if (calculatedSize > 0) {
-            folderSubtext = this._formatBytes(calculatedSize);
-          }
-        } catch (e) {
-          // Fallback gracefully if node metadata layout differs
-        }
+        const folderSubtext = folder.size > 0 ? this._formatBytes(folder.size) : "Folder";
 
         html += `
           <div data-action="navigate" data-id="${folder.id}"
