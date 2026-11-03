@@ -151,7 +151,7 @@ export class FileManager {
         </div>
       </div>
 
-      <!-- File Manager View (styled like the example) -->
+      <!-- File Manager View -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
         <!-- Breadcrumb & Control Bar -->
         <div class="bg-white border-b border-slate-200 px-5 py-2 flex items-center justify-between gap-3 text-xs shrink-0">
@@ -236,6 +236,20 @@ export class FileManager {
     this.previewer.initEvents();
   }
 
+  getFolderSize(node) {
+    let totalSize = 0;
+    const children = node.__children || {};
+    const files = node.__files || [];
+    
+    for (const file of files) {
+      totalSize += file.size || 0;
+    }
+    for (const key in children) {
+      totalSize += this.getFolderSize(children[key]);
+    }
+    return totalSize;
+  }
+
   _formatBytes(bytes) {
     if (bytes === 0 || isNaN(bytes) || bytes == null) return "0 B";
     const k = 1024;
@@ -245,7 +259,7 @@ export class FileManager {
   }
 
   // --------------------------------------------------
-  // Load + render (logic unchanged, style matches example)
+  // Load + render
   // --------------------------------------------------
   async loadCurrentFolder() {
     const grid = this.container?.querySelector("#fileGridContainer");
@@ -298,9 +312,21 @@ export class FileManager {
           This folder is empty.
         </div>`;
     } else {
-      // Folders (style from example)
+      // Folders with safe optional size calculation
       folders.forEach(folder => {
         const name = folder.title || folder.name || "Untitled";
+        
+        // Calculate size if internal nested structures exist, otherwise fallback to "Folder"
+        let folderSubtext = "Folder";
+        try {
+          const calculatedSize = this.getFolderSize(folder);
+          if (calculatedSize > 0) {
+            folderSubtext = this._formatBytes(calculatedSize);
+          }
+        } catch (e) {
+          // Fallback gracefully if node metadata layout differs
+        }
+
         html += `
           <div data-action="navigate" data-id="${folder.id}"
                data-context="folder" data-context-id="${folder.id}"
@@ -310,12 +336,12 @@ export class FileManager {
             </div>
             <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
               <span class="w-full text-xs font-bold text-slate-700 truncate" title="${name}">${name}</span>
-              <span class="text-[9px] text-slate-400 font-mono mt-0.5">Folder</span>
+              <span class="text-[9px] text-slate-400 font-mono mt-0.5">${folderSubtext}</span>
             </div>
           </div>`;
       });
 
-      // Files (style from example)
+      // Files
       files.forEach(file => {
         const name = file.title || "Untitled";
         const ext = name.split(".").pop()?.toLowerCase() || "";
@@ -368,7 +394,7 @@ export class FileManager {
   }
 
   // --------------------------------------------------
-  // Actions (logic unchanged)
+  // Actions
   // --------------------------------------------------
   navigateToFolder(folderId) {
     this.currentFolderId = folderId;
