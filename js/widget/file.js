@@ -1,5 +1,5 @@
 import { Widget } from './base.js';
-//import { FileManager } from "./../file/file.js";
+import { FileManager } from "./../file/file.js";
 /**
  * FilePreviewComponent placeholder to imitate the second architecture's preview handling.
  */
@@ -152,7 +152,7 @@ class FileAdapterService {
   }
 }
 
-class FileManager {
+class FileManager2 {
   constructor(config = {}) {
     this.containerId = config.containerId;
     this.container = document.getElementById(this.containerId);
