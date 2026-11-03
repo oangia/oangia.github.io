@@ -1,9 +1,17 @@
 import { Widget } from './base.js';
 
 class FileManager {
-  constructor() {
+  constructor(containerElementOrId) {
+    this.container = typeof containerElementOrId === 'string' 
+      ? document.getElementById(containerElementOrId) 
+      : containerElementOrId;
+      
     this.folderStructure = {};
     this.currentPath = '';
+
+    if (this.container) {
+      this.attachManagerEvents();
+    }
   }
 
   async loadFiles(fileList) {
@@ -40,6 +48,8 @@ class FileManager {
         }
       }
     }
+
+    this.render();
   }
 
   async processFilePreview(file, filename) {
@@ -83,12 +93,14 @@ class FileManager {
 
   navigateTo(path) {
     this.currentPath = path;
+    this.render();
   }
 
   navigateUp() {
     const parts = this.currentPath.split('/').filter(Boolean);
     parts.pop();
     this.currentPath = parts.join('/');
+    this.render();
   }
 
   getFolderSize(node) {
@@ -114,10 +126,35 @@ class FileManager {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
-  /**
-   * FileManager generates the view AND binds its own internal element behaviors (like video metadata).
-   */
-  renderBrowserContainer() {
+  attachManagerEvents() {
+    // FileManager handles all its own internal click interactions entirely
+    this.container.addEventListener('click', (e) => {
+      const backBtn = e.target.closest('.widget-back-btn');
+      if (backBtn && !backBtn.disabled) {
+        this.navigateUp();
+        return;
+      }
+
+      const card = e.target.closest('[data-type]');
+      if (!card) return;
+
+      const type = card.getAttribute('data-type');
+      if (type === 'folder') {
+        const folderName = card.getAttribute('data-name');
+        const nextPath = this.currentPath
+          ? `${this.currentPath}/${folderName}`
+          : folderName;
+        this.navigateTo(nextPath);
+      } else if (type === 'file') {
+        const fileUrl = card.getAttribute('data-url');
+        if (fileUrl) window.open(fileUrl, '_blank');
+      }
+    });
+  }
+
+  render() {
+    if (!this.container) return;
+
     let currentObj = this.folderStructure;
     if (this.currentPath !== '') {
       const parts = this.currentPath.split('/');
@@ -199,9 +236,7 @@ class FileManager {
       }
     }
 
-    const container = document.createElement('div');
-    container.className = 'flex-1 bg-slate-50 overflow-hidden flex flex-col min-h-0 relative';
-    container.innerHTML = `
+    this.container.innerHTML = `
       <!-- Breadcrumb & Control Bar -->
       <div class="bg-white border-b border-slate-200 px-5 py-2 flex items-center justify-between gap-3 text-xs shrink-0">
         <div class="flex items-center gap-2">
@@ -225,27 +260,28 @@ class FileManager {
       </div>
     `;
 
-    // FileManager binds its own internal video metadata logic directly to its generated DOM elements
-    container.querySelectorAll('.widget-video-preview').forEach((videoEl) => {
+    // Bind video duration hooks
+    this.container.querySelectorAll('.widget-video-preview').forEach((videoEl) => {
       videoEl.addEventListener('loadedmetadata', () => {
         videoEl.currentTime = Math.min(1, videoEl.duration / 4);
       });
     });
-
-    return container;
   }
 }
 
 export class FileManagerWidget extends Widget {
   constructor(options = {}) {
     super(options);
-    this.fileManager = new FileManager();
     this.init();
   }
 
   init() {
     this.createUI();
     this.cacheDomReferences();
+    
+    // Instantiate FileManager and pass it the container element ID or reference
+    this.fileManager = new FileManager('widget-browser-wrapper');
+    
     this.attachEvents();
   }
 
@@ -284,8 +320,8 @@ export class FileManagerWidget extends Widget {
           </div>
         </div>
 
-        <!-- Main Content Container (FileManager replaces this entirely) -->
-        <div class="widget-browser-wrapper flex-1 bg-slate-50 overflow-hidden flex flex-col min-h-0 relative">
+        <!-- Main Content Container assigned to FileManager -->
+        <div id="widget-browser-wrapper" class="flex-1 bg-slate-50 overflow-hidden flex flex-col min-h-0 relative">
           
           <!-- Full-Screen Dropzone -->
           <div class="widget-select-screen flex-1 bg-white hover:bg-blue-50/20 transition-all p-8 flex flex-col items-center justify-center text-center relative cursor-pointer group border-2 border-dashed border-slate-200 hover:border-blue-500">
@@ -314,57 +350,22 @@ export class FileManagerWidget extends Widget {
     this.dom = {
       folderInputMain: m.querySelector('.widget-folder-input-main'),
       folderInputHeader: m.querySelector('.widget-folder-input-header'),
-      closeBtn: m.querySelector('.widget-close-btn'),
-      subtitle: m.querySelector('.widget-path-subtitle'),
-      browserWrapper: m.querySelector('.widget-browser-wrapper'),
-      toastContainer: m.querySelector('.widget-toast-container')
+      subtitle: m.querySelector('.widget-path-subtitle')
     };
   }
 
   attachEvents() {
+    // Widget only handles file selection and feeds the data to FileManager
     const handleSelect = async (e) => {
       const files = e.target.files;
       if (!files || files.length === 0) return;
 
       await this.fileManager.loadFiles(files);
       this.dom.subtitle.textContent = this.fileManager.getRootFolderName();
-      this.renderCurrentDirectory();
       Toast.success(`Loaded ${files.length} items successfully!`);
     };
 
     this.dom.folderInputMain.addEventListener('change', handleSelect);
     this.dom.folderInputHeader.addEventListener('change', handleSelect);
-
-    // Widget only delegates UI interaction events to FileManager methods/actions
-    this.dom.browserWrapper.addEventListener('click', (e) => {
-      const backBtn = e.target.closest('.widget-back-btn');
-      if (backBtn && !backBtn.disabled) {
-        this.fileManager.navigateUp();
-        this.renderCurrentDirectory();
-        return;
-      }
-
-      const card = e.target.closest('[data-type]');
-      if (!card) return;
-
-      const type = card.getAttribute('data-type');
-      if (type === 'folder') {
-        const folderName = card.getAttribute('data-name');
-        const nextPath = this.fileManager.currentPath
-          ? `${this.fileManager.currentPath}/${folderName}`
-          : folderName;
-        this.fileManager.navigateTo(nextPath);
-        this.renderCurrentDirectory();
-      } else if (type === 'file') {
-        const fileUrl = card.getAttribute('data-url');
-        if (fileUrl) window.open(fileUrl, '_blank');
-      }
-    });
-  }
-
-  renderCurrentDirectory() {
-    // Widget does zero rendering logic — it drops whatever DOM element FileManager returns straight into the wrapper
-    this.dom.browserWrapper.innerHTML = '';
-    this.dom.browserWrapper.appendChild(this.fileManager.renderBrowserContainer());
   }
 }
