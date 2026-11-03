@@ -350,11 +350,7 @@ export class FileManagerWidget extends Widget {
     this.createUI();
     this.cacheDomReferences();
     this.service = new FileAdapterService();
-    this.fileManager = new FileManager({
-      containerId: 'widget-browser-wrapper',
-      service: this.service
-    });
-    this.fileManager.init();
+    this.fileManager = null;
     this.attachEvents();
   }
 
@@ -423,11 +419,17 @@ export class FileManagerWidget extends Widget {
 
   attachEvents() {
     const handleSelect = async (e) => {
+      if (this.fileManager == null) {
+        this.fileManager = new FileManager({
+          containerId: 'widget-browser-wrapper',
+          service: this.service
+        });
+        this.fileManager.init();
+      }
       const files = e.target.files;
       if (!files || files.length === 0) return;
 
       await this.fileManager.switch(files);
-      this.fileManager.loadCurrentFolder();
       console.log(`Loaded ${files.length} items successfully via service switch!`);
     };
 
