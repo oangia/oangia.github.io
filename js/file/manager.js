@@ -21,34 +21,37 @@ export class FileManager {
   mountUI() {
     if (!this.container) return;
     this.container.innerHTML = `
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 justify-between items-center">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 justify-between items-center shrink-0">
         <div class="flex items-center gap-2"></div>
         <div class="flex items-center gap-2">
-          <button id="openFolderModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
-            <i class="fa-solid fa-folder-plus text-amber-600"></i> New Folder
+          <button id="openFolderModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3.5 py-2 rounded-xl text-xs transition flex items-center gap-2 cursor-pointer">
+            <i class="fa-solid fa-folder-plus text-amber-500"></i> New Folder
           </button>
-          <button id="openCreateModalBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm">
+          <button id="openCreateModalBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm cursor-pointer">
             <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
           </button>
-          <button id="backupDataBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3 py-2 rounded-xl text-xs transition flex items-center gap-2">
+          <button id="backupDataBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3.5 py-2 rounded-xl text-xs transition flex items-center gap-2 cursor-pointer">
             <i class="fa-solid fa-file-arrow-down"></i> Backup All Files
           </button>
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col space-y-4">
-        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col space-y-4 overflow-hidden">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
           <div id="breadcrumbsBar" class="flex items-center gap-2 text-xs font-semibold text-slate-700"></div>
-          <span id="fileCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg">0 items</span>
+          <span id="fileCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg font-mono">0 items</span>
         </div>
-        <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+        <div class="flex-1 overflow-y-auto custom-scrollbar pr-1">
+          <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+        </div>
       </div>
     `;
+
     const overlaysHTML = `
       <!-- CONTEXT MENU -->
       <div id="contextMenu" class="hidden fixed z-50 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 w-40 text-xs font-medium text-slate-700">
-        <button id="ctxDownloadBtn" class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 hidden"><i class="fa-solid fa-download text-emerald-600"></i> Download</button>
-        <button id="ctxDeleteBtn" class="w-full text-left px-4 py-2 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 text-slate-700"><i class="fa-solid fa-trash"></i> Delete</button>
+        <button id="ctxDownloadBtn" class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 hidden cursor-pointer"><i class="fa-solid fa-download text-emerald-600"></i> Download</button>
+        <button id="ctxDeleteBtn" class="w-full text-left px-4 py-2 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 text-slate-700 cursor-pointer"><i class="fa-solid fa-trash"></i> Delete</button>
       </div>
 
       <!-- MODAL: NEW FOLDER -->
@@ -57,8 +60,8 @@ export class FileManager {
           <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-folder-plus text-amber-500"></i> Create Folder</h3>
           <input type="text" id="folderNameInput" placeholder="Folder name..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           <div class="flex gap-2 justify-end pt-2">
-            <button type="button" id="cancelFolderBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
-            <button type="button" id="submitFolderBtn" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Create</button>
+            <button type="button" id="cancelFolderBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">Cancel</button>
+            <button type="button" id="submitFolderBtn" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer">Create</button>
           </div>
         </div>
       </div>
@@ -68,10 +71,10 @@ export class FileManager {
         <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl p-6 space-y-4">
           <div class="flex justify-between items-center pb-2 border-b border-slate-100">
             <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Upload File</h3>
-            <button id="closeFileModalBtn" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <button id="closeFileModalBtn" class="text-slate-400 hover:text-slate-600 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
           </div>
           <form id="createFileForm" class="space-y-4">
-            <div class="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-5 text-center">
+            <div class="bg-slate-50 border-2 border-dashed border-slate-300 hover:border-blue-500 transition rounded-xl p-5 text-center cursor-pointer">
               <label class="cursor-pointer block">
                 <i class="fa-solid fa-file-arrow-up text-blue-500 text-2xl mb-1"></i>
                 <p class="text-xs font-semibold text-slate-700">Select Image, Video, Text or PDF</p>
@@ -79,8 +82,8 @@ export class FileManager {
               </label>
             </div>
             <div class="pt-2 flex gap-3 justify-end">
-              <button type="button" id="cancelFileBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
-              <button type="submit" id="submitFileBtn" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Upload File</button>
+              <button type="button" id="cancelFileBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">Cancel</button>
+              <button type="submit" id="submitFileBtn" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer">Upload File</button>
             </div>
           </form>
         </div>
@@ -95,7 +98,7 @@ export class FileManager {
     const grid = this.container.querySelector("#fileGridContainer");
     if (!grid) return;
 
-    grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-blue-500 block"></i>Loading folder...</div>`;
+    grid.innerHTML = `<div class="col-span-full py-16 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-blue-500 block"></i>Loading folder...</div>`;
 
     try {
       let allItems = await this.fbService.getByField(this.collections.items, "parentId", this.currentFolderId);
@@ -110,10 +113,10 @@ export class FileManager {
       const dirFiles = allItems.filter(item => !item.isFolder);
 
       if (this.currentFolderId === "root") {
-        breadcrumbs.innerHTML = `<span class="text-blue-600 font-bold"><i class="fa-solid fa-house"></i> Home</span>`;
+        breadcrumbs.innerHTML = `<span class="text-blue-600 font-bold flex items-center gap-1.5"><i class="fa-solid fa-house"></i> Home</span>`;
       } else {
         breadcrumbs.innerHTML = `
-          <button onclick="fileManager.navigateToFolder('root')" class="hover:text-blue-600"><i class="fa-solid fa-house"></i> Home</button>
+          <button onclick="fileManager.navigateToFolder('root')" class="hover:text-blue-600 flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-house"></i> Home</button>
           <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
           <span class="text-blue-600 font-bold">${currentFolderName}</span>
         `;
@@ -122,30 +125,45 @@ export class FileManager {
       this.container.querySelector("#fileCountBadge").textContent = `${subFolders.length} folders, ${dirFiles.length} files`;
 
       let html = "";
+
+      // Render Folders with matching card layout
       subFolders.forEach(folder => {
         html += `
-          <div ondblclick="fileManager.navigateToFolder('${folder.id}')" onclick="fileManager.navigateToFolder('${folder.id}')" oncontextmenu="fileManager.openContextMenu(event, 'folder', '${folder.id}')" class="bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition group shadow-sm select-none">
-            <i class="fa-solid fa-folder text-amber-400 text-4xl group-hover:scale-110 transition"></i>
-            <span class="text-xs font-bold text-slate-700 truncate w-full text-center">${folder.title || folder.name}</span>
+          <div ondblclick="fileManager.navigateToFolder('${folder.id}')" onclick="fileManager.navigateToFolder('${folder.id}')" oncontextmenu="fileManager.openContextMenu(event, 'folder', '${folder.id}')" class="bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-2xl p-3 flex flex-col items-center justify-between gap-2 cursor-pointer transition group shadow-sm select-none overflow-hidden">
+            <div class="w-full flex justify-center items-center h-20 bg-amber-50/50 group-hover:bg-amber-50 rounded-xl overflow-hidden transition-colors">
+              <i class="fa-solid fa-folder text-amber-400 text-4xl group-hover:scale-110 transition"></i>
+            </div>
+            <span class="text-xs font-bold text-slate-800 truncate w-full text-center" title="${folder.title || folder.name}">${folder.title || folder.name}</span>
+            <div class="w-full text-center text-[10px] text-slate-400 pt-1 border-t border-slate-100 font-mono">
+              <span>Folder</span>
+            </div>
           </div>
         `;
       });
 
+      // Render Files with matching card layout & icons/thumbnails
       dirFiles.forEach(file => {
-        let thumbHtml = `<i class="fa-solid fa-file-lines text-blue-400 text-4xl"></i>`;
+        const ext = (file.title || '').split('.').pop().toLowerCase();
+        let defaultIcon = 'fa-solid fa-file-lines text-blue-400';
+        if (['js', 'ts', 'jsx', 'tsx'].includes(ext)) defaultIcon = 'fa-brands fa-js text-amber-400';
+        else if (['html', 'htm'].includes(ext)) defaultIcon = 'fa-brands fa-html5 text-orange-400';
+        else if (['css', 'scss'].includes(ext)) defaultIcon = 'fa-brands fa-css3-alt text-blue-500';
+        else if (['json'].includes(ext)) defaultIcon = 'fa-solid fa-brackets-curly text-yellow-500';
+        else if (file.category === 'Media' || ['mp4', 'webm', 'mov'].includes(ext)) defaultIcon = 'fa-solid fa-file-video text-purple-400';
+        else if (['mp3', 'wav', 'ogg'].includes(ext)) defaultIcon = 'fa-solid fa-file-audio text-emerald-400';
+
+        let thumbHtml = `<i class="${defaultIcon} text-4xl"></i>`;
         if (file.thumbnail) {
-          thumbHtml = `<img src="${file.thumbnail}" class="w-full h-20 object-cover rounded-xl shadow-inner">`;
-        } else if (file.category === 'Media') {
-          thumbHtml = `<i class="fa-solid fa-file-video text-purple-400 text-4xl"></i>`;
+          thumbHtml = `<img src="${file.thumbnail}" class="w-full h-full object-cover rounded-xl shadow-inner">`;
         }
 
         html += `
-          <div onclick="fileManager.viewFile('${file.id}', '${file.fileId}')" oncontextmenu="fileManager.openContextMenu(event, 'file', '${file.id}', '${file.fileId}')" class="bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-2xl p-3 flex flex-col items-center justify-between gap-2 cursor-pointer transition group shadow-sm select-none">
-            <div class="w-full flex justify-center items-center h-20 bg-slate-100 rounded-xl overflow-hidden">
+          <div onclick="fileManager.viewFile('${file.id}', '${file.fileId}')" oncontextmenu="fileManager.openContextMenu(event, 'file', '${file.id}', '${file.fileId}')" class="bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-2xl p-3 flex flex-col items-center justify-between gap-2 cursor-pointer transition group shadow-sm select-none overflow-hidden">
+            <div class="w-full flex justify-center items-center h-20 bg-slate-100 rounded-xl overflow-hidden relative transition-colors group-hover:bg-slate-200/60">
               ${thumbHtml}
             </div>
             <span class="text-xs font-semibold text-slate-800 truncate w-full text-center" title="${file.title}">${file.title}</span>
-            <div class="w-full text-center text-[10px] text-slate-400 pt-1 border-t border-slate-100">
+            <div class="w-full text-center text-[10px] text-slate-400 pt-1 border-t border-slate-100 font-mono">
               <span>${file.totalParts || 1} chunks</span>
             </div>
           </div>
@@ -153,7 +171,11 @@ export class FileManager {
       });
 
       if (subFolders.length === 0 && dirFiles.length === 0) {
-        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300 block"></i>This folder is empty</div>`;
+        grid.innerHTML = `
+          <div class="col-span-full py-16 text-center text-slate-400 text-xs italic">
+            <i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300 block"></i>
+            This folder is empty.
+          </div>`;
       } else {
         grid.innerHTML = html;
       }
