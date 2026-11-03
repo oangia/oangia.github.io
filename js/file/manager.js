@@ -12,12 +12,12 @@ export class FileManagerWrapper {
     };
 
     // 1. Firebase service
-    this.firebase = new FileManagerFirebase(this.fbService, this.collections);
+    this.service = new FileManagerFirebase(this.fbService, this.collections);
 
     // 2. FileManager (owns everything: UI, actions, backup, load…)
     this.fileManager = new FileManager({
       containerId: this.containerId,
-      firebaseService: this.firebase
+      service: this.service
     });
     document.addEventListener("click", async (e) => {
       const targetBtn = e.target.closest(`#${"backupDataBtn"}`);
@@ -44,6 +44,5 @@ export class FileManagerWrapper {
       fileChunks: collections.fileChunks || this.collections.fileChunks
     };
     this.fileManager.switch(this.collections);
-    this.backupManager.switch(this.collections);
   }
 }
