@@ -100,12 +100,13 @@ class FilePreviewComponent {
     el.modal?.classList.add("hidden");
   }
 }
+
 export class FileManager {
   constructor(config = {}) {
     this.containerId = config.containerId || "fileManagerApp";
     this.container = document.getElementById(this.containerId);
 
-    this.service = config.firebaseService;
+    this.service = config.service;
 
     this.currentFolderId = "root";
     this.contextTarget = null;
