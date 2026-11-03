@@ -1,6 +1,5 @@
 import { FileManager } from "./file.js";
 import { FileManagerFirebase } from "./service.js";
-import { FileBackup } from "./backup.js";
 
 export class FileManagerWrapper {
   constructor(config = {}) {
@@ -20,11 +19,18 @@ export class FileManagerWrapper {
       containerId: this.containerId,
       firebaseService: this.firebase
     });
-    this.backupManager = new FileBackup(
-      this.fbService,
-      this.collections,
-      "backupDataBtn"
-    );
+    document.addEventListener("click", async (e) => {
+      const targetBtn = e.target.closest(`#${"backupDataBtn"}`);
+      if (!targetBtn) return;
+
+      Toast.show("Preparing ZIP backup...", "info");
+      try {
+        await this.fileManager.downloadBackup();
+        Toast.show("ZIP backup downloaded successfully!", "success");
+      } catch (err) {
+        Toast.show(`Failed to generate ZIP: ${err.message}`, "error");
+      }
+    });
   }
 
   /** Only public method you need */
