@@ -1,5 +1,65 @@
 import { Widget } from './base.js';
 
+/**
+ * Dedicated Adapter to handle file parsing, previews, and standardization
+ */
+class FileAdapter {
+  static async standardize(fileList) {
+    const files = Array.from(fileList);
+    if (!files.length) return [];
+
+    const standardPayload = [];
+
+    for (const file of files) {
+      const relativePath = file.webkitRelativePath || file.name;
+      const ext = relativePath.split('.').pop().toLowerCase();
+      
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+      const isAudio = file.type.startsWith('audio/');
+      const isText = file.type.startsWith('text/') || ['json', 'js', 'html', 'css', 'md', 'txt', 'xml', 'svg', 'csv'].includes(ext);
+
+      let previewType = 'generic';
+      let previewData = null;
+      const fileUrl = URL.createObjectURL(file);
+
+      if (isImage) {
+        previewType = 'image';
+        previewData = fileUrl;
+      } else if (isVideo) {
+        previewType = 'video';
+        previewData = fileUrl;
+      } else if (isAudio) {
+        previewType = 'audio';
+      } else if (isText) {
+        previewType = 'text';
+        previewData = await this.readTextSnippet(file);
+      }
+
+      standardPayload.push({
+        path: relativePath,
+        size: file.size,
+        type: file.type,
+        extension: ext,
+        fileUrl,
+        previewType,
+        previewData
+      });
+    }
+
+    return standardPayload;
+  }
+
+  static readTextSnippet(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result.substring(0, 180));
+      reader.onerror = () => resolve('');
+      reader.readAsText(file.slice(0, 300));
+    });
+  }
+}
+
 class FileManager {
   constructor(containerElementOrId) {
     this.container = typeof containerElementOrId === 'string' 
@@ -304,50 +364,12 @@ export class FileManagerWidget extends Widget {
   }
 
   attachEvents() {
-    // Widget handles file selection, processes previews, and feeds standard JSON data payload to FileManager
+    // Widget uses FileAdapter to standardize files, then feeds standardized JSON data payload to FileManager
     const handleSelect = async (e) => {
       const files = e.target.files;
       if (!files || files.length === 0) return;
 
-      const fileArray = Array.from(files);
-      const standardPayload = [];
-
-      for (const file of fileArray) {
-        const relativePath = file.webkitRelativePath || file.name;
-        const ext = relativePath.split('.').pop().toLowerCase();
-        
-        const isImage = file.type.startsWith('image/');
-        const isVideo = file.type.startsWith('video/');
-        const isAudio = file.type.startsWith('audio/');
-        const isText = file.type.startsWith('text/') || ['json', 'js', 'html', 'css', 'md', 'txt', 'xml', 'svg', 'csv'].includes(ext);
-
-        let previewType = 'generic';
-        let previewData = null;
-        const fileUrl = URL.createObjectURL(file);
-
-        if (isImage) {
-          previewType = 'image';
-          previewData = fileUrl;
-        } else if (isVideo) {
-          previewType = 'video';
-          previewData = fileUrl;
-        } else if (isAudio) {
-          previewType = 'audio';
-        } else if (isText) {
-          previewType = 'text';
-          previewData = await this.readTextSnippet(file);
-        }
-
-        standardPayload.push({
-          path: relativePath,
-          size: file.size,
-          type: file.type,
-          extension: ext,
-          fileUrl,
-          previewType,
-          previewData
-        });
-      }
+      const standardPayload = await FileAdapter.standardize(files);
 
       this.fileManager.loadData(standardPayload);
       Toast.success(`Loaded ${files.length} items successfully!`);
@@ -355,14 +377,5 @@ export class FileManagerWidget extends Widget {
 
     this.dom.folderInputMain.addEventListener('change', handleSelect);
     this.dom.folderInputHeader.addEventListener('change', handleSelect);
-  }
-
-  readTextSnippet(file) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result.substring(0, 180));
-      reader.onerror = () => resolve('');
-      reader.readAsText(file.slice(0, 300));
-    });
   }
 }
