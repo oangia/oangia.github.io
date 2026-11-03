@@ -1,21 +1,131 @@
-import { FilePreviewComponent } from "./preview.js";
+class FilePreviewComponent {
+  constructor() {
+    this.ensureDOM();
+  }
+
+  ensureDOM() {
+    if (document.getElementById("viewModal")) return;
+    const modalHTML = `
+      <div id="viewModal" class="fixed inset-0 bg-slate-950 z-50 flex flex-col hidden">
+        <div class="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center border-b border-slate-800 shrink-0">
+          <h3 id="viewModalTitle" class="font-bold text-xs truncate">File Preview</h3>
+          <button id="closeViewModalBtn" class="text-slate-400 hover:text-white text-sm px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex-1 flex flex-col w-full h-full overflow-hidden p-2">
+          <div id="viewContentContainer" class="bg-black border border-slate-900 rounded-lg flex-1 flex items-center justify-center overflow-auto relative">
+            <i class="fa-solid fa-spinner fa-spin text-xl text-blue-500"></i>
+          </div>
+        </div>
+        <div class="bg-slate-900 text-white px-4 py-2 flex justify-between items-center border-t border-slate-800 shrink-0">
+          <span id="viewDate" class="text-[11px] text-slate-400"></span>
+          <a id="downloadFileBtn" href="#" download="" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-download"></i> Download
+          </a>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+  }
+
+  get elements() {
+    return {
+      modal: document.getElementById("viewModal"),
+      title: document.getElementById("viewModalTitle"),
+      content: document.getElementById("viewContentContainer"),
+      downloadBtn: document.getElementById("downloadFileBtn"),
+      date: document.getElementById("viewDate"),
+      closeBtn: document.getElementById("closeViewModalBtn")
+    };
+  }
+
+  initEvents() {
+    this.elements.closeBtn?.addEventListener("click", () => this.hide());
+  }
+
+  showLoading(fileName) {
+    const el = this.elements;
+    if (el.title) el.title.textContent = fileName;
+    if (el.date) el.date.innerHTML = `<i class="fa-regular fa-clock"></i> Recent`;
+    if (el.content) {
+      el.content.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i><p class="text-xs text-slate-500">Reassembling file chunks...</p>`;
+    }
+    el.modal?.classList.remove("hidden");
+  }
+
+  render(fileRecord, fullBase64) {
+    const el = this.elements;
+    if (!el.content) return;
+    const fileNameLower = fileRecord.title.toLowerCase();
+
+    if (fullBase64.startsWith("data:image/")) {
+      el.content.innerHTML = `<img src="${fullBase64}" class="w-full h-full object-contain">`;
+    } else if (fullBase64.startsWith("data:video/")) {
+      el.content.innerHTML = `<video controls class="w-full h-full object-contain bg-black"><source src="${fullBase64}"></video>`;
+    } else if (fileNameLower.endsWith(".mp3") || fileNameLower.endsWith(".wav") || fileNameLower.endsWith(".ogg") || fullBase64.startsWith("data:audio/")) {
+      el.content.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full gap-4 p-6">
+          <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl shadow-inner">
+            <i class="fa-solid fa-music"></i>
+          </div>
+          <p class="text-sm font-medium text-slate-700 text-center truncate w-full">${fileRecord.title}</p>
+          <audio controls class="w-full max-w-md">
+            <source src="${fullBase64}">
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      `;
+    } else if (fileNameLower.endsWith(".txt") || fullBase64.startsWith("data:text/plain")) {
+      try {
+        const base64Content = fullBase64.split(',')[1];
+        const textContent = atob(base64Content);
+        el.content.innerHTML = `<pre class="w-full h-full overflow-auto p-4 bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap">${textContent}</pre>`;
+      } catch (err) {
+        el.content.innerHTML = `<p class="text-xs text-red-400">Failed to load text preview.</p>`;
+      }
+    } else if (fileNameLower.endsWith(".pdf") || fullBase64.startsWith("data:application/pdf")) {
+      el.content.innerHTML = `<iframe src="${fullBase64}" class="w-full h-full border-0 bg-white"></iframe>`;
+    } else {
+      el.content.innerHTML = `<div class="text-center"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-xs font-semibold text-slate-300">${fileRecord.title}</p></div>`;
+    }
+
+    if (el.downloadBtn) {
+      el.downloadBtn.href = fullBase64;
+      el.downloadBtn.download = fileRecord.title;
+    }
+  }
+
+  hide() {
+    const el = this.elements;
+    if (el.content) el.content.innerHTML = "";
+    el.modal?.classList.add("hidden");
+  }
+}
 
 export class FileManager {
   constructor(config = {}) {
     this.containerId = config.containerId || "fileManagerApp";
     this.container = document.getElementById(this.containerId);
 
-    this.firebase = config.firebaseService;
+    this.service = config.firebaseService;
 
     this.currentFolderId = "root";
     this.contextTarget = null;
     this.previewer = new FilePreviewComponent();
+  }
 
-    this.backupManager = new FileBackup(
-      this.firebase.fbService,
-      this.firebase.collections,
-      "backupDataBtn"
-    );
+  // --------------------------------------------------
+  // Public
+  // --------------------------------------------------
+  init() {
+    this.mountUI();
+    this.bindEvents();
+    this.loadCurrentFolder();
+  }
+
+  switch(collections) {
+    this.service.switch(collections);
+    this.currentFolderId = "root";
+    this.loadCurrentFolder();
   }
 
   // --------------------------------------------------
@@ -149,7 +259,7 @@ export class FileManager {
 
     try {
       const { folders, files, currentFolderName } =
-        await this.firebase.getFolderContents(this.currentFolderId);
+        await this.service.getFolderContents(this.currentFolderId);
 
       this.render(folders, files, currentFolderName);
     } catch (err) {
@@ -274,7 +384,7 @@ export class FileManager {
   }
 
   async createFolder(name, parentId) {
-    await this.firebase.createFolder(name, parentId);
+    await this.service.createFolder(name, parentId);
     Toast.show("Folder created!", "success");
     this.loadCurrentFolder();
   }
@@ -286,7 +396,7 @@ export class FileManager {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
-        await this.firebase.uploadFile(
+        await this.service.uploadFile(
           file,
           parentId,
           (statusText) => {
@@ -312,21 +422,21 @@ export class FileManager {
   async deleteItem(target) {
     if (target.type === "folder") {
       if (!confirm("Delete folder?")) return;
-      await this.firebase.deleteFolder(target.id);
+      await this.service.deleteFolder(target.id);
       Toast.show("Folder deleted", "success");
     } else {
       if (!confirm("Delete file and its chunks?")) return;
-      await this.firebase.deleteFile(target.id, target.fileId);
+      await this.service.deleteFile(target.id, target.fileId);
       Toast.show("File deleted", "success");
     }
     this.loadCurrentFolder();
   }
 
   async downloadFile(target) {
-    const fileRecord = await this.firebase.getFileRecord(target.id);
+    const fileRecord = await this.service.getFileRecord(target.id);
     if (!fileRecord) return;
 
-    const fullBase64 = await this.firebase.getFullBase64(fileRecord.fileId);
+    const fullBase64 = await this.service.getFullBase64(fileRecord.fileId);
 
     const a = document.createElement("a");
     a.href = fullBase64;
@@ -339,12 +449,12 @@ export class FileManager {
   }
 
   async viewFile(id, fileId) {
-    const fileRecord = await this.firebase.getFileRecord(id);
+    const fileRecord = await this.service.getFileRecord(id);
     if (!fileRecord) return;
 
     this.previewer.showLoading(fileRecord.title);
 
-    const fullBase64 = await this.firebase.getFullBase64(fileRecord.fileId);
+    const fullBase64 = await this.service.getFullBase64(fileRecord.fileId);
     this.previewer.render(fileRecord, fullBase64);
   }
 
@@ -450,20 +560,5 @@ export class FileManager {
       this.uploadFiles(files, this.currentFolderId);
       document.getElementById("createFileModal").classList.add("hidden");
     });
-  }
-
-  // --------------------------------------------------
-  // Public
-  // --------------------------------------------------
-  init() {
-    this.mountUI();
-    this.bindEvents();
-    this.loadCurrentFolder();
-  }
-
-  switch(collections) {
-    this.firebase.switch(collections);
-    this.currentFolderId = "root";
-    this.loadCurrentFolder();
   }
 }
