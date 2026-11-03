@@ -236,6 +236,20 @@ export class FileManager {
     this.previewer.initEvents();
   }
 
+  getFolderSize(node) {
+    let totalSize = 0;
+    const children = node.__children || {};
+    const files = node.__files || [];
+    
+    for (const file of files) {
+      totalSize += file.size || 0;
+    }
+    for (const key in children) {
+      totalSize += this.getFolderSize(children[key]);
+    }
+    return totalSize;
+  }
+
   _formatBytes(bytes) {
     if (bytes === 0 || isNaN(bytes) || bytes == null) return "0 B";
     const k = 1024;
@@ -316,9 +330,10 @@ export class FileManager {
           </div>`;
       });
 
-      // Files with preview extraction matching FileAdapterService specs
+      // Files with preview extraction from FileAdapterService
       files.forEach(file => {
         const name = file.title || "Untitled";
+        const ext = file.extension || name.split(".").pop()?.toLowerCase() || "";
         let previewHTML = `<i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>`;
 
         if (file.previewType === 'image') {
@@ -332,14 +347,24 @@ export class FileManager {
           previewHTML = `
             <div class="flex flex-col items-center justify-center text-blue-500">
               <i class="fa-solid fa-file-audio text-3xl mb-1"></i>
-              <span class="text-[9px] font-mono text-slate-500 uppercase">${file.extension}</span>
+              <span class="text-[9px] font-mono text-slate-500 uppercase">${ext}</span>
             </div>`;
         } else if (file.previewType === 'text' && file.previewData) {
           const escapedText = file.previewData.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
           previewHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1.5 overflow-hidden w-full h-full select-none opacity-80">${escapedText}</pre>`;
+        } else if (["js", "ts", "jsx", "tsx"].includes(ext)) {
+          previewHTML = `<i class="fa-brands fa-js text-amber-400 text-3xl"></i>`;
+        } else if (["html", "htm"].includes(ext)) {
+          previewHTML = `<i class="fa-brands fa-html5 text-orange-400 text-3xl"></i>`;
+        } else if (["css", "scss"].includes(ext)) {
+          previewHTML = `<i class="fa-brands fa-css3-alt text-blue-500 text-3xl"></i>`;
+        } else if (ext === "json") {
+          previewHTML = `<i class="fa-solid fa-brackets-curly text-yellow-500 text-3xl"></i>`;
         }
 
-        const sizeLabel = this._formatBytes(file.size);
+        const sizeLabel = file.size != null
+          ? this._formatBytes(file.size)
+          : `${file.totalParts || 1} chunks`;
 
         html += `
           <div data-action="view" data-id="${file.id}" data-file-id="${file.fileId}"
@@ -393,7 +418,6 @@ export class FileManager {
     if (submitBtn) submitBtn.disabled = true;
 
     try {
-      // Support service switch or multi-file upload
       await this.switch(files);
       Toast.show(`Uploaded ${files.length} file(s)`, "success");
     } catch (err) {
