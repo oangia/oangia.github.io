@@ -6,9 +6,6 @@ class FileManager {
     this.currentPath = '';
   }
 
-  /**
-   * Processes raw files, generates previews/URLs, and builds the internal tree.
-   */
   async loadFiles(fileList) {
     this.folderStructure = {};
     this.currentPath = '';
@@ -118,9 +115,9 @@ class FileManager {
   }
 
   /**
-   * FileManager completely renders the HTML for the current directory contents.
+   * FileManager generates the view AND binds its own internal element behaviors (like video metadata).
    */
-  renderDirectoryHTML(onFolderClick) {
+  renderBrowserContainer() {
     let currentObj = this.folderStructure;
     if (this.currentPath !== '') {
       const parts = this.currentPath.split('/');
@@ -140,73 +137,102 @@ class FileManager {
         return a.localeCompare(b);
       });
 
+    const isRoot = this.currentPath === '';
+    const pathText = '/' + this.currentPath;
+    const itemCountText = `${keys.length} items`;
+
+    let gridHTML = '';
+
     if (keys.length === 0) {
-      return {
-        html: `<div class="col-span-full py-16 text-center text-slate-400 text-xs italic">This folder is empty.</div>`,
-        itemCount: 0,
-        pathText: '/' + this.currentPath
-      };
-    }
+      gridHTML = `<div class="col-span-full py-16 text-center text-slate-400 text-xs italic">This folder is empty.</div>`;
+    } else {
+      for (const key of keys) {
+        const item = currentObj[key];
+        const isDir = !item.__isFile;
 
-    let html = '';
-
-    for (const key of keys) {
-      const item = currentObj[key];
-      const isDir = !item.__isFile;
-
-      if (isDir) {
-        const folderSize = this.getFolderSize(item);
-        html += `
-          <div class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden" data-type="folder" data-name="${key}">
-            <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-folder text-5xl"></i>
+        if (isDir) {
+          const folderSize = this.getFolderSize(item);
+          gridHTML += `
+            <div class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden" data-type="folder" data-name="${key}">
+              <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-folder text-5xl"></i>
+              </div>
+              <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+                <span class="w-full text-xs font-bold text-slate-700 truncate" title="${key}">${key}</span>
+                <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(folderSize)}</span>
+              </div>
             </div>
-            <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
-              <span class="w-full text-xs font-bold text-slate-700 truncate" title="${key}">${key}</span>
-              <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(folderSize)}</span>
-            </div>
-          </div>
-        `;
-      } else {
-        let previewHTML = `<i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>`;
-
-        if (item.previewType === 'image') {
-          previewHTML = `<img src="${item.previewData}" alt="${key}" class="w-full h-full object-cover rounded-lg" />`;
-        } else if (item.previewType === 'video') {
-          previewHTML = `
-            <video src="${item.previewData}" class="w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
-            <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
           `;
-        } else if (item.previewType === 'audio') {
-          previewHTML = `
-            <div class="flex flex-col items-center justify-center text-blue-500">
-              <i class="fa-solid fa-file-audio text-3xl mb-1"></i>
-              <span class="text-[9px] font-mono text-slate-500 uppercase">${item.extension}</span>
-            </div>`;
-        } else if (item.previewType === 'text' && item.previewData) {
-          const escapedText = item.previewData.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-          previewHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1.5 overflow-hidden w-full h-full select-none opacity-80">${escapedText}</pre>`;
-        }
+        } else {
+          let previewHTML = `<i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>`;
 
-        html += `
-          <div class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden" data-type="file" data-url="${item.fileUrl}">
-            <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
-              ${previewHTML}
+          if (item.previewType === 'image') {
+            previewHTML = `<img src="${item.previewData}" alt="${key}" class="w-full h-full object-cover rounded-lg" />`;
+          } else if (item.previewType === 'video') {
+            previewHTML = `
+              <video src="${item.previewData}" class="widget-video-preview w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
+              <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
+            `;
+          } else if (item.previewType === 'audio') {
+            previewHTML = `
+              <div class="flex flex-col items-center justify-center text-blue-500">
+                <i class="fa-solid fa-file-audio text-3xl mb-1"></i>
+                <span class="text-[9px] font-mono text-slate-500 uppercase">${item.extension}</span>
+              </div>`;
+          } else if (item.previewType === 'text' && item.previewData) {
+            const escapedText = item.previewData.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+            previewHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1.5 overflow-hidden w-full h-full select-none opacity-80">${escapedText}</pre>`;
+          }
+
+          gridHTML += `
+            <div class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden" data-type="file" data-url="${item.fileUrl}">
+              <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
+                ${previewHTML}
+              </div>
+              <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+                <span class="w-full text-xs font-semibold text-slate-700 truncate text-[11px]" title="${key}">${key}</span>
+                <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(item.size)}</span>
+              </div>
             </div>
-            <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
-              <span class="w-full text-xs font-semibold text-slate-700 truncate text-[11px]" title="${key}">${key}</span>
-              <span class="text-[9px] text-slate-400 font-mono mt-0.5">${this.formatBytes(item.size)}</span>
-            </div>
-          </div>
-        `;
+          `;
+        }
       }
     }
 
-    return {
-      html,
-      itemCount: keys.length,
-      pathText: '/' + this.currentPath
-    };
+    const container = document.createElement('div');
+    container.className = 'flex-1 bg-slate-50 overflow-hidden flex flex-col min-h-0 relative';
+    container.innerHTML = `
+      <!-- Breadcrumb & Control Bar -->
+      <div class="bg-white border-b border-slate-200 px-5 py-2 flex items-center justify-between gap-3 text-xs shrink-0">
+        <div class="flex items-center gap-2">
+          <button type="button" class="widget-back-btn bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 ${isRoot ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}" ${isRoot ? 'disabled' : ''}>
+            <i class="fa-solid fa-arrow-left"></i> Back
+          </button>
+          <div class="text-slate-500 font-medium pl-2 border-l border-slate-200 truncate font-mono text-[11px]">
+            ${pathText}
+          </div>
+        </div>
+        <div class="text-slate-400 font-medium text-[11px]">
+          ${itemCountText}
+        </div>
+      </div>
+
+      <!-- File Grid Manager View -->
+      <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          ${gridHTML}
+        </div>
+      </div>
+    `;
+
+    // FileManager binds its own internal video metadata logic directly to its generated DOM elements
+    container.querySelectorAll('.widget-video-preview').forEach((videoEl) => {
+      videoEl.addEventListener('loadedmetadata', () => {
+        videoEl.currentTime = Math.min(1, videoEl.duration / 4);
+      });
+    });
+
+    return container;
   }
 }
 
@@ -258,23 +284,8 @@ export class FileManagerWidget extends Widget {
           </div>
         </div>
 
-        <!-- Breadcrumb & Control Bar -->
-        <div class="widget-breadcrumb-bar bg-white border-b border-slate-200 px-5 py-2 flex items-center justify-between gap-3 text-xs shrink-0 hidden">
-          <div class="flex items-center gap-2">
-            <button type="button" class="widget-back-btn bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer" disabled>
-              <i class="fa-solid fa-arrow-left"></i> Back
-            </button>
-            <div class="widget-breadcrumb-text text-slate-500 font-medium pl-2 border-l border-slate-200 truncate font-mono text-[11px]">
-              /
-            </div>
-          </div>
-          <div class="widget-item-count text-slate-400 font-medium text-[11px]">
-            0 items
-          </div>
-        </div>
-
-        <!-- Main Content Area -->
-        <div class="flex-1 bg-slate-50 overflow-hidden flex flex-col min-h-0 relative">
+        <!-- Main Content Container (FileManager replaces this entirely) -->
+        <div class="widget-browser-wrapper flex-1 bg-slate-50 overflow-hidden flex flex-col min-h-0 relative">
           
           <!-- Full-Screen Dropzone -->
           <div class="widget-select-screen flex-1 bg-white hover:bg-blue-50/20 transition-all p-8 flex flex-col items-center justify-center text-center relative cursor-pointer group border-2 border-dashed border-slate-200 hover:border-blue-500">
@@ -286,11 +297,6 @@ export class FileManagerWidget extends Widget {
               <h4 class="text-sm font-bold text-slate-800 mb-1">Click anywhere to select a folder</h4>
               <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with instant previews and computed folder sizes.</p>
             </div>
-          </div>
-
-          <!-- File Grid Manager View -->
-          <div class="widget-browser-container hidden flex-1 overflow-y-auto p-4 custom-scrollbar">
-            <div class="widget-files-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
           </div>
 
         </div>
@@ -306,17 +312,11 @@ export class FileManagerWidget extends Widget {
   cacheDomReferences() {
     const m = this.modal;
     this.dom = {
-      breadcrumbBar: m.querySelector('.widget-breadcrumb-bar'),
-      selectScreen: m.querySelector('.widget-select-screen'),
       folderInputMain: m.querySelector('.widget-folder-input-main'),
       folderInputHeader: m.querySelector('.widget-folder-input-header'),
       closeBtn: m.querySelector('.widget-close-btn'),
-      backBtn: m.querySelector('.widget-back-btn'),
       subtitle: m.querySelector('.widget-path-subtitle'),
-      breadcrumbText: m.querySelector('.widget-breadcrumb-text'),
-      itemCount: m.querySelector('.widget-item-count'),
-      browserContainer: m.querySelector('.widget-browser-container'),
-      filesGrid: m.querySelector('.widget-files-grid'),
+      browserWrapper: m.querySelector('.widget-browser-wrapper'),
       toastContainer: m.querySelector('.widget-toast-container')
     };
   }
@@ -326,15 +326,8 @@ export class FileManagerWidget extends Widget {
       const files = e.target.files;
       if (!files || files.length === 0) return;
 
-      // Feed raw files to the manager
       await this.fileManager.loadFiles(files);
-
-      this.dom.selectScreen.classList.add('hidden');
-      this.dom.breadcrumbBar.classList.remove('hidden');
-      this.dom.browserContainer.classList.remove('hidden');
-
       this.dom.subtitle.textContent = this.fileManager.getRootFolderName();
-
       this.renderCurrentDirectory();
       Toast.success(`Loaded ${files.length} items successfully!`);
     };
@@ -342,13 +335,15 @@ export class FileManagerWidget extends Widget {
     this.dom.folderInputMain.addEventListener('change', handleSelect);
     this.dom.folderInputHeader.addEventListener('change', handleSelect);
 
-    this.dom.backBtn.addEventListener('click', () => {
-      this.fileManager.navigateUp();
-      this.renderCurrentDirectory();
-    });
+    // Widget only delegates UI interaction events to FileManager methods/actions
+    this.dom.browserWrapper.addEventListener('click', (e) => {
+      const backBtn = e.target.closest('.widget-back-btn');
+      if (backBtn && !backBtn.disabled) {
+        this.fileManager.navigateUp();
+        this.renderCurrentDirectory();
+        return;
+      }
 
-    // Delegate grid clicks to let FileManager handle navigation or file opening
-    this.dom.filesGrid.addEventListener('click', (e) => {
       const card = e.target.closest('[data-type]');
       if (!card) return;
 
@@ -368,19 +363,8 @@ export class FileManagerWidget extends Widget {
   }
 
   renderCurrentDirectory() {
-    // Ask FileManager for the fully rendered HTML output
-    const rendered = this.fileManager.renderDirectoryHTML();
-
-    this.dom.filesGrid.innerHTML = rendered.html;
-    this.dom.breadcrumbText.textContent = rendered.pathText;
-    this.dom.backBtn.disabled = this.fileManager.currentPath === '';
-    this.dom.itemCount.textContent = `${rendered.itemCount} items`;
-
-    // Initialize any video elements if present
-    this.dom.filesGrid.querySelectorAll('video').forEach((videoEl) => {
-      videoEl.addEventListener('loadedmetadata', () => {
-        videoEl.currentTime = Math.min(1, videoEl.duration / 4);
-      });
-    });
+    // Widget does zero rendering logic — it drops whatever DOM element FileManager returns straight into the wrapper
+    this.dom.browserWrapper.innerHTML = '';
+    this.dom.browserWrapper.appendChild(this.fileManager.renderBrowserContainer());
   }
 }
