@@ -19,7 +19,7 @@ class FileAdapterService {
 
     // Root node uses 'id: "root"' for stable system lookup, but shows the selected folder's name
     this.folderStructure = {
-      id: 'root',
+      id: selectedFolderName,
       name: selectedFolderName,
       __children: {},
       __files: []
@@ -27,7 +27,7 @@ class FileAdapterService {
     
     this.nodeMap.clear();
     this.fileMap.clear();
-    this.nodeMap.set('root', this.folderStructure);
+    this.nodeMap.set(selectedFolderName, this.folderStructure);
 
     let folderIdCounter = 1;
     let fileIdCounter = 1;
