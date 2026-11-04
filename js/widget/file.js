@@ -106,6 +106,7 @@ class FileAdapterService {
       currentLevelNode.__files.push(fileRecord);
       this.fileMap.set(fileId, fileRecord);
     }
+    console.log(this.folderStructure);
   }
 
   _calculateFolderSize(node) {
