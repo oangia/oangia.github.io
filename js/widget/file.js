@@ -141,7 +141,11 @@ class FileAdapterService {
     }));
 
     const files = (node && node.__files) || [];
-    
+    console.log({
+      folders,
+      files,
+      currentFolderName: node ? node.name : 'root'
+    });
     return {
       folders,
       files,
