@@ -1,25 +1,5 @@
 import { Widget } from './base.js';
 import { FileManager } from "./../file/file.js";
-/**
- * FilePreviewComponent placeholder to imitate the second architecture's preview handling.
- */
-class FilePreviewComponent {
-  initEvents() {
-    // Event hooks for preview overlay/modal if needed
-  }
-
-  showLoading(title) {
-    console.log(`Loading preview for: ${title}`);
-  }
-
-  render(fileRecord, fullBase64) {
-    if (fileRecord.previewType === 'image' || fileRecord.previewType === 'video') {
-      window.open(fullBase64, '_blank');
-    } else {
-      console.log('Rendering file preview:', fileRecord);
-    }
-  }
-}
 
 /**
  * Service Adapter acting as both the file parser and folder tree state service.
@@ -443,7 +423,7 @@ export class FileManagerWidget extends Widget {
       }
       const files = e.target.files;
       if (!files || files.length === 0) return;
-
+      console.log(files);
       await this.fileManager.switch(files);
       console.log(`Loaded ${files.length} items successfully via service switch!`);
     };
