@@ -336,11 +336,11 @@ class FilePreviewComponent {
         const ext = file.extension || name.split(".").pop()?.toLowerCase() || "";
         let previewHTML = `<i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>`;
 
-        if (file.previewType === 'image') {
-          previewHTML = `<img src="${file.previewData}" alt="${name}" class="w-full h-full object-cover rounded-lg" />`;
-        } else if (file.previewType === 'video') {
+        if (file.previewType === 'image' && file.thumbnail) {
+          previewHTML = `<img src="${file.thumbnail}" alt="${name}" class="w-full h-full object-cover rounded-lg" />`;
+        } else if (file.previewType === 'video' && file.thumbnail) {
           previewHTML = `
-            <video src="${file.previewData}" class="widget-video-preview w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
+            <video src="${file.thumbnail}" class="widget-video-preview w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
             <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
           `;
         } else if (file.previewType === 'audio') {
@@ -349,8 +349,10 @@ class FilePreviewComponent {
               <i class="fa-solid fa-file-audio text-3xl mb-1"></i>
               <span class="text-[9px] font-mono text-slate-500 uppercase">${ext}</span>
             </div>`;
-        } else if (file.previewType === 'text' && file.previewData) {
-          const escapedText = file.previewData.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        } else if (file.previewType === 'text' && file.thumbnail) {
+          const escapedText = String(file.thumbnail).replace(/[&<>"']/g, (m) =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])
+          );
           previewHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1.5 overflow-hidden w-full h-full select-none opacity-80">${escapedText}</pre>`;
         } else if (["js", "ts", "jsx", "tsx"].includes(ext)) {
           previewHTML = `<i class="fa-brands fa-js text-amber-400 text-3xl"></i>`;
