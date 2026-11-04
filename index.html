@@ -79,14 +79,12 @@
     function switchSpace(spaceKey) {
       if (spaceKey === "home") {
         document.getElementById("appTitle").textContent = "File Manager - Home";
-        const container = document.getElementById("appContent");
-        const container = document.getElementById("appContent");
-      container.innerHTML = `
-        <div class="max-w-4xl mx-auto p-6 space-y-6">
-          <h1 class="text-2xl font-bold text-slate-800">Welcome to Home</h1>
-          <p class="text-slate-600">This is the home page dashboard.</p>
-        </div>
-      `;
+        document.getElementById("appContent").innerHTML = `
+          <div class="max-w-4xl mx-auto p-6 space-y-6">
+            <h1 class="text-2xl font-bold text-slate-800">Welcome to Home</h1>
+            <p class="text-slate-600">This is the home page dashboard.</p>
+          </div>
+        `;
       } else {
         const config = collectionConfigs[spaceKey];
         document.getElementById("appTitle").textContent = config.title;
