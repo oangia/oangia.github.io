@@ -14,7 +14,7 @@ export class FileManagerFirebase {
     };
   }
 
-  // ---------- helpers (match FileAdapterService) ----------
+  // ---------- helpers ----------
   _guessPreviewType(type = "", ext = "") {
     const t = (type || "").toLowerCase();
     const e = (ext || "").toLowerCase();
@@ -43,14 +43,64 @@ export class FileManagerFirebase {
     };
   }
 
-  _normalizeFile(item, parentId) {
+  async _buildPreview(item) {
     const title = item.title || item.name || "Untitled";
     const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
     const type = item.type || item.mimeType || "";
-    const previewType =
-      item.previewType || this._guessPreviewType(type, ext);
+    const previewType = item.previewType || this._guessPreviewType(type, ext);
 
-    return {
+    if (previewType === "audio" || previewType === "generic") {
+      return { previewType, previewData: null, thumbnail: null };
+    }
+
+    const fullBase64 = await this.getFullBase64(item.fileId || item.id);
+    if (!fullBase64) {
+      return { previewType, previewData: null, thumbnail: null };
+    }
+
+    if (previewType === "image") {
+      return {
+        previewType,
+        previewData: fullBase64,
+        thumbnail: fullBase64
+      };
+    }
+
+    if (previewType === "video") {
+      return {
+        previewType,
+        previewData: fullBase64,
+        thumbnail: null
+      };
+    }
+
+    if (previewType === "text") {
+      let text = fullBase64;
+      try {
+        const raw = fullBase64.includes(",")
+          ? fullBase64.split(",")[1]
+          : fullBase64;
+        text = atob(raw);
+      } catch {
+        // already plain text
+      }
+      return {
+        previewType,
+        previewData: text.substring(0, 180),
+        thumbnail: null
+      };
+    }
+
+    return { previewType, previewData: null, thumbnail: null };
+  }
+
+  async _normalizeFile(item, parentId, { withPreview = false } = {}) {
+    const title = item.title || item.name || "Untitled";
+    const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
+    const type = item.type || item.mimeType || "";
+    const previewType = item.previewType || this._guessPreviewType(type, ext);
+
+    const base = {
       id: item.id,
       fileId: item.fileId || item.id,
       title,
@@ -64,15 +114,17 @@ export class FileManagerFirebase {
       fileUrl: item.fileUrl || null,
       previewType,
       previewData: item.previewData || null,
-      thumbnail:
-        item.thumbnail ||
-        (previewType === "image" ? item.fileUrl || item.thumbnail : null) ||
-        null
+      thumbnail: item.thumbnail || null
     };
+
+    if (!withPreview) return base;
+
+    const preview = await this._buildPreview(item);
+    return { ...base, ...preview };
   }
 
   // ---------- READ ----------
-  async getFolderContents(folderId = "root") {
+  async getFolderContents(folderId = "root", { withPreviews = false } = {}) {
     const items = await this.fbService.getByField(
       this.collections.items,
       "parentId",
@@ -83,9 +135,13 @@ export class FileManagerFirebase {
       .filter(item => item.isFolder === true)
       .map(item => this._normalizeFolder(item, folderId));
 
-    const files = items
-      .filter(item => !item.isFolder)
-      .map(item => this._normalizeFile(item, folderId));
+    const fileItems = items.filter(item => !item.isFolder);
+    const files = [];
+    for (const item of fileItems) {
+      files.push(
+        await this._normalizeFile(item, folderId, { withPreview: withPreviews })
+      );
+    }
 
     let currentFolderName = "Home";
     if (folderId !== "root") {
@@ -105,7 +161,7 @@ export class FileManagerFirebase {
     const item = await this.fbService.getById(this.collections.items, id);
     if (!item) return null;
     if (item.isFolder) return this._normalizeFolder(item, item.parentId);
-    return this._normalizeFile(item, item.parentId);
+    return this._normalizeFile(item, item.parentId, { withPreview: true });
   }
 
   async getFileChunks(fileId) {
@@ -117,14 +173,12 @@ export class FileManagerFirebase {
     return chunks.sort((a, b) => a.partIndex - b.partIndex);
   }
 
-  // Still returns concatenated base64 (Firebase storage model).
-  // Local adapter returns a blob URL — UI should treat both as “file payload”.
   async getFullBase64(fileId) {
     const chunks = await this.getFileChunks(fileId);
     return chunks.map(c => c.chunkData).join("");
   }
 
-  // ---------- WRITE (unchanged) ----------
+  // ---------- WRITE ----------
   async createFolder(name, parentId = "root") {
     return this.fbService.create(this.collections.items, {
       title: name,
@@ -157,12 +211,10 @@ export class FileManagerFirebase {
     }
   }
 
-  // ---------- BACKUP & DOWNLOAD (unchanged) ----------
+  // ---------- BACKUP & DOWNLOAD ----------
   async generateZipBlob() {
-    let items = [],
-      file_chunks = [];
-    items = await this.fbService.getAll(this.collections.items);
-    file_chunks = await this.fbService.getAll(this.collections.fileChunks);
+    const items = await this.fbService.getAll(this.collections.items);
+    const file_chunks = await this.fbService.getAll(this.collections.fileChunks);
 
     if (typeof JSZip === "undefined") {
       throw new Error("JSZip is not loaded or defined in the global scope.");
@@ -173,7 +225,7 @@ export class FileManagerFirebase {
     const files = items.filter(i => !i.isFolder);
 
     const getFolderPath = parentId => {
-      let pathParts = [];
+      const pathParts = [];
       let currentId = parentId;
       while (currentId && currentId !== "root") {
         const folder = folders.find(f => f.id === currentId);
