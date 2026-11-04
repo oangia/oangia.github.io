@@ -10,20 +10,21 @@ class FileAdapterService {
 
   async switch(fileList) {
     const files = Array.from(fileList);
-    
-    // 1. Root name stays 'root', but it acts directly as the selected folder's contents container
     this.folderStructure = {
       id: 'root',
       name: 'root',
       __children: {},
       __files: []
     };
-    
     this.nodeMap.clear();
     this.fileMap.clear();
     this.nodeMap.set('root', this.folderStructure);
 
     if (!files.length) return;
+
+    // Identify the browser's top-level root folder name from the first file path
+    const firstPath = (files[0].webkitRelativePath || files[0].name).replace(/\\/g, '/');
+    const rootFolderName = firstPath.split('/')[0];
 
     let folderIdCounter = 1;
     let fileIdCounter = 1;
@@ -33,14 +34,14 @@ class FileAdapterService {
       const parts = relativePath.split('/');
       const fileName = parts.pop();
       
-      // 2. Strip the browser's selected folder prefix so its contents land directly inside root
-      if (parts.length > 0) {
+      // ONLY strip the root folder prefix if it matches, preserving all subfolders and nested files
+      if (parts.length > 0 && parts[0] === rootFolderName) {
         parts.shift();
       }
 
       let currentLevelNode = this.folderStructure;
 
-      // Build folder hierarchy for subfolders inside the root
+      // Build folder hierarchy for subfolders
       for (const part of parts) {
         if (!part) continue;
         if (!currentLevelNode.__children) {
