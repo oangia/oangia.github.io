@@ -1,6 +1,7 @@
 class FilePreviewComponent {
   constructor() {
     this.ensureDOM();
+    this.initEvents();
   }
 
   ensureDOM() {
@@ -47,21 +48,23 @@ class FilePreviewComponent {
     if (el.title) el.title.textContent = fileName;
     if (el.date) el.date.innerHTML = `<i class="fa-regular fa-clock"></i> Recent`;
     if (el.content) {
-      el.content.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i><p class="text-xs text-slate-500">Reassembling file chunks...</p>`;
+      el.content.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i><p class="text-xs text-slate-500">Loading file...</p>`;
     }
     el.modal?.classList.remove("hidden");
   }
 
-  render(fileRecord, fullBase64) {
+  render(fileRecord, fileUrl) {
     const el = this.elements;
     if (!el.content) return;
     const fileNameLower = fileRecord.title.toLowerCase();
+    const isBlob = fileUrl.startsWith("blob:");
 
-    if (fullBase64.startsWith("data:image/")) {
-      el.content.innerHTML = `<img src="${fullBase64}" class="w-full h-full object-contain">`;
-    } else if (fullBase64.startsWith("data:video/")) {
-      el.content.innerHTML = `<video controls class="w-full h-full object-contain bg-black"><source src="${fullBase64}"></video>`;
-    } else if (fileNameLower.endsWith(".mp3") || fileNameLower.endsWith(".wav") || fileNameLower.endsWith(".ogg") || fullBase64.startsWith("data:audio/")) {
+    // Helper to determine type based on extension if it's a blob URL
+    if (fileUrl.startsWith("data:image/") || (isBlob && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileNameLower))) {
+      el.content.innerHTML = `<img src="${fileUrl}" class="w-full h-full object-contain">`;
+    } else if (fileUrl.startsWith("data:video/") || (isBlob && /\.(mp4|webm|ogg|mov)$/i.test(fileNameLower))) {
+      el.content.innerHTML = `<video controls class="w-full h-full object-contain bg-black"><source src="${fileUrl}"></video>`;
+    } else if (fileNameLower.endsWith(".mp3") || fileNameLower.endsWith(".wav") || fileNameLower.endsWith(".ogg") || fileUrl.startsWith("data:audio/")) {
       el.content.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full gap-4 p-6">
           <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl shadow-inner">
@@ -69,27 +72,41 @@ class FilePreviewComponent {
           </div>
           <p class="text-sm font-medium text-slate-700 text-center truncate w-full">${fileRecord.title}</p>
           <audio controls class="w-full max-w-md">
-            <source src="${fullBase64}">
+            <source src="${fileUrl}">
             Your browser does not support the audio element.
           </audio>
         </div>
       `;
-    } else if (fileNameLower.endsWith(".txt") || fullBase64.startsWith("data:text/plain")) {
-      try {
-        const base64Content = fullBase64.split(',')[1];
-        const textContent = atob(base64Content);
-        el.content.innerHTML = `<pre class="w-full h-full overflow-auto p-4 bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap">${textContent}</pre>`;
-      } catch (err) {
-        el.content.innerHTML = `<p class="text-xs text-red-400">Failed to load text preview.</p>`;
+    } else if (fileNameLower.endsWith(".txt") || fileUrl.startsWith("data:text/plain")) {
+      // If it's a blob text file, we can fetch its text content asynchronously
+      if (isBlob) {
+        fetch(fileUrl)
+          .then(res => res.text())
+          .then(textContent => {
+            el.content.innerHTML = `<pre class="w-full h-full overflow-auto p-4 bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap">${textContent}</pre>`;
+          })
+          .catch(() => {
+            el.content.innerHTML = `<p class="text-xs text-red-400">Failed to load text preview.</p>`;
+          });
+        return;
+      } else {
+        try {
+          const base64Content = fileUrl.split(',')[1];
+          const textContent = atob(base64Content);
+          el.content.innerHTML = `<pre class="w-full h-full overflow-auto p-4 bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap">${textContent}</pre>`;
+        } catch (err) {
+          el.content.innerHTML = `<p class="text-xs text-red-400">Failed to load text preview.</p>`;
+        }
       }
-    } else if (fileNameLower.endsWith(".pdf") || fullBase64.startsWith("data:application/pdf")) {
-      el.content.innerHTML = `<iframe src="${fullBase64}" class="w-full h-full border-0 bg-white"></iframe>`;
+    } else if (fileNameLower.endsWith(".pdf") || fileUrl.startsWith("data:application/pdf") || isBlob) {
+      // Blob URLs and PDFs render smoothly inside the iframe
+      el.content.innerHTML = `<iframe src="${fileUrl}" class="w-full h-full border-0 bg-white"></iframe>`;
     } else {
       el.content.innerHTML = `<div class="text-center"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-xs font-semibold text-slate-300">${fileRecord.title}</p></div>`;
     }
 
     if (el.downloadBtn) {
-      el.downloadBtn.href = fullBase64;
+      el.downloadBtn.href = fileUrl;
       el.downloadBtn.download = fileRecord.title;
     }
   }
@@ -98,8 +115,13 @@ class FilePreviewComponent {
     const el = this.elements;
     if (el.content) el.content.innerHTML = "";
     el.modal?.classList.add("hidden");
+    
+    // Optional memory management: If you generated a blob URL specifically for this view, 
+    // remember to call `URL.revokeObjectURL(fileUrl)` when closing the modal if needed.
   }
-}export class FileManager {
+}
+
+export class FileManager {
   constructor(config = {}) {
     this.containerId = config.containerId || "fileManagerApp";
     this.container = document.getElementById(this.containerId);
