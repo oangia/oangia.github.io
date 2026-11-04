@@ -14,6 +14,63 @@ export class FileManagerFirebase {
     };
   }
 
+  // ---------- helpers (match FileAdapterService) ----------
+  _guessPreviewType(type = "", ext = "") {
+    const t = (type || "").toLowerCase();
+    const e = (ext || "").toLowerCase();
+
+    if (t.startsWith("image/")) return "image";
+    if (t.startsWith("video/")) return "video";
+    if (t.startsWith("audio/")) return "audio";
+    if (
+      t.startsWith("text/") ||
+      ["json", "js", "html", "css", "md", "txt", "xml", "svg", "csv"].includes(e)
+    ) {
+      return "text";
+    }
+    return "generic";
+  }
+
+  _normalizeFolder(item, parentId) {
+    const title = item.title || item.name || "Untitled";
+    return {
+      id: item.id,
+      title,
+      name: title,
+      isFolder: true,
+      parentId: item.parentId ?? parentId,
+      size: item.size || 0
+    };
+  }
+
+  _normalizeFile(item, parentId) {
+    const title = item.title || item.name || "Untitled";
+    const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
+    const type = item.type || item.mimeType || "";
+    const previewType =
+      item.previewType || this._guessPreviewType(type, ext);
+
+    return {
+      id: item.id,
+      fileId: item.fileId || item.id,
+      title,
+      name: title,
+      isFolder: false,
+      parentId: item.parentId ?? parentId,
+      path: item.path || title,
+      size: item.size || 0,
+      type,
+      extension: ext,
+      fileUrl: item.fileUrl || null,
+      previewType,
+      previewData: item.previewData || null,
+      thumbnail:
+        item.thumbnail ||
+        (previewType === "image" ? item.fileUrl || item.thumbnail : null) ||
+        null
+    };
+  }
+
   // ---------- READ ----------
   async getFolderContents(folderId = "root") {
     const items = await this.fbService.getByField(
@@ -22,20 +79,33 @@ export class FileManagerFirebase {
       folderId
     );
 
-    const folders = items.filter(item => item.isFolder === true);
-    const files = items.filter(item => !item.isFolder);
+    const folders = items
+      .filter(item => item.isFolder === true)
+      .map(item => this._normalizeFolder(item, folderId));
+
+    const files = items
+      .filter(item => !item.isFolder)
+      .map(item => this._normalizeFile(item, folderId));
 
     let currentFolderName = "Home";
     if (folderId !== "root") {
-      const folder = await this.fbService.getById(this.collections.items, folderId);
-      if (folder) currentFolderName = folder.title || folder.name || "Untitled";
+      const folder = await this.fbService.getById(
+        this.collections.items,
+        folderId
+      );
+      if (folder) {
+        currentFolderName = folder.title || folder.name || "Untitled";
+      }
     }
 
     return { folders, files, currentFolderName };
   }
 
   async getFileRecord(id) {
-    return this.fbService.getById(this.collections.items, id);
+    const item = await this.fbService.getById(this.collections.items, id);
+    if (!item) return null;
+    if (item.isFolder) return this._normalizeFolder(item, item.parentId);
+    return this._normalizeFile(item, item.parentId);
   }
 
   async getFileChunks(fileId) {
@@ -47,17 +117,21 @@ export class FileManagerFirebase {
     return chunks.sort((a, b) => a.partIndex - b.partIndex);
   }
 
+  // Still returns concatenated base64 (Firebase storage model).
+  // Local adapter returns a blob URL — UI should treat both as “file payload”.
   async getFullBase64(fileId) {
     const chunks = await this.getFileChunks(fileId);
     return chunks.map(c => c.chunkData).join("");
   }
 
-  // ---------- WRITE ----------
+  // ---------- WRITE (unchanged) ----------
   async createFolder(name, parentId = "root") {
     return this.fbService.create(this.collections.items, {
       title: name,
+      name: name,
       isFolder: true,
-      parentId
+      parentId,
+      size: 0
     });
   }
 
@@ -83,21 +157,22 @@ export class FileManagerFirebase {
     }
   }
 
-  // ---------- BACKUP & DOWNLOAD (Moved to Service) ----------
+  // ---------- BACKUP & DOWNLOAD (unchanged) ----------
   async generateZipBlob() {
-    let items = [], file_chunks = [];
+    let items = [],
+      file_chunks = [];
     items = await this.fbService.getAll(this.collections.items);
     file_chunks = await this.fbService.getAll(this.collections.fileChunks);
-    
-    if (typeof JSZip === 'undefined') {
+
+    if (typeof JSZip === "undefined") {
       throw new Error("JSZip is not loaded or defined in the global scope.");
     }
-    
+
     const zip = new JSZip();
     const folders = items.filter(i => i.isFolder);
     const files = items.filter(i => !i.isFolder);
 
-    const getFolderPath = (parentId) => {
+    const getFolderPath = parentId => {
       let pathParts = [];
       let currentId = parentId;
       while (currentId && currentId !== "root") {
@@ -118,7 +193,7 @@ export class FileManagerFirebase {
         .sort((a, b) => a.partIndex - b.partIndex);
 
       const fullBase64 = chunks.map(c => c.chunkData).join("");
-      const base64Data = fullBase64.split(',')[1];
+      const base64Data = fullBase64.split(",")[1];
       if (!base64Data) continue;
 
       const binaryString = atob(base64Data);
@@ -128,20 +203,23 @@ export class FileManagerFirebase {
       }
 
       const folderPath = getFolderPath(fileRecord.parentId);
-      const filePath = folderPath ? `${folderPath}/${fileRecord.title}` : fileRecord.title;
+      const filePath = folderPath
+        ? `${folderPath}/${fileRecord.title}`
+        : fileRecord.title;
       zip.file(filePath, bytes);
     }
 
     const uint8ArrayData = await zip.generateAsync({ type: "uint8array" });
-    const content = new Blob([uint8ArrayData], { type: "application/zip" });
-    return content;
+    return new Blob([uint8ArrayData], { type: "application/zip" });
   }
 
   async downloadBackup() {
     const content = await this.generateZipBlob();
-    const downloadAnchor = document.createElement('a');
+    const downloadAnchor = document.createElement("a");
     downloadAnchor.href = URL.createObjectURL(content);
-    downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
+    downloadAnchor.download = `backup_${new Date()
+      .toISOString()
+      .slice(0, 10)}.zip`;
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
