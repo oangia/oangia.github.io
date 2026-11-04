@@ -31,6 +31,13 @@ export class FileManagerFirebase {
     return "generic";
   }
 
+  /** Ensure value is a usable data-URL. */
+  _toDataUrl(fullBase64, mime = "application/octet-stream") {
+    if (!fullBase64) return null;
+    if (fullBase64.startsWith("data:")) return fullBase64;
+    return `data:${mime};base64,${fullBase64}`;
+  }
+
   _normalizeFolder(item, parentId) {
     const title = item.title || item.name || "Untitled";
     return {
@@ -43,6 +50,12 @@ export class FileManagerFirebase {
     };
   }
 
+  /**
+   * thumbnail only:
+   *  - image/video → data-URL
+   *  - text        → snippet (first 180 chars)
+   *  - audio/generic → null
+   */
   async _buildPreview(item) {
     const title = item.title || item.name || "Untitled";
     const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
@@ -50,27 +63,27 @@ export class FileManagerFirebase {
     const previewType = item.previewType || this._guessPreviewType(type, ext);
 
     if (previewType === "audio" || previewType === "generic") {
-      return { previewType, previewData: null, thumbnail: null };
+      return { previewType, thumbnail: null };
     }
 
     const fullBase64 = await this.getFullBase64(item.fileId || item.id);
     if (!fullBase64) {
-      return { previewType, previewData: null, thumbnail: null };
+      return { previewType, thumbnail: null };
     }
 
     if (previewType === "image") {
+      const mime = type.startsWith("image/") ? type : "image/png";
       return {
         previewType,
-        previewData: fullBase64,
-        thumbnail: fullBase64
+        thumbnail: this._toDataUrl(fullBase64, mime)
       };
     }
 
     if (previewType === "video") {
+      const mime = type.startsWith("video/") ? type : "video/mp4";
       return {
         previewType,
-        previewData: fullBase64,
-        thumbnail: null
+        thumbnail: this._toDataUrl(fullBase64, mime)
       };
     }
 
@@ -86,12 +99,11 @@ export class FileManagerFirebase {
       }
       return {
         previewType,
-        previewData: text.substring(0, 180),
-        thumbnail: null
+        thumbnail: text.substring(0, 180)
       };
     }
 
-    return { previewType, previewData: null, thumbnail: null };
+    return { previewType, thumbnail: null };
   }
 
   async _normalizeFile(item, parentId, { withPreview = false } = {}) {
@@ -111,9 +123,8 @@ export class FileManagerFirebase {
       size: item.size || 0,
       type,
       extension: ext,
-      fileUrl: item.fileUrl || null,
+      fileUrl: null,
       previewType,
-      previewData: item.previewData || null,
       thumbnail: item.thumbnail || null
     };
 
@@ -245,7 +256,9 @@ export class FileManagerFirebase {
         .sort((a, b) => a.partIndex - b.partIndex);
 
       const fullBase64 = chunks.map(c => c.chunkData).join("");
-      const base64Data = fullBase64.split(",")[1];
+      const base64Data = fullBase64.includes(",")
+        ? fullBase64.split(",")[1]
+        : fullBase64;
       if (!base64Data) continue;
 
       const binaryString = atob(base64Data);
@@ -279,161 +292,161 @@ export class FileManagerFirebase {
 }
 
 export class FileAdapterService {
-  constructor() {
-    this.folderStructure = {};
-    this.nodeMap = new Map(); // Maps folder IDs to tree nodes
-    this.fileMap = new Map();  // Maps file IDs to file objects
-  }
-
-  async switch(fileList) {
-  const files = Array.from(fileList);
-  this.folderStructure = {
-    id: 'root',
-    name: 'root',          // will be overwritten
-    __children: {},
-    __files: []
-  };
-  this.nodeMap.clear();
-  this.fileMap.clear();
-  this.nodeMap.set('root', this.folderStructure);
-
-  if (!files.length) return;
-
-  // Determine the selected folder name from the first file
-  const firstPath = files[0].webkitRelativePath || files[0].name;
-  const rootFolderName = firstPath.split('/')[0] || 'root';
-  this.folderStructure.name = rootFolderName;
-
-  let folderIdCounter = 1;
-  let fileIdCounter = 1;
-
-  for (const file of files) {
-    const relativePath = file.webkitRelativePath || file.name;
-    const parts = relativePath.split('/');
-
-    // Drop the selected-folder prefix so it becomes the root
-    if (parts.length > 1 && parts[0] === rootFolderName) {
-      parts.shift();
-    }
-
-    const fileName = parts.pop();
-    if (!fileName) continue; // safety
-
-    let currentLevelNode = this.folderStructure;
-
-    // Build folder hierarchy (now relative to the selected folder)
-    for (const part of parts) {
-      if (!currentLevelNode.__children[part]) {
-        const newFolderId = `folder_${folderIdCounter++}`;
-        const newFolderNode = {
-          id: newFolderId,
-          name: part,
-          __children: {},
-          __files: []
-        };
-        currentLevelNode.__children[part] = newFolderNode;
-        this.nodeMap.set(newFolderId, newFolderNode);
-      }
-      currentLevelNode = currentLevelNode.__children[part];
-    }
-
-    // … rest of the file-processing logic stays exactly the same …
-    const ext = fileName.split('.').pop().toLowerCase();
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    const isAudio = file.type.startsWith('audio/');
-    const isText = file.type.startsWith('text/') ||
-      ['json', 'js', 'html', 'css', 'md', 'txt', 'xml', 'svg', 'csv'].includes(ext);
-
-    let previewType = 'generic';
-    let previewData = null;
-    const fileUrl = URL.createObjectURL(file);
-
-    if (isImage) {
-      previewType = 'image';
-      previewData = fileUrl;
-    } else if (isVideo) {
-      previewType = 'video';
-      previewData = fileUrl;
-    } else if (isAudio) {
-      previewType = 'audio';
-    } else if (isText) {
-      previewType = 'text';
-      previewData = await this.readTextSnippet(file);
-    }
-
-    const fileId = `file_${fileIdCounter++}`;
-    const fileRecord = {
-      id: fileId,
-      fileId: fileId,
-      title: fileName,
-      path: relativePath,          // keep original path if you need it
-      size: file.size,
-      type: file.type,
-      extension: ext,
-      fileUrl,
-      previewType,
-      previewData,
-      thumbnail: previewType === 'image' ? fileUrl : null
-    };
-
-    currentLevelNode.__files.push(fileRecord);
-    this.fileMap.set(fileId, fileRecord);
+  constructor() {
+    this.folderStructure = {};
+    this.nodeMap = new Map();
+    this.fileMap = new Map();
   }
-}
 
-  _calculateFolderSize(node) {
-    let totalSize = 0;
-    const children = node.__children || {};
-    const files = node.__files || [];
-    
-    for (const file of files) {
-      totalSize += file.size || 0;
-    }
-    for (const key in children) {
-      totalSize += this._calculateFolderSize(children[key]);
-    }
-    return totalSize;
-  }
+  async switch(fileList) {
+    const files = Array.from(fileList);
 
-  async getFolderContents(folderId) {
-    const node = this.nodeMap.get(folderId) || this.folderStructure;
-    
-    const folders = Object.values(node.__children).map(child => ({
-      id: child.id,
-      title: child.name,
-      name: child.name,
-      size: this._calculateFolderSize(child) // Pre-calculate the total recursive size here!
-    }));
+    this.folderStructure = {
+      id: "root",
+      name: "root",
+      __children: {},
+      __files: []
+    };
+    this.nodeMap.clear();
+    this.fileMap.clear();
+    this.nodeMap.set("root", this.folderStructure);
 
-    const files = node.__files || [];
-    console.log({
-      folders,
-      files,
-      currentFolderName: node.name
-    });
-    return {
-      folders,
-      files,
-      currentFolderName: node.name
-    };
-  }
+    if (!files.length) return;
 
-  async getFileRecord(id) {
-    return this.fileMap.get(id);
-  }
+    const firstPath = files[0].webkitRelativePath || files[0].name;
+    const rootFolderName = firstPath.split("/")[0] || "root";
+    this.folderStructure.name = rootFolderName;
 
-  async getFullBase64(fileId) {
-    const file = this.fileMap.get(fileId);
-    return file ? file.fileUrl : null;
-  }
+    let folderIdCounter = 1;
+    let fileIdCounter = 1;
 
-  readTextSnippet(file) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result.substring(0, 180));
-      reader.onerror = () => resolve('');
-      reader.readAsText(file.slice(0, 300));
-    });
-  }
+    for (const file of files) {
+      const relativePath = file.webkitRelativePath || file.name;
+      const parts = relativePath.split("/");
+
+      if (parts.length > 1 && parts[0] === rootFolderName) {
+        parts.shift();
+      }
+
+      const fileName = parts.pop();
+      if (!fileName) continue;
+
+      let currentLevelNode = this.folderStructure;
+
+      for (const part of parts) {
+        if (!currentLevelNode.__children[part]) {
+          const newFolderId = `folder_${folderIdCounter++}`;
+          const newFolderNode = {
+            id: newFolderId,
+            name: part,
+            parentId: currentLevelNode.id,
+            __children: {},
+            __files: []
+          };
+          currentLevelNode.__children[part] = newFolderNode;
+          this.nodeMap.set(newFolderId, newFolderNode);
+        }
+        currentLevelNode = currentLevelNode.__children[part];
+      }
+
+      const ext = fileName.split(".").pop().toLowerCase();
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      const isAudio = file.type.startsWith("audio/");
+      const isText =
+        file.type.startsWith("text/") ||
+        ["json", "js", "html", "css", "md", "txt", "xml", "svg", "csv"].includes(
+          ext
+        );
+
+      let previewType = "generic";
+      let thumbnail = null;
+      const fileUrl = URL.createObjectURL(file);
+
+      if (isImage) {
+        previewType = "image";
+        thumbnail = fileUrl;
+      } else if (isVideo) {
+        previewType = "video";
+        thumbnail = fileUrl;
+      } else if (isAudio) {
+        previewType = "audio";
+      } else if (isText) {
+        previewType = "text";
+        thumbnail = await this.readTextSnippet(file);
+      }
+
+      const fileId = `file_${fileIdCounter++}`;
+      const fileRecord = {
+        id: fileId,
+        fileId: fileId,
+        title: fileName,
+        name: fileName,
+        isFolder: false,
+        parentId: currentLevelNode.id,
+        path: relativePath,
+        size: file.size,
+        type: file.type,
+        extension: ext,
+        fileUrl,
+        previewType,
+        thumbnail
+      };
+
+      currentLevelNode.__files.push(fileRecord);
+      this.fileMap.set(fileId, fileRecord);
+    }
+  }
+
+  _calculateFolderSize(node) {
+    let totalSize = 0;
+    const children = node.__children || {};
+    const files = node.__files || [];
+
+    for (const file of files) totalSize += file.size || 0;
+    for (const key in children) {
+      totalSize += this._calculateFolderSize(children[key]);
+    }
+    return totalSize;
+  }
+
+  async getFolderContents(folderId = "root") {
+    const node = this.nodeMap.get(folderId) || this.folderStructure;
+    const children = node.__children || {};
+    const files = node.__files || [];
+
+    const folders = Object.values(children).map(child => ({
+      id: child.id,
+      title: child.name,
+      name: child.name,
+      isFolder: true,
+      parentId: node.id,
+      size: this._calculateFolderSize(child)
+    }));
+
+    return {
+      folders,
+      files,
+      currentFolderName: node.name || "Home"
+    };
+  }
+
+  async getFileRecord(id) {
+    return this.fileMap.get(id) || null;
+  }
+
+  /** Local: returns blob URL (not base64). */
+  async getFullBase64(fileId) {
+    const file = this.fileMap.get(fileId);
+    return file ? file.fileUrl : null;
+  }
+
+  readTextSnippet(file) {
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.substring(0, 180));
+      reader.onerror = () => resolve("");
+      reader.readAsText(file.slice(0, 300));
+    });
+  }
 }
