@@ -1,5 +1,85 @@
 class Cookie{static set(e,t,o=30){const n=new Date;n.setTime(n.getTime()+24*o*60*60*1e3),document.cookie=`${e}=${encodeURIComponent(t)};expires=${n.toUTCString()};path=/;SameSite=Strict`}static get(e){const t=e+"=",o=document.cookie.split(";");for(let e=0;e<o.length;e++){let n=o[e].trim();if(0===n.indexOf(t))return decodeURIComponent(n.substring(t.length))}return null}static erase(e){document.cookie=`${e}=; Max-Age=-99999999; path=/;`}}
 class Toast{static ensureDOM(){if(document.getElementById("toastContainer"))return;document.body.insertAdjacentHTML("beforeend",'<div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>')}static show(e,t="info"){Toast.ensureDOM();let s=document.getElementById("toastContainer");if(!s)return;const a=document.createElement("div"),o={success:"bg-emerald-600",error:"bg-red-600",info:"bg-slate-900"};a.className=`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-xs font-medium text-white ${o[t]||o.info} transition-all transform translate-y-2 opacity-0 pointer-events-auto`,a.innerHTML=`<i class="fa-solid fa-circle-info text-base"></i> <span>${e}</span>`,s.appendChild(a),requestAnimationFrame(()=>a.classList.remove("translate-y-2","opacity-0")),setTimeout(()=>{a.classList.add("opacity-0","translate-y-2"),setTimeout(()=>a.remove(),300)},3e3)}static success(e){Toast.show(e,"success")}static error(e){Toast.show(e,"error")}static info(e){Toast.show(e,"info")}}
+class Sidebar {
+  /**
+   * @param {Object} config
+   * @param {string} config.containerId - ID của container bọc sidebar
+   * @param {Array<{ id: string, label: string, icon: string, spaceKey: string }>} config.items - Danh sách nav item
+   * @param {string} config.activeSpace - Space được chọn ban đầu
+   * @param {Function} config.onSelect - Callback được gọi khi chuyển space
+   */
+  constructor({ containerId, items = [], activeSpace = 'home', onSelect }) {
+    this.container = document.getElementById(containerId);
+    this.items = items;
+    this.activeSpace = activeSpace;
+    this.onSelect = onSelect;
+
+    this.render();
+    this.bindEvents();
+  }
+
+  // Render HTML Sidebar
+  render() {
+    if (!this.container) return;
+
+    const navItemsHTML = this.items.map(item => {
+      const isActive = item.spaceKey === this.activeSpace;
+      const activeClass = isActive 
+        ? 'bg-blue-600 text-white' 
+        : 'text-slate-300 hover:bg-slate-700 hover:text-white';
+
+      return `
+        <button 
+          data-space="${item.spaceKey}" 
+          class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${activeClass}"
+        >
+          <i class="${item.icon} text-base"></i>
+          <span>${item.label}</span>
+        </button>
+      `;
+    }).join('');
+
+    this.container.innerHTML = `
+      <aside class="w-64 bg-slate-800 text-slate-300 border-r border-slate-700 flex flex-col shrink-0 h-full">
+        <div class="p-4 border-b border-slate-700 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+          Navigation
+        </div>
+        <nav class="p-3 space-y-1 flex-1">
+          ${navItemsHTML}
+        </nav>
+      </aside>
+    `;
+  }
+
+  // Đăng ký sự kiện click
+  bindEvents() {
+    this.container.addEventListener('click', (e) => {
+      const btn = e.target.closest('.sidebar-item');
+      if (!btn) return;
+
+      const spaceKey = btn.dataset.space;
+      if (spaceKey && spaceKey !== this.activeSpace) {
+        this.setActive(spaceKey);
+        if (typeof this.onSelect === 'function') {
+          this.onSelect(spaceKey);
+        }
+      }
+    });
+  }
+
+  // Cập nhật giao diện khi đổi tab chủ động
+  setActive(spaceKey) {
+    this.activeSpace = spaceKey;
+    const buttons = this.container.querySelectorAll('.sidebar-item');
+
+    buttons.forEach(btn => {
+      const isSelected = btn.dataset.space === spaceKey;
+      btn.className = `sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+        isSelected ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+      }`;
+    });
+  }
+}
 class ConfigManager {
   constructor(btnId) {
     this.cookieName = "app_config";
