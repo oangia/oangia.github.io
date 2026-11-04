@@ -7,7 +7,7 @@ export class FileManagerFirebase {
     };
   }
 
-  switch(collections) {
+  async switch(collections) {
     this.collections = {
       items: collections.items || this.collections.items,
       fileChunks: collections.fileChunks || this.collections.fileChunks
