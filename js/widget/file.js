@@ -10,21 +10,24 @@ class FileAdapterService {
 
   async switch(fileList) {
     const files = Array.from(fileList);
+    if (!files.length) return;
+
+    // Extract the actual selected folder's name for UI display
+    const firstPath = (files[0].webkitRelativePath || files[0].name).replace(/\\/g, '/');
+    const firstParts = firstPath.split('/');
+    const selectedFolderName = firstParts.length > 1 ? firstParts[0] : 'root';
+
+    // Root node uses 'id: "root"' for stable system lookup, but shows the selected folder's name
     this.folderStructure = {
       id: 'root',
-      name: 'root',
+      name: selectedFolderName,
       __children: {},
       __files: []
     };
+    
     this.nodeMap.clear();
     this.fileMap.clear();
     this.nodeMap.set('root', this.folderStructure);
-
-    if (!files.length) return;
-
-    // Identify the browser's top-level root folder name from the first file path
-    const firstPath = (files[0].webkitRelativePath || files[0].name).replace(/\\/g, '/');
-    const rootFolderName = firstPath.split('/')[0];
 
     let folderIdCounter = 1;
     let fileIdCounter = 1;
@@ -34,8 +37,8 @@ class FileAdapterService {
       const parts = relativePath.split('/');
       const fileName = parts.pop();
       
-      // ONLY strip the root folder prefix if it matches, preserving all subfolders and nested files
-      if (parts.length > 0 && parts[0] === rootFolderName) {
+      // Strip the browser's top-level folder prefix so contents drop directly into root
+      if (parts.length > 0) {
         parts.shift();
       }
 
@@ -60,6 +63,9 @@ class FileAdapterService {
         }
         currentLevelNode = currentLevelNode.__children[part];
       }
+
+      // Reconstruct a clean relative path starting from root
+      const cleanPath = [...parts, fileName].join('/');
 
       // Process file payload
       const ext = fileName.split('.').pop().toLowerCase();
@@ -90,7 +96,7 @@ class FileAdapterService {
         id: fileId,
         fileId: fileId,
         title: fileName,
-        path: relativePath,
+        path: cleanPath,
         size: file.size,
         type: file.type,
         extension: ext,
