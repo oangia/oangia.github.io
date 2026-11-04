@@ -9,88 +9,101 @@ class FileAdapterService {
   }
 
   async switch(fileList) {
-    const files = Array.from(fileList);
-    this.folderStructure = {
-      id: 'root',
-      name: 'root',
-      __children: {},
-      __files: []
-    };
-    this.nodeMap.clear();
-    this.fileMap.clear();
-    this.nodeMap.set('root', this.folderStructure);
+  const files = Array.from(fileList);
+  this.folderStructure = {
+    id: 'root',
+    name: 'root',          // will be overwritten
+    __children: {},
+    __files: []
+  };
+  this.nodeMap.clear();
+  this.fileMap.clear();
+  this.nodeMap.set('root', this.folderStructure);
 
-    if (!files.length) return;
+  if (!files.length) return;
 
-    let folderIdCounter = 1;
-    let fileIdCounter = 1;
+  // Determine the selected folder name from the first file
+  const firstPath = files[0].webkitRelativePath || files[0].name;
+  const rootFolderName = firstPath.split('/')[0] || 'root';
+  this.folderStructure.name = rootFolderName;
 
-    for (const file of files) {
-      const relativePath = file.webkitRelativePath || file.name;
-      const parts = relativePath.split('/');
-      const fileName = parts.pop();
-      
-      let currentLevelNode = this.folderStructure;
+  let folderIdCounter = 1;
+  let fileIdCounter = 1;
 
-      // Build folder hierarchy
-      for (const part of parts) {
-        if (!currentLevelNode.__children[part]) {
-          const newFolderId = `folder_${folderIdCounter++}`;
-          const newFolderNode = {
-            id: newFolderId,
-            name: part,
-            __children: {},
-            __files: []
-          };
-          currentLevelNode.__children[part] = newFolderNode;
-          this.nodeMap.set(newFolderId, newFolderNode);
-        }
-        currentLevelNode = currentLevelNode.__children[part];
-      }
+  for (const file of files) {
+    const relativePath = file.webkitRelativePath || file.name;
+    const parts = relativePath.split('/');
 
-      // Process file payload
-      const ext = fileName.split('.').pop().toLowerCase();
-      const isImage = file.type.startsWith('image/');
-      const isVideo = file.type.startsWith('video/');
-      const isAudio = file.type.startsWith('audio/');
-      const isText = file.type.startsWith('text/') || ['json', 'js', 'html', 'css', 'md', 'txt', 'xml', 'svg', 'csv'].includes(ext);
+    // Drop the selected-folder prefix so it becomes the root
+    if (parts.length > 1 && parts[0] === rootFolderName) {
+      parts.shift();
+    }
 
-      let previewType = 'generic';
-      let previewData = null;
-      const fileUrl = URL.createObjectURL(file);
+    const fileName = parts.pop();
+    if (!fileName) continue; // safety
 
-      if (isImage) {
-        previewType = 'image';
-        previewData = fileUrl;
-      } else if (isVideo) {
-        previewType = 'video';
-        previewData = fileUrl;
-      } else if (isAudio) {
-        previewType = 'audio';
-      } else if (isText) {
-        previewType = 'text';
-        previewData = await this.readTextSnippet(file);
-      }
+    let currentLevelNode = this.folderStructure;
 
-      const fileId = `file_${fileIdCounter++}`;
-      const fileRecord = {
-        id: fileId,
-        fileId: fileId,
-        title: fileName,
-        path: relativePath,
-        size: file.size,
-        type: file.type,
-        extension: ext,
-        fileUrl,
-        previewType,
-        previewData,
-        thumbnail: previewType === 'image' ? fileUrl : null
-      };
+    // Build folder hierarchy (now relative to the selected folder)
+    for (const part of parts) {
+      if (!currentLevelNode.__children[part]) {
+        const newFolderId = `folder_${folderIdCounter++}`;
+        const newFolderNode = {
+          id: newFolderId,
+          name: part,
+          __children: {},
+          __files: []
+        };
+        currentLevelNode.__children[part] = newFolderNode;
+        this.nodeMap.set(newFolderId, newFolderNode);
+      }
+      currentLevelNode = currentLevelNode.__children[part];
+    }
 
-      currentLevelNode.__files.push(fileRecord);
-      this.fileMap.set(fileId, fileRecord);
-    }
-  }
+    // … rest of the file-processing logic stays exactly the same …
+    const ext = fileName.split('.').pop().toLowerCase();
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    const isAudio = file.type.startsWith('audio/');
+    const isText = file.type.startsWith('text/') ||
+      ['json', 'js', 'html', 'css', 'md', 'txt', 'xml', 'svg', 'csv'].includes(ext);
+
+    let previewType = 'generic';
+    let previewData = null;
+    const fileUrl = URL.createObjectURL(file);
+
+    if (isImage) {
+      previewType = 'image';
+      previewData = fileUrl;
+    } else if (isVideo) {
+      previewType = 'video';
+      previewData = fileUrl;
+    } else if (isAudio) {
+      previewType = 'audio';
+    } else if (isText) {
+      previewType = 'text';
+      previewData = await this.readTextSnippet(file);
+    }
+
+    const fileId = `file_${fileIdCounter++}`;
+    const fileRecord = {
+      id: fileId,
+      fileId: fileId,
+      title: fileName,
+      path: relativePath,          // keep original path if you need it
+      size: file.size,
+      type: file.type,
+      extension: ext,
+      fileUrl,
+      previewType,
+      previewData,
+      thumbnail: previewType === 'image' ? fileUrl : null
+    };
+
+    currentLevelNode.__files.push(fileRecord);
+    this.fileMap.set(fileId, fileRecord);
+  }
+}
 
   _calculateFolderSize(node) {
     let totalSize = 0;
