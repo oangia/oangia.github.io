@@ -19,23 +19,107 @@ export class FileManagerFirebase {
     const t = (type || "").toLowerCase();
     const e = (ext || "").toLowerCase();
 
-    if (t.startsWith("image/")) return "image";
-    if (t.startsWith("video/")) return "video";
-    if (t.startsWith("audio/")) return "audio";
+    if (
+      t.startsWith("image/") ||
+      ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "ico"].includes(e)
+    ) {
+      return "image";
+    }
+    if (
+      t.startsWith("video/") ||
+      ["mp4", "webm", "ogg", "mov", "mkv"].includes(e)
+    ) {
+      return "video";
+    }
+    if (
+      t.startsWith("audio/") ||
+      ["mp3", "wav", "ogg", "aac", "m4a", "flac"].includes(e)
+    ) {
+      return "audio";
+    }
     if (
       t.startsWith("text/") ||
-      ["json", "js", "html", "css", "md", "txt", "xml", "svg", "csv"].includes(e)
+      [
+        "json", "js", "ts", "jsx", "tsx", "html", "htm", "css", "scss",
+        "md", "txt", "xml", "svg", "csv"
+      ].includes(e)
     ) {
       return "text";
     }
     return "generic";
   }
 
-  /** Ensure value is a usable data-URL. */
   _toDataUrl(fullBase64, mime = "application/octet-stream") {
     if (!fullBase64) return null;
     if (fullBase64.startsWith("data:")) return fullBase64;
     return `data:${mime};base64,${fullBase64}`;
+  }
+
+  /** Detect mime from data-URL header or binary magic bytes */
+  _detectMimeFromBase64(fullBase64) {
+    if (!fullBase64 || typeof fullBase64 !== "string") return null;
+
+    if (fullBase64.startsWith("data:")) {
+      const comma = fullBase64.indexOf(",");
+      if (comma === -1) return null;
+      const header = fullBase64.slice(5, comma);
+      return header.split(";")[0].toLowerCase() || null;
+    }
+
+    let bytes;
+    try {
+      const sample = atob(fullBase64.slice(0, 64));
+      bytes = new Uint8Array(sample.length);
+      for (let i = 0; i < sample.length; i++) bytes[i] = sample.charCodeAt(i);
+    } catch {
+      return null;
+    }
+
+    // PNG
+    if (
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47
+    ) {
+      return "image/png";
+    }
+    // JPEG
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+      return "image/jpeg";
+    }
+    // GIF
+    if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
+      return "image/gif";
+    }
+    // WEBP: RIFF....WEBP
+    if (
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46 &&
+      bytes[8] === 0x57 &&
+      bytes[9] === 0x45 &&
+      bytes[10] === 0x42 &&
+      bytes[11] === 0x50
+    ) {
+      return "image/webp";
+    }
+    // BMP
+    if (bytes[0] === 0x42 && bytes[1] === 0x4d) {
+      return "image/bmp";
+    }
+    // MP4 / ftyp
+    if (
+      bytes[4] === 0x66 &&
+      bytes[5] === 0x74 &&
+      bytes[6] === 0x79 &&
+      bytes[7] === 0x70
+    ) {
+      return "video/mp4";
+    }
+
+    return null;
   }
 
   _normalizeFolder(item, parentId) {
@@ -55,12 +139,17 @@ export class FileManagerFirebase {
    *  - image/video → data-URL
    *  - text        → snippet (first 180 chars)
    *  - audio/generic → null
+   *
+   * Detection order:
+   *  1. data-URL mime or magic bytes in base64
+   *  2. item.type / mimeType
+   *  3. file extension
    */
   async _buildPreview(item) {
     const title = item.title || item.name || "Untitled";
     const type = item.type || item.mimeType || "";
     const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
-  
+
     const fullBase64 = await this.getFullBase64(item.fileId || item.id);
     if (!fullBase64) {
       return {
@@ -68,72 +157,75 @@ export class FileManagerFirebase {
         thumbnail: null
       };
     }
-  
-    // Primary: parse mime from data-URL string itself
-    if (fullBase64.startsWith("data:")) {
-      const comma = fullBase64.indexOf(",");
-      const header = fullBase64.slice(5, comma); // e.g. "image/png;base64"
-      const mime = header.split(";")[0].toLowerCase();
-  
-      if (mime.startsWith("image/")) {
-        return { previewType: "image", thumbnail: fullBase64 };
-      }
-      if (mime.startsWith("video/")) {
-        return { previewType: "video", thumbnail: fullBase64 };
-      }
-      if (mime.startsWith("audio/")) {
-        return { previewType: "audio", thumbnail: null };
-      }
-      if (
-        mime.startsWith("text/") ||
-        mime === "application/json" ||
-        mime === "application/xml" ||
-        mime.includes("javascript")
+
+    const detectedMime = this._detectMimeFromBase64(fullBase64);
+
+    let previewType = "generic";
+    if (detectedMime) {
+      if (detectedMime.startsWith("image/")) previewType = "image";
+      else if (detectedMime.startsWith("video/")) previewType = "video";
+      else if (detectedMime.startsWith("audio/")) previewType = "audio";
+      else if (
+        detectedMime.startsWith("text/") ||
+        detectedMime === "application/json" ||
+        detectedMime === "application/xml" ||
+        detectedMime.includes("javascript")
       ) {
-        let text = "";
-        try {
-          text = atob(fullBase64.slice(comma + 1));
-        } catch {
-          text = fullBase64.slice(comma + 1);
-        }
-        return { previewType: "text", thumbnail: text.substring(0, 180) };
+        previewType = "text";
       }
-  
-      // Unknown data-URL mime
-      return { previewType: "generic", thumbnail: null };
     }
-  
-    // No data: prefix — fall back to type / extension only
-    const previewType = this._guessPreviewType(type, ext);
-  
+
+    if (previewType === "generic") {
+      previewType = this._guessPreviewType(type, ext);
+    }
+
     if (previewType === "image") {
+      const mime = detectedMime?.startsWith("image/")
+        ? detectedMime
+        : type.startsWith("image/")
+          ? type
+          : "image/png";
       return {
         previewType,
-        thumbnail: this._toDataUrl(fullBase64, type || "image/png")
+        thumbnail: this._toDataUrl(fullBase64, mime)
       };
     }
+
     if (previewType === "video") {
+      const mime = detectedMime?.startsWith("video/")
+        ? detectedMime
+        : type.startsWith("video/")
+          ? type
+          : "video/mp4";
       return {
         previewType,
-        thumbnail: this._toDataUrl(fullBase64, type || "video/mp4")
+        thumbnail: this._toDataUrl(fullBase64, mime)
       };
     }
+
     if (previewType === "text") {
       let text = fullBase64;
       try {
-        text = atob(fullBase64);
-      } catch { /* already text */ }
-      return { previewType, thumbnail: text.substring(0, 180) };
+        const raw = fullBase64.includes(",")
+          ? fullBase64.split(",")[1]
+          : fullBase64;
+        text = atob(raw);
+      } catch {
+        // already plain text
+      }
+      return {
+        previewType,
+        thumbnail: text.substring(0, 180)
+      };
     }
-  
+
     return { previewType, thumbnail: null };
   }
 
-  async _normalizeFile(item, parentId, { withPreview = false } = {}) {
+  async _normalizeFile(item, parentId) {
     const title = item.title || item.name || "Untitled";
     const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
     const type = item.type || item.mimeType || "";
-    const previewType = item.previewType || this._guessPreviewType(type, ext);
 
     const base = {
       id: item.id,
@@ -147,18 +239,16 @@ export class FileManagerFirebase {
       type,
       extension: ext,
       fileUrl: null,
-      previewType,
+      previewType: item.previewType || this._guessPreviewType(type, ext),
       thumbnail: item.thumbnail || null
     };
-
-    if (!withPreview) return base;
 
     const preview = await this._buildPreview(item);
     return { ...base, ...preview };
   }
 
   // ---------- READ ----------
-  async getFolderContents(folderId = "root", { withPreviews = false } = {}) {
+  async getFolderContents(folderId = "root") {
     const items = await this.fbService.getByField(
       this.collections.items,
       "parentId",
@@ -172,9 +262,7 @@ export class FileManagerFirebase {
     const fileItems = items.filter(item => !item.isFolder);
     const files = [];
     for (const item of fileItems) {
-      files.push(
-        await this._normalizeFile(item, folderId, { withPreview: withPreviews })
-      );
+      files.push(await this._normalizeFile(item, folderId));
     }
 
     let currentFolderName = "Home";
@@ -195,7 +283,7 @@ export class FileManagerFirebase {
     const item = await this.fbService.getById(this.collections.items, id);
     if (!item) return null;
     if (item.isFolder) return this._normalizeFolder(item, item.parentId);
-    return this._normalizeFile(item, item.parentId, { withPreview: true });
+    return this._normalizeFile(item, item.parentId);
   }
 
   async getFileChunks(fileId) {
@@ -378,9 +466,10 @@ export class FileAdapterService {
       const isAudio = file.type.startsWith("audio/");
       const isText =
         file.type.startsWith("text/") ||
-        ["json", "js", "html", "css", "md", "txt", "xml", "svg", "csv"].includes(
-          ext
-        );
+        [
+          "json", "js", "ts", "jsx", "tsx", "html", "htm", "css", "scss",
+          "md", "txt", "xml", "svg", "csv"
+        ].includes(ext);
 
       let previewType = "generic";
       let thumbnail = null;
