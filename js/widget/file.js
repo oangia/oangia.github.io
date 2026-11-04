@@ -25,13 +25,6 @@ class FileAdapterService {
 
     if (!files.length) return;
 
-    // Extract the top-level selected folder name from the first file's path
-    const firstPath = files[0].webkitRelativePath || files[0].name;
-    const firstParts = firstPath.split('/');
-    if (firstParts.length > 1) {
-      this.folderStructure.name = firstParts[0];
-    }
-
     let folderIdCounter = 1;
     let fileIdCounter = 1;
 
@@ -40,15 +33,17 @@ class FileAdapterService {
       const parts = relativePath.split('/');
       const fileName = parts.pop();
       
-      // If the path starts with the root folder name, shift it off 
-      // so the contents start directly inside the root node.
-      if (parts.length > 0 && parts[0] === this.folderStructure.name) {
+      // Set the root folder name from the first path segment, then strip it
+      if (parts.length > 0) {
+        if (this.folderStructure.name === 'root') {
+          this.folderStructure.name = parts[0];
+        }
         parts.shift();
       }
 
       let currentLevelNode = this.folderStructure;
 
-      // Build folder hierarchy for everything inside the selected root
+      // Build folder hierarchy for remaining nested subfolders
       for (const part of parts) {
         if (!currentLevelNode.__children[part]) {
           const newFolderId = `folder_${folderIdCounter++}`;
@@ -93,7 +88,6 @@ class FileAdapterService {
         id: fileId,
         fileId: fileId,
         title: fileName,
-        name: fileName,
         path: relativePath,
         size: file.size,
         type: file.type,
