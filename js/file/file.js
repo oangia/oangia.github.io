@@ -120,10 +120,10 @@ class FilePreviewComponent {
     this.loadCurrentFolder();
   }
 
-  switch(collections) {
-    this.service.switch(collections);
+  async switch(collections) {
+    await this.service.switch(collections);   // wait until the tree is fully built
     this.currentFolderId = "root";
-    this.loadCurrentFolder();
+    await this.loadCurrentFolder();
   }
 
   // --------------------------------------------------
