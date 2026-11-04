@@ -29,21 +29,19 @@ class FileAdapterService {
     let fileIdCounter = 1;
 
     for (const file of files) {
-      const relativePath = file.webkitRelativePath || file.name;
+      // Normalize backslashes to forward slashes for cross-platform support
+      const relativePath = (file.webkitRelativePath || file.name).replace(/\\/g, '/');
       const parts = relativePath.split('/');
       const fileName = parts.pop();
       
-      // Set the root folder name from the first path segment, then strip it
+      // Strip the browser's top-level folder prefix so contents start directly at root
       if (parts.length > 0) {
-        if (this.folderStructure.name === 'root') {
-          this.folderStructure.name = parts[0];
-        }
         parts.shift();
       }
 
       let currentLevelNode = this.folderStructure;
 
-      // Build folder hierarchy for remaining nested subfolders
+      // Build folder hierarchy for nested subfolders
       for (const part of parts) {
         if (!currentLevelNode.__children[part]) {
           const newFolderId = `folder_${folderIdCounter++}`;
