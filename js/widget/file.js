@@ -9,7 +9,10 @@ export class FileManagerWidget extends Widget {
 
   init() {
     this.createUI();
-    this.cacheDomReferences();
+    this.dom = {
+      folderInputMain: this.modal.querySelector('.widget-folder-input-main'),
+      folderInputHeader: this.modal.querySelector('.widget-folder-input-header')
+    };
     this.service = new FileAdapterService();
     this.fileManager = null;
     this.attachEvents();
@@ -71,11 +74,7 @@ export class FileManagerWidget extends Widget {
   }
 
   cacheDomReferences() {
-    const m = this.modal;
-    this.dom = {
-      folderInputMain: m.querySelector('.widget-folder-input-main'),
-      folderInputHeader: m.querySelector('.widget-folder-input-header')
-    };
+    
   }
 
   attachEvents() {
