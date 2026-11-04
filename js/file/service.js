@@ -58,51 +58,74 @@ export class FileManagerFirebase {
    */
   async _buildPreview(item) {
     const title = item.title || item.name || "Untitled";
-    const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
     const type = item.type || item.mimeType || "";
-    const previewType = item.previewType || this._guessPreviewType(type, ext);
-
-    if (previewType === "audio" || previewType === "generic") {
-      return { previewType, thumbnail: null };
-    }
-
+    const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
+  
     const fullBase64 = await this.getFullBase64(item.fileId || item.id);
     if (!fullBase64) {
-      return { previewType, thumbnail: null };
+      return {
+        previewType: this._guessPreviewType(type, ext),
+        thumbnail: null
+      };
     }
-
+  
+    // Primary: parse mime from data-URL string itself
+    if (fullBase64.startsWith("data:")) {
+      const comma = fullBase64.indexOf(",");
+      const header = fullBase64.slice(5, comma); // e.g. "image/png;base64"
+      const mime = header.split(";")[0].toLowerCase();
+  
+      if (mime.startsWith("image/")) {
+        return { previewType: "image", thumbnail: fullBase64 };
+      }
+      if (mime.startsWith("video/")) {
+        return { previewType: "video", thumbnail: fullBase64 };
+      }
+      if (mime.startsWith("audio/")) {
+        return { previewType: "audio", thumbnail: null };
+      }
+      if (
+        mime.startsWith("text/") ||
+        mime === "application/json" ||
+        mime === "application/xml" ||
+        mime.includes("javascript")
+      ) {
+        let text = "";
+        try {
+          text = atob(fullBase64.slice(comma + 1));
+        } catch {
+          text = fullBase64.slice(comma + 1);
+        }
+        return { previewType: "text", thumbnail: text.substring(0, 180) };
+      }
+  
+      // Unknown data-URL mime
+      return { previewType: "generic", thumbnail: null };
+    }
+  
+    // No data: prefix — fall back to type / extension only
+    const previewType = this._guessPreviewType(type, ext);
+  
     if (previewType === "image") {
-      const mime = type.startsWith("image/") ? type : "image/png";
       return {
         previewType,
-        thumbnail: this._toDataUrl(fullBase64, mime)
+        thumbnail: this._toDataUrl(fullBase64, type || "image/png")
       };
     }
-
     if (previewType === "video") {
-      const mime = type.startsWith("video/") ? type : "video/mp4";
       return {
         previewType,
-        thumbnail: this._toDataUrl(fullBase64, mime)
+        thumbnail: this._toDataUrl(fullBase64, type || "video/mp4")
       };
     }
-
     if (previewType === "text") {
       let text = fullBase64;
       try {
-        const raw = fullBase64.includes(",")
-          ? fullBase64.split(",")[1]
-          : fullBase64;
-        text = atob(raw);
-      } catch {
-        // already plain text
-      }
-      return {
-        previewType,
-        thumbnail: text.substring(0, 180)
-      };
+        text = atob(fullBase64);
+      } catch { /* already text */ }
+      return { previewType, thumbnail: text.substring(0, 180) };
     }
-
+  
     return { previewType, thumbnail: null };
   }
 
