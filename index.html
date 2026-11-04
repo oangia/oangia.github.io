@@ -42,26 +42,8 @@
 
   <!-- Main Workspace Layout -->
   <div class="flex-1 flex overflow-hidden">
-    <!-- Sidebar -->
-    <aside class="w-64 bg-slate-800 text-slate-300 border-r border-slate-700 flex flex-col shrink-0">
-      <div class="p-4 border-b border-slate-700 text-xs font-semibold tracking-wider text-slate-400 uppercase">
-        Navigation
-      </div>
-      <nav class="p-3 space-y-1 flex-1">
-        <button id="navHome" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white">
-          <i class="fa-solid fa-house text-base"></i>
-          <span>Home</span>
-        </button>
-        <button id="navFile" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white">
-          <i class="fa-solid fa-folder text-base"></i>
-          <span>File</span>
-        </button>
-        <button id="navMemo" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white">
-          <i class="fa-solid fa-note-sticky text-base"></i>
-          <span>Memo</span>
-        </button>
-      </nav>
-    </aside>
+    <!-- Sidebar Container -->
+    <div id="sidebarContainer"></div>
 
     <!-- Content Area Container -->
     <main id="appContent" class="flex-1 flex flex-col bg-slate-50 p-4 overflow-y-auto custom-scrollbar">
@@ -71,6 +53,15 @@
   <script type="module">
     import { FirebaseService } from "./js/firebase-service.js";
     import { FileManagerWrapper } from "./js/file/manager.js";
+    
+    const configManager = new ConfigManager("toggleConfigBtn");
+    const fbService = new FirebaseService();
+    
+    // Initialize FileManager instance ONCE
+    const fileManager = new FileManagerWrapper({
+      containerId: "appContent",
+      fbService: fbService
+    });
 
     const collectionConfigs = {
       file: {
@@ -85,48 +76,17 @@
       }
     };
 
-    let activeSpace = "home";
-    const configManager = new ConfigManager("toggleConfigBtn");
-    const fbService = new FirebaseService();
-    
-    // Initialize FileManager instance ONCE
-    const fileManager = new FileManagerWrapper({
-      containerId: "appContent",
-      fbService: fbService,
-      filesCollection: collectionConfigs.file.filesCollection,
-      fileChunksCollection: collectionConfigs.file.fileChunksCollection
-    });
-
-    function renderHome() {
-      const container = document.getElementById("appContent");
+    function switchSpace(spaceKey) {
+      if (spaceKey === "home") {
+        document.getElementById("appTitle").textContent = "File Manager - Home";
+        const container = document.getElementById("appContent");
+        const container = document.getElementById("appContent");
       container.innerHTML = `
         <div class="max-w-4xl mx-auto p-6 space-y-6">
           <h1 class="text-2xl font-bold text-slate-800">Welcome to Home</h1>
           <p class="text-slate-600">This is the home page dashboard.</p>
         </div>
       `;
-    }
-
-    function switchSpace(spaceKey) {
-      activeSpace = spaceKey;
-      
-      const buttons = {
-        home: document.getElementById("navHome"),
-        file: document.getElementById("navFile"),
-        memo: document.getElementById("navMemo")
-      };
-
-      Object.keys(buttons).forEach((key) => {
-        if (key === spaceKey) {
-          buttons[key].className = "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white";
-        } else {
-          buttons[key].className = "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700 hover:text-white";
-        }
-      });
-
-      if (spaceKey === "home") {
-        document.getElementById("appTitle").textContent = "File Manager - Home";
-        renderHome();
       } else {
         const config = collectionConfigs[spaceKey];
         document.getElementById("appTitle").textContent = config.title;
@@ -141,20 +101,22 @@
       }
     }
 
-    switchSpace(activeSpace);
-
-    // Navigation Listeners
-    document.getElementById("navHome").addEventListener("click", () => {
-      if (activeSpace !== "home") switchSpace("home");
+    // Khởi tạo Sidebar Class
+    const sidebar = new Sidebar({
+      containerId: "sidebarContainer",
+      activeSpace: "home",
+      items: [
+        { id: "navHome", spaceKey: "home", label: "Home", icon: "fa-solid fa-house" },
+        { id: "navFile", spaceKey: "file", label: "File", icon: "fa-solid fa-folder" },
+        { id: "navMemo", spaceKey: "memo", label: "Memo", icon: "fa-solid fa-note-sticky" }
+      ],
+      onSelect: (spaceKey) => {
+        switchSpace(spaceKey);
+      }
     });
 
-    document.getElementById("navFile").addEventListener("click", () => {
-      if (activeSpace !== "file") switchSpace("file");
-    });
-
-    document.getElementById("navMemo").addEventListener("click", () => {
-      if (activeSpace !== "memo") switchSpace("memo");
-    });
+    // Render ban đầu
+    switchSpace("home");
     
     import "./js/widget/widget.js";
   </script>
