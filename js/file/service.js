@@ -253,6 +253,7 @@ class FileService {
 
 export class FileManagerFirebase extends FileService{
   constructor(fbService, collections = {}) {
+    super();
     this.fbService = fbService;
     this.collections = {
       items: collections.items || "files",
@@ -451,6 +452,7 @@ export class FileManagerFirebase extends FileService{
 
 export class FileAdapterService extends FileService {
   constructor() {
+    super();
     this.folderStructure = {};
     this.nodeMap = new Map();
     this.fileMap = new Map();
