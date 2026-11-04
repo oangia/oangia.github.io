@@ -15,7 +15,7 @@ class FileAdapterService {
     // Extract the actual selected folder's name for UI display
     const firstPath = (files[0].webkitRelativePath || files[0].name).replace(/\\/g, '/');
     const firstParts = firstPath.split('/');
-    const selectedFolderName = firstParts.length > 1 ? firstParts[0] : 'root';
+    const selectedFolderName = firstParts[0];
 
     // Root node uses 'id: "root"' for stable system lookup, but shows the selected folder's name
     this.folderStructure = {
