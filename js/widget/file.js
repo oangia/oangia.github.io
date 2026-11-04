@@ -33,9 +33,16 @@ class FileAdapterService {
       const parts = relativePath.split('/');
       const fileName = parts.pop();
       
+      // If the file is inside a selected folder, the first part of the path 
+      // is the root folder itself. Shift it off so it becomes our 'root' node.
+      if (parts.length > 0) {
+        const rootFolderName = parts.shift();
+        this.folderStructure.name = rootFolderName;
+      }
+
       let currentLevelNode = this.folderStructure;
 
-      // Build folder hierarchy
+      // Build folder hierarchy for remaining nested subfolders
       for (const part of parts) {
         if (!currentLevelNode.__children[part]) {
           const newFolderId = `folder_${folderIdCounter++}`;
@@ -152,95 +159,7 @@ class FileAdapterService {
 }
 
 class FileManager2 {
-  constructor(config = {}) {
-    this.containerId = config.containerId;
-    this.container = document.getElementById(this.containerId);
-
-    this.service = config.service;
-    
-    this.currentFolderId = 'root';
-    this.contextTarget = null;
-    this.previewer = new FilePreviewComponent();
-  }
-
-  init() {
-    this.attachManagerEvents();
-  }
-
-  async switch(fileList) {
-    await this.service.switch(fileList);
-    this.currentFolderId = 'root';
-    this.loadCurrentFolder();
-  }
-
-  navigateToFolder(folderId) {
-    this.currentFolderId = folderId;
-    this.loadCurrentFolder();
-  }
-
-  navigateUp() {
-    if (this.currentFolderId !== 'root') {
-      this.navigateToFolder('root');
-    }
-  }
-
-  getFolderSize(node) {
-    let totalSize = 0;
-    const children = node.__children || {};
-    const files = node.__files || [];
-    
-    for (const file of files) {
-      totalSize += file.size || 0;
-    }
-    for (const key in children) {
-      totalSize += this.getFolderSize(children[key]);
-    }
-    return totalSize;
-  }
-
-  formatBytes(bytes) {
-    if (bytes === 0 || isNaN(bytes) || bytes == null) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  }
-
-  async loadCurrentFolder() {
-    if (!this.container) return;
-
-    try {
-      const { folders, files, currentFolderName } = await this.service.getFolderContents(this.currentFolderId);
-      this.render(folders, files, currentFolderName);
-    } catch (err) {
-      console.error('Error loading folder contents:', err);
-    }
-  }
-
-  attachManagerEvents() {
-    this.container.addEventListener('click', (e) => {
-      const backBtn = e.target.closest('.widget-back-btn');
-      if (backBtn && !backBtn.disabled) {
-        this.navigateUp();
-        return;
-      }
-
-      const card = e.target.closest('[data-action]');
-      if (!card) return;
-
-      const action = card.getAttribute('data-action');
-      const id = card.getAttribute('data-id');
-
-      if (action === 'navigate') {
-        this.navigateToFolder(id);
-      } else if (action === 'view') {
-        const fileUrl = card.getAttribute('data-url');
-        if (fileUrl) window.open(fileUrl, '_blank');
-      }
-    });
-  }
-
-  render(folders = [], files = [], currentFolderName = 'root') {
+   render(folders = [], files = [], currentFolderName = 'root') {
     if (!this.container) return;
 
     const isRoot = this.currentFolderId === 'root';
