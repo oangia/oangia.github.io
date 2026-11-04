@@ -4,18 +4,21 @@ import { FileManager } from "./../file/file.js";
 class FileAdapterService {
   constructor() {
     this.folderStructure = {};
-    this.nodeMap = new Map(); // Maps folder IDs to tree nodes
-    this.fileMap = new Map();  // Maps file IDs to file objects
+    this.nodeMap = new Map();
+    this.fileMap = new Map();
   }
 
   async switch(fileList) {
     const files = Array.from(fileList);
+    
+    // 1. Root name stays 'root', but it acts directly as the selected folder's contents container
     this.folderStructure = {
       id: 'root',
       name: 'root',
       __children: {},
       __files: []
     };
+    
     this.nodeMap.clear();
     this.fileMap.clear();
     this.nodeMap.set('root', this.folderStructure);
@@ -26,14 +29,20 @@ class FileAdapterService {
     let fileIdCounter = 1;
 
     for (const file of files) {
-      const relativePath = file.webkitRelativePath || file.name;
+      const relativePath = (file.webkitRelativePath || file.name).replace(/\\/g, '/');
       const parts = relativePath.split('/');
       const fileName = parts.pop();
       
+      // 2. Strip the browser's selected folder prefix so its contents land directly inside root
+      if (parts.length > 0) {
+        parts.shift();
+      }
+
       let currentLevelNode = this.folderStructure;
 
-      // Build folder hierarchy
+      // Build folder hierarchy for subfolders inside the root
       for (const part of parts) {
+        if (!part) continue;
         if (!currentLevelNode.__children) {
           currentLevelNode.__children = {};
         }
