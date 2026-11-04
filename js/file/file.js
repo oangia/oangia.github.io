@@ -272,7 +272,7 @@ class FilePreviewComponent {
     try {
       const { folders, files, currentFolderName } =
         await this.service.getFolderContents(this.currentFolderId);
-
+      console.log({ folders, files, currentFolderName });
       this.render(folders, files, currentFolderName);
     } catch (err) {
       Toast.show(`Error loading folder: ${err.message}`, "error");
