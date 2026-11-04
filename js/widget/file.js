@@ -1,5 +1,6 @@
 import { Widget } from './base.js';
-import { FileManager, FileAdapterService } from "./../file/file.js";
+import { FileManager } from "./../file/file.js";
+import { FileAdapterService } from "./../file/service.js";
 
 export class FileManagerWidget extends Widget {
   constructor(options = {}) {
