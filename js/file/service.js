@@ -1,17 +1,50 @@
-export class FileManagerFirebase {
-  constructor(fbService, collections = {}) {
-    this.fbService = fbService;
-    this.collections = {
-      items: collections.items || "files",
-      fileChunks: collections.fileChunks || "file_chunks"
-    };
+class FileService {
+  constructor() {}
+
+  async switch(configOrFiles) {
+    throw new Error("Method 'switch()' must be implemented.");
   }
 
-  async switch(collections) {
-    this.collections = {
-      items: collections.items || this.collections.items,
-      fileChunks: collections.fileChunks || this.collections.fileChunks
-    };
+  async getFolderContents(folderId = "root") {
+    throw new Error("Method 'getFolderContents()' must be implemented.");
+  }
+
+  async getFileRecord(id) {
+    throw new Error("Method 'getFileRecord()' must be implemented.");
+  }
+
+  async getFullBase64(fileId) {
+    throw new Error("Method 'getFullBase64()' must be implemented.");
+  }
+
+  async createFolder(name, parentId = "root") {
+    throw new Error("Method 'createFolder()' must be implemented.");
+  }
+
+  async uploadFile(file, parentId = "root", onProgress) {
+    throw new Error("Method 'uploadFile()' must be implemented.");
+  }
+
+  async deleteFolder(id) {
+    throw new Error("Method 'deleteFolder()' must be implemented.");
+  }
+
+  async deleteFile(id, fileId) {
+    throw new Error("Method 'deleteFile()' must be implemented.");
+  }
+
+  async generateZipBlob() {
+    throw new Error("Method 'generateZipBlob()' must be implemented.");
+  }
+
+  async downloadBackup() {
+    const content = await this.generateZipBlob();
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.href = URL.createObjectURL(content);
+    downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
   }
 
   // ---------- helpers ----------
@@ -121,30 +154,6 @@ export class FileManagerFirebase {
 
     return null;
   }
-
-  _normalizeFolder(item, parentId) {
-    const title = item.title || item.name || "Untitled";
-    return {
-      id: item.id,
-      title,
-      name: title,
-      isFolder: true,
-      parentId: item.parentId ?? parentId,
-      size: item.size || 0
-    };
-  }
-
-  /**
-   * thumbnail only:
-   *  - image/video → data-URL
-   *  - text        → snippet (first 180 chars)
-   *  - audio/generic → null
-   *
-   * Detection order:
-   *  1. data-URL mime or magic bytes in base64
-   *  2. item.type / mimeType
-   *  3. file extension
-   */
   async _buildPreview(item) {
     const title = item.title || item.name || "Untitled";
     const type = item.type || item.mimeType || "";
@@ -221,6 +230,56 @@ export class FileManagerFirebase {
 
     return { previewType, thumbnail: null };
   }
+  _readTextSnippet(file) {
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.substring(0, 180));
+      reader.onerror = () => resolve("");
+      reader.readAsText(file.slice(0, 300));
+    });
+  }
+  _calculateFolderSize(node) {
+    let totalSize = 0;
+    const children = node.__children || {};
+    const files = node.__files || [];
+
+    for (const file of files) totalSize += file.size || 0;
+    for (const key in children) {
+      totalSize += this._calculateFolderSize(children[key]);
+    }
+    return totalSize;
+  }
+}
+
+export class FileManagerFirebase extends FileService{
+  constructor(fbService, collections = {}) {
+    this.fbService = fbService;
+    this.collections = {
+      items: collections.items || "files",
+      fileChunks: collections.fileChunks || "file_chunks"
+    };
+  }
+
+  async switch(collections) {
+    this.collections = {
+      items: collections.items || this.collections.items,
+      fileChunks: collections.fileChunks || this.collections.fileChunks
+    };
+  }
+
+  _normalizeFolder(item, parentId) {
+    const title = item.title || item.name || "Untitled";
+    return {
+      id: item.id,
+      title,
+      name: title,
+      isFolder: true,
+      parentId: item.parentId ?? parentId,
+      size: item.size || 0
+    };
+  }
+
+  
 
   async _normalizeFile(item, parentId) {
     const title = item.title || item.name || "Untitled";
@@ -388,21 +447,9 @@ export class FileManagerFirebase {
     const uint8ArrayData = await zip.generateAsync({ type: "uint8array" });
     return new Blob([uint8ArrayData], { type: "application/zip" });
   }
-
-  async downloadBackup() {
-    const content = await this.generateZipBlob();
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.href = URL.createObjectURL(content);
-    downloadAnchor.download = `backup_${new Date()
-      .toISOString()
-      .slice(0, 10)}.zip`;
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  }
 }
 
-export class FileAdapterService {
+export class FileAdapterService extends FileService {
   constructor() {
     this.folderStructure = {};
     this.nodeMap = new Map();
@@ -485,7 +532,7 @@ export class FileAdapterService {
         previewType = "audio";
       } else if (isText) {
         previewType = "text";
-        thumbnail = await this.readTextSnippet(file);
+        thumbnail = await this._readTextSnippet(file);
       }
 
       const fileId = `file_${fileIdCounter++}`;
@@ -508,18 +555,6 @@ export class FileAdapterService {
       currentLevelNode.__files.push(fileRecord);
       this.fileMap.set(fileId, fileRecord);
     }
-  }
-
-  _calculateFolderSize(node) {
-    let totalSize = 0;
-    const children = node.__children || {};
-    const files = node.__files || [];
-
-    for (const file of files) totalSize += file.size || 0;
-    for (const key in children) {
-      totalSize += this._calculateFolderSize(children[key]);
-    }
-    return totalSize;
   }
 
   async getFolderContents(folderId = "root") {
@@ -551,14 +586,5 @@ export class FileAdapterService {
   async getFullBase64(fileId) {
     const file = this.fileMap.get(fileId);
     return file ? file.fileUrl : null;
-  }
-
-  readTextSnippet(file) {
-    return new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result.substring(0, 180));
-      reader.onerror = () => resolve("");
-      reader.readAsText(file.slice(0, 300));
-    });
   }
 }
