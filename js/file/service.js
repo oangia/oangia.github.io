@@ -277,3 +277,163 @@ export class FileManagerFirebase {
     downloadAnchor.remove();
   }
 }
+
+export class FileAdapterService {
+  constructor() {
+    this.folderStructure = {};
+    this.nodeMap = new Map(); // Maps folder IDs to tree nodes
+    this.fileMap = new Map();  // Maps file IDs to file objects
+  }
+
+  async switch(fileList) {
+  const files = Array.from(fileList);
+  this.folderStructure = {
+    id: 'root',
+    name: 'root',          // will be overwritten
+    __children: {},
+    __files: []
+  };
+  this.nodeMap.clear();
+  this.fileMap.clear();
+  this.nodeMap.set('root', this.folderStructure);
+
+  if (!files.length) return;
+
+  // Determine the selected folder name from the first file
+  const firstPath = files[0].webkitRelativePath || files[0].name;
+  const rootFolderName = firstPath.split('/')[0] || 'root';
+  this.folderStructure.name = rootFolderName;
+
+  let folderIdCounter = 1;
+  let fileIdCounter = 1;
+
+  for (const file of files) {
+    const relativePath = file.webkitRelativePath || file.name;
+    const parts = relativePath.split('/');
+
+    // Drop the selected-folder prefix so it becomes the root
+    if (parts.length > 1 && parts[0] === rootFolderName) {
+      parts.shift();
+    }
+
+    const fileName = parts.pop();
+    if (!fileName) continue; // safety
+
+    let currentLevelNode = this.folderStructure;
+
+    // Build folder hierarchy (now relative to the selected folder)
+    for (const part of parts) {
+      if (!currentLevelNode.__children[part]) {
+        const newFolderId = `folder_${folderIdCounter++}`;
+        const newFolderNode = {
+          id: newFolderId,
+          name: part,
+          __children: {},
+          __files: []
+        };
+        currentLevelNode.__children[part] = newFolderNode;
+        this.nodeMap.set(newFolderId, newFolderNode);
+      }
+      currentLevelNode = currentLevelNode.__children[part];
+    }
+
+    // … rest of the file-processing logic stays exactly the same …
+    const ext = fileName.split('.').pop().toLowerCase();
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    const isAudio = file.type.startsWith('audio/');
+    const isText = file.type.startsWith('text/') ||
+      ['json', 'js', 'html', 'css', 'md', 'txt', 'xml', 'svg', 'csv'].includes(ext);
+
+    let previewType = 'generic';
+    let previewData = null;
+    const fileUrl = URL.createObjectURL(file);
+
+    if (isImage) {
+      previewType = 'image';
+      previewData = fileUrl;
+    } else if (isVideo) {
+      previewType = 'video';
+      previewData = fileUrl;
+    } else if (isAudio) {
+      previewType = 'audio';
+    } else if (isText) {
+      previewType = 'text';
+      previewData = await this.readTextSnippet(file);
+    }
+
+    const fileId = `file_${fileIdCounter++}`;
+    const fileRecord = {
+      id: fileId,
+      fileId: fileId,
+      title: fileName,
+      path: relativePath,          // keep original path if you need it
+      size: file.size,
+      type: file.type,
+      extension: ext,
+      fileUrl,
+      previewType,
+      previewData,
+      thumbnail: previewType === 'image' ? fileUrl : null
+    };
+
+    currentLevelNode.__files.push(fileRecord);
+    this.fileMap.set(fileId, fileRecord);
+  }
+}
+
+  _calculateFolderSize(node) {
+    let totalSize = 0;
+    const children = node.__children || {};
+    const files = node.__files || [];
+    
+    for (const file of files) {
+      totalSize += file.size || 0;
+    }
+    for (const key in children) {
+      totalSize += this._calculateFolderSize(children[key]);
+    }
+    return totalSize;
+  }
+
+  async getFolderContents(folderId) {
+    const node = this.nodeMap.get(folderId) || this.folderStructure;
+    
+    const folders = Object.values(node.__children).map(child => ({
+      id: child.id,
+      title: child.name,
+      name: child.name,
+      size: this._calculateFolderSize(child) // Pre-calculate the total recursive size here!
+    }));
+
+    const files = node.__files || [];
+    console.log({
+      folders,
+      files,
+      currentFolderName: node.name
+    });
+    return {
+      folders,
+      files,
+      currentFolderName: node.name
+    };
+  }
+
+  async getFileRecord(id) {
+    return this.fileMap.get(id);
+  }
+
+  async getFullBase64(fileId) {
+    const file = this.fileMap.get(fileId);
+    return file ? file.fileUrl : null;
+  }
+
+  readTextSnippet(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result.substring(0, 180));
+      reader.onerror = () => resolve('');
+      reader.readAsText(file.slice(0, 300));
+    });
+  }
+}
