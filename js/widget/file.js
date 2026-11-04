@@ -1,9 +1,6 @@
 import { Widget } from './base.js';
 import { FileManager } from "./../file/file.js";
 
-/**
- * Service Adapter acting as both the file parser and folder tree state service.
- */
 class FileAdapterService {
   constructor() {
     this.folderStructure = {};
@@ -29,20 +26,17 @@ class FileAdapterService {
     let fileIdCounter = 1;
 
     for (const file of files) {
-      // Normalize backslashes to forward slashes for cross-platform support
-      const relativePath = (file.webkitRelativePath || file.name).replace(/\\/g, '/');
+      const relativePath = file.webkitRelativePath || file.name;
       const parts = relativePath.split('/');
       const fileName = parts.pop();
       
-      // Strip the browser's top-level folder prefix so contents start directly at root
-      if (parts.length > 0) {
-        parts.shift();
-      }
-
       let currentLevelNode = this.folderStructure;
 
-      // Build folder hierarchy for nested subfolders
+      // Build folder hierarchy
       for (const part of parts) {
+        if (!currentLevelNode.__children) {
+          currentLevelNode.__children = {};
+        }
         if (!currentLevelNode.__children[part]) {
           const newFolderId = `folder_${folderIdCounter++}`;
           const newFolderNode = {
@@ -96,6 +90,9 @@ class FileAdapterService {
         thumbnail: previewType === 'image' ? fileUrl : null
       };
 
+      if (!currentLevelNode.__files) {
+        currentLevelNode.__files = [];
+      }
       currentLevelNode.__files.push(fileRecord);
       this.fileMap.set(fileId, fileRecord);
     }
@@ -103,8 +100,8 @@ class FileAdapterService {
 
   _calculateFolderSize(node) {
     let totalSize = 0;
-    const children = node.__children || {};
-    const files = node.__files || [];
+    const children = (node && node.__children) || {};
+    const files = (node && node.__files) || [];
     
     for (const file of files) {
       totalSize += file.size || 0;
@@ -117,24 +114,21 @@ class FileAdapterService {
 
   async getFolderContents(folderId) {
     const node = this.nodeMap.get(folderId) || this.folderStructure;
+    const children = (node && node.__children) || {};
     
-    const folders = Object.values(node.__children).map(child => ({
+    const folders = Object.values(children).map(child => ({
       id: child.id,
       title: child.name,
       name: child.name,
-      size: this._calculateFolderSize(child) // Pre-calculate the total recursive size here!
+      size: this._calculateFolderSize(child)
     }));
 
-    const files = node.__files || [];
-    console.log({
-      folders,
-      files,
-      currentFolderName: node.name
-    });
+    const files = (node && node.__files) || [];
+    
     return {
       folders,
       files,
-      currentFolderName: node.name
+      currentFolderName: node ? node.name : 'root'
     };
   }
 
