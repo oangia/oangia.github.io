@@ -3,7 +3,7 @@ export class PhotoshopWidget extends WidgetU {
     super({
       ...options,
       floatBtn: {
-        icon: 'Ps',
+        icon: 'fa-brands Ps',
         bg: 'bg-cyan-600 hover:bg-cyan-700'
       }
     });
