@@ -1,7 +1,7 @@
 export class PdfExtractorWidget extends WidgetU {
   constructor(options = {}) {
     super({
-      ..options,
+      ...options,
       floatBtn: {
         icon: 'fa-solid fa-file-pdf',
         bg: 'bg-rose-600 hover:bg-rose-700'
