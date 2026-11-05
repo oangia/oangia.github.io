@@ -161,9 +161,6 @@ export class MediaFrameExtractorWidget extends WidgetU {
     `;
 
     document.body.appendChild(this.modal);
-
-    // 3. Bind toggle behavior using parent helper
-    this.bindToggle(this.modal, '.widget-close-btn');
   }
 
   cacheDomReferences() {
