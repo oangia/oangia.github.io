@@ -1,8 +1,12 @@
-import { Widget } from './base.js';
-
-export class GithubWidget extends Widget {
+export class GithubWidget extends WidgetU {
   constructor(options = {}) {
-    super(options);
+    super({
+      ..options,
+      floatBtn: {
+        icon: `fa-github`,
+        bg: 'bg-indigo-600 hover:bg-indigo-500'
+      }
+    });
     this.jszipUrl = options.jszipUrl || 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
     this.fontAwesomeUrl = options.fontAwesomeUrl || 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
     this.interFontUrl = options.interFontUrl || 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap';
@@ -46,13 +50,6 @@ export class GithubWidget extends Widget {
   }
 
   createUI() {
-    // 1. Create floating trigger button using parent helper
-    this.createFloatButton(
-      `<i class="fa-brands fa-github text-2xl"></i>`,
-      'bg-indigo-600 hover:bg-indigo-500'
-    );
-    this.floatBtn.ariaLabel = 'Open GitHub File Manager';
-
     // 2. Modal Drawer / Panel Container
     this.modal = document.createElement('div');
     this.modal.className =
