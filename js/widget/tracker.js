@@ -35,7 +35,7 @@ export class DailyTaskTracker extends WidgetU {
       'bg-slate-900 text-white px-4 py-3 flex justify-between items-center text-xs font-bold';
     header.innerHTML = `
       <span class="flex items-center gap-2"><i class="fa-solid fa-list-check text-rose-500"></i> Tasks Tracker</span>
-      <span class="task-popup-close cursor-pointer text-slate-400 hover:text-white text-base">&times;</span>
+      <span class="popup-close-btn cursor-pointer text-slate-400 hover:text-white text-base">&times;</span>
     `;
 
     const container = document.createElement('div');
@@ -84,9 +84,6 @@ export class DailyTaskTracker extends WidgetU {
 
     // Append pop-up to wrapper
     this.wrapper.appendChild(this.popup);
-
-    // 3. Bind toggle behavior using the parent method
-    this.bindToggle(this.popup, '.task-popup-close');
   }
 
   attachEvents() {
