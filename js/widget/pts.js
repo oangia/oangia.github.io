@@ -117,9 +117,6 @@ export class PhotoshopWidget extends WidgetU {
     `;
 
     document.body.appendChild(this.modal);
-
-    // 3. Safely bind toggle behavior using parent helper immediately
-    this.bindToggle(this.modal, '.widget-close-btn');
   }
 
   cacheDomReferences() {
