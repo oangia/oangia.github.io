@@ -159,6 +159,14 @@ class FileService {
     const type = item.type || item.mimeType || "";
     const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
 
+    //const fullBase64 = await this.getFullBase64(item.fileId || item.id);
+    //if (!fullBase64) {
+    //  return {
+    //    previewType: this._guessPreviewType(type, ext),
+    //    thumbnail: null
+    //  };
+    //}
+
     const detectedMime = this._detectMimeFromBase64(fullBase64);
 
     let previewType = "generic";
