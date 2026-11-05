@@ -1,7 +1,7 @@
 export class GithubWidget extends WidgetU {
   constructor(options = {}) {
     super({
-      ..options,
+      ...options,
       floatBtn: {
         icon: `fa-github`,
         bg: 'bg-indigo-600 hover:bg-indigo-500'
