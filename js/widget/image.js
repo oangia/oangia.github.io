@@ -3,7 +3,7 @@ export class MediaFrameExtractorWidget extends WidgetU {
     super({
       ..options,
       floatBtn: {
-        icon: `<i class="fa-solid fa-film text-xl"></i>`,
+        icon: 'fa-solid fa-film',
         bg: 'bg-purple-600 hover:bg-purple-700'
       }
     });
