@@ -26,7 +26,7 @@ class WidgetU {
     this.floatBtn = document.createElement('button');
     this.floatBtn.type = 'button';
     this.floatBtn.className = `w-14 h-14 ${bgClasses} text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer transition-all duration-200 hover:scale-105`;
-    this.floatBtn.innerHTML = `<i class="fa-brands ${icon} text-2xl"></i>`;
+    this.floatBtn.innerHTML = `<i class="${icon} text-2xl"></i>`;
 
     this.wrapper.appendChild(this.floatBtn);
   }
