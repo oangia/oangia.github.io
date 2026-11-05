@@ -1,7 +1,7 @@
 export class PhotoshopWidget extends WidgetU {
   constructor(options = {}) {
     super({
-      ..options,
+      ...options,
       floatBtn: {
         icon: `<span class="font-bold text-lg">Ps</span>`,
         bg: 'bg-cyan-600 hover:bg-cyan-700'
