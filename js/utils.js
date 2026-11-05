@@ -46,6 +46,7 @@ class WidgetU {
   
     // Event delegation on the container for any close button
     document.addEventListener('click', (e) => {
+      console.log(e.target);
       const closeBtn = e.target.closest('.widget-close-btn');
     
       // If no close button was part of the click path, exit
