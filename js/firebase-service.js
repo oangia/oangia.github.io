@@ -70,7 +70,8 @@ export class FirebaseService {
     return await deleteDoc(doc(this.db, collectionName, id));
   }
 
-  const readFileAsDataURL = (fileObj) => {
+  async uploadFile(collections, currentFolderId, file, onProgress = () => {}) {
+    const readFileAsDataURL = (fileObj) => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target.result);
