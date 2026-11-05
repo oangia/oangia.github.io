@@ -8,6 +8,10 @@ export class DailyTaskTracker extends Widget {
     },
     options = {}
   ) {
+    this.floatBtn = {
+      icon: `<i class="fa-solid fa-list-check text-xl"></i>`, 
+      bg: 'bg-rose-600 hover:bg-rose-700'
+    }
     super(options);
     this.tasks = tasks;
     this.cookieName = 'daily_tasks_status';
@@ -22,7 +26,7 @@ export class DailyTaskTracker extends Widget {
 
   createUI() {
     // 1. Let parent create the floating trigger button
-    this.createFloatButton(`<i class="fa-solid fa-list-check text-xl"></i>`, 'bg-rose-600 hover:bg-rose-700');
+    this.createFloatButton();
 
     // 2. Create the pop-up card
     this.popup = document.createElement('div');
