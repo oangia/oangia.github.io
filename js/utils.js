@@ -49,12 +49,7 @@ class WidgetU {
   
     // Event delegation on the container for any close button
     this.widgetContainer.addEventListener('click', (e) => {
-      const closeBtn = e.target.closest('.widget-close-btn');
-      if (!closeBtn) return;
-  
-      //this.popup = this.widgetContainer.querySelector(`#${this.id}`);
-      //if (!this.popup) return;
-  
+      if (!e.target.matches('.widget-close-btn')) return;
       this.popup.classList.remove('flex');
       this.popup.classList.add('hidden');
     });
