@@ -1,6 +1,4 @@
-import { Widget } from './base.js';
-
-export class PdfExtractorWidget extends Widget {
+export class PdfExtractorWidget extends WidgetU {
   constructor(options = {}) {
     super({
       ..options,
