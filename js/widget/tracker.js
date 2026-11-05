@@ -27,6 +27,7 @@ export class DailyTaskTracker extends WidgetU {
   createUI() {
     // 2. Create the pop-up card
     this.popup = document.createElement('div');
+    this.popup.id = this.id;
     this.popup.className =
       'absolute bottom-20 right-0 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 hidden flex-col z-50 overflow-hidden font-sans';
 
