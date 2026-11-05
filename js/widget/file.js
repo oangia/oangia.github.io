@@ -16,8 +16,8 @@ export class FileManagerWidget extends WidgetU {
   init() {
     this.createUI();
     this.dom = {
-      folderInputMain: this.modal.querySelector('.widget-folder-input-main'),
-      folderInputHeader: this.modal.querySelector('.widget-folder-input-header')
+      folderInputMain: this.popup.querySelector('.widget-folder-input-main'),
+      folderInputHeader: this.popup.querySelector('.widget-folder-input-header')
     };
     this.service = new FileAdapterService();
     this.fileManager = null;
@@ -25,11 +25,12 @@ export class FileManagerWidget extends WidgetU {
   }
 
   createUI() {
-    this.modal = document.createElement('div');
-    this.modal.className =
+    this.popup = document.createElement('div');
+    this.popup.id = this.id;
+    this.popup.className =
       'fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4 font-sans';
 
-    this.modal.innerHTML = `
+    this.popup.innerHTML = `
       <div class="bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden">
         
         <!-- Header -->
@@ -69,7 +70,7 @@ export class FileManagerWidget extends WidgetU {
       </div>
     `;
 
-    document.body.appendChild(this.modal);
+    document.body.appendChild(this.popup);
   }
 
   cacheDomReferences() {
