@@ -3,7 +3,7 @@ class WidgetU {
   constructor(options = {}) {
     this.id = options.id || Math.random().toString(36).substring(2, 9);
     this.createLayout();
-    this.createFloatButton(floatBtn.icon, floatBtn.bg);
+    this.createFloatButton(options.floatBtn.icon, options.floatBtn.bg);
   }
 
   createLayout() {
