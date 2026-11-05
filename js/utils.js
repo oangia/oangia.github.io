@@ -45,7 +45,7 @@ class WidgetU {
       }
     });
 
-    this.widgetContainer.querySelector('.popup_close_btn').addEventListener('click', () => {
+    this.widgetContainer.querySelector('.popup-close-btn').addEventListener('click', () => {
       this.popup = this.widgetContainer.querySelector(`#${this.id}`);
       this.popup.classList.remove('flex');
       this.popup.classList.add('hidden');
