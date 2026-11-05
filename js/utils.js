@@ -32,10 +32,12 @@ class WidgetU {
     this.wrapper.appendChild(this.floatBtn);
   }
 
-  // Shared toggle behavior for the pop-up/modal element
   _bindToggle() {
+    // Toggle popup open/closed when clicking the floating button
     this.floatBtn.addEventListener('click', () => {
       this.popup = this.widgetContainer.querySelector(`#${this.id}`);
+      if (!this.popup) return;
+  
       if (this.popup.classList.contains('hidden')) {
         this.popup.classList.remove('hidden');
         this.popup.classList.add('flex');
@@ -44,9 +46,15 @@ class WidgetU {
         this.popup.classList.add('hidden');
       }
     });
-
-    this.widgetContainer.querySelector('.widget-close-btn').addEventListener('click', () => {
+  
+    // Event delegation on the container for any close button
+    this.widgetContainer.addEventListener('click', (e) => {
+      const closeBtn = e.target.closest('.widget-close-btn');
+      if (!closeBtn) return;
+  
       this.popup = this.widgetContainer.querySelector(`#${this.id}`);
+      if (!this.popup) return;
+  
       this.popup.classList.remove('flex');
       this.popup.classList.add('hidden');
     });
