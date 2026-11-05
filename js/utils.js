@@ -35,7 +35,7 @@ class WidgetU {
   _bindToggle() {
     // Toggle popup open/closed when clicking the floating button
     this.floatBtn.addEventListener('click', () => {
-      this.popup = this.widgetContainer.querySelector(`#${this.id}`);
+      //this.popup = this.widgetContainer.querySelector(`#${this.id}`);
       if (!this.popup) return;
   
       if (this.popup.classList.contains('hidden')) {
