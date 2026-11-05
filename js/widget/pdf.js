@@ -2,7 +2,13 @@ import { Widget } from './base.js';
 
 export class PdfExtractorWidget extends Widget {
   constructor(options = {}) {
-    super(options);
+    super({
+      ..options,
+      floatBtn: {
+        icon: `<i class="fa-solid fa-file-pdf text-xl"></i>`,
+        bg: 'bg-rose-600 hover:bg-rose-700'
+      }
+    });
     this.workerSrc = options.workerSrc || 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     this.currentFile = null;
 
@@ -23,13 +29,6 @@ export class PdfExtractorWidget extends Widget {
   }
 
   createUI() {
-    // 1. Create floating trigger button using parent helper
-    this.createFloatButton(
-      `<i class="fa-solid fa-file-pdf text-xl"></i>`,
-      'bg-rose-600 hover:bg-rose-700'
-    );
-    this.floatBtn.ariaLabel = 'Open PDF Extractor';
-
     // 2. Create Modal Drawer / Panel Container
     this.modal = document.createElement('div');
     this.modal.className =
