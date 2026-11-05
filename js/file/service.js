@@ -159,13 +159,13 @@ class FileService {
     const type = item.type || item.mimeType || "";
     const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
 
-    //const fullBase64 = await this.getFullBase64(item.fileId || item.id);
-    //if (!fullBase64) {
-    //  return {
-    //    previewType: this._guessPreviewType(type, ext),
-    //    thumbnail: null
-    //  };
-    //}
+    const fullBase64 = await this.getFullBase64(item.fileId || item.id);
+    if (!fullBase64) {
+      return {
+        previewType: this._guessPreviewType(type, ext),
+        thumbnail: null
+      };
+    }
 
     const detectedMime = this._detectMimeFromBase64(fullBase64);
 
@@ -251,7 +251,7 @@ class FileService {
   }
 }
 
-export class FileManagerFirebase extends FileService{
+export class FileManagerFirebase extends FileService {
   constructor(fbService, collections = {}) {
     super();
     this.fbService = fbService;
@@ -259,6 +259,9 @@ export class FileManagerFirebase extends FileService{
       items: collections.items || "files",
       fileChunks: collections.fileChunks || "file_chunks"
     };
+
+    // Only cache metadata items for fast navigation — NO chunks cached upfront!
+    this._itemsCache = null;
   }
 
   async switch(collections) {
@@ -266,6 +269,18 @@ export class FileManagerFirebase extends FileService{
       items: collections.items || this.collections.items,
       fileChunks: collections.fileChunks || this.collections.fileChunks
     };
+    await this.refreshCache();
+  }
+
+  /** Load ONLY file/folder metadata items once. Chunks stay out of memory! */
+  async refreshCache() {
+    this._itemsCache = await this.fbService.getAll(this.collections.items);
+  }
+
+  async _ensureCache() {
+    if (!this._itemsCache) {
+      await this.refreshCache();
+    }
   }
 
   _normalizeFolder(item, parentId) {
@@ -280,14 +295,12 @@ export class FileManagerFirebase extends FileService{
     };
   }
 
-  
-
-  async _normalizeFile(item, parentId) {
+  _normalizeFile(item, parentId) {
     const title = item.title || item.name || "Untitled";
     const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
     const type = item.type || item.mimeType || "";
 
-    const base = {
+    return {
       id: item.id,
       fileId: item.fileId || item.id,
       title,
@@ -302,35 +315,25 @@ export class FileManagerFirebase extends FileService{
       previewType: item.previewType || this._guessPreviewType(type, ext),
       thumbnail: item.thumbnail || null
     };
-
-    const preview = await this._buildPreview(item);
-    return { ...base, ...preview };
   }
 
-  // ---------- READ ----------
+  // ---------- READ (Instant, zero chunk queries) ----------
   async getFolderContents(folderId = "root") {
-    const items = await this.fbService.getByField(
-      this.collections.items,
-      "parentId",
-      folderId
-    );
+    await this._ensureCache();
+
+    const items = this._itemsCache.filter(item => item.parentId === folderId);
 
     const folders = items
       .filter(item => item.isFolder === true)
       .map(item => this._normalizeFolder(item, folderId));
 
-    const fileItems = items.filter(item => !item.isFolder);
-    const files = [];
-    for (const item of fileItems) {
-      files.push(await this._normalizeFile(item, folderId));
-    }
+    const files = items
+      .filter(item => !item.isFolder)
+      .map(item => this._normalizeFile(item, folderId));
 
     let currentFolderName = "Home";
     if (folderId !== "root") {
-      const folder = await this.fbService.getById(
-        this.collections.items,
-        folderId
-      );
+      const folder = this._itemsCache.find(i => i.id === folderId);
       if (folder) {
         currentFolderName = folder.title || folder.name || "Untitled";
       }
@@ -340,13 +343,16 @@ export class FileManagerFirebase extends FileService{
   }
 
   async getFileRecord(id) {
-    const item = await this.fbService.getById(this.collections.items, id);
+    await this._ensureCache();
+    const item = this._itemsCache.find(i => i.id === id);
     if (!item) return null;
     if (item.isFolder) return this._normalizeFolder(item, item.parentId);
     return this._normalizeFile(item, item.parentId);
   }
 
+  // ---------- ON-DEMAND CHUNK FETCHING (Only when viewing/previewing a file) ----------
   async getFileChunks(fileId) {
+    // Fetches chunks from Firebase ONLY when requested for a specific file
     const chunks = await this.fbService.getByField(
       this.collections.fileChunks,
       "fileId",
@@ -362,41 +368,50 @@ export class FileManagerFirebase extends FileService{
 
   // ---------- WRITE ----------
   async createFolder(name, parentId = "root") {
-    return this.fbService.create(this.collections.items, {
+    const res = await this.fbService.create(this.collections.items, {
       title: name,
       name: name,
       isFolder: true,
       parentId,
       size: 0
     });
+    await this.refreshCache();
+    return res;
   }
 
   async uploadFile(file, parentId = "root", onProgress) {
-    return this.fbService.uploadFile(
+    const res = await this.fbService.uploadFile(
       this.collections,
       parentId,
       file,
       onProgress
     );
+    await this.refreshCache();
+    return res;
   }
 
   async deleteFolder(id) {
-    return this.fbService.delete(this.collections.items, id);
+    const res = await this.fbService.delete(this.collections.items, id);
+    await this.refreshCache();
+    return res;
   }
 
   async deleteFile(id, fileId) {
     await this.fbService.delete(this.collections.items, id);
 
+    // Clean up chunks only when deleting the specific file
     const chunks = await this.getFileChunks(fileId);
     for (const chunk of chunks) {
       await this.fbService.delete(this.collections.fileChunks, chunk.id);
     }
+    
+    await this.refreshCache();
   }
 
   // ---------- BACKUP & DOWNLOAD ----------
   async generateZipBlob() {
-    const items = await this.fbService.getAll(this.collections.items);
-    const file_chunks = await this.fbService.getAll(this.collections.fileChunks);
+    await this._ensureCache();
+    const items = this._itemsCache;
 
     if (typeof JSZip === "undefined") {
       throw new Error("JSZip is not loaded or defined in the global scope.");
@@ -422,9 +437,8 @@ export class FileManagerFirebase extends FileService{
     };
 
     for (const fileRecord of files) {
-      const chunks = file_chunks
-        .filter(c => c.fileId === fileRecord.fileId)
-        .sort((a, b) => a.partIndex - b.partIndex);
+      // Fetch chunks on-demand during backup generation
+      const chunks = await this.getFileChunks(fileRecord.fileId || fileRecord.id);
 
       const fullBase64 = chunks.map(c => c.chunkData).join("");
       const base64Data = fullBase64.includes(",")
