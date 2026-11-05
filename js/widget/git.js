@@ -57,7 +57,7 @@ export class GithubWidget extends WidgetU {
 
     this.modal.innerHTML = `
       <div class="bg-slate-900 text-slate-100 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-7xl h-[92vh] flex flex-col overflow-hidden relative">
-        <button type="button" id="gw-close-modal-btn" class="absolute top-4 right-4 z-20 text-slate-400 hover:text-white text-lg p-2 transition"><i class="fa-solid fa-xmark"></i></button>
+        <button type="button" id="gw-close-modal-btn" class="widget-close-btn absolute top-4 right-4 z-20 text-slate-400 hover:text-white text-lg p-2 transition"><i class="fa-solid fa-xmark"></i></button>
         
         <main class="flex-1 overflow-hidden p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
             
@@ -185,9 +185,6 @@ export class GithubWidget extends WidgetU {
     `;
 
     document.body.appendChild(this.modal);
-
-    // 3. Bind toggle using parent helper, and use a MutationObserver to watch when the modal opens to fetch automatically
-    this.bindToggle(this.modal, '#gw-close-modal-btn');
     this.observeModalOpen();
   }
 
@@ -209,7 +206,7 @@ export class GithubWidget extends WidgetU {
   cacheDomReferences() {
     const m = this.modal;
     this.dom = {
-      closeBtn: m.querySelector('#gw-close-modal-btn'),
+      closeBtn: m.querySelector('.widget-close-btn'),
       statusBox: m.querySelector('#gw-status-box'),
       statusSpinner: m.querySelector('#gw-status-spinner'),
       statusText: m.querySelector('#gw-status-text'),
