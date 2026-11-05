@@ -70,8 +70,7 @@ export class FirebaseService {
     return await deleteDoc(doc(this.db, collectionName, id));
   }
 
-  async uploadFile(collections, currentFolderId, file, onProgress = () => {}) {
-    const readFileAsDataURL = (fileObj) => {
+  const readFileAsDataURL = (fileObj) => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target.result);
@@ -80,7 +79,7 @@ export class FirebaseService {
       });
     };
 
-    const generateThumbnail = (base64Str, maxSize = 150) => {
+    const generateImageThumbnail = (base64Str, maxSize = 150) => {
       return new Promise((resolve) => {
         const img = new Image();
         img.src = base64Str;
@@ -98,25 +97,84 @@ export class FirebaseService {
       });
     };
 
+    const generateVideoThumbnail = (fileObj, maxSize = 150) => {
+      return new Promise((resolve) => {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.muted = true;
+        video.playsInline = true;
+
+        const objectUrl = URL.createObjectURL(fileObj);
+        video.src = objectUrl;
+
+        video.onloadeddata = () => {
+          // Seek to 0.5 seconds, or 0 if the video is shorter than 0.5s
+          video.currentTime = Math.min(0.5, video.duration || 0);
+        };
+
+        video.onseeked = () => {
+          const canvas = document.createElement("canvas");
+          let w = video.videoWidth;
+          let h = video.videoHeight;
+
+          if (!w || !h) {
+            URL.revokeObjectURL(objectUrl);
+            resolve("");
+            return;
+          }
+
+          if (w > h) {
+            h = Math.round((h * maxSize) / w);
+            w = maxSize;
+          } else {
+            w = Math.round((w * maxSize) / h);
+            h = maxSize;
+          }
+
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0, w, h);
+          
+          const thumb = canvas.toDataURL("image/jpeg", 0.6);
+          URL.revokeObjectURL(objectUrl);
+          resolve(thumb);
+        };
+
+        video.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve("");
+        };
+      });
+    };
+
     onProgress("Reading file...");
     const base64Data = await readFileAsDataURL(file);
 
     let thumbnail = "";
     if (file.type.startsWith("image/")) {
-      onProgress("Generating thumbnail...");
-      thumbnail = await generateThumbnail(base64Data, 150);
+      onProgress("Generating image thumbnail...");
+      thumbnail = await generateImageThumbnail(base64Data, 150);
+    } else if (file.type.startsWith("video/")) {
+      onProgress("Generating video thumbnail...");
+      thumbnail = await generateVideoThumbnail(file, 150);
     }
 
     const CHUNK_SIZE = 700000;
     const totalParts = Math.ceil(base64Data.length / CHUNK_SIZE);
     const fileId = "file_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5);
 
+    let category = "Media";
+    if (file.type.startsWith("image/")) category = "Image";
+    else if (file.type.startsWith("video/")) category = "Video";
+
     onProgress(`Saving file record...`);
     await this.create(collections.items, {
       fileId,
       title: file.name,
       isFolder: false,
-      category: file.type.startsWith("image/") ? "Image" : "Media",
+      category,
+      type: file.type,
       parentId: currentFolderId,
       totalParts,
       thumbnail
@@ -137,15 +195,6 @@ export class FirebaseService {
 }
 
 export class CrudManager {
-  /**
-   * @param {Object} config
-   * @param {string} config.containerSelector - CSS selector for the root container element.
-   * @param {Object} config.fbService - Instance of FirebaseService.
-   * @param {string} config.collectionName - Name of the collection / table.
-   * @param {string} [config.entityTitle="Record"] - Singular title (e.g. "Note", "Product").
-   * @param {Array}  [config.fields=[]] - Field definitions [{name, label, type, options}].
-   * @param {Function} [config.onToast] - Callback for toast notifications.
-   */
   constructor(config) {
     this.container = document.querySelector(config.containerSelector);
     if (!this.container) {
@@ -159,43 +208,25 @@ export class CrudManager {
     this.onToast = config.onToast || ((msg) => console.log(msg));
 
     this.items = [];
-    this.unsubscribe = null;
 
     this.init();
   }
 
-  init() {
+  async init() {
     this._renderLayout();
     this._bindEvents();
-    this.refresh();
+    await this.refresh();
   }
 
-  refresh() {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
+  async refresh() {
+    if (!this.fbService) return;
+    try {
+      const items = await this.fbService.getAll(this.collectionName);
+      this.renderTable(items);
+    } catch (err) {
+      console.error("Failed to fetch records:", err);
+      this.onToast(`Failed to load ${this.entityTitle.toLowerCase()}s`, "error");
     }
-
-    if (this.fbService && this.fbService.isLiveMode) {
-      this.unsubscribe = this.fbService.subscribe(this.collectionName, (data) => {
-        this.renderTable(data);
-      });
-    } else {
-      this.startLocalDemo();
-    }
-  }
-
-  startLocalDemo() {
-    const storageKey = `demo_${this.collectionName}`;
-    if (!localStorage.getItem(storageKey)) {
-      const sampleItem = { id: "demo-1", createdAt: new Date().toISOString() };
-      this.fields.forEach(f => {
-        sampleItem[f.name] = `Sample ${f.label}`;
-      });
-      localStorage.setItem(storageKey, JSON.stringify([sampleItem]));
-    }
-    const localData = this.fbService ? this.fbService.getLocal(this.collectionName) : [];
-    this.renderTable(localData);
   }
 
   renderTable(items = []) {
@@ -355,11 +386,8 @@ export class CrudManager {
         this.onToast(`${this.entityTitle} created successfully!`, "success");
       }
 
-      if (!this.fbService.isLiveMode) {
-        this.startLocalDemo();
-      }
-
       modal.classList.add("hidden");
+      await this.refresh();
     });
 
     const tbody = this.container.querySelector("#crudTableBody");
@@ -387,9 +415,7 @@ export class CrudManager {
         if (!confirm(`Are you sure you want to delete this ${this.entityTitle.toLowerCase()}?`)) return;
         await this.fbService.delete(this.collectionName, id);
         this.onToast(`${this.entityTitle} deleted!`, "success");
-        if (!this.fbService.isLiveMode) {
-          this.startLocalDemo();
-        }
+        await this.refresh();
       }
     });
 
@@ -415,7 +441,6 @@ export class CrudManager {
   }
 
   destroy() {
-    if (this.unsubscribe) this.unsubscribe();
     this.container.innerHTML = "";
   }
 }
