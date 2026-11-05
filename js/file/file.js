@@ -1,4 +1,4 @@
-import { FilePreviewComponent } from "./preview";
+import { FilePreviewComponent } from "./preview.js";
 
 export class FileManager {
   constructor(config = {}) {
