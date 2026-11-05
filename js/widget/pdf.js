@@ -3,7 +3,7 @@ export class PdfExtractorWidget extends WidgetU {
     super({
       ..options,
       floatBtn: {
-        icon: `<i class="fa-solid fa-file-pdf text-xl"></i>`,
+        icon: 'fa-solid fa-file-pdf',
         bg: 'bg-rose-600 hover:bg-rose-700'
       }
     });
