@@ -1,4 +1,62 @@
 class Cookie{static set(e,t,o=30){const n=new Date;n.setTime(n.getTime()+24*o*60*60*1e3),document.cookie=`${e}=${encodeURIComponent(t)};expires=${n.toUTCString()};path=/;SameSite=Strict`}static get(e){const t=e+"=",o=document.cookie.split(";");for(let e=0;e<o.length;e++){let n=o[e].trim();if(0===n.indexOf(t))return decodeURIComponent(n.substring(t.length))}return null}static erase(e){document.cookie=`${e}=; Max-Age=-99999999; path=/;`}}
+class Widget {
+  constructor(options = {}) {
+    this.id = options.id || Math.random().toString(36).substring(2, 9);
+    this.createLayout();
+    this.createFloatButton(floatBtn.icon, floatBtn.bg);
+  }
+
+  createLayout() {
+    let container = document.getElementById('floating-widgets-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'floating-widgets-container';
+      container.className = 'fixed bottom-6 right-6 flex flex-col items-end gap-3 z-50 font-sans';
+      document.body.appendChild(container);
+    }
+    this.widgetContainer = container;
+
+    this.wrapper = document.createElement('div');
+    this.wrapper.className = 'relative flex flex-col items-end';
+    this.widgetContainer.appendChild(this.wrapper);
+  }
+
+  // Parent handles creating the trigger button and shared toggle logic
+  createFloatButton(iconHtml, bgClasses = 'bg-rose-600 hover:bg-rose-700') {
+    this.floatBtn = document.createElement('button');
+    this.floatBtn.type = 'button';
+    this.floatBtn.className = `w-14 h-14 ${bgClasses} text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer transition-all duration-200 hover:scale-105`;
+    this.floatBtn.innerHTML = iconHtml;
+
+    this.wrapper.appendChild(this.floatBtn);
+  }
+
+  // Shared toggle behavior for the pop-up/modal element
+  bindToggle(popupElement, closeSelector = null) {
+    this.popup = popupElement;
+
+    this.floatBtn.addEventListener('click', () => {
+      if (this.popup.classList.contains('hidden')) {
+        this.popup.classList.remove('hidden');
+        this.popup.classList.add('flex');
+      } else {
+        this.popup.classList.remove('flex');
+        this.popup.classList.add('hidden');
+      }
+    });
+
+    if (closeSelector) {
+      const closeBtn = this.popup.querySelector(closeSelector);
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          this.popup.classList.remove('flex');
+          this.popup.classList.add('hidden');
+        });
+      }
+    }
+  }
+}
+
 class Toast{static ensureDOM(){if(document.getElementById("toastContainer"))return;document.body.insertAdjacentHTML("beforeend",'<div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>')}static show(e,t="info"){Toast.ensureDOM();let s=document.getElementById("toastContainer");if(!s)return;const a=document.createElement("div"),o={success:"bg-emerald-600",error:"bg-red-600",info:"bg-slate-900"};a.className=`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-xs font-medium text-white ${o[t]||o.info} transition-all transform translate-y-2 opacity-0 pointer-events-auto`,a.innerHTML=`<i class="fa-solid fa-circle-info text-base"></i> <span>${e}</span>`,s.appendChild(a),requestAnimationFrame(()=>a.classList.remove("translate-y-2","opacity-0")),setTimeout(()=>{a.classList.add("opacity-0","translate-y-2"),setTimeout(()=>a.remove(),300)},3e3)}static success(e){Toast.show(e,"success")}static error(e){Toast.show(e,"error")}static info(e){Toast.show(e,"info")}}
 class Sidebar {
   /**
