@@ -4,6 +4,7 @@ class WidgetU {
     this.id = options.id || Math.random().toString(36).substring(2, 9);
     this._createLayout();
     this._createFloatButton(options.floatBtn.icon, options.floatBtn.bg);
+    this._bindToggle();
   }
 
   _createLayout() {
@@ -32,10 +33,9 @@ class WidgetU {
   }
 
   // Shared toggle behavior for the pop-up/modal element
-  bindToggle(popupElement, closeSelector = null) {
-    this.popup = popupElement;
-
+  _bindToggle() {
     this.floatBtn.addEventListener('click', () => {
+      this.popup = this.widgetContainer.querySelector(`#${this.id}`);
       if (this.popup.classList.contains('hidden')) {
         this.popup.classList.remove('hidden');
         this.popup.classList.add('flex');
@@ -45,15 +45,11 @@ class WidgetU {
       }
     });
 
-    if (closeSelector) {
-      const closeBtn = this.popup.querySelector(closeSelector);
-      if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-          this.popup.classList.remove('flex');
-          this.popup.classList.add('hidden');
-        });
-      }
-    }
+    this.widgetContainer.querySelector('.popup_close_btn').addEventListener('click', () => {
+      this.popup = this.widgetContainer.querySelector(`#${this.id}`);
+      this.popup.classList.remove('flex');
+      this.popup.classList.add('hidden');
+    });
   }
 }
 
