@@ -35,7 +35,7 @@ export class DailyTaskTracker extends WidgetU {
       'bg-slate-900 text-white px-4 py-3 flex justify-between items-center text-xs font-bold';
     header.innerHTML = `
       <span class="flex items-center gap-2"><i class="fa-solid fa-list-check text-rose-500"></i> Tasks Tracker</span>
-      <span class="popup-close-btn cursor-pointer text-slate-400 hover:text-white text-base">&times;</span>
+      <span class="widget-close-btn cursor-pointer text-slate-400 hover:text-white text-base">&times;</span>
     `;
 
     const container = document.createElement('div');
@@ -51,7 +51,7 @@ export class DailyTaskTracker extends WidgetU {
         'text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-1';
       sectionTitle.textContent = section;
 
-      const ul = document.createElement('ul');
+      const ul = document.createElemepopup_close_btnnt('ul');
       ul.className = 'space-y-1';
 
       taskList.forEach((taskItem) => {
