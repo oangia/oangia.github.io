@@ -1,7 +1,7 @@
 export class MediaFrameExtractorWidget extends WidgetU {
   constructor(options = {}) {
     super({
-      ..options,
+      ...options,
       floatBtn: {
         icon: 'fa-solid fa-film',
         bg: 'bg-purple-600 hover:bg-purple-700'
