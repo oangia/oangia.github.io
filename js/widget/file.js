@@ -1,10 +1,15 @@
-import { Widget } from './base.js';
 import { FileManager } from "./../file/file.js";
 import { FileAdapterService } from "./../file/service.js";
 
-export class FileManagerWidget extends Widget {
+export class FileManagerWidget extends WidgetU {
   constructor(options = {}) {
-    super(options);
+    super({
+      ..options,
+      floatBtn: {
+        icon: 'fa-solid fa-folder-open',
+        bg: 'bg-blue-600 hover:bg-blue-700'
+      }
+    });
     this.init();
   }
 
@@ -20,12 +25,6 @@ export class FileManagerWidget extends Widget {
   }
 
   createUI() {
-    this.createFloatButton(
-      `<i class="fa-solid fa-folder-open text-xl"></i>`,
-      'bg-blue-600 hover:bg-blue-700'
-    );
-    this.floatBtn.ariaLabel = 'Open Folder Manager';
-
     this.modal = document.createElement('div');
     this.modal.className =
       'fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4 font-sans';
