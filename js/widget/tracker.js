@@ -6,11 +6,13 @@ export class DailyTaskTracker extends WidgetU {
     },
     options = {}
   ) {
-    this.floatBtn = {
-      icon: `<i class="fa-solid fa-list-check text-xl"></i>`, 
-      bg: 'bg-rose-600 hover:bg-rose-700'
-    }
-    super(options);
+    super({
+      ...options,
+      floatBtn: {
+        icon: `<i class="fa-solid fa-list-check text-xl"></i>`,
+        bg: 'bg-rose-600 hover:bg-rose-700'
+      }
+    });
     this.tasks = tasks;
     this.cookieName = 'daily_tasks_status';
     this.init();
