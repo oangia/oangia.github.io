@@ -1,6 +1,4 @@
-import { Widget } from './base.js';
-
-export class DailyTaskTracker extends Widget {
+export class DailyTaskTracker extends WidgetU {
   constructor(
     tasks = {
       Basic: ['Exercises', { name: 'Reading', type: 'weekly' }, 'Learn an expression', 'Diet'],
@@ -25,9 +23,6 @@ export class DailyTaskTracker extends Widget {
   }
 
   createUI() {
-    // 1. Let parent create the floating trigger button
-    this.createFloatButton();
-
     // 2. Create the pop-up card
     this.popup = document.createElement('div');
     this.popup.className =
