@@ -1,5 +1,5 @@
 class Cookie{static set(e,t,o=30){const n=new Date;n.setTime(n.getTime()+24*o*60*60*1e3),document.cookie=`${e}=${encodeURIComponent(t)};expires=${n.toUTCString()};path=/;SameSite=Strict`}static get(e){const t=e+"=",o=document.cookie.split(";");for(let e=0;e<o.length;e++){let n=o[e].trim();if(0===n.indexOf(t))return decodeURIComponent(n.substring(t.length))}return null}static erase(e){document.cookie=`${e}=; Max-Age=-99999999; path=/;`}}
-class Widget {
+class WidgetU {
   constructor(options = {}) {
     this.id = options.id || Math.random().toString(36).substring(2, 9);
     this.createLayout();
