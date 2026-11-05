@@ -52,8 +52,8 @@ class WidgetU {
       const closeBtn = e.target.closest('.widget-close-btn');
       if (!closeBtn) return;
   
-      this.popup = this.widgetContainer.querySelector(`#${this.id}`);
-      if (!this.popup) return;
+      //this.popup = this.widgetContainer.querySelector(`#${this.id}`);
+      //if (!this.popup) return;
   
       this.popup.classList.remove('flex');
       this.popup.classList.add('hidden');
