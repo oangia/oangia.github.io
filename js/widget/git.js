@@ -3,7 +3,7 @@ export class GithubWidget extends WidgetU {
     super({
       ...options,
       floatBtn: {
-        icon: `fa-github`,
+        icon: 'fa-brands fa-github',
         bg: 'bg-indigo-600 hover:bg-indigo-500'
       }
     });
