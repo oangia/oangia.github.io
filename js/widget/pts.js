@@ -1,8 +1,12 @@
-import { Widget } from './base.js';
-
-export class PhotoshopWidget extends Widget {
+export class PhotoshopWidget extends WidgetU {
   constructor(options = {}) {
-    super(options);
+    super({
+      ..options,
+      floatBtn: {
+        icon: `<span class="font-bold text-lg">Ps</span>`,
+        bg: 'bg-cyan-600 hover:bg-cyan-700'
+      }
+    });
     this.cropperCssUrl = options.cropperCssUrl || 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css';
     this.cropperJsUrl = options.cropperJsUrl || 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js';
     this.initialImageUrl = options.initialImageUrl || 'https://images.unsplash.com/photo-1575936123452-b67c3203c357?auto=format&fit=crop&w=800&q=80';
@@ -49,13 +53,6 @@ export class PhotoshopWidget extends Widget {
   }
 
   createUI() {
-    // 1. Create floating trigger button using parent helper
-    this.createFloatButton(
-      `<span class="font-bold text-lg">Ps</span>`,
-      'bg-cyan-600 hover:bg-cyan-700'
-    );
-    this.floatBtn.ariaLabel = 'Open Photoshop Web';
-
     // 2. Modal Drawer / Panel Container
     this.modal = document.createElement('div');
     this.modal.className =
