@@ -35,11 +35,6 @@ class WidgetU {
   _bindToggle() {
     // Toggle popup open/closed when clicking the floating button
     this.floatBtn.addEventListener('click', () => {
-      const closeBtn = e.target.closest('.widget-close-btn');
-    
-      // If no close button was part of the click path, exit
-      if (!closeBtn) return;
-  
       if (this.popup.classList.contains('hidden')) {
         this.popup.classList.remove('hidden');
         this.popup.classList.add('flex');
@@ -51,7 +46,10 @@ class WidgetU {
   
     // Event delegation on the container for any close button
     this.widgetContainer.addEventListener('click', (e) => {
-      if (!e.target.matches('.widget-close-btn')) return;
+      const closeBtn = e.target.closest('.widget-close-btn');
+    
+      // If no close button was part of the click path, exit
+      if (!closeBtn) return;
       this.popup.classList.remove('flex');
       this.popup.classList.add('hidden');
     });
