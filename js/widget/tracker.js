@@ -51,7 +51,7 @@ export class DailyTaskTracker extends WidgetU {
         'text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-1';
       sectionTitle.textContent = section;
 
-      const ul = document.createElemepopup_close_btnnt('ul');
+      const ul = document.createElement('ul');
       ul.className = 'space-y-1';
 
       taskList.forEach((taskItem) => {
