@@ -4,7 +4,7 @@ import { FileAdapterService } from "./../file/service.js";
 export class FileManagerWidget extends WidgetU {
   constructor(options = {}) {
     super({
-      ..options,
+      ...options,
       floatBtn: {
         icon: 'fa-solid fa-folder-open',
         bg: 'bg-blue-600 hover:bg-blue-700'
