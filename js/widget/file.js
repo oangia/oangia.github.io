@@ -70,7 +70,6 @@ export class FileManagerWidget extends WidgetU {
     `;
 
     document.body.appendChild(this.modal);
-    this.bindToggle(this.modal, '.widget-close-btn');
   }
 
   cacheDomReferences() {
