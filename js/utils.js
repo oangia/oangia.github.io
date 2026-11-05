@@ -2,11 +2,11 @@ class Cookie{static set(e,t,o=30){const n=new Date;n.setTime(n.getTime()+24*o*60
 class WidgetU {
   constructor(options = {}) {
     this.id = options.id || Math.random().toString(36).substring(2, 9);
-    this.createLayout();
-    this.createFloatButton(options.floatBtn.icon, options.floatBtn.bg);
+    this._createLayout();
+    this._createFloatButton(options.floatBtn.icon, options.floatBtn.bg);
   }
 
-  createLayout() {
+  _createLayout() {
     let container = document.getElementById('floating-widgets-container');
     if (!container) {
       container = document.createElement('div');
@@ -22,11 +22,11 @@ class WidgetU {
   }
 
   // Parent handles creating the trigger button and shared toggle logic
-  createFloatButton(iconHtml, bgClasses = 'bg-rose-600 hover:bg-rose-700') {
+  _createFloatButton(icon, bgClasses = 'bg-rose-600 hover:bg-rose-700') {
     this.floatBtn = document.createElement('button');
     this.floatBtn.type = 'button';
     this.floatBtn.className = `w-14 h-14 ${bgClasses} text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer transition-all duration-200 hover:scale-105`;
-    this.floatBtn.innerHTML = iconHtml;
+    this.floatBtn.innerHTML = `<i class="fa-brands ${icon} text-2xl"></i>`;
 
     this.wrapper.appendChild(this.floatBtn);
   }
