@@ -1,8 +1,12 @@
-import { Widget } from './base.js';
-
-export class MediaFrameExtractorWidget extends Widget {
+export class MediaFrameExtractorWidget extends WidgetU {
   constructor(options = {}) {
-    super(options);
+    super({
+      ..options,
+      floatBtn: {
+        icon: `<i class="fa-solid fa-film text-xl"></i>`,
+        bg: 'bg-purple-600 hover:bg-purple-700'
+      }
+    });
     this.omggifWorkerSrc = options.omggifWorkerSrc || 'https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js';
     this.currentFile = null;
     this.currentThumbSize = 'md';
@@ -28,13 +32,6 @@ export class MediaFrameExtractorWidget extends Widget {
   }
 
   createUI() {
-    // 1. Create floating trigger button using parent helper
-    this.createFloatButton(
-      `<i class="fa-solid fa-film text-xl"></i>`,
-      'bg-purple-600 hover:bg-purple-700'
-    );
-    this.floatBtn.ariaLabel = 'Open Frame Extractor';
-
     // 2. Create Modal Drawer / Panel Container
     this.modal = document.createElement('div');
     this.modal.className =
