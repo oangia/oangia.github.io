@@ -9,7 +9,7 @@ export class DailyTaskTracker extends WidgetU {
     super({
       ...options,
       floatBtn: {
-        icon: `<i class="fa-solid fa-list-check text-xl"></i>`,
+        icon: 'fa-solid fa-list-check',
         bg: 'bg-rose-600 hover:bg-rose-700'
       }
     });
