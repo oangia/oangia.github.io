@@ -1,9 +1,15 @@
 export class DailyTaskTracker extends WidgetU {
   constructor(
     tasks = {
-      Basic: ['Exercises', { name: 'Reading', type: 'weekly' }, 'Learn an expression', 'Diet'],
+      Basic: [
+        'Exercises', 
+        { name: 'Reading', type: 'weekly', desc: 'Read at least 1 chapter of a book' }, 
+        'Learn an expression', 
+        'Diet'
+      ],
       Music: ['Learn songs', 'Practice singing']
     },
+    title = 'Tasks Tracker',
     options = {}
   ) {
     super({
@@ -13,6 +19,7 @@ export class DailyTaskTracker extends WidgetU {
         bg: 'bg-rose-600 hover:bg-rose-700'
       }
     });
+    this.title = title;
     this.tasks = tasks;
     this.cookieName = 'daily_tasks_status';
     this.init();
@@ -25,7 +32,7 @@ export class DailyTaskTracker extends WidgetU {
   }
 
   createUI() {
-    // 2. Create the pop-up card
+    // Create the pop-up card
     this.popup = document.createElement('div');
     this.popup.id = this.id;
     this.popup.className =
@@ -35,7 +42,10 @@ export class DailyTaskTracker extends WidgetU {
     header.className =
       'bg-slate-900 text-white px-4 py-3 flex justify-between items-center text-xs font-bold';
     header.innerHTML = `
-      <span class="flex items-center gap-2"><i class="fa-solid fa-list-check text-rose-500"></i> Tasks Tracker</span>
+      <span class="flex items-center gap-2">
+        <i class="fa-solid fa-list-check text-rose-500"></i>
+        <span>${this.title}</span>
+      </span>
       <span class="widget-close-btn cursor-pointer text-slate-400 hover:text-white text-base">&times;</span>
     `;
 
@@ -56,20 +66,26 @@ export class DailyTaskTracker extends WidgetU {
       ul.className = 'space-y-1';
 
       taskList.forEach((taskItem) => {
-        // Handle both string format (daily) and object format ({ name, type })
+        // Handle string format or object format ({ name, type, desc })
         const taskName = typeof taskItem === 'string' ? taskItem : taskItem.name;
         const taskType = typeof taskItem === 'string' ? 'daily' : (taskItem.type || 'daily');
+        const taskDesc = typeof taskItem === 'object' && taskItem.desc ? taskItem.desc : '';
 
         const id = `task-${this.id}-${taskIndex++}`;
         const li = document.createElement('li');
         li.className =
-          'flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition cursor-pointer';
+          'flex items-start justify-between p-2 rounded-xl hover:bg-slate-50 transition cursor-pointer';
+        
         li.innerHTML = `
-          <div class="flex items-center gap-3">
-            <input type="checkbox" id="${id}" data-task="${taskName}" data-type="${taskType}" class="w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500 cursor-pointer">
-            <label for="${id}" class="text-xs font-medium text-slate-700 cursor-pointer select-none">
-              ${taskName} ${taskType === 'weekly' ? '<span class="text-[9px] text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded ml-1">Weekly</span>' : ''}
-            </label>
+          <div class="flex items-start gap-3 w-full">
+            <input type="checkbox" id="${id}" data-task="${taskName}" data-type="${taskType}" class="mt-0.5 w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500 cursor-pointer">
+            <div class="flex flex-col flex-grow">
+              <label for="${id}" class="text-xs font-medium text-slate-700 cursor-pointer select-none flex items-center flex-wrap gap-1">
+                <span>${taskName}</span>
+                ${taskType === 'weekly' ? '<span class="text-[9px] text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">Weekly</span>' : ''}
+              </label>
+              ${taskDesc ? `<span class="text-[10px] text-slate-400 mt-0.5">${taskDesc}</span>` : ''}
+            </div>
           </div>
         `;
         ul.appendChild(li);
@@ -111,7 +127,6 @@ export class DailyTaskTracker extends WidgetU {
   saveState() {
     const checkboxes = this.popup.querySelectorAll('input[type="checkbox"]');
     
-    // Load existing state from cookie first so we don't wipe out daily when saving weekly, or vice versa
     let existingData = {};
     const cookieValue = this.getCookie(this.cookieName);
     if (cookieValue) {
@@ -126,7 +141,6 @@ export class DailyTaskTracker extends WidgetU {
     const currentDailyDate = this.getTodayDateString();
     const currentWeekKey = this.getWeekKey();
 
-    // Reset or initialize if date/week changed
     const savedDailyDate = existingData.dailyDate;
     const savedWeekKey = existingData.weekKey;
 
