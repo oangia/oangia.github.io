@@ -11,7 +11,6 @@ new PdfExtractorWidget();
 new FileManagerWidget();
 new GithubWidget();
 new DailyTaskTracker({
-  Music: ['Learn/write songs', 'Practice singing'],
-  Basic: ['Exercises', 'Learn an expression', { name: 'Reading', type: 'weekly' }],
-  Diet: ['OMAD', 'Drink water 2l']
+  Music: ['Learn/write songs', 'Practice singing', 'Exercises'],
+  Weekly: [{ name: 'Reading', type: 'weekly' }, { name: 'Learn an expression', type: 'weekly' }]
 });
