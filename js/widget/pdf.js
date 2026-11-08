@@ -27,12 +27,10 @@ export class PdfExtractorWidget extends WidgetU {
   }
 
   createUI() {
-    // 2. Create Modal Drawer / Panel Container
-    this.modal = document.createElement('div');
-    this.modal.className =
+    this.popup.className =
       'fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4 font-sans';
 
-    this.modal.innerHTML = `
+    this.popup.innerHTML = `
       <div class="bg-slate-100 text-slate-800 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
         
         <!-- Header / Toolbar -->
@@ -130,11 +128,11 @@ export class PdfExtractorWidget extends WidgetU {
       </div>
     `;
 
-    document.body.appendChild(this.modal);
+    document.body.appendChild(this.popup);
   }
 
   cacheDomReferences() {
-    const m = this.modal;
+    const m = this.popup;
     this.dom = {
       closeBtn: m.querySelector('.widget-close-btn'),
       fileInput: m.querySelector('.widget-pdf-upload'),
@@ -209,7 +207,7 @@ export class PdfExtractorWidget extends WidgetU {
   }
 
   getSelectedMode() {
-    return this.modal.querySelector('input[name="widgetExtractMode"]:checked').value;
+    return this.popup.querySelector('input[name="widgetExtractMode"]:checked').value;
   }
 
   updateModeUI(mode) {
