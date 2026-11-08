@@ -2,6 +2,8 @@ class Cookie{static set(e,t,o=30){const n=new Date;n.setTime(n.getTime()+24*o*60
 class WidgetU {
   constructor(options = {}) {
     this.id = options.id || Math.random().toString(36).substring(2, 9);
+    this.popup = document.createElement('div');
+    this.popup.id = this.id;
     this._createMenuLayout();
     this._addFloatButton(options.floatBtn.icon, options.floatBtn.bg);
     this._bindToggle();
@@ -45,7 +47,7 @@ class WidgetU {
     });
   
     // Event delegation on the container for any close button
-    document.addEventListener('click', (e) => {
+    this.popup.addEventListener('click', (e) => {
       console.log(e.target);
       const closeBtn = e.target.closest('.widget-close-btn');
     
