@@ -32,6 +32,17 @@ export class FileManager {
       onSaveTextFile: () => this.saveTextFile(),
       onUploadFiles: (files) => this.uploadFiles(files, this.currentFolderId)
     });
+    document.addEventListener("click", async (e) => {
+      const targetBtn = e.target.closest(`#${"backupDataBtn"}`);
+      if (!targetBtn) return;
+      Toast.show("Preparing ZIP backup...", "info");
+      try {
+        await this.fileManager.service.downloadBackup();
+        Toast.show("ZIP backup downloaded successfully!", "success");
+      } catch (err) {
+        Toast.show(`Failed to generate ZIP: ${err.message}`, "error");
+      }
+    });
   }
 
   init() {
