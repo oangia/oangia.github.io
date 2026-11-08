@@ -66,13 +66,13 @@
     const collectionConfigs = {
       file: {
         title: "File Manager - File",
-        filesCollection: "book_files",
-        fileChunksCollection: "book_file_chunks"
+        items: "book_files",
+        fileChunks: "book_file_chunks"
       },
       memo: {
         title: "File Manager - Memo",
-        filesCollection: "memo_files",
-        fileChunksCollection: "memo_file_chunks"
+        items: "memo_files",
+        fileChunks: "memo_file_chunks"
       }
     };
 
@@ -91,10 +91,7 @@
         document.getElementById("appContent").innerHTML = `<div id="fileManagerApp" class="w-full h-full flex flex-col"></div>`;
         fileManager.containerId = "fileManagerApp";
         fileManager.init();
-        fileManager.switch({
-          items: config.filesCollection,
-          fileChunks: config.fileChunksCollection
-        });
+        fileManager.switch(config);
         window.fileManager = fileManager;
       }
     }
