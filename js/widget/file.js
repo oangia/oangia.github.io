@@ -64,22 +64,20 @@ export class FileManagerWidget extends WidgetU {
   }
 
   attachEvents() {
-    const handleSelect = async (e) => {
-      if (this.fileManager == null) {
-        this.fileManager = new FileManager({
-          containerId: 'widget-browser-wrapper',
-          service: this.service
-        });
-        this.fileManager.init();
-      }
-      const files = e.target.files;
-      if (!files || files.length === 0) return;
-      console.log(files);
-      await this.fileManager.switch(files);
-      console.log(`Loaded ${files.length} items successfully via service switch!`);
-    };
-
-    this.popup.querySelector('.widget-folder-input-main').addEventListener('change', handleSelect);
-    this.popup.querySelector('.widget-folder-input-header').addEventListener('change', handleSelect);
+    this.popup.querySelector('.widget-folder-input-main, .widget-folder-input-header')
+      .addEventListener('change', async (e) => {
+        if (this.fileManager == null) {
+          this.fileManager = new FileManager({
+            containerId: 'widget-browser-wrapper',
+            service: this.service
+          });
+          this.fileManager.init();
+        }
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+        console.log(files);
+        await this.fileManager.switch(files);
+        console.log(`Loaded ${files.length} items successfully via service switch!`);
+    });
   }
 }
