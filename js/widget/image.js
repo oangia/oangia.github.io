@@ -33,11 +33,10 @@ export class MediaFrameExtractorWidget extends WidgetU {
 
   createUI() {
     // 2. Create Modal Drawer / Panel Container
-    this.modal = document.createElement('div');
-    this.modal.className =
+    this.popup.className =
       'fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4 font-sans';
 
-    this.modal.innerHTML = `
+    this.popup.innerHTML = `
       <div class="bg-slate-100 text-slate-800 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden">
         <!-- Header / Toolbar -->
         <div class="bg-white px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4 shrink-0">
@@ -160,11 +159,11 @@ export class MediaFrameExtractorWidget extends WidgetU {
       </div>
     `;
 
-    document.body.appendChild(this.modal);
+    document.body.appendChild(this.popup);
   }
 
   cacheDomReferences() {
-    const m = this.modal;
+    const m = this.popup;
     this.dom = {
       closeBtn: m.querySelector('.widget-close-btn'),
       mediaInput: m.querySelector('.widget-media-input'),
@@ -193,8 +192,8 @@ export class MediaFrameExtractorWidget extends WidgetU {
   }
 
   attachEvents() {
-    this.modal.addEventListener('click', (e) => {
-      if (e.target === this.modal) this.closeModal();
+    this.popup.addEventListener('click', (e) => {
+      if (e.target === this.popup) this.closeModal();
     });
 
     this.dom.frameCountInput.addEventListener('input', (e) => {
@@ -242,13 +241,13 @@ export class MediaFrameExtractorWidget extends WidgetU {
   // Override close/open modal if custom cleanup is needed, or rely on bindToggle.
   // We can also alias openModal/closeModal explicitly for internal methods:
   openModal() {
-    this.modal.classList.remove('hidden');
-    this.modal.classList.add('flex');
+    this.popup.classList.remove('hidden');
+    this.popup.classList.add('flex');
   }
 
   closeModal() {
-    this.modal.classList.remove('flex');
-    this.modal.classList.add('hidden');
+    this.popup.classList.remove('flex');
+    this.popup.classList.add('hidden');
   }
 
   updateGridSizeClass() {
