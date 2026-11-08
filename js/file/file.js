@@ -20,7 +20,23 @@ export class FileManager {
 
   init() {
     this._mountUI();
-    this._bindEvents();
+    FileManagerUI.bindEvents(this.container, {
+      isEditableFile: (filename) => this.isEditableFile(filename),
+      onBack: () => this.navigateUp(),
+      onNavigate: (id) => this.navigateToFolder(id),
+      onView: (id, fileId) => this.viewFile(id, fileId),
+      onContextMenuTrigger: (target) => { this.contextTarget = target; },
+      onCtxEdit: () => { if (this.contextTarget) this.openTextEditorForEdit(this.contextTarget); },
+      onCtxDelete: () => { if (this.contextTarget) this.deleteItem(this.contextTarget); },
+      onCtxDownload: () => { if (this.contextTarget && this.contextTarget.type === "file") this.downloadFile(this.contextTarget); },
+      onCreateFolder: (name) => this.createFolder(name, this.currentFolderId),
+      onOpenTextCreate: () => {
+        this.editingFileTarget = null;
+        this.openTextEditorForCreate();
+      },
+      onSaveTextFile: () => this.saveTextFile(),
+      onUploadFiles: (files) => this.uploadFiles(files, this.currentFolderId)
+    });
     this.loadCurrentFolder();
   }
 
@@ -266,111 +282,5 @@ export class FileManager {
 
     const fullBase64 = await this.service.getFullBase64(fileRecord.fileId);
     this.previewer.render(fileRecord, fullBase64);
-  }
-
-  _bindEvents() {
-    document.addEventListener("click", () => {
-      FileManagerUI.hideContextMenu();
-    });
-
-    this.container.querySelector("#backBtn")?.addEventListener("click", () => {
-      this.navigateUp();
-    });
-
-    this.container.addEventListener("click", (e) => {
-      const target = e.target.closest("[data-action]");
-      if (!target) return;
-
-      const action = target.dataset.action;
-      const id = target.dataset.id;
-      const fileId = target.dataset.fileId;
-
-      if (action === "navigate") {
-        this.navigateToFolder(id);
-      } else if (action === "view") {
-        this.viewFile(id, fileId);
-      }
-    });
-
-    this.container.addEventListener("contextmenu", (e) => {
-      const target = e.target.closest("[data-context]");
-      if (!target) return;
-
-      e.preventDefault();
-      const type = target.dataset.context;
-      const id = target.dataset.contextId;
-      const fileId = target.dataset.fileId || null;
-      const fileName = target.dataset.fileName || "";
-
-      this.contextTarget = { type, id, fileId, fileName };
-
-      const isFile = type === "file";
-      const isEditable = isFile && this.isEditableFile(fileName);
-      FileManagerUI.showContextMenu(e.clientY, e.clientX, isFile, isEditable);
-    });
-
-    document.getElementById("ctxEditBtn")?.addEventListener("click", () => {
-      if (!this.contextTarget) return;
-      this.openTextEditorForEdit(this.contextTarget);
-      FileManagerUI.hideContextMenu();
-    });
-
-    document.getElementById("ctxDeleteBtn")?.addEventListener("click", () => {
-      if (!this.contextTarget) return;
-      this.deleteItem(this.contextTarget);
-      FileManagerUI.hideContextMenu();
-    });
-
-    document.getElementById("ctxDownloadBtn")?.addEventListener("click", () => {
-      if (!this.contextTarget || this.contextTarget.type !== "file") return;
-      this.downloadFile(this.contextTarget);
-      FileManagerUI.hideContextMenu();
-    });
-
-    this.container.querySelector("#openFolderModalBtn")?.addEventListener("click", () => {
-      FileManagerUI.setFolderNameInputValue("");
-      FileManagerUI.showFolderModal();
-    });
-    document.getElementById("cancelFolderBtn")?.addEventListener("click", () => {
-      FileManagerUI.hideFolderModal();
-    });
-    document.getElementById("submitFolderBtn")?.addEventListener("click", () => {
-      const name = FileManagerUI.getFolderNameInputValue();
-      if (!name) return;
-      this.createFolder(name, this.currentFolderId);
-      FileManagerUI.hideFolderModal();
-    });
-
-    this.container.querySelector("#openTextModalBtn")?.addEventListener("click", () => {
-      this.editingFileTarget = null;
-      this.openTextEditorForCreate();
-    });
-    document.getElementById("closeTextModalBtn")?.addEventListener("click", () => {
-      FileManagerUI.hideTextEditorModal();
-    });
-    document.getElementById("cancelTextBtn")?.addEventListener("click", () => {
-      FileManagerUI.hideTextEditorModal();
-    });
-    document.getElementById("submitTextBtn")?.addEventListener("click", () => {
-      this.saveTextFile();
-    });
-
-    this.container.querySelector("#openCreateModalBtn")?.addEventListener("click", () => {
-      FileManagerUI.resetFileForm();
-      FileManagerUI.showFileModal();
-    });
-    document.getElementById("closeFileModalBtn")?.addEventListener("click", () => {
-      FileManagerUI.hideFileModal();
-    });
-    document.getElementById("cancelFileBtn")?.addEventListener("click", () => {
-      FileManagerUI.hideFileModal();
-    });
-    document.getElementById("createFileForm")?.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const files = FileManagerUI.getFileInputFiles();
-      if (!files?.length) return;
-      this.uploadFiles(files, this.currentFolderId);
-      FileManagerUI.hideFileModal();
-    });
   }
 }
