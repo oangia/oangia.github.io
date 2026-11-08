@@ -4,25 +4,20 @@ import { FileManagerFirebase } from "./service.js";
 export class FileManagerWrapper {
   constructor(config = {}) {
     this.fbService = config.fbService;
-    this.containerId = config.containerId;
-
     this.collections = {
       items: config.filesCollection || "files",
       fileChunks: config.fileChunksCollection || "file_chunks"
     };
-
     // 1. Firebase service
     this.service = new FileManagerFirebase(this.fbService, this.collections);
-
     // 2. FileManager (owns everything: UI, actions, backup, load…)
     this.fileManager = new FileManager({
-      containerId: this.containerId,
+      containerId: config.containerId,
       service: this.service
     });
     document.addEventListener("click", async (e) => {
       const targetBtn = e.target.closest(`#${"backupDataBtn"}`);
       if (!targetBtn) return;
-
       Toast.show("Preparing ZIP backup...", "info");
       try {
         await this.fileManager.service.downloadBackup();
@@ -39,10 +34,6 @@ export class FileManagerWrapper {
   }
 
   switch(collections) {
-    this.collections = {
-      items: collections.items || this.collections.items,
-      fileChunks: collections.fileChunks || this.collections.fileChunks
-    };
-    this.fileManager.switch(this.collections);
+    this.fileManager.switch(collections);
   }
 }
