@@ -1,4 +1,5 @@
 import { FilePreviewComponent } from "./preview.js";
+import { FileManagerUI } from "./ui.js";
 
 export class FileManager {
   constructor(config = {}) {
@@ -11,11 +12,14 @@ export class FileManager {
     this.contextTarget = null;
     this.editingFileTarget = null;
     this.previewer = new FilePreviewComponent();
+
+    this.editableExtensions = new Set([
+      "txt", "js", "ts", "jsx", "tsx", "html", "htm", "css", "scss",
+      "json", "md", "py", "sh", "xml", "csv", "svg", "yaml", "yml",
+      "env", "ini", "sql", "c", "cpp", "h", "java"
+    ]);
   }
 
-  // --------------------------------------------------
-  // Public
-  // --------------------------------------------------
   init() {
     this._mountUI();
     this._bindEvents();
@@ -23,152 +27,23 @@ export class FileManager {
   }
 
   async switch(collections) {
-    await this.service.switch(collections);   // wait until the tree is fully built
+    await this.service.switch(collections);
     this.currentFolderId = "root";
     await this.loadCurrentFolder();
   }
 
-  // --------------------------------------------------
-  // Mount UI (action buttons stay, view area uses new style)
-  // --------------------------------------------------
+  isEditableFile(filename = "") {
+    const ext = filename.split(".").pop()?.toLowerCase() || "";
+    return this.editableExtensions.has(ext);
+  }
+
   _mountUI() {
     if (!this.container) return;
 
-    this.container.innerHTML = `
-      <!-- Action Bar -->
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 justify-between items-center shrink-0 mb-4">
-        <div class="flex items-center gap-2"></div>
-        <div class="flex items-center gap-2">
-          <button id="openFolderModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3.5 py-2 rounded-xl text-xs transition flex items-center gap-2 cursor-pointer">
-            <i class="fa-solid fa-folder-plus text-amber-500"></i> New Folder
-          </button>
-          <button id="openTextModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3.5 py-2 rounded-xl text-xs transition flex items-center gap-2 cursor-pointer">
-            <i class="fa-solid fa-file-pen text-blue-500"></i> New Text File
-          </button>
-          <button id="openCreateModalBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm cursor-pointer">
-            <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
-          </button>
-          <button id="backupDataBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3.5 py-2 rounded-xl text-xs transition flex items-center gap-2 cursor-pointer">
-            <i class="fa-solid fa-file-arrow-down"></i> Backup All Files
-          </button>
-        </div>
-      </div>
-
-      <!-- File Manager View -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-        <!-- Breadcrumb & Control Bar -->
-        <div class="bg-white border-b border-slate-200 px-5 py-2 flex items-center justify-between gap-3 text-xs shrink-0">
-          <div class="flex items-center gap-2">
-            <button type="button" id="backBtn"
-              class="widget-back-btn bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 cursor-pointer">
-              <i class="fa-solid fa-arrow-left"></i> Back
-            </button>
-            <div id="pathText" class="text-slate-500 font-medium pl-2 border-l border-slate-200 truncate font-mono text-[11px]">
-              /
-            </div>
-          </div>
-          <div id="fileCountBadge" class="text-slate-400 font-medium text-[11px]">
-            0 items
-          </div>
-        </div>
-
-        <!-- File Grid -->
-        <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          </div>
-        </div>
-      </div>
-    `;
-
-    const overlaysHTML = `
-      <!-- CONTEXT MENU -->
-      <div id="contextMenu" class="hidden fixed z-50 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 w-40 text-xs font-medium text-slate-700">
-        <button id="ctxEditBtn" class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 hidden cursor-pointer">
-          <i class="fa-solid fa-pen-to-square text-blue-600"></i> Edit
-        </button>
-        <button id="ctxDownloadBtn" class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 hidden cursor-pointer">
-          <i class="fa-solid fa-download text-emerald-600"></i> Download
-        </button>
-        <button id="ctxDeleteBtn" class="w-full text-left px-4 py-2 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 text-slate-700 cursor-pointer">
-          <i class="fa-solid fa-trash"></i> Delete
-        </button>
-      </div>
-
-      <!-- MODAL: NEW FOLDER -->
-      <div id="createFolderModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 space-y-4">
-          <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
-            <i class="fa-solid fa-folder-plus text-amber-500"></i> Create Folder
-          </h3>
-          <input type="text" id="folderNameInput" placeholder="Folder name..."
-            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <div class="flex gap-2 justify-end pt-2">
-            <button type="button" id="cancelFolderBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">Cancel</button>
-            <button type="button" id="submitFolderBtn" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer">Create</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- MODAL: TEXT FILE EDITOR -->
-      <div id="textEditorModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl p-6 space-y-4 flex flex-col max-h-[90vh]">
-          <div class="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
-            <h3 id="textEditorTitle" class="font-bold text-base text-slate-800 flex items-center gap-2">
-              <i class="fa-solid fa-file-pen text-blue-500"></i> Create Text File
-            </h3>
-            <button id="closeTextModalBtn" class="text-slate-400 hover:text-slate-600 cursor-pointer">
-              <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-          </div>
-          <div class="space-y-3 flex-1 flex flex-col overflow-hidden">
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-500 mb-1">File Name</label>
-              <input type="text" id="textFileNameInput" placeholder="document.txt"
-                class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
-            </div>
-            <div class="flex-1 flex flex-col">
-              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Content</label>
-              <textarea id="textContentInput" placeholder="Type your text content here..."
-                class="w-full flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-none h-48"></textarea>
-            </div>
-          </div>
-          <div class="flex gap-2 justify-end pt-2 shrink-0">
-            <button type="button" id="cancelTextBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">Cancel</button>
-            <button type="button" id="submitTextBtn" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer">Save File</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- MODAL: UPLOAD FILE -->
-      <div id="createFileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl p-6 space-y-4">
-          <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-            <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
-              <i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Upload File
-            </h3>
-            <button id="closeFileModalBtn" class="text-slate-400 hover:text-slate-600 cursor-pointer">
-              <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-          </div>
-          <form id="createFileForm" class="space-y-4">
-            <div class="bg-slate-50 border-2 border-dashed border-slate-300 hover:border-blue-500 transition rounded-xl p-5 text-center cursor-pointer">
-              <label class="cursor-pointer block">
-                <i class="fa-solid fa-file-arrow-up text-blue-500 text-2xl mb-1"></i>
-                <p class="text-xs font-semibold text-slate-700">Select Image, Video, Text or PDF</p>
-                <input type="file" id="chunkFileInput" multiple required
-                  class="mt-2 block w-full text-xs text-slate-500 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-blue-50 file:text-blue-700">
-              </label>
-            </div>
-            <div class="pt-2 flex gap-3 justify-end">
-              <button type="button" id="cancelFileBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">Cancel</button>
-              <button type="submit" id="submitFileBtn" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer">Upload File</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    `;
-
-    document.body.insertAdjacentHTML("beforeend", overlaysHTML);
+    // Call static UI methods
+    this.container.innerHTML = FileManagerUI.getMainLayoutHTML();
+    document.body.insertAdjacentHTML("beforeend", FileManagerUI.getOverlaysHTML());
+    
     this.previewer.initEvents();
   }
 
@@ -194,9 +69,6 @@ export class FileManager {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   }
 
-  // --------------------------------------------------
-  // Load + render
-  // --------------------------------------------------
   async loadCurrentFolder() {
     const grid = this.container?.querySelector("#fileGridContainer");
     if (!grid) return;
@@ -225,7 +97,6 @@ export class FileManager {
 
     const isRoot = this.currentFolderId === "root";
 
-    // Path + Back button state
     pathText.textContent = isRoot ? "/" : `/${currentFolderName}`;
     countBadge.textContent = `${folders.length + files.length} items`;
 
@@ -247,7 +118,6 @@ export class FileManager {
           This folder is empty.
         </div>`;
     } else {
-      // Folders
       folders.forEach(folder => {
         const name = folder.title || folder.name || "Untitled";
         const folderSubtext = folder.size > 0 ? this._formatBytes(folder.size) : "Folder";
@@ -266,7 +136,6 @@ export class FileManager {
           </div>`;
       });
 
-      // Files
       files.forEach(file => {
         const name = file.title || "Untitled";
         const ext = file.extension || name.split(".").pop()?.toLowerCase() || "";
@@ -321,7 +190,6 @@ export class FileManager {
 
     grid.innerHTML = html;
 
-    // Bind video duration hooks for inline video frame previews
     grid.querySelectorAll('.widget-video-preview').forEach((videoEl) => {
       videoEl.addEventListener('loadedmetadata', () => {
         videoEl.currentTime = Math.min(1, videoEl.duration / 4);
@@ -329,9 +197,6 @@ export class FileManager {
     });
   }
 
-  // --------------------------------------------------
-  // Actions
-  // --------------------------------------------------
   navigateToFolder(folderId) {
     this.currentFolderId = folderId;
     this.loadCurrentFolder();
@@ -386,7 +251,10 @@ export class FileManager {
     
     let fileName = nameInput.value.trim();
     if (!fileName) return;
-    if (!fileName.endsWith(".txt")) fileName += ".txt";
+
+    if (!this.editingFileTarget && !fileName.includes(".")) {
+      fileName += ".txt";
+    }
 
     const content = contentInput.value;
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
@@ -474,20 +342,15 @@ export class FileManager {
     this.previewer.render(fileRecord, fullBase64);
   }
 
-  // --------------------------------------------------
-  // Events
-  // --------------------------------------------------
   _bindEvents() {
     document.addEventListener("click", () => {
       document.getElementById("contextMenu")?.classList.add("hidden");
     });
 
-    // Back button
     this.container.querySelector("#backBtn")?.addEventListener("click", () => {
       this.navigateUp();
     });
 
-    // Navigate / View
     this.container.addEventListener("click", (e) => {
       const target = e.target.closest("[data-action]");
       if (!target) return;
@@ -503,7 +366,6 @@ export class FileManager {
       }
     });
 
-    // Context menu
     this.container.addEventListener("contextmenu", (e) => {
       const target = e.target.closest("[data-context]");
       if (!target) return;
@@ -514,7 +376,7 @@ export class FileManager {
       const fileId = target.dataset.fileId || null;
       const fileName = target.dataset.fileName || "";
 
-      this.contextTarget = { type, id, fileId };
+      this.contextTarget = { type, id, fileId, fileName };
 
       const menu = document.getElementById("contextMenu");
       const downloadBtn = document.getElementById("ctxDownloadBtn");
@@ -522,8 +384,7 @@ export class FileManager {
 
       if (type === "file") {
         downloadBtn.classList.remove("hidden");
-        const ext = fileName.split(".").pop()?.toLowerCase();
-        if (ext === "txt") {
+        if (this.isEditableFile(fileName)) {
           editBtn.classList.remove("hidden");
         } else {
           editBtn.classList.add("hidden");
@@ -538,28 +399,24 @@ export class FileManager {
       menu.classList.remove("hidden");
     });
 
-    // Edit (from context menu)
     document.getElementById("ctxEditBtn")?.addEventListener("click", () => {
       if (!this.contextTarget) return;
       this.openTextEditorForEdit(this.contextTarget);
       document.getElementById("contextMenu").classList.add("hidden");
     });
 
-    // Delete
     document.getElementById("ctxDeleteBtn")?.addEventListener("click", () => {
       if (!this.contextTarget) return;
       this.deleteItem(this.contextTarget);
       document.getElementById("contextMenu").classList.add("hidden");
     });
 
-    // Download
     document.getElementById("ctxDownloadBtn")?.addEventListener("click", () => {
       if (!this.contextTarget || this.contextTarget.type !== "file") return;
       this.downloadFile(this.contextTarget);
       document.getElementById("contextMenu").classList.add("hidden");
     });
 
-    // New Folder Modal
     this.container.querySelector("#openFolderModalBtn")?.addEventListener("click", () => {
       document.getElementById("folderNameInput").value = "";
       document.getElementById("createFolderModal").classList.remove("hidden");
@@ -574,7 +431,6 @@ export class FileManager {
       document.getElementById("createFolderModal").classList.add("hidden");
     });
 
-    // Text Editor Modal
     this.container.querySelector("#openTextModalBtn")?.addEventListener("click", () => {
       this.editingFileTarget = null;
       this.openTextEditorForCreate();
@@ -589,7 +445,6 @@ export class FileManager {
       this.saveTextFile();
     });
 
-    // Upload Modal
     this.container.querySelector("#openCreateModalBtn")?.addEventListener("click", () => {
       document.getElementById("createFileForm").reset();
       document.getElementById("createFileModal").classList.remove("hidden");
