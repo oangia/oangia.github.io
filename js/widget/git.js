@@ -51,11 +51,10 @@ export class GithubWidget extends WidgetU {
 
   createUI() {
     // 2. Modal Drawer / Panel Container
-    this.modal = document.createElement('div');
-    this.modal.className =
+    this.popup.className =
       'fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm hidden items-center justify-center p-4 font-sans';
 
-    this.modal.innerHTML = `
+    this.popup.innerHTML = `
       <div class="bg-slate-900 text-slate-100 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-7xl h-[92vh] flex flex-col overflow-hidden relative">
         <button type="button" id="gw-close-modal-btn" class="widget-close-btn absolute top-4 right-4 z-20 text-slate-400 hover:text-white text-lg p-2 transition"><i class="fa-solid fa-xmark"></i></button>
         
@@ -184,7 +183,7 @@ export class GithubWidget extends WidgetU {
       </div>
     `;
 
-    document.body.appendChild(this.modal);
+    document.body.appendChild(this.popup);
     this.observeModalOpen();
   }
 
@@ -192,7 +191,7 @@ export class GithubWidget extends WidgetU {
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.attributeName === 'class') {
-          const isHidden = this.modal.classList.contains('hidden');
+          const isHidden = this.popup.classList.contains('hidden');
           // If modal is now visible and files haven't been fetched yet for this session
           if (!isHidden && (!this.currentRepoData.files || this.currentRepoData.files.length === 0)) {
             this.fetchRepositoryTree();
@@ -200,11 +199,11 @@ export class GithubWidget extends WidgetU {
         }
       });
     });
-    observer.observe(this.modal, { attributes: true });
+    observer.observe(this.popup, { attributes: true });
   }
 
   cacheDomReferences() {
-    const m = this.modal;
+    const m = this.popup;
     this.dom = {
       closeBtn: m.querySelector('.widget-close-btn'),
       statusBox: m.querySelector('#gw-status-box'),
