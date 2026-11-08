@@ -4,7 +4,7 @@ import { FileManagerFirebase } from "./service.js";
 export class FileManagerWrapper {
   constructor(config = {}) {
     this.fbService = config.fbService;
-    this.containerId = config.containerId || "fileManagerApp";
+    this.containerId = config.containerId;
 
     this.collections = {
       items: config.filesCollection || "files",
