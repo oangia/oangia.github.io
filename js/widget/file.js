@@ -10,10 +10,6 @@ export class FileManagerWidget extends WidgetU {
         bg: 'bg-blue-600 hover:bg-blue-700'
       }
     });
-    this.init();
-  }
-
-  init() {
     this.createUI();
     this.dom = {
       folderInputMain: this.popup.querySelector('.widget-folder-input-main'),
@@ -71,10 +67,6 @@ export class FileManagerWidget extends WidgetU {
     `;
 
     document.body.appendChild(this.popup);
-  }
-
-  cacheDomReferences() {
-    
   }
 
   attachEvents() {
