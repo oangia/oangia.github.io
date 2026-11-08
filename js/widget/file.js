@@ -76,7 +76,7 @@ export class FileManagerWidget extends WidgetU {
         const files = e.target.files;
         if (!files || files.length === 0) return;
         console.log(files);
-        await this.fileManager.switch(files);
+        await this.fileManager.service.switch(files);
         console.log(`Loaded ${files.length} items successfully via service switch!`);
     });
   }
