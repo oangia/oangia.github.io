@@ -21,8 +21,6 @@ export class FileManagerWidget extends WidgetU {
   }
 
   createUI() {
-    this.popup = document.createElement('div');
-    this.popup.id = this.id;
     this.popup.className =
       'fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4 font-sans';
 
