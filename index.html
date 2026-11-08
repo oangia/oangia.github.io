@@ -91,7 +91,7 @@
         document.getElementById("appContent").innerHTML = `<div id="fileManagerApp" class="w-full h-full flex flex-col"></div>`;
         fileManager.containerId = "fileManagerApp";
         fileManager.init();
-        fileManager.service.switch(config);
+        fileManager.fileManager.service.switch(config);
         window.fileManager = fileManager;
       }
     }
