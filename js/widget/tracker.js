@@ -22,15 +22,11 @@ export class DailyTaskTracker extends WidgetU {
     this.title = title;
     this.tasks = tasks;
     this.cookieName = 'daily_tasks_status';
-    this.init();
-  }
-
-  init() {
     this.createUI();
     this.loadState();
     this.attachEvents();
   }
-
+  
   createUI() {
     // Create the pop-up card
     this.popup = document.createElement('div');
