@@ -51,10 +51,7 @@ export class FileManager {
   }
 
   async switch(collections) {
-    await this.service.switch({
-      items: collections.items,
-      fileChunks: collections.fileChunks
-    });
+    await this.service.switch(collections);
     this.currentFolderId = "root";
     await this.loadCurrentFolder();
   }
