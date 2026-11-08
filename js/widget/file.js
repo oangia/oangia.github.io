@@ -11,10 +11,6 @@ export class FileManagerWidget extends WidgetU {
       }
     });
     this.createUI();
-    this.dom = {
-      folderInputMain: this.popup.querySelector('.widget-folder-input-main'),
-      folderInputHeader: this.popup.querySelector('.widget-folder-input-header')
-    };
     this.service = new FileAdapterService();
     this.fileManager = null;
     this.attachEvents();
@@ -83,7 +79,7 @@ export class FileManagerWidget extends WidgetU {
       console.log(`Loaded ${files.length} items successfully via service switch!`);
     };
 
-    this.dom.folderInputMain.addEventListener('change', handleSelect);
-    this.dom.folderInputHeader.addEventListener('change', handleSelect);
+    this.popup.querySelector('.widget-folder-input-main').addEventListener('change', handleSelect);
+    this.popup.querySelector('.widget-folder-input-header').addEventListener('change', handleSelect);
   }
 }
