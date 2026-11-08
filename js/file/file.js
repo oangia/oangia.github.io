@@ -16,11 +16,8 @@ export class FileManager {
       "json", "md", "py", "sh", "xml", "csv", "svg", "yaml", "yml",
       "env", "ini", "sql", "c", "cpp", "h", "java"
     ]);
-  }
 
-  init() {
-    this._mountUI();
-    FileManagerUI.bindEvents(this.container, {
+    this.ui = new FileManagerUI(this.container, {
       isEditableFile: (filename) => this.isEditableFile(filename),
       onBack: () => this.navigateUp(),
       onNavigate: (id) => this.navigateToFolder(id),
@@ -32,11 +29,16 @@ export class FileManager {
       onCreateFolder: (name) => this.createFolder(name, this.currentFolderId),
       onOpenTextCreate: () => {
         this.editingFileTarget = null;
-        this.openTextEditorForCreate();
+        FileManagerUI.openTextCreateModal();
       },
       onSaveTextFile: () => this.saveTextFile(),
       onUploadFiles: (files) => this.uploadFiles(files, this.currentFolderId)
     });
+  }
+
+  init() {
+    this.ui.init();
+    this.previewer.initEvents();
     this.loadCurrentFolder();
   }
 
@@ -49,37 +51,6 @@ export class FileManager {
   isEditableFile(filename = "") {
     const ext = filename.split(".").pop()?.toLowerCase() || "";
     return this.editableExtensions.has(ext);
-  }
-
-  _mountUI() {
-    if (!this.container) return;
-
-    this.container.innerHTML = FileManagerUI.getMainLayoutHTML();
-    document.body.insertAdjacentHTML("beforeend", FileManagerUI.getOverlaysHTML());
-    
-    this.previewer.initEvents();
-  }
-
-  getFolderSize(node) {
-    let totalSize = 0;
-    const children = node.__children || {};
-    const files = node.__files || [];
-    
-    for (const file of files) {
-      totalSize += file.size || 0;
-    }
-    for (const key in children) {
-      totalSize += this.getFolderSize(children[key]);
-    }
-    return totalSize;
-  }
-
-  _formatBytes(bytes) {
-    if (bytes === 0 || isNaN(bytes) || bytes == null) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   }
 
   async loadCurrentFolder() {
@@ -127,18 +98,11 @@ export class FileManager {
     let html = "";
 
     folders.forEach(folder => {
-      const name = folder.title || folder.name || "Untitled";
-      const folderSubtext = folder.size > 0 ? this._formatBytes(folder.size) : "Folder";
-      html += FileManagerUI.renderFolderItem(folder.id, name, folderSubtext);
+      html += FileManagerUI.renderFolderItem(folder);
     });
 
     files.forEach(file => {
-      const name = file.title || "Untitled";
-      const ext = file.extension || name.split(".").pop()?.toLowerCase() || "";
-      const sizeLabel = file.size != null ? this._formatBytes(file.size) : `${file.totalParts || 1} chunks`;
-      const previewHTML = FileManagerUI.getFilePreviewHTML(file, ext, name);
-
-      html += FileManagerUI.renderFileItem(file.id, file.fileId, name, previewHTML, sizeLabel);
+      html += FileManagerUI.renderFileItem(file);
     });
 
     grid.innerHTML = html;
@@ -167,12 +131,6 @@ export class FileManager {
     this.loadCurrentFolder();
   }
 
-  openTextEditorForCreate() {
-    FileManagerUI.setEditorTitle('Create Text File');
-    FileManagerUI.setEditorInputs("untitled.txt", "", false);
-    FileManagerUI.showTextEditorModal();
-  }
-
   async openTextEditorForEdit(target) {
     const fileRecord = await this.service.getFileRecord(target.id);
     if (!fileRecord) return;
@@ -186,11 +144,8 @@ export class FileManager {
       fileContent = "";
     }
 
-    FileManagerUI.setEditorTitle(`Edit File: ${fileRecord.title}`);
-    FileManagerUI.setEditorInputs(fileRecord.title, fileContent, true);
-    
     this.editingFileTarget = target;
-    FileManagerUI.showTextEditorModal();
+    FileManagerUI.openTextEditModal(fileRecord.title, fileContent);
   }
 
   async saveTextFile() {
