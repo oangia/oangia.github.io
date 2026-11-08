@@ -16,8 +16,4 @@ export class FileManagerWrapper {
   init() {
     this.fileManager.init();
   }
-
-  switch(collections) {
-    this.fileManager.switch(collections);
-  }
 }
