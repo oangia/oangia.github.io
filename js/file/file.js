@@ -3,7 +3,7 @@ import { FileManagerUI } from "./ui.js";
 
 export class FileManager {
   constructor(config = {}) {
-    this.container = document.getElementById(this.containerId);
+    this.container = document.getElementById(config.containerId);
 
     this.service = config.service;
 
