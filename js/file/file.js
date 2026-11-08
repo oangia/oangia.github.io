@@ -1,4 +1,3 @@
-import { FilePreviewComponent } from "./preview.js";
 import { FileManagerUI } from "./ui.js";
 
 export class FileManager {
@@ -9,7 +8,6 @@ export class FileManager {
     this.currentFolderId = "root";
     this.contextTarget = null;
     this.editingFileTarget = null;
-    this.previewer = new FilePreviewComponent();
 
     this.editableExtensions = new Set([
       "txt", "js", "ts", "jsx", "tsx", "html", "htm", "css", "scss",
@@ -38,7 +36,6 @@ export class FileManager {
 
   init() {
     this.ui.init();
-    this.previewer.initEvents();
     this.loadCurrentFolder();
   }
 
@@ -77,7 +74,7 @@ export class FileManager {
 
     const isRoot = this.currentFolderId === "root";
 
-    pathText.textContent = isRoot ? "/(root)" : `/${currentFolderName}`;
+    pathText.textContent = isRoot ? "/" : `/${currentFolderName}`;
     countBadge.textContent = `${folders.length + files.length} items`;
 
     if (isRoot) {
@@ -233,9 +230,9 @@ export class FileManager {
     const fileRecord = await this.service.getFileRecord(id);
     if (!fileRecord) return;
 
-    this.previewer.showLoading(fileRecord.title);
+    FileManagerUI.showPreviewLoading(fileRecord.title);
 
     const fullBase64 = await this.service.getFullBase64(fileRecord.fileId);
-    this.previewer.render(fileRecord, fullBase64);
+    FileManagerUI.renderPreview(fileRecord, fullBase64);
   }
 }
