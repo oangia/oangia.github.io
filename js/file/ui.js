@@ -80,7 +80,7 @@ export class FileManagerUI {
         </div>
       </div>
 
-      <!-- MODAL: TEXT FILE EDITOR (EXPANDED SIZE) -->
+      <!-- MODAL: TEXT FILE EDITOR -->
       <div id="textEditorModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 hidden">
         <div class="bg-white rounded-2xl max-w-5xl w-full h-[85vh] shadow-2xl p-6 space-y-4 flex flex-col">
           <div class="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
@@ -138,6 +138,106 @@ export class FileManagerUI {
         </div>
       </div>
     `;
+  }
+
+  // --------------------------------------------------
+  // UI Event Binding (Manages all DOM listeners for UI)
+  // --------------------------------------------------
+  static bindEvents(container, callbacks = {}) {
+    // Hide context menu on global click
+    document.addEventListener("click", () => {
+      this.hideContextMenu();
+    });
+
+    // Back button
+    container.querySelector("#backBtn")?.addEventListener("click", () => {
+      callbacks.onBack?.();
+    });
+
+    // Grid item click (navigate or view)
+    container.addEventListener("click", (e) => {
+      const target = e.target.closest("[data-action]");
+      if (!target) return;
+
+      const action = target.dataset.action;
+      const id = target.dataset.id;
+      const fileId = target.dataset.fileId;
+
+      if (action === "navigate") callbacks.onNavigate?.(id);
+      if (action === "view") callbacks.onView?.(id, fileId);
+    });
+
+    // Context menu trigger
+    container.addEventListener("contextmenu", (e) => {
+      const target = e.target.closest("[data-context]");
+      if (!target) return;
+
+      e.preventDefault();
+      const type = target.dataset.context;
+      const id = target.dataset.contextId;
+      const fileId = target.dataset.fileId || null;
+      const fileName = target.dataset.fileName || "";
+
+      const isFile = type === "file";
+      const isEditable = isFile && callbacks.isEditableFile?.(fileName);
+      
+      callbacks.onContextMenuTrigger?.({ type, id, fileId, fileName });
+      this.showContextMenu(e.clientY, e.clientX, isFile, isEditable);
+    });
+
+    // Context menu actions
+    document.getElementById("ctxEditBtn")?.addEventListener("click", () => {
+      callbacks.onCtxEdit?.();
+      this.hideContextMenu();
+    });
+
+    document.getElementById("ctxDeleteBtn")?.addEventListener("click", () => {
+      callbacks.onCtxDelete?.();
+      this.hideContextMenu();
+    });
+
+    document.getElementById("ctxDownloadBtn")?.addEventListener("click", () => {
+      callbacks.onCtxDownload?.();
+      this.hideContextMenu();
+    });
+
+    // Folder Modal
+    container.querySelector("#openFolderModalBtn")?.addEventListener("click", () => {
+      this.setFolderNameInputValue("");
+      this.showFolderModal();
+    });
+    document.getElementById("cancelFolderBtn")?.addEventListener("click", () => this.hideFolderModal());
+    document.getElementById("submitFolderBtn")?.addEventListener("click", () => {
+      const name = this.getFolderNameInputValue();
+      if (!name) return;
+      callbacks.onCreateFolder?.(name);
+      this.hideFolderModal();
+    });
+
+    // Text Editor Modal
+    container.querySelector("#openTextModalBtn")?.addEventListener("click", () => {
+      callbacks.onOpenTextCreate?.();
+    });
+    document.getElementById("closeTextModalBtn")?.addEventListener("click", () => this.hideTextEditorModal());
+    document.getElementById("cancelTextBtn")?.addEventListener("click", () => this.hideTextEditorModal());
+    document.getElementById("submitTextBtn")?.addEventListener("click", () => {
+      callbacks.onSaveTextFile?.();
+    });
+
+    // Upload File Modal
+    container.querySelector("#openCreateModalBtn")?.addEventListener("click", () => {
+      this.resetFileForm();
+      this.showFileModal();
+    });
+    document.getElementById("closeFileModalBtn")?.addEventListener("click", () => this.hideFileModal());
+    document.getElementById("cancelFileBtn")?.addEventListener("click", () => this.hideFileModal());
+    document.getElementById("createFileForm")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const files = this.getFileInputFiles();
+      if (!files?.length) return;
+      callbacks.onUploadFiles?.(files);
+      this.hideFileModal();
+    });
   }
 
   // --------------------------------------------------
