@@ -77,7 +77,7 @@ export class FileManager {
 
     const isRoot = this.currentFolderId === "root";
 
-    pathText.textContent = isRoot ? "/" : `/${currentFolderName}`;
+    pathText.textContent = isRoot ? "/(root)" : `/${currentFolderName}`;
     countBadge.textContent = `${folders.length + files.length} items`;
 
     if (isRoot) {
