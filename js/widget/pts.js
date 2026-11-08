@@ -53,12 +53,10 @@ export class PhotoshopWidget extends WidgetU {
   }
 
   createUI() {
-    // 2. Modal Drawer / Panel Container
-    this.modal = document.createElement('div');
-    this.modal.className =
+    this.popup.className =
       'fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4 font-sans';
 
-    this.modal.innerHTML = `
+    this.popup.innerHTML = `
       <style>
         .widget-custom-checkered {
             background-image: linear-gradient(45deg, #181818 25%, transparent 25%), 
@@ -116,11 +114,11 @@ export class PhotoshopWidget extends WidgetU {
       </div>
     `;
 
-    document.body.appendChild(this.modal);
+    document.body.appendChild(this.popup);
   }
 
   cacheDomReferences() {
-    const m = this.modal;
+    const m = this.popup;
     this.canvas = m.querySelector('.widget-image-canvas');
     this.ctx = this.canvas.getContext('2d');
     this.toolbar = m.querySelector('.widget-toolbar');
