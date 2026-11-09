@@ -59,7 +59,6 @@ export class DailyTaskTracker extends WidgetU {
       ul.className = 'space-y-1';
 
       taskList.forEach((taskItem) => {
-        // Handle string format or object format ({ name, type, desc })
         const taskName = typeof taskItem === 'string' ? taskItem : taskItem.name;
         const taskType = typeof taskItem === 'string' ? 'daily' : (taskItem.type || 'daily');
         const taskDesc = typeof taskItem === 'object' && taskItem.desc ? taskItem.desc : '';
@@ -91,8 +90,6 @@ export class DailyTaskTracker extends WidgetU {
 
     this.popup.appendChild(header);
     this.popup.appendChild(container);
-
-    // Append pop-up to wrapper
     this.wrapper.appendChild(this.popup);
   }
 
@@ -121,10 +118,10 @@ export class DailyTaskTracker extends WidgetU {
     const checkboxes = this.popup.querySelectorAll('input[type="checkbox"]');
     
     let existingData = {};
-    const cookieValue = this.getCookie(this.cookieName);
+    const cookieValue = Cookie.get(this.cookieName);
     if (cookieValue) {
       try {
-        existingData = JSON.parse(decodeURIComponent(cookieValue));
+        existingData = JSON.parse(cookieValue);
       } catch (e) {}
     }
 
@@ -158,20 +155,15 @@ export class DailyTaskTracker extends WidgetU {
       weeklyTasks: activeWeekly
     };
 
-    const expires = new Date(
-      Date.now() + 365 * 24 * 60 * 60 * 1000
-    ).toUTCString();
-    document.cookie = `${this.cookieName}=${encodeURIComponent(
-      JSON.stringify(data)
-    )}; expires=${expires}; path=/`;
+    Cookie.set(this.cookieName, JSON.stringify(data), 365);
   }
 
   loadState() {
-    const cookieValue = this.getCookie(this.cookieName);
+    const cookieValue = Cookie.get(this.cookieName);
     if (!cookieValue) return;
 
     try {
-      const data = JSON.parse(decodeURIComponent(cookieValue));
+      const data = JSON.parse(cookieValue);
       const today = this.getTodayDateString();
       const currentWeek = this.getWeekKey();
 
@@ -193,12 +185,5 @@ export class DailyTaskTracker extends WidgetU {
     } catch (e) {
       console.error('Failed to parse task cookie state:', e);
     }
-  }
-
-  getCookie(name) {
-    const match = document.cookie.match(
-      new RegExp('(^| )' + name + '=([^;]+)')
-    );
-    return match ? match[2] : null;
   }
 }
