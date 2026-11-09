@@ -12,7 +12,8 @@ new FileManagerWidget();
 new GithubWidget();
 new DailyTaskTracker({
   Music: [
-    { name: 'Learn/write songs', type: 'daily'},
+    { name: 'Write/sing songs', type: 'daily', desc: "Enjoy life"},
+    { name: 'Learn songs', type: 'daily'},
     { name: 'Practice singing', type: 'daily'},
     { name: 'Reading', type: 'daily', desc: "Try to understand how girls, social, the world work" },
     { name: 'Exercises', type: 'daily' }
