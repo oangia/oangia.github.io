@@ -1,7 +1,5 @@
 import { DailyTaskTracker } from "./tracker.js";
-import { FileManagerWidget } from "./file.js";
 
-new FileManagerWidget();
 new DailyTaskTracker({
   Music: [
     { name: 'Write/sing songs', type: 'daily', desc: "Enjoy life"},
