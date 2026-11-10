@@ -262,13 +262,13 @@ class DailyTaskTracker extends Widget {
   }
 }
 new DailyTaskTracker({
+  Foundation: [
+    { name: 'Exercises', type: 'daily' },
+    { name: 'Learn songs', type: 'daily'}
+  ],
   Music: [
     { name: 'Write/sing songs', type: 'daily', desc: "Enjoy life"},
     { name: 'Practice singing', type: 'daily'},
-    { name: 'Learn songs', type: 'daily'},
-    { name: 'Exercises', type: 'daily' }
-  ],
-  Later: [
     { name: 'Reading', type: 'daily', desc: "Try to understand how girls, social, the world work", disabled: true }
   ]
 });
