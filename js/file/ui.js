@@ -168,6 +168,8 @@ export class FileManagerUI {
           </audio>
         </div>
       `;
+    } else if (fileNameLower.endsWith(".html") || fileNameLower.endsWith(".htm") || fileUrl.startsWith("data:text/html") || fileUrl.startsWith("data:text/")) {
+      content.innerHTML = `<iframe src="${fileUrl}" class="w-full h-full border-0 bg-white"></iframe>`;
     } else if (fileNameLower.endsWith(".txt") || fileUrl.startsWith("data:text/plain")) {
       if (isBlob) {
         fetch(fileUrl)
@@ -188,8 +190,6 @@ export class FileManagerUI {
           content.innerHTML = `<p class="text-xs text-red-400">Failed to load text preview.</p>`;
         }
       }
-    } else if (fileNameLower.endsWith(".html") || fileNameLower.endsWith(".htm") || fileUrl.startsWith("data:text/html") || fileUrl.startsWith("data:text/")) {
-      content.innerHTML = `<iframe src="${fileUrl}" class="w-full h-full border-0 bg-white"></iframe>`;
     } else if (fileNameLower.endsWith(".pdf") || fileUrl.startsWith("data:application/pdf") || isBlob) {
       content.innerHTML = `<iframe src="${fileUrl}" class="w-full h-full border-0 bg-white"></iframe>`;
     } else {
