@@ -168,7 +168,7 @@ export class FileManagerUI {
           </audio>
         </div>
       `;
-    } else if (fileNameLower.endsWith(".html") || fileNameLower.endsWith(".htm") || fileUrl.startsWith("data:text/plain")) {
+    } else if (fileNameLower.endsWith(".html") || fileNameLower.endsWith(".htm")) {
       // Handle base64 encoded text/html data URLs properly
       if (fileUrl.includes(";base64,")) {
         try {
