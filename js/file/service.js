@@ -38,14 +38,32 @@ class FileService {
   }
 
   async downloadBackup() {
-    const content = await this.generateZipBlob();
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.href = URL.createObjectURL(content);
-    downloadAnchor.download = `backup_${new Date().toISOString().slice(0, 10)}.zip`;
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  }
+  const content = await this.generateZipBlob();
+  
+  // 1. Convert the Blob/Zip content into an ArrayBuffer
+  const arrayBuffer = await content.arrayBuffer();
+  
+  // 2. Generate the cryptographic hash using the browser's native SubtleCrypto API
+  const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
+  
+  // 3. Convert the buffer to a hex string
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  
+  // 4. Take the first 8 characters of the hash for a clean filename suffix
+  const shortHash = hashHex.slice(0, 8);
+  
+  // 5. Create the download with the hash included in the filename
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const downloadAnchor = document.createElement("a");
+  
+  downloadAnchor.href = URL.createObjectURL(content);
+  downloadAnchor.download = `backup_${dateStr}_${shortHash}.zip`;
+  
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+}
 
   // ---------- helpers ----------
   _guessPreviewType(type = "", ext = "") {
