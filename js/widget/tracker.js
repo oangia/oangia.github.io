@@ -28,8 +28,9 @@ export class DailyTaskTracker extends WidgetU {
   }
   
   createUI() {
+    // Responsive classes: fixed center/bottom sheet on mobile, absolute floating card on desktop (sm+)
     this.popup.className =
-      'absolute bottom-20 right-0 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 hidden flex-col z-50 overflow-hidden font-sans';
+      'fixed inset-x-4 bottom-24 sm:absolute sm:inset-x-auto sm:bottom-20 sm:right-0 sm:w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 hidden flex-col z-50 overflow-hidden font-sans';
 
     const header = document.createElement('div');
     header.className =
@@ -44,7 +45,7 @@ export class DailyTaskTracker extends WidgetU {
 
     const container = document.createElement('div');
     container.className =
-      'p-4 space-y-4 max-h-80 overflow-y-auto custom-scrollbar';
+      'p-4 space-y-4 max-h-[60vh] sm:max-h-80 overflow-y-auto custom-scrollbar';
 
     let taskIndex = 0;
     Object.entries(this.tasks).forEach(([section, taskList]) => {
@@ -68,7 +69,6 @@ export class DailyTaskTracker extends WidgetU {
         const id = `task-${this.id}-${taskIndex++}`;
         const li = document.createElement('li');
         
-        // Base styling + dynamic disabled styling
         li.className = `flex items-start justify-between p-2 rounded-xl transition ${
           isDisabled
             ? 'opacity-50 bg-slate-50/50 cursor-not-allowed'
@@ -82,15 +82,15 @@ export class DailyTaskTracker extends WidgetU {
             } class="mt-0.5 w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500 ${
               isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
             }">
-            <div class="flex flex-col flex-grow">
+            <div class="flex flex-col flex-grow min-w-0">
               <label for="${id}" class="text-xs font-medium select-none flex items-center flex-wrap gap-1 ${
                 isDisabled ? 'text-slate-400 line-through cursor-not-allowed' : 'text-slate-700 cursor-pointer'
               }">
-                <span>${taskName}</span>
+                <span class="break-words">${taskName}</span>
                 ${taskType === 'weekly' ? '<span class="text-[9px] text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded no-underline">Weekly</span>' : ''}
                 ${isDisabled ? '<span class="text-[9px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded no-underline font-normal">Disabled</span>' : ''}
               </label>
-              ${taskDesc ? `<span class="text-[10px] text-slate-400 mt-0.5">${taskDesc}</span>` : ''}
+              ${taskDesc ? `<span class="text-[10px] text-slate-400 mt-0.5 break-words">${taskDesc}</span>` : ''}
             </div>
           </div>
         `;
@@ -108,7 +108,6 @@ export class DailyTaskTracker extends WidgetU {
   }
 
   attachEvents() {
-    // Select non-disabled checkboxes so interaction events are skipped
     const checkboxes = this.popup.querySelectorAll('input[type="checkbox"]:not([disabled])');
     checkboxes.forEach((chk) => {
       chk.addEventListener('change', () => this.saveState());
