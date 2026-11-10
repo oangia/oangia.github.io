@@ -5,7 +5,7 @@ export class DailyTaskTracker extends WidgetU {
         'Exercises', 
         { name: 'Reading', type: 'weekly', desc: 'Read at least 1 chapter of a book' }, 
         'Learn an expression', 
-        'Diet'
+        { name: 'Diet', disabled: true, desc: 'Focus on this later' }
       ],
       Music: ['Learn songs', 'Practice singing']
     },
@@ -59,22 +59,36 @@ export class DailyTaskTracker extends WidgetU {
       ul.className = 'space-y-1';
 
       taskList.forEach((taskItem) => {
-        const taskName = typeof taskItem === 'string' ? taskItem : taskItem.name;
-        const taskType = typeof taskItem === 'string' ? 'daily' : (taskItem.type || 'daily');
-        const taskDesc = typeof taskItem === 'object' && taskItem.desc ? taskItem.desc : '';
+        const isObj = typeof taskItem === 'object' && taskItem !== null;
+        const taskName = isObj ? taskItem.name : taskItem;
+        const taskType = isObj ? (taskItem.type || 'daily') : 'daily';
+        const taskDesc = isObj && taskItem.desc ? taskItem.desc : '';
+        const isDisabled = isObj && !!taskItem.disabled;
 
         const id = `task-${this.id}-${taskIndex++}`;
         const li = document.createElement('li');
-        li.className =
-          'flex items-start justify-between p-2 rounded-xl hover:bg-slate-50 transition cursor-pointer';
+        
+        // Base styling + dynamic disabled styling
+        li.className = `flex items-start justify-between p-2 rounded-xl transition ${
+          isDisabled
+            ? 'opacity-50 bg-slate-50/50 cursor-not-allowed'
+            : 'hover:bg-slate-50 cursor-pointer'
+        }`;
         
         li.innerHTML = `
           <div class="flex items-start gap-3 w-full">
-            <input type="checkbox" id="${id}" data-task="${taskName}" data-type="${taskType}" class="mt-0.5 w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500 cursor-pointer">
+            <input type="checkbox" id="${id}" data-task="${taskName}" data-type="${taskType}" ${
+              isDisabled ? 'disabled' : ''
+            } class="mt-0.5 w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500 ${
+              isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+            }">
             <div class="flex flex-col flex-grow">
-              <label for="${id}" class="text-xs font-medium text-slate-700 cursor-pointer select-none flex items-center flex-wrap gap-1">
+              <label for="${id}" class="text-xs font-medium select-none flex items-center flex-wrap gap-1 ${
+                isDisabled ? 'text-slate-400 line-through cursor-not-allowed' : 'text-slate-700 cursor-pointer'
+              }">
                 <span>${taskName}</span>
-                ${taskType === 'weekly' ? '<span class="text-[9px] text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">Weekly</span>' : ''}
+                ${taskType === 'weekly' ? '<span class="text-[9px] text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded no-underline">Weekly</span>' : ''}
+                ${isDisabled ? '<span class="text-[9px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded no-underline font-normal">Disabled</span>' : ''}
               </label>
               ${taskDesc ? `<span class="text-[10px] text-slate-400 mt-0.5">${taskDesc}</span>` : ''}
             </div>
@@ -94,7 +108,8 @@ export class DailyTaskTracker extends WidgetU {
   }
 
   attachEvents() {
-    const checkboxes = this.popup.querySelectorAll('input[type="checkbox"]');
+    // Select non-disabled checkboxes so interaction events are skipped
+    const checkboxes = this.popup.querySelectorAll('input[type="checkbox"]:not([disabled])');
     checkboxes.forEach((chk) => {
       chk.addEventListener('change', () => this.saveState());
     });
@@ -115,7 +130,7 @@ export class DailyTaskTracker extends WidgetU {
   }
 
   saveState() {
-    const checkboxes = this.popup.querySelectorAll('input[type="checkbox"]');
+    const checkboxes = this.popup.querySelectorAll('input[type="checkbox"]:not([disabled])');
     
     let existingData = {};
     const cookieValue = Cookie.get(this.cookieName);
@@ -167,7 +182,7 @@ export class DailyTaskTracker extends WidgetU {
       const today = this.getTodayDateString();
       const currentWeek = this.getWeekKey();
 
-      const checkboxes = this.popup.querySelectorAll('input[type="checkbox"]');
+      const checkboxes = this.popup.querySelectorAll('input[type="checkbox"]:not([disabled])');
       checkboxes.forEach((chk) => {
         const taskName = chk.dataset.task;
         const taskType = chk.dataset.type;
