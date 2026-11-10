@@ -38,27 +38,25 @@ class FileService {
   }
 
   async downloadBackup() {
+    // Generate the 100% deterministic ZIP blob
     const content = await this.generateZipBlob();
     
-    // 1. Convert the Blob/Zip content into an ArrayBuffer
+    // Convert Blob to ArrayBuffer for the Web Crypto API
     const arrayBuffer = await content.arrayBuffer();
     
-    // 2. Generate the cryptographic hash using the browser's native SubtleCrypto API
+    // Generate SHA-256 hash from the ZIP binary
     const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
     
-    // 3. Convert the buffer to a hex string and slice it to 8 characters
+    // Convert buffer to hex string and take the first 8 characters
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-    const shortHash = hashHex.slice(0, 8);
+    const shortHash = hashHex.slice(0, 8); // e.g., "a1b2c3d4"
     
-    // 4. Get the current date string (YYYY-MM-DD)
+    // Format filename: backup_2026-06-07_a1b2c3d4.zip
     const dateStr = new Date().toISOString().slice(0, 10);
-    
-    // 5. Create the download with BOTH the date and the hash in the filename
     const downloadAnchor = document.createElement("a");
-    downloadAnchor.href = URL.createObjectURL(content);
     
-    // Example result: backup_2026-06-07_a1b2c3d4.zip
+    downloadAnchor.href = URL.createObjectURL(content);
     downloadAnchor.download = `backup_${dateStr}_${shortHash}.zip`;
     
     document.body.appendChild(downloadAnchor);
