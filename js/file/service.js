@@ -38,27 +38,86 @@ class FileService {
   }
 
   async downloadBackup() {
-    // Generate the 100% deterministic ZIP blob
-    const content = await this.generateZipBlob();
-    
-    // Convert Blob to ArrayBuffer for the Web Crypto API
-    const arrayBuffer = await content.arrayBuffer();
-    
-    // Generate SHA-256 hash from the ZIP binary
-    const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
-    
-    // Convert buffer to hex string and take the first 8 characters
+    await this._ensureCache();
+    const items = this._itemsCache;
+  
+    if (typeof JSZip === "undefined") {
+      throw new Error("JSZip is not loaded or defined in the global scope.");
+    }
+  
+    const folders = items.filter(i => i.isFolder);
+    const files = items.filter(i => !i.isFolder);
+  
+    const getFolderPath = parentId => {
+      const pathParts = [];
+      let currentId = parentId;
+      while (currentId && currentId !== "root") {
+        const folder = folders.find(f => f.id === currentId);
+        if (folder) {
+          pathParts.unshift(folder.title || folder.name);
+          currentId = folder.parentId;
+        } else {
+          break;
+        }
+      }
+      return pathParts.join("/");
+    };
+  
+    // 1. Sort files deterministically so the hash order is always consistent
+    const fileEntries = files.map(fileRecord => {
+      const folderPath = getFolderPath(fileRecord.parentId);
+      const filePath = folderPath ? `${folderPath}/${fileRecord.title}` : fileRecord.title;
+      return { fileRecord, filePath };
+    });
+    fileEntries.sort((a, b) => a.filePath.localeCompare(b.filePath));
+  
+    // 2. Gather raw file bytes & paths to feed into the hash (completely ignores ZIP metadata)
+    const hasherBuffers = [];
+    const encoder = new TextEncoder();
+  
+    for (const { fileRecord, filePath } of fileEntries) {
+      const chunks = await this.getFileChunks(fileRecord.fileId || fileRecord.id);
+  
+      const fullBase64 = chunks.map(c => c.chunkData).join("");
+      const base64Data = fullBase64.includes(",")
+        ? fullBase64.split(",")[1]
+        : fullBase64;
+      if (!base64Data) continue;
+  
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+  
+      // Include both the file path and its raw byte content in the hash
+      hasherBuffers.push(encoder.encode(filePath));
+      hasherBuffers.push(bytes);
+    }
+  
+    // Combine all file buffers into a single buffer and create the hash
+    const totalLength = hasherBuffers.reduce((acc, buf) => acc + buf.length, 0);
+    const combinedBuffer = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const buf of hasherBuffers) {
+      combinedBuffer.set(buf, offset);
+      offset += buf.length;
+    }
+  
+    const hashBuffer = await crypto.subtle.digest("SHA-256", combinedBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
     const shortHash = hashHex.slice(0, 8); // e.g., "a1b2c3d4"
-    
-    // Format filename: backup_2026-06-07_a1b2c3d4.zip
+  
+    // 3. Generate your normal ZIP blob using your existing function
+    const content = await this.generateZipBlob();
+  
+    // 4. Download file with today's date + the pure content hash
     const dateStr = new Date().toISOString().slice(0, 10);
     const downloadAnchor = document.createElement("a");
-    
     downloadAnchor.href = URL.createObjectURL(content);
     downloadAnchor.download = `backup_${dateStr}_${shortHash}.zip`;
-    
+  
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
