@@ -159,7 +159,7 @@
         
         document.querySelector('.widget-folder-input-main, .widget-folder-input-header')
           .addEventListener('change', async (e) => {
-            if (folderManager === undefined) {
+            if (typeof folderManager === 'undefined') {
               const service = new FileAdapterService();
               const folderManager = new FileManager({
                 containerId: 'widget-browser-wrapper',
