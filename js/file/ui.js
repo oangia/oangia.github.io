@@ -168,7 +168,20 @@ export class FileManagerUI {
           </audio>
         </div>
       `;
-    } else if (fileNameLower.endsWith(".html") || fileNameLower.endsWith(".htm") || fileUrl.startsWith("data:text/html") || fileUrl.startsWith("data:text/")) {
+    } else if (fileNameLower.endsWith(".html") || fileNameLower.endsWith(".htm") || fileUrl.startsWith("data:text/plain")) {
+      // Handle base64 encoded text/html data URLs properly
+      if (fileUrl.includes(";base64,")) {
+        try {
+          const base64Content = fileUrl.split(',')[1];
+          const decodedHtml = decodeURIComponent(escape(atob(base64Content)));
+          const blob = new Blob([decodedHtml], { type: 'text/html' });
+          const blobUrl = URL.createObjectURL(blob);
+          content.innerHTML = `<iframe src="${blobUrl}" class="w-full h-full border-0 bg-white"></iframe>`;
+          return;
+        } catch (e) {
+          // fallback to standard iframe
+        }
+      }
       content.innerHTML = `<iframe src="${fileUrl}" class="w-full h-full border-0 bg-white"></iframe>`;
     } else if (fileNameLower.endsWith(".txt") || fileUrl.startsWith("data:text/plain")) {
       if (isBlob) {
@@ -183,8 +196,13 @@ export class FileManagerUI {
         return;
       } else {
         try {
-          const base64Content = fileUrl.split(',')[1];
-          const textContent = atob(base64Content);
+          let textContent = "";
+          if (fileUrl.includes(";base64,")) {
+            const base64Content = fileUrl.split(',')[1];
+            textContent = decodeURIComponent(escape(atob(base64Content)));
+          } else {
+            textContent = decodeURIComponent(fileUrl.split(',')[1] || "");
+          }
           content.innerHTML = `<pre class="w-full h-full overflow-auto p-4 bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap">${textContent}</pre>`;
         } catch (err) {
           content.innerHTML = `<p class="text-xs text-red-400">Failed to load text preview.</p>`;
@@ -368,7 +386,7 @@ export class FileManagerUI {
     const previewHTML = FileManagerUI.getFilePreviewHTML(file, ext, name);
 
     return `
-      <div data-action="view" data-id="${file.id}" data-file-id="${file.fileId}" data-context="file" data-context-id="${file.id}" data-file-id="${file.fileId}" data-file-name="${name}" class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden">
+      <div data-action="view" data-id="${file.id}" data-file-id="${file.fileId}" data-context="file" data-context-id="${file.id}" data-file-name="${name}" class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden">
         <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">${previewHTML}</div>
         <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
           <span class="w-full text-xs font-semibold text-slate-700 truncate text-[11px]" title="${name}">${name}</span>
