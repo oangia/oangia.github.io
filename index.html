@@ -159,18 +159,18 @@
         
         document.querySelector('.widget-folder-input-main, .widget-folder-input-header')
           .addEventListener('change', async (e) => {
-            if (fileManager == undefined) {
+            if (folderanager == undefined) {
               const service = new FileAdapterService();
-              const fileManager = new FileManager({
+              const folderanager = new FileManager({
                 containerId: 'widget-browser-wrapper',
                 service: service
               });
-              fileManager.init();
+              folderanager.init();
             }
             const files = e.target.files;
             if (!files || files.length === 0) return;
             console.log(files);
-            await fileManager.switch(files);
+            await folderanager.switch(files);
             console.log(`Loaded ${files.length} items successfully via service switch!`);
         });
       } else {
