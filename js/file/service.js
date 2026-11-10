@@ -428,15 +428,15 @@ export class FileManagerFirebase extends FileService {
   async generateZipBlob() {
     await this._ensureCache();
     const items = this._itemsCache;
-
+  
     if (typeof JSZip === "undefined") {
       throw new Error("JSZip is not loaded or defined in the global scope.");
     }
-
+  
     const zip = new JSZip();
     const folders = items.filter(i => i.isFolder);
     const files = items.filter(i => !i.isFolder);
-
+  
     const getFolderPath = parentId => {
       const pathParts = [];
       let currentId = parentId;
@@ -451,30 +451,40 @@ export class FileManagerFirebase extends FileService {
       }
       return pathParts.join("/");
     };
-
-    for (const fileRecord of files) {
-      // Fetch chunks on-demand during backup generation
+  
+    // 1. Build and SORT file records alphabetically by path 
+    // This guarantees files are always written to the zip in the exact same order.
+    const fileEntries = files.map(fileRecord => {
+      const folderPath = getFolderPath(fileRecord.parentId);
+      const filePath = folderPath ? `${folderPath}/${fileRecord.title}` : fileRecord.title;
+      return { fileRecord, filePath };
+    });
+    
+    fileEntries.sort((a, b) => a.filePath.localeCompare(b.filePath));
+  
+    // 2. Use a fixed, static date (Epoch 1970 or any static date) 
+    // This stops JSZip from injecting the current changing clock-time into the headers.
+    const staticDate = new Date(0); 
+  
+    for (const { fileRecord, filePath } of fileEntries) {
       const chunks = await this.getFileChunks(fileRecord.fileId || fileRecord.id);
-
+  
       const fullBase64 = chunks.map(c => c.chunkData).join("");
       const base64Data = fullBase64.includes(",")
         ? fullBase64.split(",")[1]
         : fullBase64;
       if (!base64Data) continue;
-
+  
       const binaryString = atob(base64Data);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-
-      const folderPath = getFolderPath(fileRecord.parentId);
-      const filePath = folderPath
-        ? `${folderPath}/${fileRecord.title}`
-        : fileRecord.title;
-      zip.file(filePath, bytes);
+  
+      // 3. Pass { date: staticDate } so metadata never changes
+      zip.file(filePath, bytes, { date: staticDate });
     }
-
+  
     const uint8ArrayData = await zip.generateAsync({ type: "uint8array" });
     return new Blob([uint8ArrayData], { type: "application/zip" });
   }
