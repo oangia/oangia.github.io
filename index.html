@@ -16,17 +16,21 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js"></script>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col overflow-x-hidden">
   <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30 w-full">
     <div class="max-w-8xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4 w-full">
-      <!-- Logo & Titles -->
+      <!-- Logo, Mobile Hamburger & Titles -->
       <div class="flex items-center space-x-3">
+        <!-- Mobile Menu Toggle Button -->
+        <button id="mobileMenuBtn" class="md:hidden text-slate-300 hover:text-white p-2 rounded-xl focus:outline-none">
+          <i class="fa-solid fa-bars text-lg"></i>
+        </button>
         <div class="bg-blue-500 text-white p-2 rounded-xl shadow-md">
           <i class="fa-solid fa-folder-tree text-lg"></i>
         </div>
         <div>
-          <h1 id="appTitle" class="text-lg font-bold tracking-tight">File Manager - Home</h1>
-          <p class="text-[11px] text-slate-400">Fast On-Demand Loading &amp; Chunked Storage</p>
+          <h1 id="appTitle" class="text-base sm:text-lg font-bold tracking-tight truncate max-w-[200px] sm:max-w-none">File Manager - Home</h1>
+          <p class="text-[10px] sm:text-[11px] text-slate-400">Fast On-Demand Loading &amp; Chunked Storage</p>
         </div>
       </div>
 
@@ -40,13 +44,16 @@
     </div>
   </header>
 
+  <!-- Mobile Sidebar Backdrop Overlay -->
+  <div id="sidebarBackdrop" class="fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-40 hidden md:hidden transition-opacity"></div>
+
   <!-- Main Workspace Layout -->
-  <div class="flex-1 flex overflow-hidden">
-    <!-- Sidebar Container -->
-    <div id="sidebarContainer"></div>
+  <div class="flex-1 flex overflow-hidden relative">
+    <!-- Sidebar Container (Transforms to Off-Canvas Drawer on Mobile) -->
+    <div id="sidebarContainer" class="fixed md:static inset-y-0 left-0 z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out bg-white md:bg-transparent shadow-2xl md:shadow-none flex flex-col shrink-0"></div>
 
     <!-- Content Area Container -->
-    <main id="appContent" class="flex-1 flex flex-col bg-slate-50 p-4 overflow-y-auto custom-scrollbar">
+    <main id="appContent" class="flex-1 flex flex-col bg-slate-50 p-3 sm:p-6 overflow-y-auto custom-scrollbar w-full">
     </main>
   </div>
 
@@ -76,13 +83,36 @@
       }
     };
 
+    const sidebarContainer = document.getElementById("sidebarContainer");
+    const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+    const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+
+    function toggleMobileSidebar(forceClose = false) {
+      const isClosed = sidebarContainer.classList.contains("-translate-x-full");
+      if (forceClose || !isClosed) {
+        sidebarContainer.classList.add("-translate-x-full");
+        sidebarBackdrop.classList.add("hidden");
+      } else {
+        sidebarContainer.classList.remove("-translate-x-full");
+        sidebarBackdrop.classList.remove("hidden");
+      }
+    }
+
+    mobileMenuBtn.addEventListener("click", () => toggleMobileSidebar());
+    sidebarBackdrop.addEventListener("click", () => toggleMobileSidebar(true));
+
     function switchSpace(spaceKey) {
+      // Automatically close mobile menu on selection
+      if (window.innerWidth < 768) {
+        toggleMobileSidebar(true);
+      }
+
       if (spaceKey === "home") {
         document.getElementById("appTitle").textContent = "File Manager - Home";
         document.getElementById("appContent").innerHTML = `
-          <div class="max-w-4xl mx-auto p-6 space-y-6">
-            <h1 class="text-2xl font-bold text-slate-800">Welcome to Home</h1>
-            <p class="text-slate-600">This is the home page dashboard.</p>
+          <div class="max-w-4xl mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Welcome to Home</h1>
+            <p class="text-sm sm:text-base text-slate-600">This is the home page dashboard.</p>
           </div>
         `;
       } else {
