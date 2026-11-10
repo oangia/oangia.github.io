@@ -160,8 +160,8 @@
         const fileManager = null;
         document.querySelector('.widget-folder-input-main, .widget-folder-input-header')
           .addEventListener('change', async (e) => {
-            if (this.fileManager == null) {
-              this.fileManager = new FileManager({
+            if (fileManager == null) {
+              fileManager = new FileManager({
                 containerId: 'widget-browser-wrapper',
                 service: service
               });
