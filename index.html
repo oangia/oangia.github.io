@@ -156,12 +156,12 @@
           </div>
         </div>
       </div>`;
-        
+        const service = new FileAdapterService();
+        let folderManager = null;
         document.querySelector('.widget-folder-input-main, .widget-folder-input-header')
           .addEventListener('change', async (e) => {
-            if (typeof folderManager === 'undefined') {
-              const service = new FileAdapterService();
-              const folderManager = new FileManager({
+            if (folderManager == null) {
+              folderManager = new FileManager({
                 containerId: 'widget-browser-wrapper',
                 service: service
               });
