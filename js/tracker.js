@@ -23,18 +23,15 @@ class Widget {
     this.widgetContainer.appendChild(this.wrapper);
   }
 
-  // Parent handles creating the trigger button and shared toggle logic
   _addFloatButton(icon, bgClasses = 'bg-rose-600 hover:bg-rose-700') {
     this.floatBtn = document.createElement('button');
     this.floatBtn.type = 'button';
     this.floatBtn.className = `w-14 h-14 ${bgClasses} text-white rounded-full flex items-center justify-center shadow-xl cursor-pointer transition-all duration-200 hover:scale-105`;
     this.floatBtn.innerHTML = `<i class="${icon} text-2xl"></i>`;
-
     this.wrapper.appendChild(this.floatBtn);
   }
 
   _bindToggle() {
-    // Toggle popup open/closed when clicking the floating button
     this.floatBtn.addEventListener('click', () => {
       if (this.popup.classList.contains('hidden')) {
         this.popup.classList.remove('hidden');
@@ -45,12 +42,8 @@ class Widget {
       }
     });
   
-    // Event delegation on the container for any close button
     this.popup.addEventListener('click', (e) => {
-      console.log(e.target);
       const closeBtn = e.target.closest('.widget-close-btn');
-    
-      // If no close button was part of the click path, exit
       if (!closeBtn) return;
       this.popup.classList.remove('flex');
       this.popup.classList.add('hidden');
@@ -59,7 +52,22 @@ class Widget {
 }
 
 class DailyTaskTracker extends Widget {
-  constructor(tasks = {}, title = 'Tasks Tracker', options = {}) {
+  constructor(
+    tasks = {
+      Basic: [
+        { name: 'Exercises', objective: 'healthy' }, 
+        { name: 'Reading', type: 'weekly', desc: 'Read at least 1 chapter of a book', objective: 'useful' }, 
+        { name: 'Learn an expression', objective: 'useful' }, 
+        { name: 'Diet', disabled: true, desc: 'Focus on this later', objective: 'healthy' }
+      ],
+      Music: [
+        { name: 'Learn songs', objective: 'fun' }, 
+        { name: 'Practice singing', objective: 'fun' }
+      ]
+    },
+    title = 'Tasks Tracker',
+    options = {}
+  ) {
     super({
       ...options,
       floatBtn: {
@@ -71,15 +79,30 @@ class DailyTaskTracker extends Widget {
     this.tasks = tasks;
     this.cookieName = 'daily_tasks_status';
 
-    // 1. Define colors FIRST so they exist when UI is built
+    // Objective styles: Explicit border color when unchecked, filled background when checked
     this.objectiveColors = {
-      healthy: { checkbox: 'accent-emerald-600 focus:ring-emerald-500' },
-      useful:  { checkbox: 'accent-sky-600 focus:ring-sky-500' },
-      fun:     { checkbox: 'accent-amber-500 focus:ring-amber-400' },
-      default: { checkbox: 'accent-slate-600 focus:ring-slate-500' }
+      healthy: {
+        border: 'border-emerald-500',
+        bg: 'bg-emerald-600',
+        badge: 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+      },
+      useful: {
+        border: 'border-sky-500',
+        bg: 'bg-sky-600',
+        badge: 'text-sky-700 bg-sky-50 border border-sky-200'
+      },
+      fun: {
+        border: 'border-amber-400',
+        bg: 'bg-amber-500',
+        badge: 'text-amber-700 bg-amber-50 border border-amber-200'
+      },
+      default: {
+        border: 'border-slate-300',
+        bg: 'bg-slate-600',
+        badge: 'text-slate-700 bg-slate-50 border border-slate-200'
+      }
     };
 
-    // 2. Now create UI and bind states safely
     this.createUI();
     this.loadState();
     this.attachEvents();
@@ -122,7 +145,6 @@ class DailyTaskTracker extends Widget {
         const taskDesc = isObj && taskItem.desc ? taskItem.desc : '';
         const isDisabled = isObj && !!taskItem.disabled;
 
-        // Resolve item-level objective assignment ('healthy', 'useful', 'fun')
         const objectiveKey = isObj && taskItem.objective ? taskItem.objective : 'default';
         const colors = this.objectiveColors[objectiveKey] || this.objectiveColors.default;
 
@@ -137,21 +159,29 @@ class DailyTaskTracker extends Widget {
         
         li.innerHTML = `
           <div class="flex items-start gap-3 w-full">
-            <input type="checkbox" id="${id}" data-task="${taskName}" data-type="${taskType}" ${
-              isDisabled ? 'disabled' : ''
-            } class="mt-0.5 w-4 h-4 rounded border-slate-300 ${colors.checkbox} ${
-              isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-            }">
-            <div class="flex flex-col flex-grow min-w-0">
-              <label for="${id}" class="text-xs font-medium select-none flex items-center flex-wrap gap-1 ${
-                isDisabled ? 'text-slate-400 line-through cursor-not-allowed' : 'text-slate-700 cursor-pointer'
-              }">
-                <span class="break-words">${taskName}</span>
-                ${taskType === 'weekly' ? `<span class="text-[9px] px-1.5 py-0.5 rounded no-underline font-semibold ${colors.badge}">Weekly</span>` : ''}
-                ${isDisabled ? '<span class="text-[9px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded no-underline font-normal">Disabled</span>' : ''}
-              </label>
-              ${taskDesc ? `<span class="text-[10px] text-slate-400 mt-0.5 break-words">${taskDesc}</span>` : ''}
-            </div>
+            <label for="${id}" class="relative flex items-start gap-3 w-full ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}">
+              <input type="checkbox" id="${id}" data-task="${taskName}" data-type="${taskType}" ${
+                isDisabled ? 'disabled' : ''
+              } class="sr-only peer">
+              
+              <!-- Custom colored checkbox box (colored border when unchecked, colored fill when checked) -->
+              <div class="mt-0.5 w-4 h-4 rounded border-2 ${colors.border} bg-white peer-checked:${colors.bg} peer-checked:border-transparent flex items-center justify-center transition flex-shrink-0 ${isDisabled ? 'opacity-50' : ''}">
+                <svg class="w-2.5 h-2.5 text-white hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+
+              <div class="flex flex-col flex-grow min-w-0">
+                <span class="text-xs font-medium select-none flex items-center flex-wrap gap-1 ${
+                  isDisabled ? 'text-slate-400 line-through' : 'text-slate-700'
+                }">
+                  <span class="break-words">${taskName}</span>
+                  ${taskType === 'weekly' ? `<span class="text-[9px] px-1.5 py-0.5 rounded no-underline font-semibold ${colors.badge}">Weekly</span>` : ''}
+                  ${isDisabled ? '<span class="text-[9px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded no-underline font-normal">Disabled</span>' : ''}
+                </span>
+                ${taskDesc ? `<span class="text-[10px] text-slate-400 mt-0.5 break-words">${taskDesc}</span>` : ''}
+              </div>
+            </label>
           </div>
         `;
         ul.appendChild(li);
@@ -261,6 +291,7 @@ class DailyTaskTracker extends Widget {
     }
   }
 }
+
 new DailyTaskTracker({
   Foundation: [
     { name: 'Exercises', type: 'daily', objective: 'healthy' },
