@@ -299,7 +299,8 @@ new DailyTaskTracker({
   ],
   Music: [
     { name: 'Reading', type: 'daily', desc: "Try to understand how girls, social, the world work", objective: 'useful' },
+    { name: 'Practice singing', type: 'daily', objective: 'useful'},
     { name: 'Write/sing songs', type: 'daily', desc: "Enjoy life", objective: 'useful'},
-    { name: 'Practice singing', type: 'daily', objective: 'useful'}
+    { name: 'Social', objective: 'fun'}
   ]
 });
