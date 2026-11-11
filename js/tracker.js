@@ -73,22 +73,10 @@ class DailyTaskTracker extends Widget {
 
     // 1. Define colors FIRST so they exist when UI is built
     this.objectiveColors = {
-      healthy: {
-        checkbox: 'text-emerald-600 focus:ring-emerald-500',
-        badge: 'text-emerald-700 bg-emerald-50 border border-emerald-200'
-      },
-      useful: {
-        checkbox: 'text-sky-600 focus:ring-sky-500',
-        badge: 'text-sky-700 bg-sky-50 border border-sky-200'
-      },
-      fun: {
-        checkbox: 'text-amber-500 focus:ring-amber-400',
-        badge: 'text-amber-700 bg-amber-50 border border-amber-200'
-      },
-      default: {
-        checkbox: 'text-slate-600 focus:ring-slate-500',
-        badge: 'text-slate-700 bg-slate-50 border border-slate-200'
-      }
+      healthy: { checkbox: 'accent-emerald-600 focus:ring-emerald-500' },
+      useful:  { checkbox: 'accent-sky-600 focus:ring-sky-500' },
+      fun:     { checkbox: 'accent-amber-500 focus:ring-amber-400' },
+      default: { checkbox: 'accent-slate-600 focus:ring-slate-500' }
     };
 
     // 2. Now create UI and bind states safely
