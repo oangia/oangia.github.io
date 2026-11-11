@@ -59,22 +59,7 @@ class Widget {
 }
 
 class DailyTaskTracker extends Widget {
-  constructor(
-    tasks = {
-      Basic: [
-        { name: 'Exercises', objective: 'healthy' }, 
-        { name: 'Reading', type: 'weekly', desc: 'Read at least 1 chapter of a book', objective: 'useful' }, 
-        { name: 'Learn an expression', objective: 'useful' }, 
-        { name: 'Diet', disabled: true, desc: 'Focus on this later', objective: 'healthy' }
-      ],
-      Music: [
-        { name: 'Learn songs', objective: 'fun' }, 
-        { name: 'Practice singing', objective: 'fun' }
-      ]
-    },
-    title = 'Tasks Tracker',
-    options = {}
-  ) {
+  constructor(tasks = {}, title = 'Tasks Tracker', options = {}) {
     super({
       ...options,
       floatBtn: {
@@ -86,7 +71,7 @@ class DailyTaskTracker extends Widget {
     this.tasks = tasks;
     this.cookieName = 'daily_tasks_status';
 
-    // Objective color palette definition
+    // 1. Define colors FIRST so they exist when UI is built
     this.objectiveColors = {
       healthy: {
         checkbox: 'text-emerald-600 focus:ring-emerald-500',
@@ -106,6 +91,7 @@ class DailyTaskTracker extends Widget {
       }
     };
 
+    // 2. Now create UI and bind states safely
     this.createUI();
     this.loadState();
     this.attachEvents();
