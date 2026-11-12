@@ -72,20 +72,20 @@ function showToast(message, type = 'info', duration = 4000) {
   if (!container) return;
   const toast = document.createElement('div');
 
-  let bg = 'bg-slate-800 border-slate-700 text-slate-100';
+  let bg = 'bg-slate-900/90 border-slate-700 text-slate-100 backdrop-blur-md';
   let icon = '<i class="fa-solid fa-circle-info text-sky-400 text-base mr-3"></i>';
   let accent = 'border-l-4 border-l-sky-500';
 
   if (type === 'success') {
-    bg = 'bg-slate-900 border-emerald-800 text-emerald-100';
+    bg = 'bg-slate-900/90 border-emerald-800 text-emerald-100 backdrop-blur-md';
     icon = '<i class="fa-solid fa-circle-check text-emerald-400 text-base mr-3"></i>';
     accent = 'border-l-4 border-l-emerald-500';
   } else if (type === 'error') {
-    bg = 'bg-slate-900 border-rose-800 text-rose-100';
+    bg = 'bg-slate-900/90 border-rose-800 text-rose-100 backdrop-blur-md';
     icon = '<i class="fa-solid fa-circle-exclamation text-rose-400 text-base mr-3"></i>';
     accent = 'border-l-4 border-l-rose-500';
   } else if (type === 'warning') {
-    bg = 'bg-slate-900 border-amber-800 text-amber-100';
+    bg = 'bg-slate-900/90 border-amber-800 text-amber-100 backdrop-blur-md';
     icon = '<i class="fa-solid fa-triangle-exclamation text-amber-400 text-base mr-3"></i>';
     accent = 'border-l-4 border-l-amber-500';
   }
@@ -125,13 +125,13 @@ function switchTab(tab) {
   if (tab === 'explorer') {
     viewExp.classList.remove('hidden');
     viewSet.classList.add('hidden');
-    tabExp.className = "px-3 py-1.5 text-xs font-semibold rounded-md bg-white shadow-sm text-slate-800 transition";
-    tabSet.className = "px-3 py-1.5 text-xs font-semibold rounded-md text-slate-600 hover:text-slate-900 transition";
+    tabExp.className = "px-3 py-1.5 text-xs font-semibold rounded-md border border-white/75 wire-text transition";
+    tabSet.className = "px-3 py-1.5 text-xs font-semibold rounded-md border border-transparent wire-subtext hover:border-white/40 transition";
   } else {
     viewExp.classList.add('hidden');
     viewSet.classList.remove('hidden');
-    tabSet.className = "px-3 py-1.5 text-xs font-semibold rounded-md bg-white shadow-sm text-slate-800 transition";
-    tabExp.className = "px-3 py-1.5 text-xs font-semibold rounded-md text-slate-600 hover:text-slate-900 transition";
+    tabSet.className = "px-3 py-1.5 text-xs font-semibold rounded-md border border-white/75 wire-text transition";
+    tabExp.className = "px-3 py-1.5 text-xs font-semibold rounded-md border border-transparent wire-subtext hover:border-white/40 transition";
   }
 }
 
@@ -194,12 +194,12 @@ class FilePreviewManager {
     if (cancelBtn) cancelBtn.classList.add('hidden');
 
     if (title) title.textContent = name;
-    if (body) body.innerHTML = '<div class="text-slate-500 py-12 flex justify-center"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>';
+    if (body) body.innerHTML = '<div class="wire-subtext py-12 flex justify-center"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>';
     
     if (sidebarDetails) {
       sidebarDetails.innerHTML = `
-        <div class="text-center py-10 space-y-2 text-slate-400">
-          <i class="fa-solid fa-spinner fa-spin text-xl text-indigo-600"></i>
+        <div class="text-center py-10 space-y-2 wire-subtext">
+          <i class="fa-solid fa-spinner fa-spin text-xl text-indigo-400"></i>
           <p class="text-xs">Loading info...</p>
         </div>
       `;
@@ -224,15 +224,15 @@ class FilePreviewManager {
 
       // Render preview based on file type
       if (isImage(name)) {
-        body.innerHTML = `<img src="${url}" alt="${escapeHtml(name)}" class="max-w-full max-h-[70vh] rounded-lg shadow-md object-contain">`;
+        body.innerHTML = `<img src="${url}" alt="${escapeHtml(name)}" class="max-w-full max-h-[70vh] rounded-lg shadow-md object-contain wire-border">`;
       } else if (isAudio(name)) {
         body.innerHTML = `
-          <div class="w-full max-w-lg">
-            <audio controls class="w-full" src="${url}"></audio>
-            <p class="text-center text-xs text-slate-500 mt-3">${escapeHtml(name)}</p>
+          <div class="w-full max-w-lg text-center">
+            <audio controls class="w-full mb-3" src="${url}"></audio>
+            <p class="text-xs wire-text">${escapeHtml(name)}</p>
           </div>`;
       } else if (isVideo(name)) {
-        body.innerHTML = `<video controls class="max-w-full max-h-[70vh] rounded-lg shadow-md" src="${url}"></video>`;
+        body.innerHTML = `<video controls class="max-w-full max-h-[70vh] rounded-lg shadow-md wire-border" src="${url}"></video>`;
       } else if (isText(name)) {
         const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) throw new Error('Failed to fetch file content');
@@ -242,24 +242,23 @@ class FilePreviewManager {
         this.currentPreviewText = text;
         this.isTextEditor = true;
 
-        body.innerHTML = `<textarea id="editTextarea" class="w-full h-[65vh] font-mono text-xs p-3 bg-slate-900 rounded-lg border border-slate-700">${escapeHtml(text)}</textarea>`;
+        body.innerHTML = `<textarea id="editTextarea" class="w-full h-[65vh] font-mono text-xs p-3 bg-slate-900/80 wire-text rounded-lg wire-border">${escapeHtml(text)}</textarea>`;
         if (saveBtn) saveBtn.classList.remove('hidden');
-        if (cancelBtn) cancelBtn.classList.add('hidden'); // Fixed condition for cancel button if needed, keeping original behavior
+        if (cancelBtn) cancelBtn.classList.remove('hidden');
       } else {
         body.innerHTML = `
-          <div class="text-center space-y-4 py-12">
-            <i class="fa-solid fa-file text-5xl text-slate-400"></i>
-            <p class="text-sm text-slate-600">Preview not available for this file type.</p>
+          <div class="text-center space-y-4 py-12 wire-subtext">
+            <i class="fa-solid fa-file text-5xl"></i>
+            <p class="text-sm">Preview not available for this file type.</p>
           </div>`;
       }
 
-      // Render sidebar with instant path hash and single calculation trigger
       await this.renderSidebarLazy(path, name, this.fileSize);
 
     } catch (err) {
       this.onToast(err.message || 'Failed to load file', 'error');
       if (sidebarDetails) {
-        sidebarDetails.innerHTML = `<div class="p-3 bg-rose-50 text-rose-700 rounded text-xs">Failed to load details</div>`;
+        sidebarDetails.innerHTML = `<div class="p-3 bg-rose-950/60 border border-rose-500/50 text-rose-200 rounded text-xs">Failed to load details</div>`;
       }
     }
   }
@@ -271,35 +270,35 @@ class FilePreviewManager {
     const pathHash = await computeSha256(path);
 
     sidebarDetails.innerHTML = `
-      <div class="space-y-4 text-xs text-slate-600">
+      <div class="space-y-4 text-xs wire-subtext">
         <div>
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">File Name</span>
-          <p class="text-slate-800 font-medium break-all">${escapeHtml(name)}</p>
+          <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Name</span>
+          <p class="wire-text font-medium break-all">${escapeHtml(name)}</p>
         </div>
         <div>
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">File Size</span>
-          <p class="text-slate-800 font-mono text-xs">${fileSize ? formatBytes(fileSize) + ` (${fileSize} bytes)` : 'Unknown'}</p>
+          <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Size</span>
+          <p class="wire-text font-mono text-xs">${fileSize ? formatBytes(fileSize) + ` (${fileSize} bytes)` : 'Unknown'}</p>
         </div>
 
-        <hr class="border-slate-100">
+        <hr class="border-white/20">
 
         <!-- 1. Path Hash (Instant) -->
         <div class="space-y-1.5">
           <div class="flex justify-between items-center">
-            <span class="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">1. Path Hash</span>
-            <button onclick="navigator.clipboard.writeText('${pathHash}'); showToast('Path hash copied', 'success', 1500);" class="text-[11px] text-slate-400 hover:text-indigo-600"><i class="fa-regular fa-copy"></i> Copy Hash</button>
+            <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">1. Path Hash</span>
+            <button onclick="navigator.clipboard.writeText('${pathHash}'); showToast('Path hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
           </div>
           <div>
-            <span class="text-[10px] text-slate-400 block mb-0.5">Exact string hashed: <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">${escapeHtml(path)}</code></span>
-            <div class="font-mono text-[10px] bg-slate-900 text-slate-200 p-2 rounded break-all select-all">${pathHash}</div>
+            <span class="text-[10px] wire-subtext block mb-0.5">Exact string hashed: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">${escapeHtml(path)}</code></span>
+            <div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${pathHash}</div>
           </div>
         </div>
 
         <!-- 2. Content & Combined Hashes Trigger -->
         <div class="space-y-3" id="hashesComputeContainer">
           <div>
-            <span class="text-[10px] text-slate-400 block mb-1">Content & Combined Hashes are uncalculated</span>
-            <button onclick="filePreviewManager.computeContentAndCombinedHashes()" class="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg text-xs transition border border-indigo-200 flex items-center justify-center gap-1.5 shadow-sm">
+            <span class="text-[10px] wire-subtext block mb-1">Content & Combined Hashes are uncalculated</span>
+            <button onclick="filePreviewManager.computeContentAndCombinedHashes()" class="w-full py-2.5 bg-transparent hover:border-indigo-300 wire-border text-indigo-300 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5">
               <i class="fa-solid fa-fingerprint"></i> Calculate Content & Combined Hashes
             </button>
           </div>
@@ -313,8 +312,8 @@ class FilePreviewManager {
     if (!container || !this.currentPreviewPath) return;
 
     container.innerHTML = `
-      <div class="flex items-center justify-center py-4 text-slate-400 text-xs gap-2">
-        <i class="fa-solid fa-spinner fa-spin text-indigo-600 text-base"></i> Fetching file & computing hashes...
+      <div class="flex items-center justify-center py-4 wire-subtext text-xs gap-2">
+        <i class="fa-solid fa-spinner fa-spin text-indigo-400 text-base"></i> Fetching file & computing hashes...
       </div>
     `;
 
@@ -345,31 +344,31 @@ class FilePreviewManager {
           <!-- 2. Content Hash -->
           <div class="space-y-1.5">
             <div class="flex justify-between items-center">
-              <span class="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">2. Content Hash</span>
-              <button onclick="navigator.clipboard.writeText('${contentHash}'); showToast('Content hash copied', 'success', 1500);" class="text-[11px] text-slate-400 hover:text-indigo-600"><i class="fa-regular fa-copy"></i> Copy Hash</button>
+              <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">2. Content Hash</span>
+              <button onclick="navigator.clipboard.writeText('${contentHash}'); showToast('Content hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
             </div>
             <div>
-              <span class="text-[10px] text-slate-400 block mb-0.5">Hashed input: <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">ArrayBuffer (${this.currentArrayBuffer.byteLength} bytes)</code></span>
-              <div class="font-mono text-[10px] bg-slate-900 text-slate-200 p-2 rounded break-all select-all">${contentHash}</div>
+              <span class="text-[10px] wire-subtext block mb-0.5">Hashed input: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">ArrayBuffer (${this.currentArrayBuffer.byteLength} bytes)</code></span>
+              <div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${contentHash}</div>
             </div>
           </div>
 
           <!-- 3. Combined Hash -->
           <div class="space-y-1.5">
             <div class="flex justify-between items-center">
-              <span class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">3. Combined Hash</span>
-              <button onclick="navigator.clipboard.writeText('${combinedHash}'); showToast('Combined hash copied', 'success', 1500);" class="text-[11px] text-slate-400 hover:text-indigo-600"><i class="fa-regular fa-copy"></i> Copy Hash</button>
+              <span class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">3. Combined Hash</span>
+              <button onclick="navigator.clipboard.writeText('${combinedHash}'); showToast('Combined hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
             </div>
             <div>
-              <span class="text-[10px] text-slate-400 block mb-0.5">Exact concatenated string hashed:</span>
-              <div class="font-mono text-[9px] bg-slate-100 text-slate-700 p-1.5 rounded border border-slate-200 break-all select-all max-h-14 overflow-y-auto mb-1">${escapeHtml(rawCombinedString)}</div>
-              <div class="font-mono text-[10px] bg-slate-900 text-emerald-400 p-2 rounded break-all select-all">${combinedHash}</div>
+              <span class="text-[10px] wire-subtext block mb-0.5">Exact concatenated string hashed:</span>
+              <div class="font-mono text-[9px] bg-black/40 wire-subtext p-1.5 rounded wire-border break-all select-all max-h-14 overflow-y-auto mb-1">${escapeHtml(rawCombinedString)}</div>
+              <div class="font-mono text-[10px] bg-slate-950/90 text-emerald-400 p-2 rounded wire-border break-all select-all">${combinedHash}</div>
             </div>
           </div>
         </div>
       `;
     } catch (err) {
-      container.innerHTML = `<div class="text-xs text-rose-600 p-2 bg-rose-50 rounded">Failed to compute hashes: ${escapeHtml(err.message)}</div>`;
+      container.innerHTML = `<div class="text-xs text-rose-400 p-2 bg-rose-950/60 wire-border rounded">Failed to compute hashes: ${escapeHtml(err.message)}</div>`;
     }
   }
 
@@ -404,7 +403,7 @@ class FilePreviewManager {
       this.currentPreviewText = newContent;
       this.currentArrayBuffer = await blob.arrayBuffer();
       this.fileSize = this.currentArrayBuffer.byteLength;
-      this.cachedContentHash = null; // Invalidate cache on save
+      this.cachedContentHash = null;
       
       await this.renderSidebarLazy(this.currentPreviewPath, this.currentPreviewName, this.fileSize);
 
@@ -435,7 +434,6 @@ let filePreviewManager = null;
 // ==========================================
 
 window.addEventListener('DOMContentLoaded', () => {
-  // Load Supabase credentials
   const savedUrl = localStorage.getItem('sb_url');
   const savedKey = localStorage.getItem('sb_key');
   const savedBucket = localStorage.getItem('sb_bucket') || 'files';
@@ -444,7 +442,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if (savedKey) document.getElementById('settingApiKeyInput').value = savedKey;
   document.getElementById('settingBucketInput').value = savedBucket;
 
-  // Load Firebase credentials
   const savedFbApiKey = localStorage.getItem('fb_apikey');
   const savedFbAppId = localStorage.getItem('fb_appid');
   const savedFbProjectId = localStorage.getItem('fb_projectid');
@@ -596,8 +593,8 @@ function renderView() {
 
   if (filteredItems.length === 0) {
     grid.innerHTML = `
-      <div class="col-span-full py-16 text-center text-slate-400">
-        <i class="fa-regular fa-folder-open text-4xl mb-2 block"></i>
+      <div class="col-span-full py-16 text-center wire-text">
+        <i class="fa-regular fa-folder-open text-4xl mb-2 block opacity-80"></i>
         <p class="text-sm">This folder is empty</p>
       </div>`;
     return;
@@ -608,7 +605,7 @@ function renderView() {
     const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
 
     const card = document.createElement('div');
-    card.className = "group relative flex flex-col items-center p-3 rounded-xl border border-slate-200/80 bg-white hover:border-indigo-300 hover:bg-indigo-50/30 hover:shadow-sm transition cursor-pointer select-none";
+    card.className = "group relative flex flex-col items-center p-3 rounded-xl bg-transparent wire-border hover:border-indigo-400 transition cursor-pointer select-none";
 
     card.onclick = () => {
       if (isFolder) {
@@ -622,26 +619,26 @@ function renderView() {
     if (isFolder) {
       mediaPreview = `
         <div class="w-full h-24 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
-          <i class="fa-solid fa-folder text-6xl drop-shadow-sm"></i>
+          <i class="fa-solid fa-folder text-6xl drop-shadow-[0_3px_6px_rgba(0,0,0,0.65)]"></i>
         </div>`;
     } else if (item.thumbUrl && isImage(item.name)) {
       mediaPreview = `
-        <div class="w-full h-24 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
+        <div class="w-full h-24 rounded-lg overflow-hidden wire-border bg-transparent flex items-center justify-center">
           <img src="${item.thumbUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     } else if (item.thumbUrl && isVideo(item.name)) {
       mediaPreview = `
-        <div class="relative w-full h-24 rounded-lg overflow-hidden bg-slate-900 flex items-center justify-center">
-          <video class="w-full h-full object-cover opacity-90" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
-          <span class="absolute inset-0 flex items-center justify-center text-white/90 text-xl">
-            <i class="fa-solid fa-circle-play drop-shadow"></i>
+        <div class="relative w-full h-24 rounded-lg overflow-hidden wire-border bg-transparent flex items-center justify-center">
+          <video class="w-full h-full object-cover" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
+          <span class="absolute inset-0 flex items-center justify-center wire-text text-xl">
+            <i class="fa-solid fa-circle-play"></i>
           </span>
         </div>`;
     } else {
       mediaPreview = `
-        <div class="w-full h-24 rounded-lg bg-slate-50 border border-slate-100 flex flex-col items-center justify-center text-slate-400 group-hover:text-indigo-500 transition-colors">
+        <div class="w-full h-24 rounded-lg bg-transparent wire-border flex flex-col items-center justify-center wire-text group-hover:border-indigo-400 transition-colors">
           <div class="text-3xl mb-1">${getFileIcon(item.name)}</div>
-          <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-600">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
+          <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-white/50 bg-transparent wire-text">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
         </div>`;
     }
 
@@ -651,17 +648,17 @@ function renderView() {
       <button 
         onclick="event.stopPropagation(); deleteItem('${escapeHtml(fullPath)}', ${isFolder})" 
         title="Delete" 
-        class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 text-slate-400 hover:text-rose-600 hover:bg-rose-50 shadow-sm border border-slate-200/60 transition">
+        class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg bg-transparent border border-rose-400/80 text-rose-400 hover:border-rose-300 transition">
         <i class="fa-solid fa-trash text-xs"></i>
       </button>
 
       ${mediaPreview}
 
       <div class="w-full mt-2.5 text-center">
-        <p class="text-xs font-medium text-slate-700 group-hover:text-indigo-600 truncate px-1" title="${escapeHtml(item.name)}">
+        <p class="text-xs font-medium wire-text truncate px-1" title="${escapeHtml(item.name)}">
           ${escapeHtml(item.name)}
         </p>
-        <p class="text-[11px] text-slate-400 font-mono mt-0.5">${sizeStr}</p>
+        <p class="text-[11px] wire-subtext font-mono mt-0.5">${sizeStr}</p>
       </div>
     `;
 
@@ -677,7 +674,7 @@ function renderBreadcrumbs() {
   folderHistory.forEach((crumb, idx) => {
     const isLast = idx === folderHistory.length - 1;
     const btn = document.createElement('button');
-    btn.className = (isLast ? "font-bold text-indigo-600" : "hover:text-slate-900") + " inline-flex items-center";
+    btn.className = (isLast ? "font-bold text-indigo-300 wire-text" : "wire-subtext hover:wire-text") + " inline-flex items-center";
     
     if (crumb.name.toLowerCase() === 'root') {
       btn.innerHTML = `<i class="fa-solid fa-house mr-1 text-xs"></i><span>${escapeHtml(crumb.name)}</span>`;
@@ -690,7 +687,7 @@ function renderBreadcrumbs() {
     
     if (!isLast) {
       const sep = document.createElement('span');
-      sep.className = "text-slate-300 mx-1";
+      sep.className = "opacity-50 mx-1";
       sep.textContent = '/';
       nav.appendChild(sep);
     }
