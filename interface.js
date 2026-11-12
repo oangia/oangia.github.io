@@ -436,14 +436,16 @@ function renderView() {
     return a.name.localeCompare(b.name);
   });
 
-  const tbody = document.getElementById('itemsTableBody');
-  tbody.innerHTML = '';
+  const grid = document.getElementById('itemsGrid');
+  grid.innerHTML = '';
   document.getElementById('itemCountLabel').textContent = `${filteredItems.length} item(s)`;
 
   if (filteredItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-slate-400">
-      <i class="fa-regular fa-folder-open text-3xl mb-2 block"></i>This folder is empty
-    </td></tr>`;
+    grid.innerHTML = `
+      <div class="col-span-full py-16 text-center text-slate-400">
+        <i class="fa-regular fa-folder-open text-4xl mb-2 block"></i>
+        <p class="text-sm">This folder is empty</p>
+      </div>`;
     return;
   }
 
@@ -451,45 +453,66 @@ function renderView() {
     const isFolder = !item.id;
     const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
 
-    const row = document.createElement('tr');
-    row.className = "hover:bg-slate-50/80 transition text-slate-700 border-b border-slate-100 last:border-none";
+    const card = document.createElement('div');
+    card.className = "group relative flex flex-col items-center p-3 rounded-xl border border-slate-200/80 bg-white hover:border-indigo-300 hover:bg-indigo-50/30 hover:shadow-sm transition cursor-pointer select-none";
+
+    // Click handler on the card body
+    card.onclick = () => {
+      if (isFolder) {
+        navigateToFolder(fullPath, item.name);
+      } else {
+        openPreview(fullPath, item.name);
+      }
+    };
 
     let mediaPreview = '';
     if (isFolder) {
-      mediaPreview = `<div class="w-9 h-9 flex items-center justify-center rounded-md bg-amber-50 text-amber-500"><i class="fa-solid fa-folder text-lg"></i></div>`;
+      mediaPreview = `
+        <div class="w-full h-24 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
+          <i class="fa-solid fa-folder text-6xl drop-shadow-sm"></i>
+        </div>`;
     } else if (item.thumbUrl && isImage(item.name)) {
-      mediaPreview = `<img src="${item.thumbUrl}" class="thumb" alt="" loading="lazy" onerror="this.style.display='none'">`;
+      mediaPreview = `
+        <div class="w-full h-24 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
+          <img src="${item.thumbUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" loading="lazy" onerror="this.style.display='none'">
+        </div>`;
     } else if (item.thumbUrl && isVideo(item.name)) {
-      mediaPreview = `<video class="thumb-video" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>`;
+      mediaPreview = `
+        <div class="relative w-full h-24 rounded-lg overflow-hidden bg-slate-900 flex items-center justify-center">
+          <video class="w-full h-full object-cover opacity-90" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
+          <span class="absolute inset-0 flex items-center justify-center text-white/90 text-xl">
+            <i class="fa-solid fa-circle-play drop-shadow"></i>
+          </span>
+        </div>`;
     } else {
-      mediaPreview = `<div class="w-9 h-9 flex items-center justify-center rounded-md bg-slate-100 text-slate-500">${getFileIcon(item.name)}</div>`;
+      mediaPreview = `
+        <div class="w-full h-24 rounded-lg bg-slate-50 border border-slate-100 flex flex-col items-center justify-center text-slate-400 group-hover:text-indigo-500 transition-colors">
+          <div class="text-3xl mb-1">${getFileIcon(item.name)}</div>
+          <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-600">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
+        </div>`;
     }
 
-    const sizeStr = isFolder ? '--' : formatBytes(item.metadata?.size || 0);
-    const updated = item.updated_at ? new Date(item.updated_at).toLocaleDateString() : '--';
+    const sizeStr = isFolder ? 'Folder' : formatBytes(item.metadata?.size || 0);
 
-    const clickAction = isFolder
-      ? `navigateToFolder('${escapeHtml(fullPath)}', '${escapeHtml(item.name)}')`
-      : `openPreview('${escapeHtml(fullPath)}', '${escapeHtml(item.name)}')`;
+    card.innerHTML = `
+      <button 
+        onclick="event.stopPropagation(); deleteItem('${escapeHtml(fullPath)}', ${isFolder})" 
+        title="Delete" 
+        class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 text-slate-400 hover:text-rose-600 hover:bg-rose-50 shadow-sm border border-slate-200/60 transition">
+        <i class="fa-solid fa-trash text-xs"></i>
+      </button>
 
-    // Actions column cleaned up: click row/name to preview, only delete button remains here
-    row.innerHTML = `
-      <td class="py-2.5 px-4">
-        <div class="flex items-center gap-3 cursor-pointer" onclick="${clickAction}">
-          ${mediaPreview}
-          <span class="font-medium hover:text-indigo-600 truncate max-w-xs">${escapeHtml(item.name)}</span>
-        </div>
-      </td>
-      <td class="py-2.5 px-4 text-slate-500">${isFolder ? 'Folder' : getExtension(item.name)}</td>
-      <td class="py-2.5 px-4 text-slate-500 font-mono">${sizeStr}</td>
-      <td class="py-2.5 px-4 text-slate-500 font-mono">${updated}</td>
-      <td class="py-2.5 px-4 text-right space-x-1">
-        <button onclick="deleteItem('${escapeHtml(fullPath)}', ${isFolder})" title="Delete" class="p-1.5 hover:text-rose-600 rounded hover:bg-slate-100 transition">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </td>
+      ${mediaPreview}
+
+      <div class="w-full mt-2.5 text-center">
+        <p class="text-xs font-medium text-slate-700 group-hover:text-indigo-600 truncate px-1" title="${escapeHtml(item.name)}">
+          ${escapeHtml(item.name)}
+        </p>
+        <p class="text-[11px] text-slate-400 font-mono mt-0.5">${sizeStr}</p>
+      </div>
     `;
-    tbody.appendChild(row);
+
+    grid.appendChild(card);
   });
 }
 
