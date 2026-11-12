@@ -620,28 +620,27 @@ function renderView() {
     let mediaPreview = '';
     if (isFolder) {
       mediaPreview = `
-        <div class="w-full h-24 flex items-center justify-center text-amber-400/90 group-hover:scale-105 group-hover:text-amber-400 transition-all duration-200">
-          <i class="fa-solid fa-folder text-6xl drop-shadow-md"></i>
+        <div class="w-full h-24 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform duration-200">
+          <i class="fa-solid fa-folder text-6xl"></i>
         </div>`;
     } else if (item.thumbUrl && isImage(item.name)) {
       mediaPreview = `
-        <div class="w-full h-24 rounded-lg overflow-hidden bg-black/20 flex items-center justify-center shadow-sm">
+        <div class="w-full h-24 rounded-lg overflow-hidden bg-transparent flex items-center justify-center">
           <img src="${item.thumbUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" alt="" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     } else if (item.thumbUrl && isVideo(item.name)) {
       mediaPreview = `
-        <div class="relative w-full h-24 rounded-lg overflow-hidden bg-black/20 flex items-center justify-center shadow-sm">
+        <div class="relative w-full h-24 rounded-lg overflow-hidden bg-transparent flex items-center justify-center">
           <video class="w-full h-full object-cover" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
-          <span class="absolute inset-0 flex items-center justify-center wire-text text-xl bg-black/20 backdrop-blur-[2px] opacity-90 group-hover:opacity-100 transition-opacity">
-            <i class="fa-solid fa-circle-play text-white drop-shadow"></i>
+          <span class="absolute inset-0 flex items-center justify-center wire-text text-xl">
+            <i class="fa-solid fa-circle-play text-white"></i>
           </span>
         </div>`;
     } else {
-      // Modern badge layout for generic files
       mediaPreview = `
-        <div class="w-full h-24 rounded-lg bg-white/[0.03] group-hover:bg-white/[0.06] flex flex-col items-center justify-center wire-text transition-colors shadow-sm">
-          <div class="text-3xl mb-1.5 opacity-90">${getFileIcon(item.name)}</div>
-          <span class="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/10 wire-text">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
+        <div class="w-full h-24 rounded-lg bg-transparent flex flex-col items-center justify-center wire-text">
+          <div class="text-3xl mb-1.5">${getFileIcon(item.name)}</div>
+          <span class="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 wire-text">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
         </div>`;
     }
 
