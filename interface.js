@@ -592,11 +592,12 @@ function renderView() {
   grid.innerHTML = '';
   document.getElementById('itemCountLabel').textContent = `${filteredItems.length} item${filteredItems.length !== 1 ? 's' : ''}`;
 
+  // Empty state
   if (filteredItems.length === 0) {
     grid.innerHTML = `
-      <div class="col-span-full flex flex-col items-center justify-center py-16 text-center text-white/40">
-        <i class="fa-regular fa-folder-open text-3xl mb-2"></i>
-        <p class="text-sm">No items</p>
+      <div class="col-span-full py-16 text-center text-slate-400 text-sm">
+        <i class="fa-regular fa-folder-open text-3xl mb-3 block opacity-60"></i>
+        No items
       </div>`;
     return;
   }
@@ -604,19 +605,16 @@ function renderView() {
   filteredItems.forEach(item => {
     const isFolder = !item.id;
     const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
+    const sizeStr = isFolder ? '' : formatBytes(item.metadata?.size || 0);
 
     const card = document.createElement('div');
 
-    // Tighter card with good icon size
+    // ===== Preferred card style (copied & adapted) =====
     card.className = `
-      group relative flex flex-col items-center
-      w-[104px] h-[116px]
-      rounded-xl p-1.5
-      bg-transparent
-      hover:bg-white/[0.06]
-      active:bg-white/[0.09]
-      transition-colors duration-150
-      cursor-pointer select-none
+      group relative bg-white border border-slate-200 hover:border-blue-500 
+      rounded-xl p-3 flex flex-col items-center justify-between text-center 
+      cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 
+      aspect-square overflow-hidden
     `;
 
     card.onclick = () => {
@@ -627,82 +625,65 @@ function renderView() {
       }
     };
 
-    // ========== MEDIA (kept reasonably large) ==========
-    let mediaPreview = '';
+    // ========== MEDIA / PREVIEW AREA ==========
+    let mediaHTML = '';
 
     if (isFolder) {
-      mediaPreview = `
-        <div class="flex h-[64px] w-full items-center justify-center">
-          <i class="fa-solid fa-folder text-[46px] text-[#6BA3FF] transition-transform duration-150 group-hover:scale-105"></i>
+      // Folder style from preferred code
+      mediaHTML = `
+        <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-folder text-5xl"></i>
         </div>`;
     } 
     
     else if (item.thumbUrl && isImage(item.name)) {
-      mediaPreview = `
-        <div class="flex h-[64px] w-full items-center justify-center">
-          <div class="h-[58px] w-[58px] overflow-hidden rounded-lg ring-1 ring-white/10 transition-all duration-150 group-hover:ring-white/20">
-            <img 
-              src="${item.thumbUrl}" 
-              class="h-full w-full object-cover" 
-              loading="lazy"
-              onerror="this.parentElement.innerHTML='<div class=\\'flex h-full items-center justify-center bg-white/5\\'><i class=\\'fa-regular fa-image text-white/30\\'></i></div>'"
-            >
-          </div>
+      mediaHTML = `
+        <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
+          <img src="${item.thumbUrl}" alt="" class="w-full h-full object-cover rounded-lg" loading="lazy"
+               onerror="this.style.display='none'">
         </div>`;
     } 
     
     else if (item.thumbUrl && isVideo(item.name)) {
-      mediaPreview = `
-        <div class="flex h-[64px] w-full items-center justify-center">
-          <div class="relative h-[58px] w-[58px] overflow-hidden rounded-lg ring-1 ring-white/10 transition-all duration-150 group-hover:ring-white/20">
-            <video class="h-full w-full object-cover" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
-            <div class="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
-              <i class="fa-solid fa-play text-[11px] text-white"></i>
-            </div>
-          </div>
+      mediaHTML = `
+        <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
+          <video src="${item.thumbUrl}#t=0.5" class="w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
+          <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
         </div>`;
     } 
     
     else {
-      const ext = getExtension(item.name) || 'FILE';
-      mediaPreview = `
-        <div class="flex h-[64px] w-full flex-col items-center justify-center gap-1">
-          <div class="text-[32px] text-white/75 leading-none">
-            ${getFileIcon(item.name)}
-          </div>
-          <span class="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white/55 bg-white/[0.08]">
-            ${escapeHtml(ext)}
-          </span>
+      // Generic / other files
+      const ext = (getExtension(item.name) || 'FILE').toUpperCase();
+      mediaHTML = `
+        <div class="widget-preview-area flex-1 w-full flex flex-col items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors gap-1">
+          <div class="text-3xl text-slate-400">${getFileIcon(item.name)}</div>
+          <span class="text-[9px] font-mono text-slate-500 uppercase tracking-wide">${escapeHtml(ext)}</span>
         </div>`;
     }
 
-    const sizeStr = isFolder ? '' : formatBytes(item.metadata?.size || 0);
-
+    // ========== CARD CONTENT ==========
     card.innerHTML = `
       <!-- Delete button -->
       <button 
         onclick="event.stopPropagation(); deleteItem('${escapeHtml(fullPath)}', ${isFolder})"
-        class="absolute top-1 right-1 z-10 flex h-5 w-5 items-center justify-center rounded-full
-               bg-black/50 text-white/70 opacity-0
-               transition-all duration-150
-               group-hover:opacity-100 hover:bg-rose-500 hover:text-white"
-      >
-        <i class="fa-solid fa-xmark text-[9px]"></i>
+        title="Delete"
+        class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 
+               w-6 h-6 flex items-center justify-center rounded-full 
+               bg-black/50 hover:bg-red-500 text-white transition">
+        <i class="fa-solid fa-xmark text-[10px]"></i>
       </button>
 
-      <!-- Media -->
-      <div class="flex-1 flex items-center justify-center w-full">
-        ${mediaPreview}
-      </div>
+      ${mediaHTML}
 
-      <!-- Name + Size (tighter) -->
-      <div class="w-full mt-1 text-center px-0.5">
-        <p class="truncate text-[12px] font-medium leading-tight text-white/90" title="${escapeHtml(item.name)}">
+      <!-- Name + Size (preferred bottom section) -->
+      <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+        <span class="w-full text-xs font-semibold text-slate-700 truncate" title="${escapeHtml(item.name)}">
           ${escapeHtml(item.name)}
-        </p>
-        ${sizeStr 
-          ? `<p class="mt-0.5 text-[10px] text-white/40 leading-none">${sizeStr}</p>` 
-          : `<p class="mt-0.5 text-[10px] text-transparent leading-none">.</p>`}
+        </span>
+        <span class="text-[9px] text-slate-400 font-mono mt-0.5">
+          ${isFolder ? (sizeStr || 'Folder') : sizeStr}
+        </span>
       </div>
     `;
 
