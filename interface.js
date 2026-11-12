@@ -595,8 +595,8 @@ function renderView() {
   if (filteredItems.length === 0) {
     grid.innerHTML = `
       <div class="col-span-full py-16 text-center wire-text">
-        <i class="fa-regular fa-folder-open text-4xl mb-2 block opacity-80"></i>
-        <p class="text-sm">This folder is empty</p>
+        <i class="fa-regular fa-folder-open text-4xl mb-2 block opacity-60"></i>
+        <p class="text-sm opacity-75">This folder is empty</p>
       </div>`;
     return;
   }
@@ -606,7 +606,8 @@ function renderView() {
     const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
 
     const card = document.createElement('div');
-    card.className = "group relative flex flex-col items-center p-3 rounded-xl bg-transparent hover:bg-white/5 transition cursor-pointer select-none";
+    // Clean, borderless card container with subtle hover lift and background
+    card.className = "group relative flex flex-col items-center p-3 rounded-xl bg-transparent hover:bg-white/5 transition-all duration-200 cursor-pointer select-none";
     
     card.onclick = () => {
       if (isFolder) {
@@ -619,27 +620,28 @@ function renderView() {
     let mediaPreview = '';
     if (isFolder) {
       mediaPreview = `
-        <div class="w-full h-24 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
-          <i class="fa-solid fa-folder text-6xl drop-shadow-[0_3px_6px_rgba(0,0,0,0.65)]"></i>
+        <div class="w-full h-24 flex items-center justify-center text-amber-400/90 group-hover:scale-105 group-hover:text-amber-400 transition-all duration-200">
+          <i class="fa-solid fa-folder text-6xl drop-shadow-md"></i>
         </div>`;
     } else if (item.thumbUrl && isImage(item.name)) {
       mediaPreview = `
-        <div class="w-full h-24 overflow-hidden bg-transparent flex items-center justify-center">
-          <img src="${item.thumbUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" loading="lazy" onerror="this.style.display='none'">
+        <div class="w-full h-24 rounded-lg overflow-hidden bg-black/20 flex items-center justify-center shadow-sm">
+          <img src="${item.thumbUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" alt="" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     } else if (item.thumbUrl && isVideo(item.name)) {
       mediaPreview = `
-        <div class="relative w-full h-24 overflow-hidden bg-transparent flex items-center justify-center">
+        <div class="relative w-full h-24 rounded-lg overflow-hidden bg-black/20 flex items-center justify-center shadow-sm">
           <video class="w-full h-full object-cover" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
-          <span class="absolute inset-0 flex items-center justify-center wire-text text-xl">
-            <i class="fa-solid fa-circle-play"></i>
+          <span class="absolute inset-0 flex items-center justify-center wire-text text-xl bg-black/20 backdrop-blur-[2px] opacity-90 group-hover:opacity-100 transition-opacity">
+            <i class="fa-solid fa-circle-play text-white drop-shadow"></i>
           </span>
         </div>`;
     } else {
+      // Modern badge layout for generic files
       mediaPreview = `
-        <div class="w-full h-24 bg-transparent flex flex-col items-center justify-center wire-text group-hover:border-indigo-400 transition-colors">
-          <div class="text-3xl mb-1">${getFileIcon(item.name)}</div>
-          <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-white/50 bg-transparent wire-text">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
+        <div class="w-full h-24 rounded-lg bg-white/[0.03] group-hover:bg-white/[0.06] flex flex-col items-center justify-center wire-text transition-colors shadow-sm">
+          <div class="text-3xl mb-1.5 opacity-90">${getFileIcon(item.name)}</div>
+          <span class="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/10 wire-text">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
         </div>`;
     }
 
@@ -649,17 +651,17 @@ function renderView() {
       <button 
         onclick="event.stopPropagation(); deleteItem('${escapeHtml(fullPath)}', ${isFolder})" 
         title="Delete" 
-        class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg bg-transparent border border-rose-400/80 text-rose-400 hover:border-rose-300 transition">
+        class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg bg-black/40 hover:bg-rose-500/20 text-rose-400 backdrop-blur-sm transition">
         <i class="fa-solid fa-trash text-xs"></i>
       </button>
 
       ${mediaPreview}
 
-      <div class="w-full mt-2.5 text-center">
+      <div class="w-full mt-2 text-center">
         <p class="text-xs font-medium wire-text truncate px-1" title="${escapeHtml(item.name)}">
           ${escapeHtml(item.name)}
         </p>
-        <p class="text-[11px] wire-subtext font-mono mt-0.5">${sizeStr}</p>
+        <p class="text-[10px] wire-subtext font-mono mt-0.5 opacity-70">${sizeStr}</p>
       </div>
     `;
 
