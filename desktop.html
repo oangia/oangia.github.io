@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en"> 
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folder Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Native App Window Frame Styling */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #0f172a;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    input, textarea { user-select: text; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans flex flex-col h-screen w-screen overflow-hidden m-0 p-0 border border-slate-700/60 shadow-2xl">
+
+  <!-- Desktop App Window Titlebar -->
+  <div class="bg-slate-900 text-slate-400 h-8 px-3 flex items-center justify-between shrink-0 select-none border-b border-slate-800">
+    <div class="flex items-center space-x-2">
+      <div class="w-2.5 h-2.5 rounded-full bg-rose-500 hover:opacity-80 cursor-pointer"></div>
+      <div class="w-2.5 h-2.5 rounded-full bg-amber-500 hover:opacity-80 cursor-pointer"></div>
+      <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 hover:opacity-80 cursor-pointer"></div>
+      <span class="text-[11px] font-medium text-slate-400 ml-2 border-l border-slate-700/60 pl-2">Folder Manager</span>
+    </div>
+    <div class="text-[10px] text-slate-500 font-mono">Desktop v1.0</div>
+  </div>
+
+  <!-- Main Folder Manager Box -->
+  <div class="bg-white text-slate-800 flex-1 flex flex-col overflow-hidden m-0 rounded-none border-0 shadow-none">
+    
+    <!-- Header -->
+    <div class="bg-slate-50 px-5 py-3 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg shadow-inner">
+          <i class="fa-solid fa-folder-tree"></i>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Folder Manager</h3>
+        </div>
+      </div>
+
+      <div>
+        <label class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer">
+          <i class="fa-solid fa-folder-plus"></i> Select Folder
+          <input type="file" class="widget-folder-input-header hidden" webkitdirectory directory multiple>
+        </label>
+      </div>
+    </div>
+
+    <!-- Dropzone Wrapper -->
+    <div id="widget-browser-wrapper" class="flex-1 bg-slate-50 overflow-hidden flex flex-col min-h-0 relative">
+      <div class="widget-select-screen flex-1 bg-white hover:bg-blue-50/20 transition-all p-8 flex flex-col items-center justify-center text-center relative cursor-pointer group border-2 border-dashed border-slate-200 hover:border-blue-500">
+        <input type="file" class="widget-folder-input-main absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" webkitdirectory directory multiple>
+        <div class="pointer-events-none flex flex-col items-center justify-center">
+          <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center text-3xl group-hover:scale-105 transition-transform mb-4 shadow-inner">
+            <i class="fa-solid fa-folder-open"></i>
+          </div>
+          <h4 class="text-sm font-bold text-slate-800 mb-1">Click anywhere to select a folder</h4>
+          <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with instant previews and computed folder sizes.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module">
+    class FileService {
+  constructor() {}
+
+  async switch(configOrFiles) {
+    throw new Error("Method 'switch()' must be implemented.");
+  }
+
+  async getFolderContents(folderId = "root") {
+    throw new Error("Method 'getFolderContents()' must be implemented.");
+  }
+
+  async getFileRecord(id) {
+    throw new Error("Method 'getFileRecord()' must be implemented.");
+  }
+
+  async getFullBase64(fileId) {
+    throw new Error("Method 'getFullBase64()' must be implemented.");
+  }
+
+  // ---------- helpers ----------
+  _guessPreviewType(type = "", ext = "") {
+    const t = (type || "").toLowerCase();
+    const e = (ext || "").toLowerCase();
+
+    if (
+      t.startsWith("image/") ||
+      ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "ico"].includes(e)
+    ) {
+      return "image";
+    }
+    if (
+      t.startsWith("video/") ||
+      ["mp4", "webm", "ogg", "mov", "mkv"].includes(e)
+    ) {
+      return "video";
+    }
+    if (
+      t.startsWith("audio/") ||
+      ["mp3", "wav", "ogg", "aac", "m4a", "flac"].includes(e)
+    ) {
+      return "audio";
+    }
+    if (
+      t.startsWith("text/") ||
+      [
+        "json", "js", "ts", "jsx", "tsx", "html", "htm", "css", "scss",
+        "md", "txt", "xml", "svg", "csv"
+      ].includes(e)
+    ) {
+      return "text";
+    }
+    return "generic";
+  }
+
+  _toDataUrl(fullBase64, mime = "application/octet-stream") {
+    if (!fullBase64) return null;
+    if (fullBase64.startsWith("data:")) return fullBase64;
+    return `data:${mime};base64,${fullBase64}`;
+  }
+
+  /** Detect mime from data-URL header or binary magic bytes */
+  _detectMimeFromBase64(fullBase64) {
+    if (!fullBase64 || typeof fullBase64 !== "string") return null;
+
+    if (fullBase64.startsWith("data:")) {
+      const comma = fullBase64.indexOf(",");
+      if (comma === -1) return null;
+      const header = fullBase64.slice(5, comma);
+      return header.split(";")[0].toLowerCase() || null;
+    }
+
+    let bytes;
+    try {
+      const sample = atob(fullBase64.slice(0, 64));
+      bytes = new Uint8Array(sample.length);
+      for (let i = 0; i < sample.length; i++) bytes[i] = sample.charCodeAt(i);
+    } catch {
+      return null;
+    }
+
+    // PNG
+    if (
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47
+    ) {
+      return "image/png";
+    }
+    // JPEG
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+      return "image/jpeg";
+    }
+    // GIF
+    if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
+      return "image/gif";
+    }
+    // WEBP: RIFF....WEBP
+    if (
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46 &&
+      bytes[8] === 0x57 &&
+      bytes[9] === 0x45 &&
+      bytes[10] === 0x42 &&
+      bytes[11] === 0x50
+    ) {
+      return "image/webp";
+    }
+    // BMP
+    if (bytes[0] === 0x42 && bytes[1] === 0x4d) {
+      return "image/bmp";
+    }
+    // MP4 / ftyp
+    if (
+      bytes[4] === 0x66 &&
+      bytes[5] === 0x74 &&
+      bytes[6] === 0x79 &&
+      bytes[7] === 0x70
+    ) {
+      return "video/mp4";
+    }
+
+    return null;
+  }
+
+  _readTextSnippet(file) {
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.substring(0, 180));
+      reader.onerror = () => resolve("");
+      reader.readAsText(file.slice(0, 300));
+    });
+  }
+
+  _calculateFolderSize(node) {
+    let totalSize = 0;
+    const children = node.__children || {};
+    const files = node.__files || [];
+
+    for (const file of files) totalSize += file.size || 0;
+    for (const key in children) {
+      totalSize += this._calculateFolderSize(children[key]);
+    }
+    return totalSize;
+  }
+}
+
+export class FileAdapterService extends FileService {
+  constructor() {
+    super();
+    this.folderStructure = {};
+    this.nodeMap = new Map();
+    this.fileMap = new Map();
+  }
+
+  async switch(fileList) {
+    const files = Array.from(fileList);
+
+    this.folderStructure = {
+      id: "root",
+      name: "root",
+      __children: {},
+      __files: []
+    };
+    this.nodeMap.clear();
+    this.fileMap.clear();
+    this.nodeMap.set("root", this.folderStructure);
+
+    if (!files.length) return;
+
+    const firstPath = files[0].webkitRelativePath || files[0].name;
+    const rootFolderName = firstPath.split("/")[0] || "root";
+    this.folderStructure.name = rootFolderName;
+
+    let folderIdCounter = 1;
+    let fileIdCounter = 1;
+
+    for (const file of files) {
+      const relativePath = file.webkitRelativePath || file.name;
+      const parts = relativePath.split("/");
+
+      if (parts.length > 1 && parts[0] === rootFolderName) {
+        parts.shift();
+      }
+
+      const fileName = parts.pop();
+      if (!fileName) continue;
+
+      let currentLevelNode = this.folderStructure;
+
+      for (const part of parts) {
+        if (!currentLevelNode.__children[part]) {
+          const newFolderId = `folder_${folderIdCounter++}`;
+          const newFolderNode = {
+            id: newFolderId,
+            name: part,
+            parentId: currentLevelNode.id,
+            __children: {},
+            __files: []
+          };
+          currentLevelNode.__children[part] = newFolderNode;
+          this.nodeMap.set(newFolderId, newFolderNode);
+        }
+        currentLevelNode = currentLevelNode.__children[part];
+      }
+
+      const ext = fileName.split(".").pop().toLowerCase();
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      const isAudio = file.type.startsWith("audio/");
+      const isText =
+        file.type.startsWith("text/") ||
+        [
+          "json", "js", "ts", "jsx", "tsx", "html", "htm", "css", "scss",
+          "md", "txt", "xml", "svg", "csv"
+        ].includes(ext);
+
+      let previewType = "generic";
+      let thumbnail = null;
+      const fileUrl = URL.createObjectURL(file);
+
+      if (isImage) {
+        previewType = "image";
+        thumbnail = fileUrl;
+      } else if (isVideo) {
+        previewType = "video";
+        thumbnail = fileUrl;
+      } else if (isAudio) {
+        previewType = "audio";
+      } else if (isText) {
+        previewType = "text";
+        thumbnail = await this._readTextSnippet(file);
+      }
+
+      const fileId = `file_${fileIdCounter++}`;
+      const fileRecord = {
+        id: fileId,
+        fileId: fileId,
+        title: fileName,
+        name: fileName,
+        isFolder: false,
+        parentId: currentLevelNode.id,
+        path: relativePath,
+        size: file.size,
+        type: file.type,
+        extension: ext,
+        fileUrl,
+        previewType,
+        thumbnail
+      };
+
+      currentLevelNode.__files.push(fileRecord);
+      this.fileMap.set(fileId, fileRecord);
+    }
+  }
+
+  async getFolderContents(folderId = "root") {
+    const node = this.nodeMap.get(folderId) || this.folderStructure;
+    const children = node.__children || {};
+    const files = node.__files || [];
+
+    const folders = Object.values(children).map(child => ({
+      id: child.id,
+      title: child.name,
+      name: child.name,
+      isFolder: true,
+      parentId: node.id,
+      size: this._calculateFolderSize(child)
+    }));
+
+    return {
+      folders,
+      files,
+      currentFolderName: node.name || "Home"
+    };
+  }
+
+  async getFileRecord(id) {
+    return this.fileMap.get(id) || null;
+  }
+
+  /** Local: returns blob URL (not base64). */
+  async getFullBase64(fileId) {
+    const file = this.fileMap.get(fileId);
+    return file ? file.fileUrl : null;
+  }
+}
+
+class FileManagerUI {
+  constructor(container, callbacks = {}) {
+    this.container = container;
+    this.callbacks = callbacks;
+  }
+
+  init() {
+    this._mountUI();
+    this._bindEvents();
+  }
+
+  _mountUI() {
+    if (!this.container) return;
+
+    this.container.innerHTML = FileManagerUI.getMainLayoutHTML();
+    document.body.insertAdjacentHTML("beforeend", FileManagerUI.getPreviewModalHTML());
+  }
+
+  // --------------------------------------------------
+  // UI Event Binding
+  // --------------------------------------------------
+  _bindEvents() {
+    // Close Preview Modal Event
+    document.getElementById("closeViewModalBtn")?.addEventListener("click", () => {
+      FileManagerUI.hidePreviewModal();
+    });
+
+    this.container.querySelector("#backBtn")?.addEventListener("click", () => {
+      this.callbacks.onBack?.();
+    });
+
+    this.container.addEventListener("click", (e) => {
+      const target = e.target.closest("[data-action]");
+      if (!target) return;
+
+      const action = target.dataset.action;
+      const id = target.dataset.id;
+      const fileId = target.dataset.fileId;
+
+      if (action === "navigate") this.callbacks.onNavigate?.(id);
+      if (action === "view") this.callbacks.onView?.(id, fileId);
+    });
+  }
+
+  // --------------------------------------------------
+  // Formatting Helper
+  // --------------------------------------------------
+  static formatBytes(bytes) {
+    if (bytes === 0 || isNaN(bytes) || bytes == null) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  }
+
+  // --------------------------------------------------
+  // Preview Rendering Logic
+  // --------------------------------------------------
+  static showPreviewLoading(fileName) {
+    const title = document.getElementById("viewModalTitle");
+    const date = document.getElementById("viewDate");
+    const content = document.getElementById("viewContentContainer");
+    const modal = document.getElementById("viewModal");
+
+    if (title) title.textContent = fileName;
+    if (date) date.innerHTML = `<i class="fa-regular fa-clock"></i> Recent`;
+    if (content) {
+      content.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i><p class="text-xs text-slate-500">Loading file...</p>`;
+    }
+    modal?.classList.remove("hidden");
+  }
+
+  static renderPreview(fileRecord, fileUrl) {
+    const content = document.getElementById("viewContentContainer");
+    const downloadBtn = document.getElementById("downloadFileBtn");
+    if (!content) return;
+
+    const fileNameLower = fileRecord.title.toLowerCase();
+    const isBlob = fileUrl.startsWith("blob:");
+
+    if (fileUrl.startsWith("data:image/") || (isBlob && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileNameLower))) {
+      content.innerHTML = `<img src="${fileUrl}" class="w-full h-full object-contain">`;
+    } else if (fileUrl.startsWith("data:video/") || (isBlob && /\.(mp4|webm|ogg|mov)$/i.test(fileNameLower))) {
+      content.innerHTML = `<video controls class="w-full h-full object-contain bg-black"><source src="${fileUrl}"></video>`;
+    } else if (fileNameLower.endsWith(".mp3") || fileNameLower.endsWith(".wav") || fileNameLower.endsWith(".ogg") || fileUrl.startsWith("data:audio/")) {
+      content.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full gap-4 p-6">
+          <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl shadow-inner">
+            <i class="fa-solid fa-music"></i>
+          </div>
+          <p class="text-sm font-medium text-slate-700 text-center truncate w-full">${fileRecord.title}</p>
+          <audio controls class="w-full max-w-md">
+            <source src="${fileUrl}">
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      `;
+    } else if (fileNameLower.endsWith(".html") || fileNameLower.endsWith(".htm")) {
+      if (fileUrl.includes(";base64,")) {
+        try {
+          const base64Content = fileUrl.split(',')[1];
+          const decodedHtml = decodeURIComponent(escape(atob(base64Content)));
+          const blob = new Blob([decodedHtml], { type: 'text/html' });
+          const blobUrl = URL.createObjectURL(blob);
+          content.innerHTML = `<iframe src="${blobUrl}" class="w-full h-full border-0 bg-white"></iframe>`;
+          return;
+        } catch (e) {
+          // fallback to standard iframe
+        }
+      }
+      content.innerHTML = `<iframe src="${fileUrl}" class="w-full h-full border-0 bg-white"></iframe>`;
+    } else if (fileNameLower.endsWith(".txt") || fileUrl.startsWith("data:text/plain")) {
+      if (isBlob) {
+        fetch(fileUrl)
+          .then(res => res.text())
+          .then(textContent => {
+            content.innerHTML = `<pre class="w-full h-full overflow-auto p-4 bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap">${textContent}</pre>`;
+          })
+          .catch(() => {
+            content.innerHTML = `<p class="text-xs text-red-400">Failed to load text preview.</p>`;
+          });
+        return;
+      } else {
+        try {
+          let textContent = "";
+          if (fileUrl.includes(";base64,")) {
+            const base64Content = fileUrl.split(',')[1];
+            textContent = decodeURIComponent(escape(atob(base64Content)));
+          } else {
+            textContent = decodeURIComponent(fileUrl.split(',')[1] || "");
+          }
+          content.innerHTML = `<pre class="w-full h-full overflow-auto p-4 bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap">${textContent}</pre>`;
+        } catch (err) {
+          content.innerHTML = `<p class="text-xs text-red-400">Failed to load text preview.</p>`;
+        }
+      }
+    } else if (fileNameLower.endsWith(".pdf") || fileUrl.startsWith("data:application/pdf") || isBlob) {
+      content.innerHTML = `<iframe src="${fileUrl}" class="w-full h-full border-0 bg-white"></iframe>`;
+    } else {
+      content.innerHTML = `<div class="text-center"><i class="fa-solid fa-file-arrow-down text-4xl text-blue-500 mb-2"></i><p class="text-xs font-semibold text-slate-300">${fileRecord.title}</p></div>`;
+    }
+
+    if (downloadBtn) {
+      downloadBtn.href = fileUrl;
+      downloadBtn.download = fileRecord.title;
+    }
+  }
+
+  static hidePreviewModal() {
+    const content = document.getElementById("viewContentContainer");
+    const modal = document.getElementById("viewModal");
+    if (content) content.innerHTML = "";
+    modal?.classList.add("hidden");
+  }
+
+  // --------------------------------------------------
+  // Templates & Renderers
+  // --------------------------------------------------
+  static getPreviewModalHTML() {
+    return `
+      <div id="viewModal" class="fixed inset-0 bg-slate-950 z-50 flex flex-col hidden">
+        <div class="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center border-b border-slate-800 shrink-0">
+          <h3 id="viewModalTitle" class="font-bold text-xs truncate">File Preview</h3>
+          <button id="closeViewModalBtn" class="text-slate-400 hover:text-white text-sm px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex-1 flex flex-col w-full h-full overflow-hidden p-2">
+          <div id="viewContentContainer" class="bg-black border border-slate-900 rounded-lg flex-1 flex items-center justify-center overflow-auto relative">
+            <i class="fa-solid fa-spinner fa-spin text-xl text-blue-500"></i>
+          </div>
+        </div>
+        <div class="bg-slate-900 text-white px-4 py-2 flex justify-between items-center border-t border-slate-800 shrink-0">
+          <span id="viewDate" class="text-[11px] text-slate-400"></span>
+          <a id="downloadFileBtn" href="#" download="" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-download"></i> Download
+          </a>
+        </div>
+      </div>
+    `;
+  }
+
+  static getMainLayoutHTML() {
+    return `
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
+        <div class="bg-white border-b border-slate-200 px-5 py-2 flex items-center justify-between gap-3 text-xs shrink-0">
+          <div class="flex items-center gap-2">
+            <button type="button" id="backBtn" class="widget-back-btn bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-arrow-left"></i> Back
+            </button>
+            <div id="pathText" class="text-slate-500 font-medium pl-2 border-l border-slate-200 truncate font-mono text-[11px]">/</div>
+          </div>
+          <div id="fileCountBadge" class="text-slate-400 font-medium text-[11px]">0 items</div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  static getLoadingHTML() {
+    return `<div class="col-span-full py-16 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-blue-500 block"></i>Loading folder...</div>`;
+  }
+
+  static getEmptyFolderHTML() {
+    return `<div class="col-span-full py-16 text-center text-slate-400 text-xs italic">This folder is empty.</div>`;
+  }
+
+  static renderFolderItem(folder) {
+    const name = folder.title || folder.name || "Untitled";
+    const folderSubtext = folder.size > 0 ? FileManagerUI.formatBytes(folder.size) : "Folder";
+
+    return `
+      <div data-action="navigate" data-id="${folder.id}" class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden">
+        <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-folder text-5xl"></i></div>
+        <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+          <span class="w-full text-xs font-bold text-slate-700 truncate" title="${name}">${name}</span>
+          <span class="text-[9px] text-slate-400 font-mono mt-0.5">${folderSubtext}</span>
+        </div>
+      </div>`;
+  }
+
+  static renderFileItem(file) {
+    const name = file.title || "Untitled";
+    const ext = file.extension || name.split(".").pop()?.toLowerCase() || "";
+    const sizeLabel = file.size != null ? FileManagerUI.formatBytes(file.size) : `${file.totalParts || 1} chunks`;
+    const previewHTML = FileManagerUI.getFilePreviewHTML(file, ext, name);
+
+    return `
+      <div data-action="view" data-id="${file.id}" data-file-id="${file.fileId}" class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden">
+        <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">${previewHTML}</div>
+        <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+          <span class="w-full text-xs font-semibold text-slate-700 truncate text-[11px]" title="${name}">${name}</span>
+          <span class="text-[9px] text-slate-400 font-mono mt-0.5">${sizeLabel}</span>
+        </div>
+      </div>`;
+  }
+
+  static getFilePreviewHTML(file, ext, name) {
+    let previewHTML = `<i class="fa-regular fa-file-lines text-slate-400 text-3xl"></i>`;
+    if (file.previewType === 'image' && file.thumbnail) {
+      previewHTML = `<img src="${file.thumbnail}" alt="${name}" class="w-full h-full object-cover rounded-lg" />`;
+    } else if (file.previewType === 'video' && file.thumbnail) {
+      previewHTML = `<video src="${file.thumbnail}" class="widget-video-preview w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video><div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>`;
+    } else if (file.previewType === 'audio') {
+      previewHTML = `<div class="flex flex-col items-center justify-center text-blue-500"><i class="fa-solid fa-file-audio text-3xl mb-1"></i><span class="text-[9px] font-mono text-slate-500 uppercase">${ext}</span></div>`;
+    } else if (file.previewType === 'text' && file.thumbnail) {
+      const escapedText = String(file.thumbnail).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+      previewHTML = `<pre class="text-[8px] leading-tight text-slate-500 font-mono text-left p-1.5 overflow-hidden w-full h-full select-none opacity-80">${escapedText}</pre>`;
+    } else if (["js", "ts", "jsx", "tsx"].includes(ext)) {
+      previewHTML = `<i class="fa-brands fa-js text-amber-400 text-3xl"></i>`;
+    } else if (["html", "htm"].includes(ext)) {
+      previewHTML = `<i class="fa-brands fa-html5 text-orange-400 text-3xl"></i>`;
+    } else if (["css", "scss"].includes(ext)) {
+      previewHTML = `<i class="fa-brands fa-css3-alt text-blue-500 text-3xl"></i>`;
+    } else if (ext === "json") {
+      previewHTML = `<i class="fa-solid fa-brackets-curly text-yellow-500 text-3xl"></i>`;
+    }
+    return previewHTML;
+  }
+}
+
+export class FileManager {
+  constructor(config = {}) {
+    this.container = document.getElementById(config.containerId);
+    this.service = config.service;
+    this.currentFolderId = "root";
+
+    this.ui = new FileManagerUI(this.container, {
+      onBack: () => this.navigateUp(),
+      onNavigate: (id) => this.navigateToFolder(id),
+      onView: (id, fileId) => this.viewFile(id, fileId)
+    });
+  }
+
+  init() {
+    this.ui.init();
+    this.loadCurrentFolder();
+  }
+
+  async switch(collections) {
+    await this.service.switch(collections);
+    this.currentFolderId = "root";
+    await this.loadCurrentFolder();
+  }
+
+  async loadCurrentFolder() {
+    const grid = this.container?.querySelector("#fileGridContainer");
+    if (!grid) return;
+
+    grid.innerHTML = FileManagerUI.getLoadingHTML();
+
+    try {
+      const { folders, files, currentFolderName } =
+        await this.service.getFolderContents(this.currentFolderId);
+      this.render(folders, files, currentFolderName);
+    } catch (err) {
+      console.error(`Error loading folder: ${err.message}`);
+    }
+  }
+
+  render(folders = [], files = [], currentFolderName = "Home") {
+    const grid = this.container.querySelector("#fileGridContainer");
+    const pathText = this.container.querySelector("#pathText");
+    const countBadge = this.container.querySelector("#fileCountBadge");
+    const backBtn = this.container.querySelector("#backBtn");
+    if (!grid) return;
+
+    const isRoot = this.currentFolderId === "root";
+
+    pathText.textContent = isRoot ? "/" : `/${currentFolderName}`;
+    countBadge.textContent = `${folders.length + files.length} items`;
+
+    if (isRoot) {
+      backBtn.classList.add("opacity-40", "cursor-not-allowed");
+      backBtn.classList.remove("cursor-pointer");
+      backBtn.disabled = true;
+    } else {
+      backBtn.classList.remove("opacity-40", "cursor-not-allowed");
+      backBtn.classList.add("cursor-pointer");
+      backBtn.disabled = false;
+    }
+
+    if (folders.length === 0 && files.length === 0) {
+      grid.innerHTML = FileManagerUI.getEmptyFolderHTML();
+      return;
+    }
+
+    let html = "";
+
+    folders.forEach(folder => {
+      html += FileManagerUI.renderFolderItem(folder);
+    });
+
+    files.forEach(file => {
+      html += FileManagerUI.renderFileItem(file);
+    });
+
+    grid.innerHTML = html;
+
+    grid.querySelectorAll('.widget-video-preview').forEach((videoEl) => {
+      videoEl.addEventListener('loadedmetadata', () => {
+        videoEl.currentTime = Math.min(1, videoEl.duration / 4);
+      });
+    });
+  }
+
+  navigateToFolder(folderId) {
+    this.currentFolderId = folderId;
+    this.loadCurrentFolder();
+  }
+
+  navigateUp() {
+    if (this.currentFolderId !== "root") {
+      this.navigateToFolder("root");
+    }
+  }
+
+  async viewFile(id, fileId) {
+    const fileRecord = await this.service.getFileRecord(id);
+    if (!fileRecord) return;
+
+    FileManagerUI.showPreviewLoading(fileRecord.title);
+
+    const fullBase64 = await this.service.getFullBase64(fileRecord.fileId);
+    FileManagerUI.renderPreview(fileRecord, fullBase64);
+  }
+}
+
+    const service = new FileAdapterService();
+    let folderManager = null;
+
+    document.querySelectorAll('.widget-folder-input-main, .widget-folder-input-header').forEach(input => {
+      input.addEventListener('change', async (e) => {
+        if (folderManager == null) {
+          folderManager = new FileManager({
+            containerId: 'widget-browser-wrapper',
+            service: service
+          });
+          folderManager.init();
+        }
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+        await folderManager.switch(files);
+      });
+    });
+  </script>
+</body>
+</html>
