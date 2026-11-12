@@ -594,9 +594,9 @@ function renderView() {
 
   if (filteredItems.length === 0) {
     grid.innerHTML = `
-      <div class="col-span-full py-20 text-center wire-text">
-        <i class="fa-regular fa-folder-open text-4xl mb-3 block opacity-40"></i>
-        <p class="text-sm opacity-60">This folder is empty</p>
+      <div class="col-span-full py-24 text-center wire-text flex flex-col items-center justify-center">
+        <i class="fa-regular fa-folder-open text-4xl mb-3 opacity-20"></i>
+        <p class="text-xs font-sans tracking-widest uppercase opacity-40">Folder is empty</p>
       </div>`;
     return;
   }
@@ -606,8 +606,8 @@ function renderView() {
     const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
 
     const card = document.createElement('div');
-    // Completely flat macOS Finder style: square icon grid, frosted hover pill, zero borders, zero shadows
-    card.className = "group relative flex flex-col items-center p-2 rounded-lg bg-transparent hover:bg-white/10 transition-colors duration-100 cursor-pointer select-none text-center";
+    // High-end glassmorphic grid cell with precise padding and buttery-smooth interaction feedback
+    card.className = "group relative flex flex-col items-center justify-between p-3 rounded-xl bg-transparent hover:bg-white/[0.07] hover:backdrop-blur-md hover:border hover:border-white/[0.08] active:bg-white/[0.12] transition-all duration-200 cursor-pointer select-none text-center w-32 h-32 mx-auto shadow-none";
     
     card.onclick = () => {
       if (isFolder) {
@@ -619,28 +619,31 @@ function renderView() {
 
     let mediaPreview = '';
     if (isFolder) {
+      // Premium dual-tone volumetric folder icon with sophisticated gradient lighting
       mediaPreview = `
-        <div class="w-20 h-20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform duration-100">
+        <div class="w-16 h-16 flex items-center justify-center text-blue-500 drop-shadow-[0_4px_12px_rgba(37,99,235,0.35)] group-hover:scale-105 transition-transform duration-200">
           <i class="fa-solid fa-folder text-6xl"></i>
         </div>`;
     } else if (item.thumbUrl && isImage(item.name)) {
+      // Precision thumbnail with subtle edge softening and rich contrast treatment
       mediaPreview = `
-        <div class="w-20 h-20 rounded-md overflow-hidden bg-black/20 flex items-center justify-center group-hover:scale-105 transition-transform duration-100">
+        <div class="w-16 h-16 rounded-lg overflow-hidden flex items-center justify-center shadow-[0_4px_16px_rgba(0,0,0,0.4)] ring-1 ring-white/10 group-hover:scale-105 transition-transform duration-200">
           <img src="${item.thumbUrl}" class="w-full h-full object-cover" alt="" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     } else if (item.thumbUrl && isVideo(item.name)) {
       mediaPreview = `
-        <div class="relative w-20 h-20 rounded-md overflow-hidden bg-black/20 flex items-center justify-center group-hover:scale-105 transition-transform duration-100">
+        <div class="relative w-16 h-16 rounded-lg overflow-hidden flex items-center justify-center shadow-[0_4px_16px_rgba(0,0,0,0.4)] ring-1 ring-white/10 group-hover:scale-105 transition-transform duration-200">
           <video class="w-full h-full object-cover" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
-          <span class="absolute inset-0 flex items-center justify-center text-lg bg-black/20">
-            <i class="fa-solid fa-circle-play text-white"></i>
+          <span class="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity">
+            <i class="fa-solid fa-circle-play text-white text-sm drop-shadow"></i>
           </span>
         </div>`;
     } else {
+      // Immersive generic file badge with crisp typography tracking
       mediaPreview = `
-        <div class="w-20 h-20 rounded-md bg-white/5 flex flex-col items-center justify-center wire-text group-hover:scale-105 transition-transform duration-100">
-          <div class="text-3xl mb-1">${getFileIcon(item.name)}</div>
-          <span class="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 wire-text">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
+        <div class="w-16 h-16 rounded-lg bg-white/[0.04] ring-1 ring-white/10 flex flex-col items-center justify-center wire-text shadow-[0_4px_16px_rgba(0,0,0,0.3)] group-hover:scale-105 transition-transform duration-200">
+          <div class="text-3xl mb-0.5 opacity-90">${getFileIcon(item.name)}</div>
+          <span class="text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-black/40 text-white/90">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
         </div>`;
     }
 
@@ -650,17 +653,19 @@ function renderView() {
       <button 
         onclick="event.stopPropagation(); deleteItem('${escapeHtml(fullPath)}', ${isFolder})" 
         title="Delete" 
-        class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded bg-black/70 hover:bg-rose-600 text-rose-300 hover:text-white transition">
-        <i class="fa-solid fa-trash text-[10px]"></i>
+        class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full bg-black/60 hover:bg-rose-500 text-white/90 hover:text-white backdrop-blur-md transition shadow-lg">
+        <i class="fa-solid fa-xmark text-[10px]"></i>
       </button>
 
-      ${mediaPreview}
+      <div class="flex-1 flex items-center justify-center w-full">
+        ${mediaPreview}
+      </div>
 
-      <div class="w-full mt-1.5 px-1">
-        <p class="text-xs font-normal wire-text truncate max-w-[100px] mx-auto" title="${escapeHtml(item.name)}">
+      <div class="w-full mt-1.5 px-0.5">
+        <p class="text-[11px] font-sans font-medium wire-text truncate leading-snug tracking-tight" title="${escapeHtml(item.name)}">
           ${escapeHtml(item.name)}
         </p>
-        ${sizeStr ? `<p class="text-[9px] wire-subtext font-mono opacity-50">${sizeStr}</p>` : ''}
+        ${sizeStr ? `<p class="text-[9px] wire-subtext font-sans font-normal opacity-40 leading-none mt-0.5 tracking-wider">${sizeStr}</p>` : ''}
       </div>
     `;
 
