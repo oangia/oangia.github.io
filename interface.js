@@ -594,9 +594,9 @@ function renderView() {
 
   if (filteredItems.length === 0) {
     grid.innerHTML = `
-      <div class="col-span-full py-16 text-center wire-text">
-        <i class="fa-regular fa-folder-open text-4xl mb-2 block opacity-60"></i>
-        <p class="text-sm opacity-75">This folder is empty</p>
+      <div class="col-span-full py-20 text-center wire-text">
+        <i class="fa-regular fa-folder-open text-4xl mb-3 block opacity-40"></i>
+        <p class="text-sm opacity-60">This folder is empty</p>
       </div>`;
     return;
   }
@@ -606,8 +606,8 @@ function renderView() {
     const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
 
     const card = document.createElement('div');
-    // Clean, borderless card container with subtle hover lift and background
-    card.className = "group relative flex flex-col items-center p-3 rounded-xl bg-transparent hover:bg-white/5 transition-all duration-200 cursor-pointer select-none";
+    // Authentic macOS Finder Icon View item cell: borderless, padded, smooth rounded highlight on hover
+    card.className = "group relative flex flex-col items-center p-3 rounded-lg bg-transparent hover:bg-white/10 transition-colors duration-150 cursor-pointer select-none";
     
     card.onclick = () => {
       if (isFolder) {
@@ -620,38 +620,38 @@ function renderView() {
     let mediaPreview = '';
     if (isFolder) {
       mediaPreview = `
-        <div class="w-full h-24 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform duration-200">
+        <div class="w-full h-24 flex items-center justify-center text-amber-400 drop-shadow-sm group-hover:scale-105 transition-transform duration-150">
           <i class="fa-solid fa-folder text-6xl"></i>
         </div>`;
     } else if (item.thumbUrl && isImage(item.name)) {
       mediaPreview = `
-        <div class="w-full h-24 rounded-lg overflow-hidden bg-transparent flex items-center justify-center">
-          <img src="${item.thumbUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" alt="" loading="lazy" onerror="this.style.display='none'">
+        <div class="w-full h-24 rounded-md overflow-hidden bg-black/20 flex items-center justify-center shadow-sm">
+          <img src="${item.thumbUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-150" alt="" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     } else if (item.thumbUrl && isVideo(item.name)) {
       mediaPreview = `
-        <div class="relative w-full h-24 rounded-lg overflow-hidden bg-transparent flex items-center justify-center">
+        <div class="relative w-full h-24 rounded-md overflow-hidden bg-black/20 flex items-center justify-center shadow-sm">
           <video class="w-full h-full object-cover" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
-          <span class="absolute inset-0 flex items-center justify-center wire-text text-xl">
-            <i class="fa-solid fa-circle-play text-white"></i>
+          <span class="absolute inset-0 flex items-center justify-center text-xl bg-black/30 opacity-80 group-hover:opacity-100 transition-opacity">
+            <i class="fa-solid fa-circle-play text-white drop-shadow"></i>
           </span>
         </div>`;
     } else {
       mediaPreview = `
-        <div class="w-full h-24 rounded-lg bg-transparent flex flex-col items-center justify-center wire-text">
-          <div class="text-3xl mb-1.5">${getFileIcon(item.name)}</div>
-          <span class="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 wire-text">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
+        <div class="w-full h-24 rounded-md bg-white/[0.04] flex flex-col items-center justify-center wire-text shadow-sm">
+          <div class="text-3xl mb-1 opacity-90">${getFileIcon(item.name)}</div>
+          <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 wire-text">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
         </div>`;
     }
 
-    const sizeStr = isFolder ? 'Folder' : formatBytes(item.metadata?.size || 0);
+    const sizeStr = isFolder ? '' : formatBytes(item.metadata?.size || 0);
 
     card.innerHTML = `
       <button 
         onclick="event.stopPropagation(); deleteItem('${escapeHtml(fullPath)}', ${isFolder})" 
         title="Delete" 
-        class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg bg-black/40 hover:bg-rose-500/20 text-rose-400 backdrop-blur-sm transition">
-        <i class="fa-solid fa-trash text-xs"></i>
+        class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-md bg-black/50 hover:bg-rose-500/80 text-rose-300 hover:text-white transition shadow">
+        <i class="fa-solid fa-trash text-[10px]"></i>
       </button>
 
       ${mediaPreview}
@@ -660,7 +660,7 @@ function renderView() {
         <p class="text-xs font-medium wire-text truncate px-1" title="${escapeHtml(item.name)}">
           ${escapeHtml(item.name)}
         </p>
-        <p class="text-[10px] wire-subtext font-mono mt-0.5 opacity-70">${sizeStr}</p>
+        ${sizeStr ? `<p class="text-[10px] wire-subtext font-mono mt-0.5 opacity-60">${sizeStr}</p>` : ''}
       </div>
     `;
 
