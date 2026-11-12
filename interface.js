@@ -590,13 +590,14 @@ function renderView() {
 
   const grid = document.getElementById('itemsGrid');
   grid.innerHTML = '';
-  document.getElementById('itemCountLabel').textContent = `${filteredItems.length} item(s)`;
+  document.getElementById('itemCountLabel').textContent = `${filteredItems.length} item${filteredItems.length !== 1 ? 's' : ''}`;
 
+  // Empty state (compact)
   if (filteredItems.length === 0) {
     grid.innerHTML = `
-      <div class="col-span-full py-24 text-center text-white/40 flex flex-col items-center justify-center">
-        <i class="fa-regular fa-folder-open text-3xl mb-2 font-light"></i>
-        <p class="text-xs font-sans tracking-wide">No items</p>
+      <div class="col-span-full flex flex-col items-center justify-center py-20 text-center">
+        <i class="fa-regular fa-folder-open text-2xl text-white/25 mb-3"></i>
+        <p class="text-sm text-white/45">No items</p>
       </div>`;
     return;
   }
@@ -606,9 +607,19 @@ function renderView() {
     const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
 
     const card = document.createElement('div');
-    // Authentic macOS Finder layout: clean grid slot with a subtle system-blue active selection pill on hover
-    card.className = "group relative flex flex-col items-center justify-between p-2 rounded-lg bg-transparent hover:bg-blue-500/15 active:bg-blue-500/25 transition-colors duration-75 cursor-pointer select-none text-center w-28 h-28 mx-auto";
-    
+
+    // Compact elegant card
+    card.className = `
+      group relative flex flex-col items-center
+      w-[96px] h-[108px]
+      rounded-xl p-2
+      bg-transparent
+      hover:bg-white/[0.05]
+      active:bg-white/[0.08]
+      transition-colors duration-150
+      cursor-pointer select-none
+    `;
+
     card.onclick = () => {
       if (isFolder) {
         navigateToFolder(fullPath, item.name);
@@ -617,56 +628,82 @@ function renderView() {
       }
     };
 
+    // ========== MEDIA ==========
     let mediaPreview = '';
+
     if (isFolder) {
-      // Classic macOS system blue folder icon floating freely without containers
       mediaPreview = `
-        <div class="w-16 h-14 flex items-center justify-center text-[#5896F8]">
-          <i class="fa-solid fa-folder text-5xl"></i>
+        <div class="flex h-[58px] w-full items-center justify-center">
+          <i class="fa-solid fa-folder text-[42px] text-[#6BA3FF] transition-transform duration-150 group-hover:scale-105"></i>
         </div>`;
-    } else if (item.thumbUrl && isImage(item.name)) {
-      // Clean, unboxed image preview with natural rounded corners
+    } 
+    
+    else if (item.thumbUrl && isImage(item.name)) {
       mediaPreview = `
-        <div class="w-16 h-14 flex items-center justify-center">
-          <img src="${item.thumbUrl}" class="w-full h-full object-cover rounded" alt="" loading="lazy" onerror="this.style.display='none'">
+        <div class="flex h-[58px] w-full items-center justify-center">
+          <div class="h-[54px] w-[54px] overflow-hidden rounded-lg ring-1 ring-white/10 transition-all duration-150 group-hover:ring-white/20">
+            <img 
+              src="${item.thumbUrl}" 
+              class="h-full w-full object-cover" 
+              loading="lazy"
+              onerror="this.parentElement.innerHTML='<div class=\\'flex h-full items-center justify-center bg-white/5\\'><i class=\\'fa-regular fa-image text-white/30\\'></i></div>'"
+            >
+          </div>
         </div>`;
-    } else if (item.thumbUrl && isVideo(item.name)) {
-      // Clean video preview with subtle play indicator
+    } 
+    
+    else if (item.thumbUrl && isVideo(item.name)) {
       mediaPreview = `
-        <div class="relative w-16 h-14 flex items-center justify-center">
-          <video class="w-full h-full object-cover rounded" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
-          <span class="absolute inset-0 flex items-center justify-center bg-black/20 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-            <i class="fa-solid fa-circle-play text-white text-xs"></i>
+        <div class="flex h-[58px] w-full items-center justify-center">
+          <div class="relative h-[54px] w-[54px] overflow-hidden rounded-lg ring-1 ring-white/10 transition-all duration-150 group-hover:ring-white/20">
+            <video class="h-full w-full object-cover" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
+            <div class="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
+              <i class="fa-solid fa-play text-[10px] text-white"></i>
+            </div>
+          </div>
+        </div>`;
+    } 
+    
+    else {
+      const ext = getExtension(item.name) || 'FILE';
+      mediaPreview = `
+        <div class="flex h-[58px] w-full flex-col items-center justify-center gap-1">
+          <div class="text-[28px] text-white/70 leading-none">
+            ${getFileIcon(item.name)}
+          </div>
+          <span class="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white/55 bg-white/[0.07]">
+            ${escapeHtml(ext)}
           </span>
-        </div>`;
-    } else {
-      // Minimalist document icon with a subtle format tag
-      mediaPreview = `
-        <div class="w-16 h-14 flex flex-col items-center justify-center text-white/80">
-          <div class="text-3xl mb-0.5">${getFileIcon(item.name)}</div>
-          <span class="text-[7px] font-medium uppercase tracking-wider px-1 rounded bg-white/10 text-white/90">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
         </div>`;
     }
 
     const sizeStr = isFolder ? '' : formatBytes(item.metadata?.size || 0);
 
     card.innerHTML = `
+      <!-- Delete -->
       <button 
-        onclick="event.stopPropagation(); deleteItem('${escapeHtml(fullPath)}', ${isFolder})" 
-        title="Delete" 
-        class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full bg-black/50 hover:bg-red-500 text-white transition">
+        onclick="event.stopPropagation(); deleteItem('${escapeHtml(fullPath)}', ${isFolder})"
+        class="absolute top-1.5 right-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full
+               bg-black/60 text-white/70 opacity-0
+               transition-all duration-150
+               group-hover:opacity-100 hover:bg-rose-500 hover:text-white"
+      >
         <i class="fa-solid fa-xmark text-[9px]"></i>
       </button>
 
+      <!-- Media -->
       <div class="flex-1 flex items-center justify-center w-full">
         ${mediaPreview}
       </div>
 
-      <div class="w-full mt-1">
-        <p class="text-[11px] font-sans font-normal text-white/90 truncate leading-tight px-1" title="${escapeHtml(item.name)}">
+      <!-- Name + Size -->
+      <div class="w-full mt-1.5 text-center px-0.5">
+        <p class="truncate text-[11.5px] font-medium leading-tight text-white/90" title="${escapeHtml(item.name)}">
           ${escapeHtml(item.name)}
         </p>
-        ${sizeStr ? `<p class="text-[9px] text-white/40 font-sans leading-none mt-0.5">${sizeStr}</p>` : ''}
+        ${sizeStr 
+          ? `<p class="mt-0.5 text-[10px] text-white/40">${sizeStr}</p>` 
+          : `<p class="mt-0.5 text-[10px] text-transparent">.</p>`}
       </div>
     `;
 
