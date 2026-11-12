@@ -611,7 +611,7 @@ function renderView() {
 
     // ===== Preferred card style (copied & adapted) =====
     card.className = `
-      group relative bg-transparent border border-slate-200 hover:border-blue-500 
+      group relative bg-transparent border border-white/20 hover:border-blue-500 
       rounded-xl p-3 flex flex-col items-center justify-between text-center 
       cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 
       aspect-square overflow-hidden
@@ -677,7 +677,7 @@ function renderView() {
       ${mediaHTML}
 
       <!-- Name + Size (preferred bottom section) -->
-      <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+      <div class="w-full pt-2 border-t border-white/20 flex flex-col">
         <span class="w-full text-xs font-semibold text-slate-700 truncate" title="${escapeHtml(item.name)}">
           ${escapeHtml(item.name)}
         </span>
