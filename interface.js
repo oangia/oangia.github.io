@@ -606,8 +606,8 @@ function renderView() {
     const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
 
     const card = document.createElement('div');
-    card.className = "group relative flex flex-col items-center p-3 rounded-xl bg-transparent wire-border hover:border-indigo-400 transition cursor-pointer select-none";
-
+    card.className = "group relative flex flex-col items-center p-3 rounded-xl bg-transparent hover:bg-white/5 transition cursor-pointer select-none";
+    
     card.onclick = () => {
       if (isFolder) {
         navigateToFolder(fullPath, item.name);
