@@ -224,7 +224,7 @@ class FilePreviewManager {
 
       // Render preview based on file type
       if (isImage(name)) {
-        body.innerHTML = `<img src="${url}" alt="${escapeHtml(name)}" class="max-w-full max-h-[70vh] rounded-lg shadow-md object-contain wire-border">`;
+        body.innerHTML = `<img src="${url}" alt="${escapeHtml(name)}" class="max-w-full max-h-[100vh] rounded-lg shadow-md object-contain wire-border">`;
       } else if (isAudio(name)) {
         body.innerHTML = `
           <div class="w-full max-w-lg text-center">
