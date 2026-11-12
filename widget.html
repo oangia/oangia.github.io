@@ -2,20 +2,31 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oangia Widgets</title>
     <style>
         body, html {
             margin: 0; padding: 0;
             width: 100%; height: 100%;
             background: transparent;
             overflow: hidden;
-            pointer-events: none;
+            pointer-events: none; /* Let background page clicks pass through empty space */
         }
+
+        /* Explicitly make interactive containers clickable */
+        #floating-widgets-container, 
+        .widget-popup.flex, 
+        #yt-iframe-modal-overlay, 
+        #transparent-fullscreen-overlay {
+            pointer-events: auto;
+        }
+
         #floating-widgets-container, #yt-iframe-modal-overlay, #transparent-fullscreen-overlay {
             z-index: 999999;
             display: flex;
             font-family: Roboto, Arial, sans-serif;
-            pointer-events: auto;
         }
+
         #floating-widgets-container {
             position: fixed;
             bottom: 24px; right: 24px;
@@ -24,15 +35,18 @@
             gap: 12px;
             box-sizing: border-box;
         }
+
         #floating-widgets-container *, #floating-widgets-container ::after, #floating-widgets-container ::before {
             box-sizing: border-box;
         }
+
         .widget-wrapper {
             position: relative;
             display: flex;
             flex-direction: column;
             align-items: flex-end;
         }
+
         .widget-float-btn {
             width: 52px; height: 52px;
             background-color: #059669; color: #fff;
@@ -42,14 +56,17 @@
             cursor: pointer;
             transition: transform .2s cubic-bezier(.4, 0, .2, 1), background-color .2s, box-shadow .2s;
         }
+
         .widget-float-btn:hover {
             background-color: #047857;
             transform: scale(1.08);
             box-shadow: 0 12px 28px rgba(0, 0, 0, .35);
         }
+
         .widget-float-btn.explorer-btn { background-color: #4f46e5; }
         .widget-float-btn.explorer-btn:hover { background-color: #4338ca; }
         .widget-float-btn svg { width: 24px; height: 24px; fill: currentColor; }
+
         .widget-popup {
             position: fixed; left: 16px; right: 16px; bottom: 92px;
             height: 500px; max-height: 80vh;
@@ -59,23 +76,29 @@
             display: none; flex-direction: column;
             z-index: 999999; overflow: hidden;
         }
+
         @media (min-width: 640px) {
             .widget-popup {
                 position: absolute; left: auto; right: 0; bottom: 68px;
                 width: 400px; height: 550px;
             }
         }
+
         .widget-popup.flex { display: flex; }
         .widget-iframe { width: 100%; height: 100%; border: none; background: #fff; }
+
         #yt-iframe-modal-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background-color: rgba(0, 0, 0, .75); align-items: center; justify-content: center;
         }
+
         #transparent-fullscreen-overlay {
             position: fixed; inset: 0; width: 100vw; height: 100vh;
             background: transparent !important; z-index: 1000000;
         }
+
         #transparent-fullscreen-iframe { width: 100%; height: 100%; border: none; background: transparent !important; }
+
         #transparent-fullscreen-close {
             position: fixed; top: 16px; right: 16px; width: 36px; height: 36px;
             border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.4);
