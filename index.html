@@ -60,8 +60,8 @@
   <script type="module">
     import { FirebaseService } from "./js/firebase-service.js";
     import { FileManagerWrapper } from "./js/manager.js";
-    import { FileManager } from "./js/file/file.js";
-    import { FileAdapterService } from "./js/file/service.js";
+    import { FileManager } from "./js/file.js";
+    import { FileAdapterService } from "./js/service.js";
 
     const configManager = new ConfigManager("toggleConfigBtn");
     const fbService = new FirebaseService();
@@ -77,11 +77,6 @@
         title: "File Manager - File",
         items: "book_files",
         fileChunks: "book_file_chunks"
-      },
-      memo: {
-        title: "File Manager - Memo",
-        items: "memo_files",
-        fileChunks: "memo_file_chunks"
       }
     };
 
@@ -191,7 +186,6 @@
       items: [
         { id: "navHome", spaceKey: "home", label: "Home", icon: "fa-solid fa-house" },
         { id: "navFile", spaceKey: "file", label: "File", icon: "fa-solid fa-folder" },
-        { id: "navMemo", spaceKey: "memo", label: "Memo", icon: "fa-solid fa-note-sticky" },
         { id: "navFolder", spaceKey: "folder", label: "Folder", icon: "fa-solid fa-folder" }
       ],
       onSelect: (spaceKey) => {
