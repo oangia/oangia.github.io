@@ -606,7 +606,7 @@ function renderView() {
     const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
 
     const card = document.createElement('div');
-    // Authentic macOS Finder Icon View cell structure with precise system padding and selection highlight styling
+    // Authentic macOS Finder Icon View cell structure with system highlight and zero background artifact boxes
     card.className = "group relative flex flex-col items-center justify-between p-2 rounded-lg bg-transparent hover:bg-blue-500/15 active:bg-blue-500/25 transition-all duration-75 cursor-pointer select-none text-center w-28 h-28 mx-auto";
     
     card.onclick = () => {
@@ -619,25 +619,28 @@ function renderView() {
 
     let mediaPreview = '';
     if (isFolder) {
-      // macOS high-fidelity system blue vector folder representation
+      // Clean vector folder graphic floating with zero container box or backdrop shadow
       mediaPreview = `
         <div class="w-16 h-14 flex items-center justify-center text-[#5896F8] group-hover:scale-105 transition-transform duration-100">
           <i class="fa-solid fa-folder text-5xl"></i>
         </div>`;
     } else if (item.thumbUrl && isImage(item.name)) {
+      // Pure raw image element with absolute zero wrapper background boxes or drop shadows
       mediaPreview = `
-        <div class="w-16 h-14 rounded overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform duration-100">
-          <img src="${item.thumbUrl}" class="w-full h-full object-cover" alt="" loading="lazy" onerror="this.style.display='none'">
+        <div class="w-16 h-14 flex items-center justify-center group-hover:scale-105 transition-transform duration-100">
+          <img src="${item.thumbUrl}" class="w-full h-full object-cover rounded" alt="" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     } else if (item.thumbUrl && isVideo(item.name)) {
+      // Pure raw video element with zero wrapper boxes or shadows
       mediaPreview = `
-        <div class="relative w-16 h-14 rounded overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform duration-100">
-          <video class="w-full h-full object-cover" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
-          <span class="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div class="relative w-16 h-14 flex items-center justify-center group-hover:scale-105 transition-transform duration-100">
+          <video class="w-full h-full object-cover rounded" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
+          <span class="absolute inset-0 flex items-center justify-center bg-black/20 rounded opacity-0 group-hover:opacity-100 transition-opacity">
             <i class="fa-solid fa-circle-play text-white text-xs"></i>
           </span>
         </div>`;
     } else {
+      // Generic document floating flat with zero backdrop boxes or container fill
       mediaPreview = `
         <div class="w-16 h-14 flex flex-col items-center justify-center text-white/80 group-hover:scale-105 transition-transform duration-100">
           <div class="text-3xl mb-0.5">${getFileIcon(item.name)}</div>
@@ -651,7 +654,7 @@ function renderView() {
       <button 
         onclick="event.stopPropagation(); deleteItem('${escapeHtml(fullPath)}', ${isFolder})" 
         title="Delete" 
-        class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full bg-black/50 hover:bg-red-500 text-white transition shadow-sm">
+        class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full bg-black/50 hover:bg-red-500 text-white transition">
         <i class="fa-solid fa-xmark text-[9px]"></i>
       </button>
 
@@ -670,7 +673,6 @@ function renderView() {
     grid.appendChild(card);
   });
 }
-
 function renderBreadcrumbs() {
   const nav = document.getElementById('breadcrumbNav');
   if (!nav) return;
