@@ -1,7 +1,9 @@
 // ==========================================
 // ---------- Utility & Helper Functions ----
 // ==========================================
-
+function isHtml(filename) {
+  return /\.(html|htm)$/i.test(filename);
+}
 function formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
   const k = 1024;
@@ -233,7 +235,7 @@ class FilePreviewManager {
           </div>`;
       } else if (isVideo(name)) {
         body.innerHTML = `<video controls class="max-w-full max-h-[70vh] rounded-lg shadow-md wire-border" src="${url}"></video>`;
-      } else if (isText(name)) {
+      } else if (isText(name) || isHtml(name)) {
         const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) throw new Error('Failed to fetch file content');
         this.currentArrayBuffer = await res.arrayBuffer();
@@ -242,8 +244,34 @@ class FilePreviewManager {
         this.currentPreviewText = text;
         this.isTextEditor = true;
 
-        // Updated background to semi-transparent dark tint matching the full screen panel
-        body.innerHTML = `<textarea id="editTextarea" class="w-full h-[75vh] font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${escapeHtml(text)}</textarea>`;
+        if (isHtml(name)) {
+          // Render HTML with a View/Edit Mode Toggle Toolbar & Sandboxed iframe
+          body.innerHTML = `
+            <div class="flex flex-col h-full w-full">
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 px-1">
+                <div class="flex items-center gap-1 bg-black/40 p-1 rounded wire-border text-xs">
+                  <button type="button" onclick="filePreviewManager.switchHtmlView('preview')" id="htmlPreviewTab" class="px-3 py-1 rounded bg-indigo-600 text-white font-medium transition">Preview</button>
+                  <button type="button" onclick="filePreviewManager.switchHtmlView('editor')" id="htmlEditorTab" class="px-3 py-1 rounded wire-subtext hover:text-white transition">Code Editor</button>
+                </div>
+                <span class="text-[11px] wire-subtext italic">HTML Interactive File</span>
+              </div>
+              <div id="htmlPreviewContainer" class="w-full h-[70vh] bg-white rounded-lg overflow-hidden wire-border">
+                <iframe id="htmlPreviewFrame" class="w-full h-full border-0" sandbox="allow-scripts allow-modals"></iframe>
+              </div>
+              <div id="htmlEditorContainer" class="w-full h-[70vh] hidden">
+                <textarea id="editTextarea" class="w-full h-full font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${escapeHtml(text)}</textarea>
+              </div>
+            </div>
+          `;
+          setTimeout(() => {
+            const frame = document.getElementById('htmlPreviewFrame');
+            if (frame) frame.srcdoc = text;
+          }, 50);
+        } else {
+          // Standard text editor view
+          body.innerHTML = `<textarea id="editTextarea" class="w-full h-[75vh] font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${escapeHtml(text)}</textarea>`;
+        }
+
         if (saveBtn) saveBtn.classList.remove('hidden');
         if (cancelBtn) cancelBtn.classList.remove('hidden');
       } else {
@@ -261,6 +289,35 @@ class FilePreviewManager {
       if (sidebarDetails) {
         sidebarDetails.innerHTML = `<div class="p-3 bg-rose-950/60 border border-rose-500/50 text-rose-200 rounded text-xs">Failed to load details</div>`;
       }
+    }
+  }
+
+  switchHtmlView(mode) {
+    const previewTab = document.getElementById('htmlPreviewTab');
+    const editorTab = document.getElementById('htmlEditorTab');
+    const previewContainer = document.getElementById('htmlPreviewContainer');
+    const editorContainer = document.getElementById('htmlEditorContainer');
+    const textarea = document.getElementById('editTextarea');
+
+    if (!previewTab || !editorTab || !previewContainer || !editorContainer) return;
+
+    if (mode === 'preview') {
+      if (textarea && this.currentPreviewText !== textarea.value) {
+        this.currentPreviewText = textarea.value;
+        const frame = document.getElementById('htmlPreviewFrame');
+        if (frame) frame.srcdoc = this.currentPreviewText;
+      }
+
+      previewTab.className = "px-3 py-1 rounded bg-indigo-600 text-white font-medium transition";
+      editorTab.className = "px-3 py-1 rounded wire-subtext hover:text-white transition";
+      previewContainer.classList.remove('hidden');
+      editorContainer.classList.add('hidden');
+    } else {
+      previewTab.className = "px-3 py-1 rounded wire-subtext hover:text-white transition";
+      editorTab.className = "px-3 py-1 rounded bg-indigo-600 text-white font-medium transition";
+      previewContainer.classList.add('hidden');
+      editorContainer.classList.remove('hidden');
+      if (textarea) textarea.focus();
     }
   }
 
@@ -389,14 +446,16 @@ class FilePreviewManager {
     const newContent = textarea.value;
     try {
       this.onToast('Saving...', 'info', 1500);
-      const blob = new Blob([newContent], { type: 'text/plain;charset=utf-8' });
+      const contentType = isHtml(this.currentPreviewName) ? 'text/html' : 'text/plain;charset=utf-8';
+      const blob = new Blob([newContent], { type: contentType });
+      
       const { error } = await this.supabaseClient
         .storage
         .from(this.bucket)
         .upload(this.currentPreviewPath, blob, {
           cacheControl: 'no-cache',
           upsert: true,
-          contentType: 'text/plain'
+          contentType: isHtml(this.currentPreviewName) ? 'text/html' : 'text/plain'
         });
 
       if (error) throw error;
