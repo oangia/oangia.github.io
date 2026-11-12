@@ -6,9 +6,6 @@
   <title>Folder Manager</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js"></script>
   <style>
     /* Native App Window Frame Styling */
     html, body {
@@ -93,112 +90,6 @@
 
   async getFullBase64(fileId) {
     throw new Error("Method 'getFullBase64()' must be implemented.");
-  }
-
-  async createFolder(name, parentId = "root") {
-    throw new Error("Method 'createFolder()' must be implemented.");
-  }
-
-  async uploadFile(file, parentId = "root", onProgress) {
-    throw new Error("Method 'uploadFile()' must be implemented.");
-  }
-
-  async deleteFolder(id) {
-    throw new Error("Method 'deleteFolder()' must be implemented.");
-  }
-
-  async deleteFile(id, fileId) {
-    throw new Error("Method 'deleteFile()' must be implemented.");
-  }
-
-  async generateZipBlob() {
-    throw new Error("Method 'generateZipBlob()' must be implemented.");
-  }
-
-  async downloadBackup() {
-    await this._ensureCache();
-    const items = this._itemsCache;
-  
-    if (typeof JSZip === "undefined") {
-      throw new Error("JSZip is not loaded or defined in the global scope.");
-    }
-  
-    const folders = items.filter(i => i.isFolder);
-    const files = items.filter(i => !i.isFolder);
-  
-    const getFolderPath = parentId => {
-      const pathParts = [];
-      let currentId = parentId;
-      while (currentId && currentId !== "root") {
-        const folder = folders.find(f => f.id === currentId);
-        if (folder) {
-          pathParts.unshift(folder.title || folder.name);
-          currentId = folder.parentId;
-        } else {
-          break;
-        }
-      }
-      return pathParts.join("/");
-    };
-  
-    // 1. Sort files deterministically so the hash order is always consistent
-    const fileEntries = files.map(fileRecord => {
-      const folderPath = getFolderPath(fileRecord.parentId);
-      const filePath = folderPath ? `${folderPath}/${fileRecord.title}` : fileRecord.title;
-      return { fileRecord, filePath };
-    });
-    fileEntries.sort((a, b) => a.filePath.localeCompare(b.filePath));
-  
-    // 2. Gather raw file bytes & paths to feed into the hash (completely ignores ZIP metadata)
-    const hasherBuffers = [];
-    const encoder = new TextEncoder();
-  
-    for (const { fileRecord, filePath } of fileEntries) {
-      const chunks = await this.getFileChunks(fileRecord.fileId || fileRecord.id);
-  
-      const fullBase64 = chunks.map(c => c.chunkData).join("");
-      const base64Data = fullBase64.includes(",")
-        ? fullBase64.split(",")[1]
-        : fullBase64;
-      if (!base64Data) continue;
-  
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-  
-      // Include both the file path and its raw byte content in the hash
-      hasherBuffers.push(encoder.encode(filePath));
-      hasherBuffers.push(bytes);
-    }
-  
-    // Combine all file buffers into a single buffer and create the hash
-    const totalLength = hasherBuffers.reduce((acc, buf) => acc + buf.length, 0);
-    const combinedBuffer = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const buf of hasherBuffers) {
-      combinedBuffer.set(buf, offset);
-      offset += buf.length;
-    }
-  
-    const hashBuffer = await crypto.subtle.digest("SHA-256", combinedBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-    const shortHash = hashHex.slice(0, 8); // e.g., "a1b2c3d4"
-  
-    // 3. Generate your normal ZIP blob using your existing function
-    const content = await this.generateZipBlob();
-  
-    // 4. Download file with today's date + the pure content hash
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.href = URL.createObjectURL(content);
-    downloadAnchor.download = `backup_${dateStr}_${shortHash}.zip`;
-  
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
   }
 
   // ---------- helpers ----------
@@ -308,82 +199,7 @@
 
     return null;
   }
-  async _buildPreview(item) {
-    const title = item.title || item.name || "Untitled";
-    const type = item.type || item.mimeType || "";
-    const ext = (item.extension || title.split(".").pop() || "").toLowerCase();
 
-    const fullBase64 = await this.getFullBase64(item.fileId || item.id);
-    if (!fullBase64) {
-      return {
-        previewType: this._guessPreviewType(type, ext),
-        thumbnail: null
-      };
-    }
-
-    const detectedMime = this._detectMimeFromBase64(fullBase64);
-
-    let previewType = "generic";
-    if (detectedMime) {
-      if (detectedMime.startsWith("image/")) previewType = "image";
-      else if (detectedMime.startsWith("video/")) previewType = "video";
-      else if (detectedMime.startsWith("audio/")) previewType = "audio";
-      else if (
-        detectedMime.startsWith("text/") ||
-        detectedMime === "application/json" ||
-        detectedMime === "application/xml" ||
-        detectedMime.includes("javascript")
-      ) {
-        previewType = "text";
-      }
-    }
-
-    if (previewType === "generic") {
-      previewType = this._guessPreviewType(type, ext);
-    }
-
-    if (previewType === "image") {
-      const mime = detectedMime?.startsWith("image/")
-        ? detectedMime
-        : type.startsWith("image/")
-          ? type
-          : "image/png";
-      return {
-        previewType,
-        thumbnail: this._toDataUrl(fullBase64, mime)
-      };
-    }
-
-    if (previewType === "video") {
-      const mime = detectedMime?.startsWith("video/")
-        ? detectedMime
-        : type.startsWith("video/")
-          ? type
-          : "video/mp4";
-      return {
-        previewType,
-        thumbnail: this._toDataUrl(fullBase64, mime)
-      };
-    }
-
-    if (previewType === "text") {
-      let text = fullBase64;
-      try {
-        const raw = fullBase64.includes(",")
-          ? fullBase64.split(",")[1]
-          : fullBase64;
-        text = atob(raw);
-      } catch {
-        // already plain text
-      }
-      return {
-        previewType,
-        thumbnail: text.substring(0, 180)
-      };
-    }
-
-    return { previewType, thumbnail: null };
-  }
   _readTextSnippet(file) {
     return new Promise(resolve => {
       const reader = new FileReader();
@@ -392,6 +208,7 @@
       reader.readAsText(file.slice(0, 300));
     });
   }
+
   _calculateFolderSize(node) {
     let totalSize = 0;
     const children = node.__children || {};
@@ -561,7 +378,6 @@ class FileManagerUI {
     if (!this.container) return;
 
     this.container.innerHTML = FileManagerUI.getMainLayoutHTML();
-    document.body.insertAdjacentHTML("beforeend", FileManagerUI.getOverlaysHTML());
     document.body.insertAdjacentHTML("beforeend", FileManagerUI.getPreviewModalHTML());
   }
 
@@ -569,10 +385,6 @@ class FileManagerUI {
   // UI Event Binding
   // --------------------------------------------------
   _bindEvents() {
-    document.addEventListener("click", () => {
-      FileManagerUI.hideContextMenu();
-    });
-
     // Close Preview Modal Event
     document.getElementById("closeViewModalBtn")?.addEventListener("click", () => {
       FileManagerUI.hidePreviewModal();
@@ -592,73 +404,6 @@ class FileManagerUI {
 
       if (action === "navigate") this.callbacks.onNavigate?.(id);
       if (action === "view") this.callbacks.onView?.(id, fileId);
-    });
-
-    this.container.addEventListener("contextmenu", (e) => {
-      const target = e.target.closest("[data-context]");
-      if (!target) return;
-
-      e.preventDefault();
-      const type = target.dataset.context;
-      const id = target.dataset.contextId;
-      const fileId = target.dataset.fileId || null;
-      const fileName = target.dataset.fileName || "";
-
-      const isFile = type === "file";
-      const isEditable = isFile && this.callbacks.isEditableFile?.(fileName);
-      
-      this.callbacks.onContextMenuTrigger?.({ type, id, fileId, fileName });
-      FileManagerUI.showContextMenu(e.clientY, e.clientX, isFile, isEditable);
-    });
-
-    document.getElementById("ctxEditBtn")?.addEventListener("click", () => {
-      this.callbacks.onCtxEdit?.();
-      FileManagerUI.hideContextMenu();
-    });
-
-    document.getElementById("ctxDeleteBtn")?.addEventListener("click", () => {
-      this.callbacks.onCtxDelete?.();
-      FileManagerUI.hideContextMenu();
-    });
-
-    document.getElementById("ctxDownloadBtn")?.addEventListener("click", () => {
-      this.callbacks.onCtxDownload?.();
-      FileManagerUI.hideContextMenu();
-    });
-
-    this.container.querySelector("#openFolderModalBtn")?.addEventListener("click", () => {
-      FileManagerUI.setFolderNameInputValue("");
-      FileManagerUI.showFolderModal();
-    });
-    document.getElementById("cancelFolderBtn")?.addEventListener("click", () => FileManagerUI.hideFolderModal());
-    document.getElementById("submitFolderBtn")?.addEventListener("click", () => {
-      const name = FileManagerUI.getFolderNameInputValue();
-      if (!name) return;
-      this.callbacks.onCreateFolder?.(name);
-      FileManagerUI.hideFolderModal();
-    });
-
-    this.container.querySelector("#openTextModalBtn")?.addEventListener("click", () => {
-      this.callbacks.onOpenTextCreate?.();
-    });
-    document.getElementById("closeTextModalBtn")?.addEventListener("click", () => FileManagerUI.hideTextEditorModal());
-    document.getElementById("cancelTextBtn")?.addEventListener("click", () => FileManagerUI.hideTextEditorModal());
-    document.getElementById("submitTextBtn")?.addEventListener("click", () => {
-      this.callbacks.onSaveTextFile?.();
-    });
-
-    this.container.querySelector("#openCreateModalBtn")?.addEventListener("click", () => {
-      FileManagerUI.resetFileForm();
-      FileManagerUI.showFileModal();
-    });
-    document.getElementById("closeFileModalBtn")?.addEventListener("click", () => FileManagerUI.hideFileModal());
-    document.getElementById("cancelFileBtn")?.addEventListener("click", () => FileManagerUI.hideFileModal());
-    document.getElementById("createFileForm")?.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const files = FileManagerUI.getFileInputFiles();
-      if (!files?.length) return;
-      this.callbacks.onUploadFiles?.(files);
-      FileManagerUI.hideFileModal();
     });
   }
 
@@ -716,7 +461,6 @@ class FileManagerUI {
         </div>
       `;
     } else if (fileNameLower.endsWith(".html") || fileNameLower.endsWith(".htm")) {
-      // Handle base64 encoded text/html data URLs properly
       if (fileUrl.includes(";base64,")) {
         try {
           const base64Content = fileUrl.split(',')[1];
@@ -801,23 +545,6 @@ class FileManagerUI {
 
   static getMainLayoutHTML() {
     return `
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 justify-between items-center shrink-0 mb-4">
-        <div class="flex items-center gap-2"></div>
-        <div class="flex items-center gap-2">
-          <button id="openFolderModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3.5 py-2 rounded-xl text-xs transition flex items-center gap-2 cursor-pointer">
-            <i class="fa-solid fa-folder-plus text-amber-500"></i> New Folder
-          </button>
-          <button id="openTextModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3.5 py-2 rounded-xl text-xs transition flex items-center gap-2 cursor-pointer">
-            <i class="fa-solid fa-file-pen text-blue-500"></i> New Text File
-          </button>
-          <button id="openCreateModalBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-sm cursor-pointer">
-            <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
-          </button>
-          <button id="backupDataBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3.5 py-2 rounded-xl text-xs transition flex items-center gap-2 cursor-pointer">
-            <i class="fa-solid fa-file-arrow-down"></i> Backup All Files
-          </button>
-        </div>
-      </div>
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
         <div class="bg-white border-b border-slate-200 px-5 py-2 flex items-center justify-between gap-3 text-xs shrink-0">
           <div class="flex items-center gap-2">
@@ -830,75 +557,6 @@ class FileManagerUI {
         </div>
         <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
           <div id="fileGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
-        </div>
-      </div>
-    `;
-  }
-
-  static getOverlaysHTML() {
-    return `
-      <div id="contextMenu" class="hidden fixed z-50 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 w-40 text-xs font-medium text-slate-700">
-        <button id="ctxEditBtn" class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 hidden cursor-pointer">
-          <i class="fa-solid fa-pen-to-square text-blue-600"></i> Edit
-        </button>
-        <button id="ctxDownloadBtn" class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 hidden cursor-pointer">
-          <i class="fa-solid fa-download text-emerald-600"></i> Download
-        </button>
-        <button id="ctxDeleteBtn" class="w-full text-left px-4 py-2 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 text-slate-700 cursor-pointer">
-          <i class="fa-solid fa-trash"></i> Delete
-        </button>
-      </div>
-      <div id="createFolderModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 space-y-4">
-          <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-folder-plus text-amber-500"></i> Create Folder</h3>
-          <input type="text" id="folderNameInput" placeholder="Folder name..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <div class="flex gap-2 justify-end pt-2">
-            <button type="button" id="cancelFolderBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">Cancel</button>
-            <button type="button" id="submitFolderBtn" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer">Create</button>
-          </div>
-        </div>
-      </div>
-      <div id="textEditorModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 hidden">
-        <div class="bg-white rounded-2xl max-w-5xl w-full h-[85vh] shadow-2xl p-6 space-y-4 flex flex-col">
-          <div class="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
-            <h3 id="textEditorTitle" class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-pen text-blue-500"></i> Create Text File</h3>
-            <button id="closeTextModalBtn" class="text-slate-400 hover:text-slate-600 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
-          </div>
-          <div class="space-y-3 flex-1 flex flex-col min-h-0">
-            <div class="shrink-0">
-              <label class="block text-[11px] font-semibold text-slate-500 mb-1">File Name</label>
-              <input type="text" id="textFileNameInput" placeholder="document.txt" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
-            </div>
-            <div class="flex-1 flex flex-col min-h-0">
-              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Content</label>
-              <textarea id="textContentInput" placeholder="Type your file content here..." class="w-full flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-none leading-relaxed custom-scrollbar"></textarea>
-            </div>
-          </div>
-          <div class="flex gap-2 justify-end pt-2 shrink-0 border-t border-slate-100">
-            <button type="button" id="cancelTextBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">Cancel</button>
-            <button type="button" id="submitTextBtn" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer">Save File</button>
-          </div>
-        </div>
-      </div>
-      <div id="createFileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl p-6 space-y-4">
-          <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-            <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Upload File</h3>
-            <button id="closeFileModalBtn" class="text-slate-400 hover:text-slate-600 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
-          </div>
-          <form id="createFileForm" class="space-y-4">
-            <div class="bg-slate-50 border-2 border-dashed border-slate-300 hover:border-blue-500 transition rounded-xl p-5 text-center cursor-pointer">
-              <label class="cursor-pointer block">
-                <i class="fa-solid fa-file-arrow-up text-blue-500 text-2xl mb-1"></i>
-                <p class="text-xs font-semibold text-slate-700">Select Image, Video, Text or PDF</p>
-                <input type="file" id="chunkFileInput" multiple required class="mt-2 block w-full text-xs text-slate-500 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-blue-50 file:text-blue-700">
-              </label>
-            </div>
-            <div class="pt-2 flex gap-3 justify-end">
-              <button type="button" id="cancelFileBtn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">Cancel</button>
-              <button type="submit" id="submitFileBtn" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer">Upload File</button>
-            </div>
-          </form>
         </div>
       </div>
     `;
@@ -917,7 +575,7 @@ class FileManagerUI {
     const folderSubtext = folder.size > 0 ? FileManagerUI.formatBytes(folder.size) : "Folder";
 
     return `
-      <div data-action="navigate" data-id="${folder.id}" data-context="folder" data-context-id="${folder.id}" class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden">
+      <div data-action="navigate" data-id="${folder.id}" class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden">
         <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-folder text-5xl"></i></div>
         <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
           <span class="w-full text-xs font-bold text-slate-700 truncate" title="${name}">${name}</span>
@@ -933,7 +591,7 @@ class FileManagerUI {
     const previewHTML = FileManagerUI.getFilePreviewHTML(file, ext, name);
 
     return `
-      <div data-action="view" data-id="${file.id}" data-file-id="${file.fileId}" data-context="file" data-context-id="${file.id}" data-file-name="${name}" class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden">
+      <div data-action="view" data-id="${file.id}" data-file-id="${file.fileId}" class="group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden">
         <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">${previewHTML}</div>
         <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
           <span class="w-full text-xs font-semibold text-slate-700 truncate text-[11px]" title="${name}">${name}</span>
@@ -964,106 +622,18 @@ class FileManagerUI {
     }
     return previewHTML;
   }
-
-  static hideContextMenu() { document.getElementById("contextMenu")?.classList.add("hidden"); }
-  static showContextMenu(clientY, clientX, isFile, isEditable) {
-    const menu = document.getElementById("contextMenu");
-    const downloadBtn = document.getElementById("ctxDownloadBtn");
-    const editBtn = document.getElementById("ctxEditBtn");
-    if (!menu) return;
-    if (isFile) {
-      downloadBtn?.classList.remove("hidden");
-      editBtn?.classList.toggle("hidden", !isEditable);
-    } else {
-      downloadBtn?.classList.add("hidden");
-      editBtn?.classList.add("hidden");
-    }
-    menu.style.top = `${Math.min(clientY, window.innerHeight - 120)}px`;
-    menu.style.left = `${Math.min(clientX, window.innerWidth - 160)}px`;
-    menu.classList.remove("hidden");
-  }
-
-  static openTextCreateModal() {
-    const titleEl = document.getElementById("textEditorTitle");
-    const nameInput = document.getElementById("textFileNameInput");
-    const contentInput = document.getElementById("textContentInput");
-    const modal = document.getElementById("textEditorModal");
-
-    if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-file-pen text-blue-500"></i> Create Text File`;
-    if (nameInput) { nameInput.value = "untitled.txt"; nameInput.disabled = false; }
-    if (contentInput) { contentInput.value = ""; }
-    modal?.classList.remove("hidden");
-  }
-
-  static openTextEditModal(title, content) {
-    const titleEl = document.getElementById("textEditorTitle");
-    const nameInput = document.getElementById("textFileNameInput");
-    const contentInput = document.getElementById("textContentInput");
-    const modal = document.getElementById("textEditorModal");
-
-    if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-file-pen text-blue-500"></i> Edit File: ${title}`;
-    if (nameInput) { nameInput.value = title; nameInput.disabled = true; }
-    if (contentInput) { contentInput.value = content; }
-    modal?.classList.remove("hidden");
-  }
-
-  static hideTextEditorModal() { document.getElementById("textEditorModal")?.classList.add("hidden"); }
-  static getFileNameInputValue() { return document.getElementById("textFileNameInput")?.value.trim() || ""; }
-  static getFileContentInputValue() { return document.getElementById("textContentInput")?.value || ""; }
-  
-  static showFolderModal() { document.getElementById("createFolderModal")?.classList.remove("hidden"); }
-  static hideFolderModal() { document.getElementById("createFolderModal")?.classList.add("hidden"); }
-  static setFolderNameInputValue(val) { const input = document.getElementById("folderNameInput"); if (input) input.value = val; }
-  static getFolderNameInputValue() { return document.getElementById("folderNameInput")?.value.trim() || ""; }
-  
-  static showFileModal() { document.getElementById("createFileModal")?.classList.remove("hidden"); }
-  static hideFileModal() { document.getElementById("createFileModal")?.classList.add("hidden"); }
-  static resetFileForm() { document.getElementById("createFileForm")?.reset(); }
-  static getFileInputFiles() { return document.getElementById("chunkFileInput")?.files; }
 }
 
 export class FileManager {
   constructor(config = {}) {
     this.container = document.getElementById(config.containerId);
     this.service = config.service;
-
     this.currentFolderId = "root";
-    this.contextTarget = null;
-    this.editingFileTarget = null;
-
-    this.editableExtensions = new Set([
-      "txt", "js", "ts", "jsx", "tsx", "html", "htm", "css", "scss",
-      "json", "md", "py", "sh", "xml", "csv", "svg", "yaml", "yml",
-      "env", "ini", "sql", "c", "cpp", "h", "java"
-    ]);
 
     this.ui = new FileManagerUI(this.container, {
-      isEditableFile: (filename) => this.isEditableFile(filename),
       onBack: () => this.navigateUp(),
       onNavigate: (id) => this.navigateToFolder(id),
-      onView: (id, fileId) => this.viewFile(id, fileId),
-      onContextMenuTrigger: (target) => { this.contextTarget = target; },
-      onCtxEdit: () => { if (this.contextTarget) this.openTextEditorForEdit(this.contextTarget); },
-      onCtxDelete: () => { if (this.contextTarget) this.deleteItem(this.contextTarget); },
-      onCtxDownload: () => { if (this.contextTarget && this.contextTarget.type === "file") this.downloadFile(this.contextTarget); },
-      onCreateFolder: (name) => this.createFolder(name, this.currentFolderId),
-      onOpenTextCreate: () => {
-        this.editingFileTarget = null;
-        FileManagerUI.openTextCreateModal();
-      },
-      onSaveTextFile: () => this.saveTextFile(),
-      onUploadFiles: (files) => this.uploadFiles(files, this.currentFolderId)
-    });
-    document.addEventListener("click", async (e) => {
-      const targetBtn = e.target.closest(`#${"backupDataBtn"}`);
-      if (!targetBtn) return;
-      Toast.show("Preparing ZIP backup...", "info");
-      try {
-        await this.service.downloadBackup();
-        Toast.show("ZIP backup downloaded successfully!", "success");
-      } catch (err) {
-        Toast.show(`Failed to generate ZIP: ${err.message}`, "error");
-      }
+      onView: (id, fileId) => this.viewFile(id, fileId)
     });
   }
 
@@ -1078,11 +648,6 @@ export class FileManager {
     await this.loadCurrentFolder();
   }
 
-  isEditableFile(filename = "") {
-    const ext = filename.split(".").pop()?.toLowerCase() || "";
-    return this.editableExtensions.has(ext);
-  }
-
   async loadCurrentFolder() {
     const grid = this.container?.querySelector("#fileGridContainer");
     if (!grid) return;
@@ -1094,7 +659,7 @@ export class FileManager {
         await this.service.getFolderContents(this.currentFolderId);
       this.render(folders, files, currentFolderName);
     } catch (err) {
-      Toast.show(`Error loading folder: ${err.message}`, "error");
+      console.error(`Error loading folder: ${err.message}`);
     }
   }
 
@@ -1155,110 +720,6 @@ export class FileManager {
     }
   }
 
-  async createFolder(name, parentId) {
-    await this.service.createFolder(name, parentId);
-    Toast.show("Folder created!", "success");
-    this.loadCurrentFolder();
-  }
-
-  async openTextEditorForEdit(target) {
-    const fileRecord = await this.service.getFileRecord(target.id);
-    if (!fileRecord) return;
-
-    const fullBase64 = await this.service.getFullBase64(fileRecord.fileId);
-    let fileContent = "";
-    try {
-      const base64Data = fullBase64.split(",")[1] || fullBase64;
-      fileContent = decodeURIComponent(escape(atob(base64Data)));
-    } catch (e) {
-      fileContent = "";
-    }
-
-    this.editingFileTarget = target;
-    FileManagerUI.openTextEditModal(fileRecord.title, fileContent);
-  }
-
-  async saveTextFile() {
-    const fileName = FileManagerUI.getFileNameInputValue();
-    if (!fileName) return;
-
-    const finalName = (!this.editingFileTarget && !fileName.includes(".")) ? `${fileName}.txt` : fileName;
-    const content = FileManagerUI.getFileContentInputValue();
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const fileObj = new File([blob], finalName, { type: "text/plain" });
-
-    if (this.editingFileTarget) {
-      try {
-        await this.service.deleteFile(this.editingFileTarget.id, this.editingFileTarget.fileId);
-      } catch (e) {
-        console.error(e);
-      }
-      this.editingFileTarget = null;
-    }
-
-    await this.uploadFiles([fileObj], this.currentFolderId);
-    FileManagerUI.hideTextEditorModal();
-  }
-
-  async uploadFiles(files, parentId) {
-    const submitBtn = document.getElementById("submitFileBtn");
-    if (submitBtn) submitBtn.disabled = true;
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      try {
-        await this.service.uploadFile(
-          file,
-          parentId,
-          (statusText) => {
-            if (submitBtn) {
-              submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> (${i + 1}/${files.length}) ${statusText}`;
-            }
-          }
-        );
-        Toast.show(`Uploaded: ${file.name}`, "success");
-      } catch (err) {
-        Toast.show(`Failed to upload ${file.name}: ${err.message}`, "error");
-      }
-    }
-
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = "Upload File";
-    }
-
-    this.loadCurrentFolder();
-  }
-
-  async deleteItem(target) {
-    if (target.type === "folder") {
-      if (!confirm("Delete folder?")) return;
-      await this.service.deleteFolder(target.id);
-      Toast.show("Folder deleted", "success");
-    } else {
-      if (!confirm("Delete file and its chunks?")) return;
-      await this.service.deleteFile(target.id, target.fileId);
-      Toast.show("File deleted", "success");
-    }
-    this.loadCurrentFolder();
-  }
-
-  async downloadFile(target) {
-    const fileRecord = await this.service.getFileRecord(target.id);
-    if (!fileRecord) return;
-
-    const fullBase64 = await this.service.getFullBase64(fileRecord.fileId);
-
-    const a = document.createElement("a");
-    a.href = fullBase64;
-    a.download = fileRecord.title;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-    Toast.show(`Downloaded ${fileRecord.title}`, "success");
-  }
-
   async viewFile(id, fileId) {
     const fileRecord = await this.service.getFileRecord(id);
     if (!fileRecord) return;
@@ -1269,6 +730,7 @@ export class FileManager {
     FileManagerUI.renderPreview(fileRecord, fullBase64);
   }
 }
+
     const service = new FileAdapterService();
     let folderManager = null;
 
