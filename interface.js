@@ -624,12 +624,12 @@ function renderView() {
         </div>`;
     } else if (item.thumbUrl && isImage(item.name)) {
       mediaPreview = `
-        <div class="w-full h-24 rounded-lg overflow-hidden wire-border bg-transparent flex items-center justify-center">
+        <div class="w-full h-24 overflow-hidden bg-transparent flex items-center justify-center">
           <img src="${item.thumbUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     } else if (item.thumbUrl && isVideo(item.name)) {
       mediaPreview = `
-        <div class="relative w-full h-24 rounded-lg overflow-hidden wire-border bg-transparent flex items-center justify-center">
+        <div class="relative w-full h-24 overflow-hidden bg-transparent flex items-center justify-center">
           <video class="w-full h-full object-cover" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
           <span class="absolute inset-0 flex items-center justify-center wire-text text-xl">
             <i class="fa-solid fa-circle-play"></i>
@@ -637,7 +637,7 @@ function renderView() {
         </div>`;
     } else {
       mediaPreview = `
-        <div class="w-full h-24 rounded-lg bg-transparent wire-border flex flex-col items-center justify-center wire-text group-hover:border-indigo-400 transition-colors">
+        <div class="w-full h-24 bg-transparent flex flex-col items-center justify-center wire-text group-hover:border-indigo-400 transition-colors">
           <div class="text-3xl mb-1">${getFileIcon(item.name)}</div>
           <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-white/50 bg-transparent wire-text">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
         </div>`;
