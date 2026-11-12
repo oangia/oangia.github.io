@@ -1,0 +1,315 @@
+// ==UserScript==
+// @name         YouTube Iframe Modal & Daily Task Tracker + Storage Explorer
+// @namespace    http://tampermonkey.net/
+// @version      8.2
+// @description  Press Ctrl+Shift+Z or click floating buttons for Tracker or Fullscreen Transparent Storage Explorer
+// @match        *://*/*
+// @run-at       document-idle
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    const TRACKER_URL = "https://oangia.github.io/tracker.html";
+    const EXPLORER_URL = "https://oangia.github.io";
+
+    // Do not inject the widget if we are already on the target pages
+    if (window.location.href.includes("oangia.github.io")) {
+        return;
+    }
+
+    // ==========================================
+    // STYLES FOR FLOATING BUTTONS & MODALS
+    // ==========================================
+    const style = document.createElement('style');
+    style.textContent = `
+        #floating-widgets-container, #yt-iframe-modal-overlay, #transparent-fullscreen-overlay {
+            z-index: 999999;
+            display: flex;
+            font-family: Roboto, Arial, sans-serif;
+        }
+        #floating-widgets-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 12px;
+            box-sizing: border-box;
+        }
+        #floating-widgets-container *, #floating-widgets-container ::after, #floating-widgets-container ::before {
+            box-sizing: border-box;
+        }
+        .widget-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .widget-float-btn {
+            width: 52px;
+            height: 52px;
+            background-color: #059669;
+            color: #fff;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, .25);
+            cursor: pointer;
+            transition: transform .2s cubic-bezier(.4, 0, .2, 1), background-color .2s, box-shadow .2s;
+        }
+        .widget-float-btn:hover {
+            background-color: #047857;
+            transform: scale(1.08);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, .35);
+        }
+        .widget-float-btn.explorer-btn {
+            background-color: #4f46e5;
+        }
+        .widget-float-btn.explorer-btn:hover {
+            background-color: #4338ca;
+        }
+        .widget-float-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+        .widget-popup {
+            position: fixed;
+            left: 16px;
+            right: 16px;
+            bottom: 92px;
+            height: 500px;
+            max-height: 80vh;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, .2);
+            border: 1px solid #e2e8f0;
+            display: none;
+            flex-direction: column;
+            z-index: 999999;
+            overflow: hidden;
+        }
+        @media (min-width: 640px) {
+            .widget-popup {
+                position: absolute;
+                left: auto;
+                right: 0;
+                bottom: 68px;
+                width: 400px;
+                height: 550px;
+            }
+        }
+        .widget-popup.flex {
+            display: flex;
+        }
+        .widget-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #fff;
+        }
+        #yt-iframe-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, .75);
+            align-items: center;
+            justify-content: center;
+        }
+        /* Transparent Fullscreen Overlay */
+        #transparent-fullscreen-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background: transparent !important;
+            z-index: 1000000;
+        }
+        #transparent-fullscreen-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent !important;
+        }
+        #transparent-fullscreen-close {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            background: rgba(15, 23, 42, 0.75);
+            color: #fff;
+            font-size: 18px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+            z-index: 1000001;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            transition: transform 0.15s, background-color 0.15s;
+        }
+        #transparent-fullscreen-close:hover {
+            background: rgba(225, 29, 72, 0.9);
+            transform: scale(1.08);
+        }
+    `;
+    document.head.appendChild(style);
+
+    // ==========================================
+    // CREATE FLOATING WIDGET CONTAINER
+    // ==========================================
+    let container = document.getElementById('floating-widgets-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'floating-widgets-container';
+        document.body.appendChild(container);
+    }
+
+    // ------------------------------------------
+    // BUTTON 1: Fullscreen Transparent Explorer
+    // ------------------------------------------
+    const explorerWrapper = document.createElement('div');
+    explorerWrapper.className = 'widget-wrapper';
+    container.appendChild(explorerWrapper);
+
+    const explorerBtn = document.createElement('button');
+    explorerBtn.type = 'button';
+    explorerBtn.title = 'Open Storage Explorer (Fullscreen)';
+    explorerBtn.className = 'widget-float-btn explorer-btn';
+    explorerBtn.innerHTML = `
+        <svg viewBox="0 0 24 24">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+        </svg>
+    `;
+    explorerWrapper.appendChild(explorerBtn);
+
+    explorerBtn.addEventListener('click', () => {
+        toggleTransparentFullscreen();
+    });
+
+    // ------------------------------------------
+    // BUTTON 2: Daily Task Tracker Popup
+    // ------------------------------------------
+    const trackerWrapper = document.createElement('div');
+    trackerWrapper.className = 'widget-wrapper';
+    container.appendChild(trackerWrapper);
+
+    const floatBtn = document.createElement('button');
+    floatBtn.type = 'button';
+    floatBtn.title = 'Toggle Daily Task Tracker';
+    floatBtn.className = 'widget-float-btn';
+    floatBtn.innerHTML = `
+        <svg viewBox="0 0 24 24">
+            <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+        </svg>
+    `;
+    trackerWrapper.appendChild(floatBtn);
+
+    const popup = document.createElement('div');
+    popup.className = 'widget-popup';
+
+    const iframe = document.createElement('iframe');
+    iframe.className = 'widget-iframe';
+    iframe.src = TRACKER_URL;
+
+    popup.appendChild(iframe);
+    trackerWrapper.appendChild(popup);
+
+    floatBtn.addEventListener('click', () => {
+        popup.classList.toggle('flex');
+    });
+
+    // ==========================================
+    // FULLSCREEN TRANSPARENT IFRAME HANDLER
+    // ==========================================
+    function toggleTransparentFullscreen() {
+        const existing = document.getElementById('transparent-fullscreen-overlay');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        const overlay = document.createElement('div');
+        overlay.id = 'transparent-fullscreen-overlay';
+
+        const fsIframe = document.createElement('iframe');
+        fsIframe.id = 'transparent-fullscreen-iframe';
+        fsIframe.src = EXPLORER_URL;
+        fsIframe.setAttribute('allowtransparency', 'true');
+
+        const closeBtn = document.createElement('button');
+        closeBtn.id = 'transparent-fullscreen-close';
+        closeBtn.type = 'button';
+        closeBtn.title = 'Close (Esc)';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.onclick = () => overlay.remove();
+
+        overlay.appendChild(fsIframe);
+        overlay.appendChild(closeBtn);
+        document.body.appendChild(overlay);
+    }
+
+    // ==========================================
+    // KEYBOARD SHORTCUTS (Ctrl+Shift+Z & Esc)
+    // ==========================================
+    document.addEventListener('keydown', function(event) {
+        if (event.ctrlKey && event.shiftKey && (event.key === 'z' || event.key === 'Z')) {
+            event.preventDefault();
+
+            const existingModal = document.getElementById('yt-iframe-modal-overlay');
+            if (existingModal) {
+                existingModal.remove();
+            } else {
+                createModal();
+            }
+        } else if (event.key === 'Escape') {
+            const fsOverlay = document.getElementById('transparent-fullscreen-overlay');
+            if (fsOverlay) fsOverlay.remove();
+        }
+    });
+
+    function createModal() {
+        const overlay = document.createElement('div');
+        overlay.id = 'yt-iframe-modal-overlay';
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: relative;
+            width: 80vw;
+            height: 80vh;
+            background: #1f1f1f;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        `;
+
+        const modalIframe = document.createElement('iframe');
+        modalIframe.src = TRACKER_URL;
+        modalIframe.style.cssText = `
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #fff;
+        `;
+
+        modal.appendChild(modalIframe);
+        overlay.appendChild(modal);
+
+        overlay.onclick = (e) => {
+            if (e.target === overlay) overlay.remove();
+        };
+
+        document.body.appendChild(overlay);
+    }
+})();
