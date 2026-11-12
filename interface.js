@@ -657,8 +657,8 @@ function renderView() {
       const ext = (getExtension(item.name) || 'FILE').toUpperCase();
       mediaHTML = `
         <div class="widget-preview-area flex-1 w-full flex flex-col items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors gap-1">
-          <div class="text-3xl text-slate-400">${getFileIcon(item.name)}</div>
-          <span class="text-[9px] font-mono text-slate-500 uppercase tracking-wide">${escapeHtml(ext)}</span>
+          <div class="text-3xl text-slate-200">${getFileIcon(item.name)}</div>
+          <span class="text-[9px] font-mono text-slate-300 uppercase tracking-wide">${escapeHtml(ext)}</span>
         </div>`;
     }
 
