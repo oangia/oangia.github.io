@@ -1,5 +1,5 @@
-import { FileManager } from "./file/file.js";
-import { FileManagerFirebase } from "./file/service.js";
+import { FileManager } from "./file.js";
+import { FileManagerFirebase } from "./service.js";
 
 export class FileManagerWrapper {
   constructor(config = {}) {
