@@ -656,7 +656,7 @@ function renderView() {
       // Generic / other files
       const ext = (getExtension(item.name) || 'FILE').toUpperCase();
       mediaHTML = `
-        <div class="widget-preview-area flex-1 w-full flex flex-col items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors gap-1">
+        <div class="widget-preview-area flex-1 w-full flex flex-col items-center justify-center overflow-hidden rounded-lg bg-transparent relative transition-colors gap-1">
           <div class="text-3xl text-slate-200">${getFileIcon(item.name)}</div>
           <span class="text-[9px] font-mono text-slate-300 uppercase tracking-wide">${escapeHtml(ext)}</span>
         </div>`;
@@ -678,10 +678,10 @@ function renderView() {
 
       <!-- Name + Size (preferred bottom section) -->
       <div class="w-full pt-2 border-t border-white/20 flex flex-col">
-        <span class="w-full text-xs font-semibold text-slate-700 truncate" title="${escapeHtml(item.name)}">
+        <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(item.name)}">
           ${escapeHtml(item.name)}
         </span>
-        <span class="text-[9px] text-slate-400 font-mono mt-0.5">
+        <span class="text-[9px] text-slate-300 font-mono mt-0.5">
           ${isFolder ? (sizeStr || 'Folder') : sizeStr}
         </span>
       </div>
