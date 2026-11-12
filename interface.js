@@ -606,8 +606,8 @@ function renderView() {
     const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
 
     const card = document.createElement('div');
-    // Authentic macOS Finder Icon View item cell: borderless, padded, smooth rounded highlight on hover
-    card.className = "group relative flex flex-col items-center p-3 rounded-lg bg-transparent hover:bg-white/10 transition-colors duration-150 cursor-pointer select-none";
+    // True macOS Icon View cell: vertical stack, rounded frosted hover pill, zero borders
+    card.className = "group relative flex flex-col items-center p-2 rounded-xl bg-transparent hover:bg-white/[0.08] active:bg-white/[0.12] transition-all duration-100 cursor-pointer select-none text-center";
     
     card.onclick = () => {
       if (isFolder) {
@@ -620,27 +620,27 @@ function renderView() {
     let mediaPreview = '';
     if (isFolder) {
       mediaPreview = `
-        <div class="w-full h-24 flex items-center justify-center text-amber-400 drop-shadow-sm group-hover:scale-105 transition-transform duration-150">
+        <div class="w-20 h-20 flex items-center justify-center text-amber-400 drop-shadow-md group-hover:scale-105 transition-transform duration-100">
           <i class="fa-solid fa-folder text-6xl"></i>
         </div>`;
     } else if (item.thumbUrl && isImage(item.name)) {
       mediaPreview = `
-        <div class="w-full h-24 rounded-md overflow-hidden bg-black/20 flex items-center justify-center shadow-sm">
-          <img src="${item.thumbUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-150" alt="" loading="lazy" onerror="this.style.display='none'">
+        <div class="w-20 h-20 rounded-lg overflow-hidden bg-black/30 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-100">
+          <img src="${item.thumbUrl}" class="w-full h-full object-cover" alt="" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     } else if (item.thumbUrl && isVideo(item.name)) {
       mediaPreview = `
-        <div class="relative w-full h-24 rounded-md overflow-hidden bg-black/20 flex items-center justify-center shadow-sm">
+        <div class="relative w-20 h-20 rounded-lg overflow-hidden bg-black/30 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-100">
           <video class="w-full h-full object-cover" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
-          <span class="absolute inset-0 flex items-center justify-center text-xl bg-black/30 opacity-80 group-hover:opacity-100 transition-opacity">
+          <span class="absolute inset-0 flex items-center justify-center text-lg bg-black/20">
             <i class="fa-solid fa-circle-play text-white drop-shadow"></i>
           </span>
         </div>`;
     } else {
       mediaPreview = `
-        <div class="w-full h-24 rounded-md bg-white/[0.04] flex flex-col items-center justify-center wire-text shadow-sm">
-          <div class="text-3xl mb-1 opacity-90">${getFileIcon(item.name)}</div>
-          <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 wire-text">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
+        <div class="w-20 h-20 rounded-lg bg-white/[0.04] flex flex-col items-center justify-center wire-text shadow-sm group-hover:scale-105 transition-transform duration-100">
+          <div class="text-3xl mb-1">${getFileIcon(item.name)}</div>
+          <span class="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 wire-text">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
         </div>`;
     }
 
@@ -650,17 +650,17 @@ function renderView() {
       <button 
         onclick="event.stopPropagation(); deleteItem('${escapeHtml(fullPath)}', ${isFolder})" 
         title="Delete" 
-        class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-md bg-black/50 hover:bg-rose-500/80 text-rose-300 hover:text-white transition shadow">
+        class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-md bg-black/60 hover:bg-rose-500 text-rose-300 hover:text-white transition shadow-sm backdrop-blur-sm">
         <i class="fa-solid fa-trash text-[10px]"></i>
       </button>
 
       ${mediaPreview}
 
-      <div class="w-full mt-2 text-center">
-        <p class="text-xs font-medium wire-text truncate px-1" title="${escapeHtml(item.name)}">
+      <div class="w-full mt-1.5 px-1">
+        <p class="text-xs font-normal wire-text truncate max-w-[100px] mx-auto" title="${escapeHtml(item.name)}">
           ${escapeHtml(item.name)}
         </p>
-        ${sizeStr ? `<p class="text-[10px] wire-subtext font-mono mt-0.5 opacity-60">${sizeStr}</p>` : ''}
+        ${sizeStr ? `<p class="text-[9px] wire-subtext font-mono opacity-60">${sizeStr}</p>` : ''}
       </div>
     `;
 
