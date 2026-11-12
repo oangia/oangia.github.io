@@ -595,7 +595,7 @@ function renderView() {
   if (filteredItems.length === 0) {
     grid.innerHTML = `
       <div class="col-span-full py-24 text-center text-white/40 flex flex-col items-center justify-center">
-        <i class="fa-regular fa-folder-open text-4xl mb-2 font-light"></i>
+        <i class="fa-regular fa-folder-open text-3xl mb-2 font-light"></i>
         <p class="text-xs font-sans tracking-wide">No items</p>
       </div>`;
     return;
@@ -606,8 +606,8 @@ function renderView() {
     const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
 
     const card = document.createElement('div');
-    // Authentic macOS Finder Icon View cell structure with system highlight and zero background artifact boxes
-    card.className = "group relative flex flex-col items-center justify-between p-2 rounded-lg bg-transparent hover:bg-blue-500/15 active:bg-blue-500/25 transition-all duration-75 cursor-pointer select-none text-center w-28 h-28 mx-auto";
+    // Authentic macOS Finder layout: clean grid slot with a subtle system-blue active selection pill on hover
+    card.className = "group relative flex flex-col items-center justify-between p-2 rounded-lg bg-transparent hover:bg-blue-500/15 active:bg-blue-500/25 transition-colors duration-75 cursor-pointer select-none text-center w-28 h-28 mx-auto";
     
     card.onclick = () => {
       if (isFolder) {
@@ -619,32 +619,32 @@ function renderView() {
 
     let mediaPreview = '';
     if (isFolder) {
-      // Clean vector folder graphic floating with zero container box or backdrop shadow
+      // Classic macOS system blue folder icon floating freely without containers
       mediaPreview = `
-        <div class="w-16 h-14 flex items-center justify-center text-[#5896F8] group-hover:scale-105 transition-transform duration-100">
+        <div class="w-16 h-14 flex items-center justify-center text-[#5896F8]">
           <i class="fa-solid fa-folder text-5xl"></i>
         </div>`;
     } else if (item.thumbUrl && isImage(item.name)) {
-      // Pure raw image element with absolute zero wrapper background boxes or drop shadows
+      // Clean, unboxed image preview with natural rounded corners
       mediaPreview = `
-        <div class="w-16 h-14 flex items-center justify-center group-hover:scale-105 transition-transform duration-100">
+        <div class="w-16 h-14 flex items-center justify-center">
           <img src="${item.thumbUrl}" class="w-full h-full object-cover rounded" alt="" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     } else if (item.thumbUrl && isVideo(item.name)) {
-      // Pure raw video element with zero wrapper boxes or shadows
+      // Clean video preview with subtle play indicator
       mediaPreview = `
-        <div class="relative w-16 h-14 flex items-center justify-center group-hover:scale-105 transition-transform duration-100">
+        <div class="relative w-16 h-14 flex items-center justify-center">
           <video class="w-full h-full object-cover rounded" muted preload="metadata" src="${item.thumbUrl}#t=0.5"></video>
           <span class="absolute inset-0 flex items-center justify-center bg-black/20 rounded opacity-0 group-hover:opacity-100 transition-opacity">
             <i class="fa-solid fa-circle-play text-white text-xs"></i>
           </span>
         </div>`;
     } else {
-      // Generic document floating flat with zero backdrop boxes or container fill
+      // Minimalist document icon with a subtle format tag
       mediaPreview = `
-        <div class="w-16 h-14 flex flex-col items-center justify-center text-white/80 group-hover:scale-105 transition-transform duration-100">
+        <div class="w-16 h-14 flex flex-col items-center justify-center text-white/80">
           <div class="text-3xl mb-0.5">${getFileIcon(item.name)}</div>
-          <span class="text-[7px] font-semibold uppercase tracking-wider px-1 rounded bg-white/10 text-white/90">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
+          <span class="text-[7px] font-medium uppercase tracking-wider px-1 rounded bg-white/10 text-white/90">${escapeHtml(getExtension(item.name) || 'FILE')}</span>
         </div>`;
     }
 
@@ -673,6 +673,7 @@ function renderView() {
     grid.appendChild(card);
   });
 }
+
 function renderBreadcrumbs() {
   const nav = document.getElementById('breadcrumbNav');
   if (!nav) return;
