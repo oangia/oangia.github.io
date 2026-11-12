@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-transparent h-full w-full overflow-hidden">
+<html lang="en" class="bg-black text-slate-100 h-full w-full overflow-hidden">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,18 +15,20 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background: rgba(0, 0, 0, 0.3) !important;
+      background: #09090b !important; /* Deep black/zinc base */
+      color: #f8fafc;
     }
-    #searchInput::placeholder {
-      color: rgba(255, 255, 255, 0.75);
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    #searchInput::placeholder,
+    input::placeholder {
+      color: rgba(148, 163, 184, 0.7);
     }
     .thumb, .thumb-video {
       width: 36px;
       height: 36px;
       object-fit: cover;
       border-radius: 6px;
-      background: transparent;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       flex-shrink: 0;
     }
     #editTextarea {
@@ -36,39 +38,54 @@
       font-size: 13px;
       line-height: 1.5;
       padding: 1rem;
-      border: 1px solid rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.25);
       border-radius: 0.5rem;
       resize: vertical;
-      background: rgba(15, 23, 42, 0.75);
+      background: rgba(15, 23, 42, 0.85);
       color: #f8fafc;
       outline: none;
     }
     #editTextarea:focus {
       border-color: #818cf8;
     }
+    /* Subtle dark scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
   </style>
 </head>
-<body class="bg-transparent h-screen w-screen flex flex-col font-sans antialiased overflow-hidden m-0 p-0">
+<body class="bg-black text-slate-100 h-screen w-screen flex flex-col font-sans antialiased overflow-hidden m-0 p-0">
 
   <!-- Toast Container -->
   <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none max-w-sm w-full px-4 sm:px-0"></div>
 
-  <!-- Full-Width Transparent Header -->
-  <header class="w-full bg-transparent border-b border-white/40 px-6 py-3.5 flex items-center justify-between shrink-0">
+  <!-- Full-Width Header -->
+  <header class="w-full bg-zinc-950/80 border-b border-white/15 px-6 py-3.5 flex items-center justify-between shrink-0">
     <div class="flex items-center space-x-3">
-      <div class="bg-transparent border border-indigo-400/80 text-indigo-300 p-2 rounded-xl flex items-center justify-center">
+      <div class="bg-indigo-500/10 border border-indigo-400/50 text-indigo-400 p-2 rounded-xl flex items-center justify-center">
         <i class="fa-solid fa-cloud text-lg"></i>
       </div>
       <div>
-        <h1 class="font-bold text-base leading-tight">Supabase Storage Explorer</h1>
-        <p class="text-xs font-mono mt-0.5" id="headerUrl">Not connected</p>
+        <h1 class="font-bold text-base text-white leading-tight">Supabase Storage Explorer</h1>
+        <p class="text-xs font-mono text-slate-400 mt-0.5" id="headerUrl">Not connected</p>
       </div>
     </div>
 
     <!-- Tab Switcher with margin-right to clear overlay close buttons -->
-    <div class="flex items-center space-x-2 bg-transparent p-1 rounded-lg mr-12">
-      <button onclick="switchTab('explorer')" id="navExplorerTab" class="px-3 py-1.5 text-xs font-semibold rounded-md border border-white/70 transition">Explorer</button>
-      <button onclick="switchTab('settings')" id="navSettingsTab" class="px-3 py-1.5 text-xs font-semibold rounded-md border border-transparent hover:border-white/40 transition">Settings</button>
+    <div class="flex items-center space-x-2 bg-white/5 border border-white/10 p-1 rounded-lg mr-12">
+      <button onclick="switchTab('explorer')" id="navExplorerTab" class="px-3 py-1.5 text-xs font-semibold text-white bg-white/10 rounded-md border border-white/30 transition">Explorer</button>
+      <button onclick="switchTab('settings')" id="navSettingsTab" class="px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white rounded-md border border-transparent hover:border-white/20 transition">Settings</button>
     </div>
   </header>
 
@@ -79,44 +96,44 @@
     <div id="viewExplorer" class="flex-1 w-full h-full flex flex-col overflow-hidden bg-transparent">
 
       <!-- Toolbar -->
-      <div class="w-full p-4 border-b border-white/40 flex flex-wrap items-center justify-between gap-4 bg-transparent shrink-0">
-        <div class="flex items-center space-x-2 text-sm">
+      <div class="w-full p-4 border-b border-white/15 flex flex-wrap items-center justify-between gap-4 bg-zinc-950/40 shrink-0">
+        <div class="flex items-center space-x-2 text-sm text-slate-200">
           <nav id="breadcrumbNav" class="flex items-center space-x-2"></nav>
         </div>
 
         <div class="flex items-center space-x-3">
           <div class="relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
               <i class="fa-solid fa-magnifying-glass text-xs"></i>
             </span>
             <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Search files..." 
-                   class="pl-9 pr-4 py-1.5 bg-transparent rounded-lg text-xs focus:outline-none focus:border-indigo-400 w-48 sm:w-64 transition">
+                   class="pl-9 pr-4 py-1.5 bg-white/5 border border-white/20 text-white rounded-lg text-xs focus:outline-none focus:border-indigo-400 focus:bg-white/10 w-48 sm:w-64 transition">
           </div>
 
-          <button onclick="openCreateFolderModal()" class="px-3 py-1.5 bg-transparent hover:border-amber-400 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
+          <button onclick="openCreateFolderModal()" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/20 hover:border-amber-400/70 text-slate-200 hover:text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
             <i class="fa-solid fa-folder-plus text-amber-400"></i>
             <span>New Folder</span>
           </button>
 
-          <button onclick="createBackup()" id="backupBtn" class="px-3 py-1.5 bg-transparent border border-emerald-400/80 hover:border-emerald-300 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
+          <button onclick="createBackup()" id="backupBtn" class="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/50 hover:border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
             <i class="fa-solid fa-box-archive text-emerald-400"></i>
             <span>Backup</span>
           </button>
 
           <div class="relative">
-            <button onclick="toggleUploadMenu()" class="px-3 py-1.5 bg-transparent border border-indigo-400/80 hover:border-indigo-300 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
-              <i class="fa-solid fa-upload text-indigo-300"></i>
+            <button onclick="toggleUploadMenu()" class="px-3 py-1.5 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400/60 hover:border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-upload text-indigo-400"></i>
               <span>Upload</span>
-              <i class="fa-solid fa-chevron-down text-[10px] ml-1"></i>
+              <i class="fa-solid fa-chevron-down text-[10px] ml-1 text-indigo-300"></i>
             </button>
             
-            <div id="uploadMenu" class="hidden absolute right-0 mt-1 w-48 bg-slate-900/90 backdrop-blur-md rounded-xl py-1 z-30">
-              <label class="flex items-center px-4 py-2 text-xs hover:bg-white/10 cursor-pointer">
+            <div id="uploadMenu" class="hidden absolute right-0 mt-1.5 w-48 bg-zinc-900/95 border border-white/20 shadow-xl shadow-black/80 backdrop-blur-md rounded-xl py-1 z-30 text-slate-200">
+              <label class="flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white cursor-pointer transition">
                 <i class="fa-solid fa-file mr-2.5 text-indigo-400"></i>
                 <span>Upload File(s)</span>
                 <input type="file" id="localFileUpload" multiple onchange="handleFileUpload(event, false)" class="hidden">
               </label>
-              <label class="flex items-center px-4 py-2 text-xs hover:bg-white/10 cursor-pointer">
+              <label class="flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white cursor-pointer transition">
                 <i class="fa-solid fa-folder-open mr-2.5 text-amber-400"></i>
                 <span>Upload Folder</span>
                 <input type="file" id="localFolderUpload" webkitdirectory directory multiple onchange="handleFileUpload(event, true)" class="hidden">
@@ -128,14 +145,14 @@
 
       <!-- Edge-to-Edge Grid Area -->
       <div class="flex-1 w-full overflow-y-auto p-6 bg-transparent">
-        <div id="itemsGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 p-4"></div>
+        <div id="itemsGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 p-4 text-slate-100"></div>
       </div>
 
       <!-- Footer -->
-      <div class="w-full px-6 py-2.5 bg-transparent border-t border-white/40 flex items-center justify-between text-xs shrink-0">
+      <div class="w-full px-6 py-2.5 bg-zinc-950/80 border-t border-white/15 flex items-center justify-between text-xs text-slate-400 shrink-0">
         <div id="connectionStatus" class="flex items-center space-x-2">
           <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="statusDot"></span>
-          <span id="statusText">Not connected</span>
+          <span id="statusText" class="text-slate-300">Not connected</span>
         </div>
         <div id="itemCountLabel">0 item(s)</div>
       </div>
@@ -143,66 +160,66 @@
 
     <!-- Settings View -->
     <div id="viewSettings" class="hidden flex-1 w-full h-full flex flex-col overflow-y-auto p-6 bg-transparent">
-      <div class="max-w-4xl w-full mx-auto bg-slate-950/60 backdrop-blur-sm rounded-2xl p-6 space-y-6 my-auto">
-        <div>
-          <h2 class="text-lg font-bold mb-1">Configuration</h2>
-          <p class="text-xs">Enter your Supabase and Firebase credentials.</p>
+      <div class="max-w-4xl w-full mx-auto bg-zinc-900/80 border border-white/15 backdrop-blur-md rounded-2xl p-6 space-y-6 my-auto shadow-2xl">
+        <div class="border-b border-white/10 pb-4">
+          <h2 class="text-lg font-bold text-white mb-1">Configuration</h2>
+          <p class="text-xs text-slate-400">Enter your Supabase and Firebase credentials.</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Supabase Card -->
-          <div class="bg-transparent p-4 rounded-xl space-y-4">
-            <h3 class="font-semibold text-sm flex items-center gap-2">
+          <div class="bg-black/40 border border-white/10 p-4 rounded-xl space-y-4">
+            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
               <i class="fa-solid fa-bolt text-emerald-400"></i> Supabase Credentials
             </h3>
             
             <div>
-              <label class="block text-xs font-medium mb-1">Project URL</label>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Project URL</label>
               <input type="text" id="settingUrlInput" placeholder="https://xxxxx.supabase.co" 
-                     class="w-full px-3 py-2 bg-transparent rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
             </div>
 
             <div>
-              <label class="block text-xs font-medium mb-1">Anon Public Key</label>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Anon Public Key</label>
               <input type="text" id="settingApiKeyInput" placeholder="eyJhbGciOiJIUzI1NiIsIn..." 
-                     class="w-full px-3 py-2 bg-transparent rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
             </div>
 
             <div>
-              <label class="block text-xs font-medium mb-1">Storage Bucket Name</label>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Storage Bucket Name</label>
               <input type="text" id="settingBucketInput" placeholder="files" value="files"
-                     class="w-full px-3 py-2 bg-transparent rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
             </div>
           </div>
 
           <!-- Firebase Card -->
-          <div class="bg-transparent p-4 rounded-xl space-y-4">
-            <h3 class="font-semibold text-sm flex items-center gap-2">
+          <div class="bg-black/40 border border-white/10 p-4 rounded-xl space-y-4">
+            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
               <i class="fa-solid fa-fire text-amber-400"></i> Firebase Credentials
             </h3>
 
             <div>
-              <label class="block text-xs font-medium mb-1">Firebase API Key (<code class="text-[11px] text-indigo-300">apiKey</code>)</label>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Firebase API Key (<code class="text-[11px] text-indigo-300">apiKey</code>)</label>
               <input type="text" id="settingFirebaseApiKeyInput" placeholder="AIzaSy..." 
-                     class="w-full px-3 py-2 bg-transparent rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
             </div>
 
             <div>
-              <label class="block text-xs font-medium mb-1">Project ID (<code class="text-[11px] text-indigo-300">projectId</code>)</label>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Project ID (<code class="text-[11px] text-indigo-300">projectId</code>)</label>
               <input type="text" id="settingFirebaseProjectIdInput" placeholder="my-firebase-project" 
-                     class="w-full px-3 py-2 bg-transparent rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
             </div>
 
             <div>
-              <label class="block text-xs font-medium mb-1">App ID (<code class="text-[11px] text-indigo-300">appId</code>)</label>
+              <label class="block text-xs font-medium text-slate-300 mb-1">App ID (<code class="text-[11px] text-indigo-300">appId</code>)</label>
               <input type="text" id="settingFirebaseAppIdInput" placeholder="1:123456789:web:abc123" 
-                     class="w-full px-3 py-2 bg-transparent rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
             </div>
           </div>
         </div>
 
-        <div>
-          <button onclick="saveSettings()" class="px-4 py-2 bg-transparent border border-indigo-400 hover:border-indigo-300 text-xs font-semibold rounded-lg transition">
+        <div class="pt-2">
+          <button onclick="saveSettings()" class="px-5 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">
             Save & Connect
           </button>
         </div>
@@ -211,29 +228,29 @@
   </main>
 
   <!-- Create Folder Modal -->
-  <div id="modalCreateFolder" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-    <div class="bg-slate-950/80 backdrop-blur-md rounded-2xl max-w-md w-full p-6 space-y-4">
-      <h3 class="font-bold text-base">Create New Folder</h3>
+  <div id="modalCreateFolder" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+    <div class="bg-zinc-900 border border-white/20 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <h3 class="font-bold text-base text-white">Create New Folder</h3>
       <div>
-        <label class="block text-xs font-medium mb-1">Folder Name</label>
+        <label class="block text-xs font-medium text-slate-300 mb-1">Folder Name</label>
         <input type="text" id="folderNameInput" placeholder="e.g. documents" 
-               class="w-full px-3 py-2 bg-transparent rounded-lg text-xs focus:outline-none focus:border-indigo-400">
+               class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs focus:outline-none focus:border-indigo-400">
       </div>
       <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="closeModals()" class="px-4 py-2 bg-transparent hover:text-xs font-semibold rounded-lg transition">Cancel</button>
-        <button onclick="submitCreateFolder()" class="px-4 py-2 bg-transparent border border-indigo-400 hover:border-indigo-300 text-xs font-semibold rounded-lg transition">Create Folder</button>
+        <button onclick="closeModals()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button>
+        <button onclick="submitCreateFolder()" class="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">Create Folder</button>
       </div>
     </div>
   </div>
 
-  <!-- Preview / Editor & Sidebar Modal (Full-Screen Transparent Wireframe) -->
-  <div id="modalPreview" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-transparent p-0 m-0">
-    <div class="bg-transparent backdrop-blur-md w-screen h-screen flex flex-col overflow-hidden m-0 p-0">
+  <!-- Preview / Editor & Sidebar Modal -->
+  <div id="modalPreview" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-0 m-0">
+    <div class="bg-zinc-950/90 backdrop-blur-md w-screen h-screen flex flex-col overflow-hidden m-0 p-0 text-slate-100">
       
       <!-- Top Bar -->
-      <div class="flex items-center justify-between px-6 py-3.5 border-b border-white/25 bg-transparent shrink-0">
-        <h3 id="previewTitle" class="font-bold text-sm truncate"></h3>
-        <button onclick="closeModals()" class="hover:p-1 text-lg">
+      <div class="flex items-center justify-between px-6 py-3.5 border-b border-white/15 bg-black/40 shrink-0">
+        <h3 id="previewTitle" class="font-bold text-sm text-white truncate"></h3>
+        <button onclick="closeModals()" class="text-slate-400 hover:text-white p-1 text-lg transition">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -242,15 +259,15 @@
       <div class="flex-1 flex overflow-hidden bg-transparent">
         
         <!-- Main Preview Area -->
-        <div id="previewBody" class="flex-1 overflow-auto flex items-center justify-center bg-transparent"></div>
+        <div id="previewBody" class="flex-1 overflow-auto flex items-center justify-center bg-black/30 p-4"></div>
   
         <!-- Right Sidebar for Details & Hashes -->
-        <div class="w-80 border-l border-white/25 bg-transparent flex flex-col overflow-y-auto p-4 shrink-0">
-          <div class="flex items-center gap-2 pb-3 mb-3 border-b border-white/20">
+        <div class="w-80 border-l border-white/15 bg-zinc-950/60 flex flex-col overflow-y-auto p-4 shrink-0">
+          <div class="flex items-center gap-2 pb-3 mb-3 border-b border-white/15">
             <i class="fa-solid fa-fingerprint text-indigo-400 text-sm"></i>
-            <h4 class="font-bold text-xs uppercase tracking-wider">File Details & Hashes</h4>
+            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-200">File Details & Hashes</h4>
           </div>
-          <div id="previewSidebarDetails" class="space-y-4 text-xs">
+          <div id="previewSidebarDetails" class="space-y-4 text-xs text-slate-300">
             <!-- Dynamic Hashes injected here -->
           </div>
         </div>
@@ -258,17 +275,17 @@
       </div>
   
       <!-- Footer Buttons -->
-      <div class="px-6 py-3.5 border-t border-white/25 bg-transparent flex justify-end gap-2 flex-wrap shrink-0">
-        <button id="previewSaveBtn" onclick="saveEditedText()" class="hidden px-4 py-2 bg-transparent border border-emerald-400 hover:border-emerald-300 text-xs font-semibold rounded-lg">
+      <div class="px-6 py-3.5 border-t border-white/15 bg-black/40 flex justify-end gap-2 flex-wrap shrink-0">
+        <button id="previewSaveBtn" onclick="saveEditedText()" class="hidden px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg transition">
           <i class="fa-solid fa-floppy-disk mr-1 text-emerald-400"></i> Save
         </button>
-        <button id="previewCancelEditBtn" onclick="cancelEditText()" class="hidden px-4 py-2 bg-transparent text-xs font-semibold rounded-lg">
+        <button id="previewCancelEditBtn" onclick="cancelEditText()" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">
           Cancel
         </button>
-        <a id="previewDownloadBtn" href="#" download class="px-4 py-2 bg-transparent border border-indigo-400 hover:border-indigo-300 text-xs font-semibold rounded-lg">
+        <a id="previewDownloadBtn" href="#" download class="px-4 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg transition">
           <i class="fa-solid fa-download mr-1 text-indigo-400"></i> Download
         </a>
-        <button onclick="closeModals()" class="px-4 py-2 bg-transparent text-xs font-semibold rounded-lg">Close</button>
+        <button onclick="closeModals()" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Close</button>
       </div>
   
     </div>
