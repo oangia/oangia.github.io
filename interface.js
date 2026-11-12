@@ -212,7 +212,7 @@ class FilePreviewManager {
       const { data, error } = await this.supabaseClient
         .storage
         .from(this.bucket)
-        .createSignedUrl(path, 3600);
+        .createSignedUrl(path, 60);
 
       if (error) throw error;
 
@@ -554,7 +554,7 @@ async function listFiles() {
           const { data: signed, error: signErr } = await supabaseClient
             .storage
             .from(currentBucket)
-            .createSignedUrl(fullPath, 3600);
+            .createSignedUrl(fullPath, 60);
 
           if (!signErr && signed?.signedUrl) {
             item.thumbUrl = signed.signedUrl;
