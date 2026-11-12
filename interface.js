@@ -611,7 +611,7 @@ function renderView() {
 
     // ===== Preferred card style (copied & adapted) =====
     card.className = `
-      group relative bg-white border border-slate-200 hover:border-blue-500 
+      group relative bg-transparent border border-slate-200 hover:border-blue-500 
       rounded-xl p-3 flex flex-col items-center justify-between text-center 
       cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 
       aspect-square overflow-hidden
