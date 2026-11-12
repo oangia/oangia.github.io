@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-transparent">
+<html lang="en" class="bg-transparent h-full w-full overflow-hidden">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +10,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     html, body {
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
       background: transparent !important;
     }
     .wire-text {
@@ -28,17 +33,9 @@
       color: rgba(255, 255, 255, 0.75);
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
     }
-    .thumb {
-      width: 48px;
-      height: 48px;
-      object-fit: cover;
-      border-radius: 6px;
-      background: transparent;
-      flex-shrink: 0;
-    }
-    .thumb-video {
-      width: 48px;
-      height: 48px;
+    .thumb, .thumb-video {
+      width: 36px;
+      height: 36px;
       object-fit: cover;
       border-radius: 6px;
       background: transparent;
@@ -63,13 +60,13 @@
     }
   </style>
 </head>
-<body class="bg-transparent wire-text h-screen flex flex-col font-sans antialiased overflow-hidden">
+<body class="bg-transparent wire-text h-screen w-screen flex flex-col font-sans antialiased overflow-hidden m-0 p-0">
 
-  <!-- Toast -->
+  <!-- Toast Container -->
   <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none max-w-sm w-full px-4 sm:px-0"></div>
 
-  <!-- Header -->
-  <header class="bg-transparent border-b border-white/40 px-6 py-3.5 flex items-center justify-between">
+  <!-- Full-Width Transparent Header -->
+  <header class="w-full bg-transparent border-b border-white/40 px-6 py-3.5 flex items-center justify-between shrink-0">
     <div class="flex items-center space-x-3">
       <div class="bg-transparent border border-indigo-400/80 text-indigo-300 p-2 rounded-xl flex items-center justify-center">
         <i class="fa-solid fa-cloud text-lg"></i>
@@ -80,20 +77,21 @@
       </div>
     </div>
 
-    <div class="flex items-center space-x-2 bg-transparent p-1 rounded-lg wire-border mr-10">
+    <!-- Tab Switcher with margin-right to clear overlay close buttons -->
+    <div class="flex items-center space-x-2 bg-transparent p-1 rounded-lg wire-border mr-12">
       <button onclick="switchTab('explorer')" id="navExplorerTab" class="px-3 py-1.5 text-xs font-semibold rounded-md border border-white/70 wire-text transition">Explorer</button>
       <button onclick="switchTab('settings')" id="navSettingsTab" class="px-3 py-1.5 text-xs font-semibold rounded-md border border-transparent wire-subtext hover:border-white/40 transition">Settings</button>
     </div>
   </header>
 
-  <!-- Main -->
-  <main class="flex-1 overflow-hidden flex flex-col p-6 max-w-7xl w-full mx-auto bg-transparent">
+  <!-- Full-Width Main Canvas -->
+  <main class="flex-1 w-full h-full overflow-hidden flex flex-col bg-transparent m-0 p-0">
 
     <!-- Explorer View -->
-    <div id="viewExplorer" class="flex-1 flex flex-col overflow-hidden bg-transparent rounded-2xl wire-border">
+    <div id="viewExplorer" class="flex-1 w-full h-full flex flex-col overflow-hidden bg-transparent">
 
       <!-- Toolbar -->
-      <div class="p-4 border-b border-white/40 flex flex-wrap items-center justify-between gap-4 bg-transparent rounded-t-2xl">
+      <div class="w-full p-4 border-b border-white/40 flex flex-wrap items-center justify-between gap-4 bg-transparent shrink-0">
         <div class="flex items-center space-x-2 text-sm">
           <nav id="breadcrumbNav" class="flex items-center space-x-2 wire-text"></nav>
         </div>
@@ -124,7 +122,7 @@
               <i class="fa-solid fa-chevron-down text-[10px] ml-1"></i>
             </button>
             
-            <div id="uploadMenu" class="hidden absolute right-0 mt-1 w-48 bg-slate-900/85 backdrop-blur-md rounded-xl wire-border py-1 z-30">
+            <div id="uploadMenu" class="hidden absolute right-0 mt-1 w-48 bg-slate-900/90 backdrop-blur-md rounded-xl wire-border py-1 z-30">
               <label class="flex items-center px-4 py-2 text-xs wire-text hover:bg-white/10 cursor-pointer">
                 <i class="fa-solid fa-file mr-2.5 text-indigo-400"></i>
                 <span>Upload File(s)</span>
@@ -140,13 +138,13 @@
         </div>
       </div>
 
-      <!-- Grid (Expanded layout, no cramp boxes) -->
-      <div class="flex-1 overflow-y-auto bg-transparent">
-        <div id="itemsGrid" class="p-6 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-6"></div>
+      <!-- Edge-to-Edge Grid Area -->
+      <div class="flex-1 w-full overflow-y-auto p-6 bg-transparent">
+        <div id="itemsGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-5"></div>
       </div>
 
       <!-- Footer -->
-      <div class="p-3 bg-transparent border-t border-white/40 flex items-center justify-between text-xs wire-subtext rounded-b-2xl">
+      <div class="w-full px-6 py-2.5 bg-transparent border-t border-white/40 flex items-center justify-between text-xs wire-subtext shrink-0">
         <div id="connectionStatus" class="flex items-center space-x-2">
           <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="statusDot"></span>
           <span id="statusText">Not connected</span>
@@ -156,75 +154,77 @@
     </div>
 
     <!-- Settings View -->
-    <div id="viewSettings" class="hidden flex-1 flex flex-col overflow-y-auto bg-slate-950/45 backdrop-blur-xs rounded-2xl wire-border p-6 space-y-6">
-      <div>
-        <h2 class="text-lg font-bold wire-text mb-1">Configuration</h2>
-        <p class="text-xs wire-subtext">Enter your Supabase and Firebase credentials.</p>
-      </div>
+    <div id="viewSettings" class="hidden flex-1 w-full h-full flex flex-col overflow-y-auto p-6 bg-transparent">
+      <div class="max-w-4xl w-full mx-auto bg-slate-950/60 backdrop-blur-sm rounded-2xl wire-border p-6 space-y-6 my-auto">
+        <div>
+          <h2 class="text-lg font-bold wire-text mb-1">Configuration</h2>
+          <p class="text-xs wire-subtext">Enter your Supabase and Firebase credentials.</p>
+        </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl">
-        <!-- Supabase Card -->
-        <div class="bg-transparent p-4 rounded-xl wire-border space-y-4">
-          <h3 class="font-semibold wire-text text-sm flex items-center gap-2">
-            <i class="fa-solid fa-bolt text-emerald-400"></i> Supabase Credentials
-          </h3>
-          
-          <div>
-            <label class="block text-xs font-medium wire-subtext mb-1">Project URL</label>
-            <input type="text" id="settingUrlInput" placeholder="https://xxxxx.supabase.co" 
-                   class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Supabase Card -->
+          <div class="bg-transparent p-4 rounded-xl wire-border space-y-4">
+            <h3 class="font-semibold wire-text text-sm flex items-center gap-2">
+              <i class="fa-solid fa-bolt text-emerald-400"></i> Supabase Credentials
+            </h3>
+            
+            <div>
+              <label class="block text-xs font-medium wire-subtext mb-1">Project URL</label>
+              <input type="text" id="settingUrlInput" placeholder="https://xxxxx.supabase.co" 
+                     class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium wire-subtext mb-1">Anon Public Key</label>
+              <input type="text" id="settingApiKeyInput" placeholder="eyJhbGciOiJIUzI1NiIsIn..." 
+                     class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium wire-subtext mb-1">Storage Bucket Name</label>
+              <input type="text" id="settingBucketInput" placeholder="files" value="files"
+                     class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+            </div>
           </div>
 
-          <div>
-            <label class="block text-xs font-medium wire-subtext mb-1">Anon Public Key</label>
-            <input type="text" id="settingApiKeyInput" placeholder="eyJhbGciOiJIUzI1NiIsIn..." 
-                   class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-          </div>
+          <!-- Firebase Card -->
+          <div class="bg-transparent p-4 rounded-xl wire-border space-y-4">
+            <h3 class="font-semibold wire-text text-sm flex items-center gap-2">
+              <i class="fa-solid fa-fire text-amber-400"></i> Firebase Credentials
+            </h3>
 
-          <div>
-            <label class="block text-xs font-medium wire-subtext mb-1">Storage Bucket Name</label>
-            <input type="text" id="settingBucketInput" placeholder="files" value="files"
-                   class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+            <div>
+              <label class="block text-xs font-medium wire-subtext mb-1">Firebase API Key (<code class="text-[11px] text-indigo-300">apiKey</code>)</label>
+              <input type="text" id="settingFirebaseApiKeyInput" placeholder="AIzaSy..." 
+                     class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium wire-subtext mb-1">Project ID (<code class="text-[11px] text-indigo-300">projectId</code>)</label>
+              <input type="text" id="settingFirebaseProjectIdInput" placeholder="my-firebase-project" 
+                     class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium wire-subtext mb-1">App ID (<code class="text-[11px] text-indigo-300">appId</code>)</label>
+              <input type="text" id="settingFirebaseAppIdInput" placeholder="1:123456789:web:abc123" 
+                     class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+            </div>
           </div>
         </div>
 
-        <!-- Firebase Card -->
-        <div class="bg-transparent p-4 rounded-xl wire-border space-y-4">
-          <h3 class="font-semibold wire-text text-sm flex items-center gap-2">
-            <i class="fa-solid fa-fire text-amber-400"></i> Firebase Credentials
-          </h3>
-
-          <div>
-            <label class="block text-xs font-medium wire-subtext mb-1">Firebase API Key (<code class="text-[11px] text-indigo-300">apiKey</code>)</label>
-            <input type="text" id="settingFirebaseApiKeyInput" placeholder="AIzaSy..." 
-                   class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium wire-subtext mb-1">Project ID (<code class="text-[11px] text-indigo-300">projectId</code>)</label>
-            <input type="text" id="settingFirebaseProjectIdInput" placeholder="my-firebase-project" 
-                   class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium wire-subtext mb-1">App ID (<code class="text-[11px] text-indigo-300">appId</code>)</label>
-            <input type="text" id="settingFirebaseAppIdInput" placeholder="1:123456789:web:abc123" 
-                   class="w-full px-3 py-2 bg-transparent wire-border wire-text rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-          </div>
+        <div>
+          <button onclick="saveSettings()" class="px-4 py-2 bg-transparent border border-indigo-400 hover:border-indigo-300 wire-text text-xs font-semibold rounded-lg transition">
+            Save & Connect
+          </button>
         </div>
-      </div>
-
-      <div>
-        <button onclick="saveSettings()" class="px-4 py-2 bg-transparent border border-indigo-400 hover:border-indigo-300 wire-text text-xs font-semibold rounded-lg transition">
-          Save & Connect
-        </button>
       </div>
     </div>
   </main>
 
   <!-- Create Folder Modal -->
   <div id="modalCreateFolder" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-    <div class="bg-slate-950/75 backdrop-blur-md rounded-2xl max-w-md w-full p-6 space-y-4 wire-border">
+    <div class="bg-slate-950/80 backdrop-blur-md rounded-2xl max-w-md w-full p-6 space-y-4 wire-border">
       <h3 class="font-bold wire-text text-base">Create New Folder</h3>
       <div>
         <label class="block text-xs font-medium wire-subtext mb-1">Folder Name</label>
@@ -238,9 +238,9 @@
     </div>
   </div>
 
-  <!-- Preview Modal -->
+  <!-- Preview / Editor & Sidebar Modal -->
   <div id="modalPreview" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-    <div class="bg-slate-950/80 backdrop-blur-md rounded-2xl max-w-6xl w-full h-[88vh] flex flex-col wire-border overflow-hidden">
+    <div class="bg-slate-950/85 backdrop-blur-md rounded-2xl max-w-6xl w-full h-[88vh] flex flex-col wire-border overflow-hidden">
       
       <!-- Top Bar -->
       <div class="flex items-center justify-between px-5 py-3 border-b border-white/25 bg-transparent">
