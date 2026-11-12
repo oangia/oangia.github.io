@@ -153,8 +153,8 @@
       </div>`;
         const service = new FileAdapterService();
         let folderManager = null;
-        document.querySelector('.widget-folder-input-main, .widget-folder-input-header')
-          .addEventListener('change', async (e) => {
+        document.querySelectorAll('.widget-folder-input-main, .widget-folder-input-header').forEach(input => {
+          input.addEventListener('change', async (e) => {
             if (folderManager == null) {
               folderManager = new FileManager({
                 containerId: 'widget-browser-wrapper',
@@ -167,6 +167,7 @@
             console.log(files);
             await folderManager.switch(files);
             console.log(`Loaded ${files.length} items successfully via service switch!`);
+          });
         });
       } else {
         const config = collectionConfigs[spaceKey];
