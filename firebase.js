@@ -173,15 +173,12 @@ export class FirebaseUploaderWidget {
             .fb-widget-container { font-family: ui-sans-serif, system-ui, sans-serif; width: 100%; max-width: 650px; max-height: 85vh; background: #18181b; color: #f4f4f5; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); display: flex; flex-direction: column; overflow: hidden; }
             .fb-widget-header { padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; background: #09090b; }
             .fb-widget-header h2 { font-size: 1rem; font-weight: bold; color: #fff; margin: 0; }
+            .fb-widget-actions { display: flex; align-items: center; gap: 0.75rem; }
             .fb-widget-close { background: transparent; border: none; color: #a1a1aa; font-size: 1.2rem; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.375rem; }
             .fb-widget-close:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
             .fb-widget-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
             .fb-widget-container .card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); padding: 1.25rem; border-radius: 0.75rem; margin-bottom: 1rem; }
             .fb-widget-container h3 { font-size: 0.875rem; font-weight: 600; color: #e4e4e7; margin-top: 0; margin-bottom: 0.75rem; }
-            .fb-widget-container label { display: block; font-size: 0.75rem; color: #a1a1aa; margin-bottom: 0.25rem; }
-            .fb-widget-container input[type="file"] { width: 100%; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 0.5rem; color: #fff; font-size: 0.75rem; margin-bottom: 0.75rem; outline: none; box-sizing: border-box; }
-            .fb-widget-container button.fb-action-btn { width: 100%; padding: 0.5rem 1rem; background: #4f46e5; color: white; border: none; border-radius: 0.5rem; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: background 0.2s; margin-bottom: 0.5rem; }
-            .fb-widget-container button.fb-action-btn:hover { background: #4338ca; }
             #fb-status { font-size: 0.75rem; font-weight: 500; color: #38bdf8; margin-top: 0.5rem; }
             .fb-widget-container ul { padding-left: 0; list-style: none; margin: 0; }
             .fb-widget-container li { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.75rem; margin-bottom: 0.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
@@ -201,20 +198,22 @@ export class FirebaseUploaderWidget {
         overlay.innerHTML = `
             <div class="fb-widget-container">
                 <div class="fb-widget-header">
-                    <h2>Firebase Chunked Uploader</h2>
-                    <button class="fb-widget-close" id="fb-closeModalBtn"><i class="fa-solid fa-xmark"></i></button>
+                    <h2>Firebase Storage</h2>
+                    <div class="fb-widget-actions">
+                        <label class="px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg cursor-pointer transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-upload"></i>
+                            <span id="fb-uploadBtnText">Upload File</span>
+                            <input type="file" id="fb-fileInput" class="hidden">
+                        </label>
+                        <button class="fb-widget-close" id="fb-closeModalBtn"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
                 </div>
                 <div class="fb-widget-body">
-                    <div class="card">
-                        <h3>Upload File</h3>
-                        <input type="file" id="fb-fileInput">
-                        <button id="fb-uploadBtn" class="fb-action-btn">Upload File in Chunks</button>
-                        <div id="fb-status"></div>
-                    </div>
-                    <div class="card">
+                    <div id="fb-status" style="margin-bottom: 1rem;"></div>
+                    <div class="card" style="margin-bottom: 0;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                             <h3 style="margin: 0;">Uploaded Files</h3>
-                            <button id="fb-refreshBtn" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.7rem; margin: 0;" class="fb-action-btn">Refresh</button>
+                            <button id="fb-refreshBtn" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.7rem; margin: 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.375rem; color: #fff; cursor: pointer;">Refresh</button>
                         </div>
                         <ul id="fb-fileList"></ul>
                     </div>
@@ -229,7 +228,6 @@ export class FirebaseUploaderWidget {
         const fileList = document.getElementById("fb-fileList");
         const statusDiv = document.getElementById("fb-status");
 
-        // Pull stored credentials from localStorage automatically
         const apiKey = localStorage.getItem("fb_apikey") || localStorage.getItem("firebase_api_key");
         const projectId = localStorage.getItem("fb_projectid") || "freedata-4c235";
         const appId = localStorage.getItem("fb_appid") || "1:906764667278:web:aa229456f8de0740923cdf";
@@ -252,7 +250,7 @@ export class FirebaseUploaderWidget {
         const overlay = document.getElementById("fb-modal-overlay");
         const closeBtn = document.getElementById("fb-closeModalBtn");
         const fileInput = document.getElementById("fb-fileInput");
-        const uploadBtn = document.getElementById("fb-uploadBtn");
+        const uploadBtnText = document.getElementById("fb-uploadBtnText");
         const statusDiv = document.getElementById("fb-status");
         const refreshBtn = document.getElementById("fb-refreshBtn");
         const fileList = document.getElementById("fb-fileList");
@@ -267,24 +265,23 @@ export class FirebaseUploaderWidget {
             }
         });
 
-        uploadBtn.addEventListener("click", async () => {
-            const file = fileInput.files[0];
-            if (!file) {
-                alert("Please select a file first.");
-                return;
-            }
-            uploadBtn.disabled = true;
+        fileInput.addEventListener("change", async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            uploadBtnText.textContent = "Uploading...";
             try {
                 await this.fbService.uploadFile(this.collectionName, file, (msg) => {
                     statusDiv.textContent = msg;
                 });
                 fileInput.value = "";
+                statusDiv.textContent = "";
                 this._loadFiles(fileList, statusDiv);
             } catch (err) {
                 console.error(err);
                 statusDiv.textContent = "Error: " + err.message;
             } finally {
-                uploadBtn.disabled = false;
+                uploadBtnText.textContent = "Upload File";
             }
         });
 
