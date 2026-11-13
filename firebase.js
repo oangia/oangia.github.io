@@ -160,65 +160,88 @@ export class FirebaseUploaderWidget {
         }
 
         triggerBtn.addEventListener("click", () => {
-            if (this.isRendered) return; // Prevent duplicate rendering
+            if (this.isRendered) {
+                // Toggle visibility if already rendered
+                const overlay = document.getElementById("fb-modal-overlay");
+                if (overlay) overlay.classList.remove("hidden");
+                return;
+            }
             this._renderPanel();
             this._bindEvents();
             this.isRendered = true;
-            triggerBtn.style.display = "none"; // Optionally hide toggle trigger after opening
         });
     }
 
     _renderPanel() {
-        // Inject scoped styles and HTML structure dynamically
+        // Inject scoped styles and modal layout
         const style = document.createElement("style");
         style.innerHTML = `
-            .fb-widget-container { font-family: sans-serif; max-width: 650px; margin: 20px auto; padding: 20px; line-height: 1.6; border: 2px dashed #0066cc; border-radius: 8px; background: #fff; }
-            .fb-widget-container .card { background: #f9f9f9; border: 1px solid #ddd; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-            .fb-widget-container input, .fb-widget-container button { padding: 10px; margin-top: 5px; margin-bottom: 15px; width: 100%; box-sizing: border-box; }
-            .fb-widget-container button { background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-            .fb-widget-container button:hover { background: #0052a3; }
-            .fb-widget-container #fb-status { font-weight: bold; color: #333; margin-top: 10px; }
-            .fb-widget-container ul { padding-left: 0; list-style: none; }
-            .fb-widget-container li { background: #fff; border: 1px solid #eee; padding: 10px; margin-bottom: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
-            .fb-widget-container .btn-group { display: flex; gap: 6px; }
-            .fb-widget-container li button { width: auto; margin: 0; padding: 5px 10px; font-size: 12px; }
-            .fb-widget-container .btn-download { background: #28a745; }
-            .fb-widget-container .btn-download:hover { background: #218838; }
-            .fb-widget-container .btn-delete { background: #dc3545; }
-            .fb-widget-container .btn-delete:hover { background: #c82333; }
-            .fb-widget-container .file-info span { display: block; font-size: 14px; }
-            .fb-widget-container .file-info small { color: #666; font-size: 12px; }
+            #fb-modal-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+            .fb-widget-container { font-family: ui-sans-serif, system-ui, sans-serif; width: 100%; max-width: 650px; max-height: 85vh; background: #18181b; color: #f4f4f5; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); display: flex; flex-direction: column; overflow: hidden; }
+            .fb-widget-header { padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; background: #09090b; }
+            .fb-widget-header h2 { font-size: 1rem; font-weight: bold; color: #fff; margin: 0; }
+            .fb-widget-close { background: transparent; border: none; color: #a1a1aa; font-size: 1.2rem; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.375rem; }
+            .fb-widget-close:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+            .fb-widget-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+            .fb-widget-container .card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); padding: 1.25rem; border-radius: 0.75rem; margin-bottom: 1rem; }
+            .fb-widget-container h3 { font-size: 0.875rem; font-weight: 600; color: #e4e4e7; margin-top: 0; margin-bottom: 0.75rem; }
+            .fb-widget-container label { display: block; font-size: 0.75rem; color: #a1a1aa; margin-bottom: 0.25rem; }
+            .fb-widget-container input[type="text"], .fb-widget-container input[type="file"] { width: 100%; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 0.5rem; color: #fff; font-size: 0.75rem; margin-bottom: 0.75rem; outline: none; box-sizing: border-box; }
+            .fb-widget-container input:focus { border-color: #818cf8; }
+            .fb-widget-container button.fb-action-btn { width: 100%; padding: 0.5rem 1rem; background: #4f46e5; color: white; border: none; border-radius: 0.5rem; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: background 0.2s; margin-bottom: 0.5rem; }
+            .fb-widget-container button.fb-action-btn:hover { background: #4338ca; }
+            #fb-connectionStatus { font-size: 0.75rem; font-weight: 500; margin-top: 0.5rem; }
+            #fb-status { font-size: 0.75rem; font-weight: 500; color: #38bdf8; margin-top: 0.5rem; }
+            .fb-widget-container ul { padding-left: 0; list-style: none; margin: 0; }
+            .fb-widget-container li { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.75rem; margin-bottom: 0.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+            .fb-widget-container .btn-group { display: flex; gap: 0.375rem; }
+            .fb-widget-container li button { width: auto; margin: 0; padding: 0.25rem 0.5rem; font-size: 0.7rem; border-radius: 0.375rem; border: none; font-weight: 600; cursor: pointer; color: white; }
+            .fb-widget-container .btn-download { background: #16a34a; }
+            .fb-widget-container .btn-download:hover { background: #15803d; }
+            .fb-widget-container .btn-delete { background: #dc2626; }
+            .fb-widget-container .btn-delete:hover { background: #b91c1c; }
+            .fb-widget-container .file-info span { display: block; font-size: 0.75rem; font-weight: 500; color: #f4f4f5; }
+            .fb-widget-container .file-info small { color: #a1a1aa; font-size: 0.7rem; }
         `;
         document.head.appendChild(style);
 
-        const container = document.createElement("div");
-        container.className = "fb-widget-container";
-        container.innerHTML = `
-            <h2>Firebase Chunked Uploader (Single Collection)</h2>
-            <div class="card">
-                <h3>Enter Firebase API Key</h3>
-                <label for="fb-apiKeyInput">API Key:</label>
-                <input type="text" id="fb-apiKeyInput" placeholder="Paste your Firebase API Key here">
-                <button id="fb-initBtn">Connect Firebase</button>
-                <div id="fb-connectionStatus">Status: Not connected</div>
-            </div>
-            <div class="card" id="fb-uploadCard" style="opacity: 0.5; pointer-events: none;">
-                <h3>2. Upload File</h3>
-                <input type="file" id="fb-fileInput">
-                <button id="fb-uploadBtn">Upload File in Chunks</button>
-                <div id="fb-status"></div>
-            </div>
-            <div class="card" id="fb-listCard" style="opacity: 0.5; pointer-events: none;">
-                <h3>3. Uploaded Files in Collection</h3>
-                <button id="fb-refreshBtn">Refresh File List</button>
-                <ul id="fb-fileList"></ul>
+        const overlay = document.createElement("div");
+        overlay.id = "fb-modal-overlay";
+        overlay.innerHTML = `
+            <div class="fb-widget-container">
+                <div class="fb-widget-header">
+                    <h2>Firebase Chunked Uploader</h2>
+                    <button class="fb-widget-close" id="fb-closeModalBtn"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="fb-widget-body">
+                    <div class="card">
+                        <h3>1. Connect Firebase</h3>
+                        <label for="fb-apiKeyInput">API Key:</label>
+                        <input type="text" id="fb-apiKeyInput" placeholder="Paste your Firebase API Key here">
+                        <button id="fb-initBtn" class="fb-action-btn">Connect Firebase</button>
+                        <div id="fb-connectionStatus">Status: Not connected</div>
+                    </div>
+                    <div class="card" id="fb-uploadCard" style="opacity: 0.5; pointer-events: none;">
+                        <h3>2. Upload File</h3>
+                        <input type="file" id="fb-fileInput">
+                        <button id="fb-uploadBtn" class="fb-action-btn">Upload File in Chunks</button>
+                        <div id="fb-status"></div>
+                    </div>
+                    <div class="card" id="fb-listCard" style="opacity: 0.5; pointer-events: none;">
+                        <h3>3. Uploaded Files in Collection</h3>
+                        <button id="fb-refreshBtn" class="fb-action-btn">Refresh File List</button>
+                        <ul id="fb-fileList"></ul>
+                    </div>
+                </div>
             </div>
         `;
 
-        document.body.appendChild(container);
+        document.body.appendChild(overlay);
     }
 
     _bindEvents() {
+        const overlay = document.getElementById("fb-modal-overlay");
+        const closeBtn = document.getElementById("fb-closeModalBtn");
         const apiKeyInput = document.getElementById("fb-apiKeyInput");
         const initBtn = document.getElementById("fb-initBtn");
         const connectionStatus = document.getElementById("fb-connectionStatus");
@@ -229,6 +252,17 @@ export class FirebaseUploaderWidget {
         const statusDiv = document.getElementById("fb-status");
         const refreshBtn = document.getElementById("fb-refreshBtn");
         const fileList = document.getElementById("fb-fileList");
+
+        closeBtn.addEventListener("click", () => {
+            overlay.classList.add("hidden");
+        });
+
+        // Close on outside click
+        overlay.addEventListener("click", (e) => {
+            if (e.target === overlay) {
+                overlay.classList.add("hidden");
+            }
+        });
 
         initBtn.addEventListener("click", () => {
             const key = apiKeyInput.value.trim();
@@ -241,7 +275,7 @@ export class FirebaseUploaderWidget {
                 StorageHelper.set(this.storageKey, key);
                 
                 connectionStatus.textContent = "Status: Connected ✅";
-                connectionStatus.style.color = "green";
+                connectionStatus.style.color = "#4ade80";
                 uploadCard.style.opacity = "1";
                 uploadCard.style.pointerEvents = "auto";
                 listCard.style.opacity = "1";
@@ -250,7 +284,7 @@ export class FirebaseUploaderWidget {
             } catch (err) {
                 console.error(err);
                 connectionStatus.textContent = "Status: Connection Failed ❌";
-                connectionStatus.style.color = "red";
+                connectionStatus.style.color = "#f87171";
             }
         });
 
@@ -286,12 +320,12 @@ export class FirebaseUploaderWidget {
     }
 
     async _loadFiles(fileListEl, statusDiv) {
-        fileListEl.innerHTML = "<li>Loading files...</li>";
+        fileListEl.innerHTML = "<li style='justify-content:center; color:#a1a1aa;'>Loading files...</li>";
         try {
             const files = await this.fbService.getAllFilenames(this.collectionName);
             fileListEl.innerHTML = "";
             if (files.length === 0) {
-                fileListEl.innerHTML = "<li>No files found in collection.</li>";
+                fileListEl.innerHTML = "<li style='justify-content:center; color:#a1a1aa;'>No files found in collection.</li>";
                 return;
             }
             files.forEach(f => {
@@ -359,7 +393,7 @@ export class FirebaseUploaderWidget {
             });
         } catch (err) {
             console.error(err);
-            fileListEl.innerHTML = "<li>Failed to load files.</li>";
+            fileListEl.innerHTML = "<li style='justify-content:center; color:#f87171;'>Failed to load files.</li>";
         }
     }
 }
