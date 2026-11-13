@@ -151,7 +151,6 @@ const sbManager = new SupabaseManager();
 
 class FilePreviewManager {
   constructor(options = {}) {
-    this.bucket = options.bucket || 'files';
     this.supabaseManager = options.supabaseManager || sbManager;
     
     // Editor State
@@ -170,7 +169,6 @@ class FilePreviewManager {
 
   setConfig(manager, bucket) {
     if (manager) this.supabaseManager = manager;
-    if (bucket) this.bucket = bucket;
   }
 
   async openPreview(path, name, fileSize = 0) {
@@ -603,7 +601,6 @@ class ItemsGridRenderer {
   }
 }
 
-let currentBucket = 'files';
 let currentPath = '';
 let folderHistory = [{ path: '', name: 'root' }];
 let allItems = [];
@@ -643,7 +640,6 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   filePreviewManager = new FilePreviewManager({
-    bucket: currentBucket,
     supabaseManager: sbManager,
     onToast: (msg, type, duration) => showToast(msg, type, duration),
     onSaveSuccess: () => listFiles()
@@ -701,12 +697,9 @@ function saveSettings() {
 
 function initSupabase(url, key, bucket) {
   try {
-    const client = window.supabase.createClient(url, key);
-    currentBucket = bucket;
-    sbManager.setClient(client, currentBucket);
-
+    sbManager.init({url: url, key: key, bucket: bucket});
     if (filePreviewManager) {
-      filePreviewManager.setConfig(sbManager, currentBucket);
+      filePreviewManager.setConfig(sbManager);
     }
 
     document.getElementById('headerUrl').textContent = url + '  •  bucket: ' + bucket;
@@ -753,7 +746,7 @@ async function listFiles() {
       }
     }));
 
-    updateConnectionStatus(true, `Connected • Bucket: ${currentBucket}`);
+    updateConnectionStatus(true, `Connected • Bucket: ${sbManager.bucket}`);
     renderView();
   } catch (err) {
     console.error(err);
@@ -969,11 +962,7 @@ async function createBackup() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Backing up...</span>';
 
-  const backupManager = new SupabaseBackupManager(sbManager.client, currentBucket, (message, type) => {
-    showToast(message, type, type === 'warning' ? 2500 : 3500);
-  });
-
-  await backupManager.runBackup();
+  await sbManager.runBackup();
 
   btn.disabled = false;
   btn.innerHTML = '<i class="fa-solid fa-box-archive"></i> <span>Backup</span>';
