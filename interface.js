@@ -211,9 +211,9 @@ function toggleActionsMenu() {
 }
 
 document.addEventListener('click', (e) => {
-  const menu = document.getElementById('uploadMenu');
+  const menu = document.getElementById('actionsMenu');
   if (!menu) return;
-  if (!menu.contains(e.target) && !e.target.closest('button')?.getAttribute('onclick')?.includes('toggleUploadMenu')) {
+  if (!menu.contains(e.target) && !e.target.closest('button')?.getAttribute('onclick')?.includes('toggleActionsMenu')) {
     menu.classList.add('hidden');
   }
 });
