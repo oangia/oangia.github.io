@@ -336,7 +336,7 @@ class ItemsGridRenderer {
     items.forEach(item => {
       const isFolder = !item.id;
       const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
-      const sizeStr = isFolder ? '' : this.formatBytes(item.metadata?.size || 0);
+      const sizeStr = isFolder ? '' : formatBytes(item.metadata?.size || 0);
 
       const card = document.createElement('div');
       
@@ -363,8 +363,8 @@ class ItemsGridRenderer {
         ${mediaHTML}
 
         <div class="w-full pt-2 border-t border-white/20 flex flex-col">
-          <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${this.escapeHtml(item.name)}">
-            ${this.escapeHtml(item.name)}
+          <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(item.name)}">
+            ${escapeHtml(item.name)}
           </span>
           <span class="text-[9px] text-slate-300 font-mono mt-0.5">
             ${isFolder ? (sizeStr || 'Folder') : sizeStr}
@@ -390,14 +390,14 @@ class ItemsGridRenderer {
         </div>`;
     }
 
-    if (item.thumbUrl && this.isImage(item.name)) {
+    if (item.thumbUrl && isImage(item.name)) {
       return `
         <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
           <img src="${item.thumbUrl}" alt="" class="w-full h-full object-cover rounded-lg" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     }
 
-    if (item.thumbUrl && this.isVideo(item.name)) {
+    if (item.thumbUrl && isVideo(item.name)) {
       return `
         <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
           <video src="${item.thumbUrl}#t=0.5" class="w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
@@ -405,43 +405,12 @@ class ItemsGridRenderer {
         </div>`;
     }
 
-    const ext = (this.getExtension(item.name) || 'FILE').toUpperCase();
+    const ext = (getExtension(item.name) || 'FILE').toUpperCase();
     return `
       <div class="widget-preview-area flex-1 w-full flex flex-col items-center justify-center overflow-hidden rounded-lg bg-transparent relative transition-colors gap-1">
-        <div class="text-3xl text-slate-200">${this.getFileIcon(item.name)}</div>
-        <span class="text-[9px] font-mono text-slate-300 uppercase tracking-wide">${this.escapeHtml(ext)}</span>
+        <div class="text-3xl text-slate-200">${getFileIcon(item.name)}</div>
+        <span class="text-[9px] font-mono text-slate-300 uppercase tracking-wide">${escapeHtml(ext)}</span>
       </div>`;
-  }
-
-  isImage(name) { return /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(name); }
-  isVideo(name) { return /\.(mp4|webm|ogg|mov)$/i.test(name); }
-  getExtension(name) {
-    const parts = name.split('.');
-    return parts.length > 1 ? parts.pop() : '';
-  }
-
-  getFileIcon(name) {
-    const ext = this.getExtension(name).toLowerCase();
-    if (['pdf'].includes(ext)) return '<i class="fa-solid fa-file-pdf text-red-400"></i>';
-    if (['doc', 'docx'].includes(ext)) return '<i class="fa-solid fa-file-word text-blue-400"></i>';
-    if (['xls', 'xlsx', 'csv'].includes(ext)) return '<i class="fa-solid fa-file-excel text-green-400"></i>';
-    if (['zip', 'rar', 'tar', 'gz'].includes(ext)) return '<i class="fa-solid fa-file-zipper text-yellow-400"></i>';
-    if (['mp3', 'wav', 'aac'].includes(ext)) return '<i class="fa-solid fa-file-audio text-purple-400"></i>';
-    return '<i class="fa-solid fa-file-lines text-slate-300"></i>';
-  }
-
-  formatBytes(bytes) {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  }
-
-  escapeHtml(str) {
-    return (str || '').replace(/[&<>'"]/g, 
-      tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-    );
   }
 }
 
