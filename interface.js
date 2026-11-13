@@ -414,30 +414,85 @@ class ItemsGridRenderer {
   }
 }
 
-let currentPath = '';
-let folderHistory = [{ path: '', name: 'root' }];
+class BreadcrumbManager {
+  constructor(containerId, options = {}) {
+    this.container = document.getElementById(containerId);
+    this.onNavigate = options.onNavigate || (() => {});
+    this.history = [{ path: '', name: 'root' }];
+    this.currentPath = '';
+  }
+
+  get path() {
+    return this.currentPath;
+  }
+
+  navigateToFolder(path, name) {
+    if (this.currentPath === path) return;
+    this.currentPath = path;
+    this.history.push({ path, name });
+    this.render();
+    this.onNavigate(this.currentPath);
+  }
+
+  jumpToBreadcrumb(index) {
+    this.history = this.history.slice(0, index + 1);
+    this.currentPath = this.history[this.history.length - 1].path;
+    this.render();
+    this.onNavigate(this.currentPath);
+  }
+
+  reset() {
+    this.currentPath = '';
+    this.history = [{ path: '', name: 'root' }];
+    this.render();
+  }
+
+  render() {
+    if (!this.container) return;
+    this.container.innerHTML = '';
+
+    this.history.forEach((crumb, idx) => {
+      const isLast = idx === this.history.length - 1;
+      const btn = document.createElement('button');
+      
+      btn.className = (isLast ? "font-bold text-indigo-300 wire-text" : "wire-subtext hover:wire-text") + " inline-flex items-center";
+      
+      if (crumb.name.toLowerCase() === 'root') {
+        btn.innerHTML = `<i class="fa-solid fa-house mr-1 text-xs"></i><span>${escapeHtml(crumb.name)}</span>`;
+      } else {
+        btn.textContent = crumb.name;
+      }
+
+      btn.onclick = () => this.jumpToBreadcrumb(idx);
+      this.container.appendChild(btn);
+
+      if (!isLast) {
+        const sep = document.createElement('span');
+        sep.className = "opacity-50 mx-1";
+        sep.textContent = '/';
+        this.container.appendChild(sep);
+      }
+    });
+  }
+}
+
+// ==========================================
+// ---------- Global State & Init -----------
+// ==========================================
+
 let allItems = [];
 let filteredItems = [];
 let filePreviewManager = null;
 let gridRenderer = null;
+let breadcrumbManager = null;
 const sbManager = new SupabaseManager();
-// ==========================================
-// ---------- Init & Core Logic -------------
-// ==========================================
 
 window.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
+
   const savedUrl = localStorage.getItem('sb_url');
   const savedKey = localStorage.getItem('sb_key');
   const savedBucket = localStorage.getItem('sb_bucket') || 'files';
-  document.querySelectorAll('#viewSettings input[name]').forEach(el => {
-    const savedValue = localStorage.getItem(el.name);
-    
-    if (savedValue !== null && savedValue !== '') {
-      el.value = savedValue; // Sets the saved value into the input
-    } else if (el.dataset.default) {
-      el.value = el.dataset.default; // Falls back to default if nothing is saved
-    }
-  });
 
   filePreviewManager = new FilePreviewManager({
     service: sbManager,
@@ -445,17 +500,22 @@ window.addEventListener('DOMContentLoaded', () => {
     onSaveSuccess: () => listFiles()
   });
 
-  // Initialize the dedicated Grid Renderer for itemsGrid
   gridRenderer = new ItemsGridRenderer('itemsGrid', {
     onItemClick: (item, fullPath, isFolder) => {
       if (isFolder) {
-        navigateToFolder(fullPath, item.name);
+        breadcrumbManager.navigateToFolder(fullPath, item.name);
       } else {
         openPreview(fullPath, item.name);
       }
     },
     onDeleteClick: (fullPath, isFolder) => {
       deleteItem(fullPath, isFolder);
+    }
+  });
+
+  breadcrumbManager = new BreadcrumbManager('breadcrumbNav', {
+    onNavigate: (path) => {
+      listFiles();
     }
   });
 
@@ -466,6 +526,10 @@ window.addEventListener('DOMContentLoaded', () => {
     switchTab('settings');
   }
 });
+
+// ==========================================
+// ---------- Configuration Logic -----------
+// ==========================================
 
 function saveSettings() {
   const inputs = document.querySelectorAll('#viewSettings input[name]');
@@ -478,11 +542,22 @@ function saveSettings() {
     return;
   }
 
-  // Save each key-value pair to localStorage
   Object.entries(cfg).forEach(([k, v]) => localStorage.setItem(k, v));
 
   initSupabase(cfg.sb_url, cfg.sb_key, cfg.sb_bucket);
   switchTab('explorer');
+}
+
+function loadSettings() {
+  document.querySelectorAll('#viewSettings input[name]').forEach(el => {
+    const savedValue = localStorage.getItem(el.name);
+    
+    if (savedValue !== null && savedValue !== '') {
+      el.value = savedValue;
+    } else if (el.dataset.default) {
+      el.value = el.dataset.default;
+    }
+  });
 }
 
 function initSupabase(url, key, bucket) {
@@ -493,8 +568,9 @@ function initSupabase(url, key, bucket) {
     }
 
     document.getElementById('headerUrl').textContent = url + '  •  bucket: ' + bucket;
-    currentPath = '';
-    folderHistory = [{ path: '', name: 'root' }];
+    if (breadcrumbManager) {
+      breadcrumbManager.reset();
+    }
     listFiles();
   } catch (err) {
     console.error(err);
@@ -502,11 +578,15 @@ function initSupabase(url, key, bucket) {
   }
 }
 
-// ---------- List files ----------
+// ==========================================
+// ---------- File Operations & Core --------
+// ==========================================
+
 async function listFiles() {
   updateConnectionStatus(null, 'Loading...');
   try {
-    const { data, error } = await sbManager.list(currentPath, {
+    const activePath = breadcrumbManager ? breadcrumbManager.path : '';
+    const { data, error } = await sbManager.list(activePath, {
       limit: 500,
       offset: 0,
       sortBy: { column: 'name', order: 'asc' }
@@ -520,7 +600,8 @@ async function listFiles() {
       const isFolder = !item.id;
       if (isFolder) return;
 
-      const fullPath = currentPath ? `${currentPath}/${item.name}` : item.name;
+      const activePath = breadcrumbManager ? breadcrumbManager.path : '';
+      const fullPath = activePath ? `${activePath}/${item.name}` : item.name;
       item.fullPath = fullPath;
 
       if (isImage(item.name) || isVideo(item.name)) {
@@ -545,7 +626,9 @@ async function listFiles() {
 
 // ---------- Render ----------
 function renderView() {
-  renderBreadcrumbs();
+  if (breadcrumbManager) {
+    breadcrumbManager.render();
+  }
 
   const searchVal = document.getElementById('searchInput').value.toLowerCase();
   filteredItems = searchVal
@@ -562,54 +645,13 @@ function renderView() {
   document.getElementById('itemCountLabel').textContent = `${filteredItems.length} item${filteredItems.length !== 1 ? 's' : ''}`;
 
   if (gridRenderer) {
-    gridRenderer.render(filteredItems, currentPath);
+    const activePath = breadcrumbManager ? breadcrumbManager.path : '';
+    gridRenderer.render(filteredItems, activePath);
   }
-}
-
-function renderBreadcrumbs() {
-  const nav = document.getElementById('breadcrumbNav');
-  if (!nav) return;
-  nav.innerHTML = '';
-  
-  folderHistory.forEach((crumb, idx) => {
-    const isLast = idx === folderHistory.length - 1;
-    const btn = document.createElement('button');
-    btn.className = (isLast ? "font-bold text-indigo-300 wire-text" : "wire-subtext hover:wire-text") + " inline-flex items-center";
-    
-    if (crumb.name.toLowerCase() === 'root') {
-      btn.innerHTML = `<i class="fa-solid fa-house mr-1 text-xs"></i><span>${escapeHtml(crumb.name)}</span>`;
-    } else {
-      btn.textContent = crumb.name;
-    }
-
-    btn.onclick = () => jumpToBreadcrumb(idx);
-    nav.appendChild(btn);
-    
-    if (!isLast) {
-      const sep = document.createElement('span');
-      sep.className = "opacity-50 mx-1";
-      sep.textContent = '/';
-      nav.appendChild(sep);
-    }
-  });
 }
 
 function handleSearch() {
   renderView();
-}
-
-// ---------- Navigation ----------
-function navigateToFolder(path, name) {
-  if (currentPath === path) return;
-  currentPath = path;
-  folderHistory.push({ path, name });
-  listFiles();
-}
-
-function jumpToBreadcrumb(index) {
-  folderHistory = folderHistory.slice(0, index + 1);
-  currentPath = folderHistory[folderHistory.length - 1].path;
-  listFiles();
 }
 
 // ---------- Create Folder ----------
@@ -622,7 +664,8 @@ async function submitCreateFolder() {
   const name = document.getElementById('folderNameInput').value.trim();
   if (!name) return;
 
-  const folderPath = currentPath ? `${currentPath}/${name}/.emptyFolderPlaceholder` : `${name}/.emptyFolderPlaceholder`;
+  const activePath = breadcrumbManager ? breadcrumbManager.path : '';
+  const folderPath = activePath ? `${activePath}/${name}/.emptyFolderPlaceholder` : `${name}/.emptyFolderPlaceholder`;
 
   try {
     const { error } = await sbManager.upload(folderPath, new Blob(['']), { upsert: false });
@@ -663,7 +706,8 @@ async function handleFileUpload(event, isFolderUpload = false) {
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     try {
-      let targetPath = currentPath ? `${currentPath}/` : '';
+      const activePath = breadcrumbManager ? breadcrumbManager.path : '';
+      let targetPath = activePath ? `${activePath}/` : '';
 
       if (isFolderUpload && file.webkitRelativePath) {
         targetPath += file.webkitRelativePath;
