@@ -15,14 +15,6 @@ class SupabaseManager {
     });
   }
 
-  async runBackup() {
-    await this.backup.runBackup();
-  }
-
-  isInitialized() {
-    return !!this.client;
-  }
-
   async list(path, options) {
     if (!this.client) throw new Error('Supabase client not initialized');
     return await this.client.storage.from(this.bucket).list(path, options);
@@ -41,6 +33,10 @@ class SupabaseManager {
   async remove(paths) {
     if (!this.client) throw new Error('Supabase client not initialized');
     return await this.client.storage.from(this.bucket).remove(paths);
+  }
+
+  async runBackup() {
+    await this.backup.runBackup();
   }
 }
 
