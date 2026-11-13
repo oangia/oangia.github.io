@@ -15,7 +15,7 @@ class SupabaseManager {
     });
   }
 
-  runBackup() {
+  async runBackup() {
     await this.backup.runBackup();
   }
 
