@@ -476,8 +476,150 @@ class FilePreviewManager {
   }
 }
 
+class ItemsGridRenderer {
+  constructor(containerId, options = {}) {
+    this.container = document.getElementById(containerId);
+    this.onItemClick = options.onItemClick || (() => {});
+    this.onDeleteClick = options.onDeleteClick || (() => {});
+  }
+
+  /**
+   * Main render method to populate the grid with items.
+   * @param {Array} items - Filtered list of files/folders
+   * @param {string} currentPath - Current active folder path
+   */
+  render(items, currentPath) {
+    if (!this.container) return;
+    
+    // Ensure the container has your requested grid layout classes
+    this.container.className = "grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 p-4 text-slate-100";
+    this.container.innerHTML = '';
+
+    // Empty state design
+    if (!items || items.length === 0) {
+      this.container.innerHTML = `
+        <div class="col-span-full py-16 text-center text-slate-400 text-sm">
+          <i class="fa-regular fa-folder-open text-3xl mb-3 block opacity-60"></i>
+          No items found
+        </div>`;
+      return;
+    }
+
+    items.forEach(item => {
+      const isFolder = !item.id;
+      const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
+      const sizeStr = isFolder ? '' : this.formatBytes(item.metadata?.size || 0);
+
+      const card = document.createElement('div');
+      
+      card.className = `
+        group relative bg-transparent border border-white/20 hover:border-indigo-400 
+        rounded-xl p-3 flex flex-col items-center justify-between text-center 
+        cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 
+        aspect-square overflow-hidden
+      `;
+
+      card.onclick = () => this.onItemClick(item, fullPath, isFolder);
+
+      const mediaHTML = this.buildMediaPreview(item, isFolder);
+
+      card.innerHTML = `
+        <button 
+          class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 
+                 w-6 h-6 flex items-center justify-center rounded-full 
+                 bg-black/50 hover:bg-red-500 text-white transition"
+          title="Delete">
+          <i class="fa-solid fa-xmark text-[10px]"></i>
+        </button>
+
+        ${mediaHTML}
+
+        <div class="w-full pt-2 border-t border-white/20 flex flex-col">
+          <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${this.escapeHtml(item.name)}">
+            ${this.escapeHtml(item.name)}
+          </span>
+          <span class="text-[9px] text-slate-300 font-mono mt-0.5">
+            ${isFolder ? (sizeStr || 'Folder') : sizeStr}
+          </span>
+        </div>
+      `;
+
+      const deleteBtn = card.querySelector('.delete-btn');
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.onDeleteClick(fullPath, isFolder);
+      };
+
+      this.container.appendChild(card);
+    });
+  }
+
+  buildMediaPreview(item, isFolder) {
+    if (isFolder) {
+      return `
+        <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-folder text-5xl"></i>
+        </div>`;
+    }
+
+    if (item.thumbUrl && this.isImage(item.name)) {
+      return `
+        <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
+          <img src="${item.thumbUrl}" alt="" class="w-full h-full object-cover rounded-lg" loading="lazy" onerror="this.style.display='none'">
+        </div>`;
+    }
+
+    if (item.thumbUrl && this.isVideo(item.name)) {
+      return `
+        <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
+          <video src="${item.thumbUrl}#t=0.5" class="w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
+          <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
+        </div>`;
+    }
+
+    const ext = (this.getExtension(item.name) || 'FILE').toUpperCase();
+    return `
+      <div class="widget-preview-area flex-1 w-full flex flex-col items-center justify-center overflow-hidden rounded-lg bg-transparent relative transition-colors gap-1">
+        <div class="text-3xl text-slate-200">${this.getFileIcon(item.name)}</div>
+        <span class="text-[9px] font-mono text-slate-300 uppercase tracking-wide">${this.escapeHtml(ext)}</span>
+      </div>`;
+  }
+
+  isImage(name) { return /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(name); }
+  isVideo(name) { return /\.(mp4|webm|ogg|mov)$/i.test(name); }
+  getExtension(name) {
+    const parts = name.split('.');
+    return parts.length > 1 ? parts.pop() : '';
+  }
+
+  getFileIcon(name) {
+    const ext = this.getExtension(name).toLowerCase();
+    if (['pdf'].includes(ext)) return '<i class="fa-solid fa-file-pdf text-red-400"></i>';
+    if (['doc', 'docx'].includes(ext)) return '<i class="fa-solid fa-file-word text-blue-400"></i>';
+    if (['xls', 'xlsx', 'csv'].includes(ext)) return '<i class="fa-solid fa-file-excel text-green-400"></i>';
+    if (['zip', 'rar', 'tar', 'gz'].includes(ext)) return '<i class="fa-solid fa-file-zipper text-yellow-400"></i>';
+    if (['mp3', 'wav', 'aac'].includes(ext)) return '<i class="fa-solid fa-file-audio text-purple-400"></i>';
+    return '<i class="fa-solid fa-file-lines text-slate-300"></i>';
+  }
+
+  formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  escapeHtml(str) {
+    return (str || '').replace(/[&<>'"]/g, 
+      tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+  }
+}
+
+
 // ==========================================
-// ---------- Global Variables & State ------
+// ---------- Init & Core Logic -------------
 // ==========================================
 
 let supabaseClient = null;
@@ -487,11 +629,7 @@ let folderHistory = [{ path: '', name: 'root' }];
 let allItems = [];
 let filteredItems = [];
 let filePreviewManager = null;
-
-
-// ==========================================
-// ---------- Init & Core Logic -------------
-// ==========================================
+let gridRenderer = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   const savedUrl = localStorage.getItem('sb_url');
@@ -525,6 +663,20 @@ window.addEventListener('DOMContentLoaded', () => {
     supabaseClient: supabaseClient,
     onToast: (msg, type, duration) => showToast(msg, type, duration),
     onSaveSuccess: () => listFiles()
+  });
+
+  // Initialize the dedicated Grid Renderer for itemsGrid
+  gridRenderer = new ItemsGridRenderer('itemsGrid', {
+    onItemClick: (item, fullPath, isFolder) => {
+      if (isFolder) {
+        navigateToFolder(fullPath, item.name);
+      } else {
+        openPreview(fullPath, item.name);
+      }
+    },
+    onDeleteClick: (fullPath, isFolder) => {
+      deleteItem(fullPath, isFolder);
+    }
   });
 
   if (savedUrl && savedKey) {
@@ -647,107 +799,11 @@ function renderView() {
     return a.name.localeCompare(b.name);
   });
 
-  const grid = document.getElementById('itemsGrid');
-  grid.innerHTML = '';
   document.getElementById('itemCountLabel').textContent = `${filteredItems.length} item${filteredItems.length !== 1 ? 's' : ''}`;
 
-  // Empty state
-  if (filteredItems.length === 0) {
-    grid.innerHTML = `
-      <div class="col-span-full py-16 text-center text-slate-400 text-sm">
-        <i class="fa-regular fa-folder-open text-3xl mb-3 block opacity-60"></i>
-        No items
-      </div>`;
-    return;
+  if (gridRenderer) {
+    gridRenderer.render(filteredItems, currentPath);
   }
-
-  filteredItems.forEach(item => {
-    const isFolder = !item.id;
-    const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
-    const sizeStr = isFolder ? '' : formatBytes(item.metadata?.size || 0);
-
-    const card = document.createElement('div');
-
-    // ===== Preferred card style (copied & adapted) =====
-    card.className = `
-      group relative bg-transparent border border-white/20 hover:border-indigo-400 
-      rounded-xl p-3 flex flex-col items-center justify-between text-center 
-      cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 
-      aspect-square overflow-hidden
-    `;
-
-    card.onclick = () => {
-      if (isFolder) {
-        navigateToFolder(fullPath, item.name);
-      } else {
-        openPreview(fullPath, item.name);
-      }
-    };
-
-    // ========== MEDIA / PREVIEW AREA ==========
-    let mediaHTML = '';
-
-    if (isFolder) {
-      // Folder style from preferred code
-      mediaHTML = `
-        <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
-          <i class="fa-solid fa-folder text-5xl"></i>
-        </div>`;
-    } 
-    
-    else if (item.thumbUrl && isImage(item.name)) {
-      mediaHTML = `
-        <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
-          <img src="${item.thumbUrl}" alt="" class="w-full h-full object-cover rounded-lg" loading="lazy"
-               onerror="this.style.display='none'">
-        </div>`;
-    } 
-    
-    else if (item.thumbUrl && isVideo(item.name)) {
-      mediaHTML = `
-        <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
-          <video src="${item.thumbUrl}#t=0.5" class="w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
-          <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
-        </div>`;
-    } 
-    
-    else {
-      // Generic / other files
-      const ext = (getExtension(item.name) || 'FILE').toUpperCase();
-      mediaHTML = `
-        <div class="widget-preview-area flex-1 w-full flex flex-col items-center justify-center overflow-hidden rounded-lg bg-transparent relative transition-colors gap-1">
-          <div class="text-3xl text-slate-200">${getFileIcon(item.name)}</div>
-          <span class="text-[9px] font-mono text-slate-300 uppercase tracking-wide">${escapeHtml(ext)}</span>
-        </div>`;
-    }
-
-    // ========== CARD CONTENT ==========
-    card.innerHTML = `
-      <!-- Delete button -->
-      <button 
-        onclick="event.stopPropagation(); deleteItem('${escapeHtml(fullPath)}', ${isFolder})"
-        title="Delete"
-        class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 
-               w-6 h-6 flex items-center justify-center rounded-full 
-               bg-black/50 hover:bg-red-500 text-white transition">
-        <i class="fa-solid fa-xmark text-[10px]"></i>
-      </button>
-
-      ${mediaHTML}
-
-      <!-- Name + Size (preferred bottom section) -->
-      <div class="w-full pt-2 border-t border-white/20 flex flex-col">
-        <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(item.name)}">
-          ${escapeHtml(item.name)}
-        </span>
-        <span class="text-[9px] text-slate-300 font-mono mt-0.5">
-          ${isFolder ? (sizeStr || 'Folder') : sizeStr}
-        </span>
-      </div>
-    `;
-
-    grid.appendChild(card);
-  });
 }
 
 function renderBreadcrumbs() {
