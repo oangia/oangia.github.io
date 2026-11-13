@@ -12,25 +12,16 @@ import {
     where 
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
-const StorageHelper = {
-    set(key, value) {
-        try { localStorage.setItem(key, value); } catch (e) {}
-    },
-    get(key) {
-        try { return localStorage.getItem(key); } catch (e) { return null; }
-    }
-};
-
 class FirebaseService {
     constructor() {
         this.app = null;
         this.db = null;
     }
-    init(apiKey) {
+    init(config) {
         this.app = initializeApp({
-            projectId: "freedata-4c235",
-            appId: "1:906764667278:web:aa229456f8de0740923cdf",
-            apiKey: apiKey
+            projectId: config.projectId || "freedata-4c235",
+            appId: config.appId || "1:906764667278:web:aa229456f8de0740923cdf",
+            apiKey: config.apiKey
         });
         this.db = getFirestore(this.app);
     }
@@ -147,7 +138,6 @@ class FirebaseService {
 export class FirebaseUploaderWidget {
     constructor(collectionName = "uploaded_files") {
         this.collectionName = collectionName;
-        this.storageKey = "firebase_api_key";
         this.fbService = new FirebaseService();
         this.isRendered = false;
     }
@@ -161,22 +151,25 @@ export class FirebaseUploaderWidget {
 
         triggerBtn.addEventListener("click", () => {
             if (this.isRendered) {
-                // Toggle visibility if already rendered
                 const overlay = document.getElementById("fb-modal-overlay");
-                if (overlay) overlay.classList.remove("hidden");
+                if (overlay) {
+                    overlay.classList.remove("hidden");
+                    this._checkAndConnect(); // Refresh check when opened
+                }
                 return;
             }
             this._renderPanel();
             this._bindEvents();
+            this._checkAndConnect();
             this.isRendered = true;
         });
     }
 
     _renderPanel() {
-        // Inject scoped styles and modal layout
         const style = document.createElement("style");
         style.innerHTML = `
             #fb-modal-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+            #fb-modal-overlay.hidden { display: none !important; }
             .fb-widget-container { font-family: ui-sans-serif, system-ui, sans-serif; width: 100%; max-width: 650px; max-height: 85vh; background: #18181b; color: #f4f4f5; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); display: flex; flex-direction: column; overflow: hidden; }
             .fb-widget-header { padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; background: #09090b; }
             .fb-widget-header h2 { font-size: 1rem; font-weight: bold; color: #fff; margin: 0; }
@@ -186,8 +179,7 @@ export class FirebaseUploaderWidget {
             .fb-widget-container .card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); padding: 1.25rem; border-radius: 0.75rem; margin-bottom: 1rem; }
             .fb-widget-container h3 { font-size: 0.875rem; font-weight: 600; color: #e4e4e7; margin-top: 0; margin-bottom: 0.75rem; }
             .fb-widget-container label { display: block; font-size: 0.75rem; color: #a1a1aa; margin-bottom: 0.25rem; }
-            .fb-widget-container input[type="text"], .fb-widget-container input[type="file"] { width: 100%; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 0.5rem; color: #fff; font-size: 0.75rem; margin-bottom: 0.75rem; outline: none; box-sizing: border-box; }
-            .fb-widget-container input:focus { border-color: #818cf8; }
+            .fb-widget-container input[type="file"] { width: 100%; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 0.5rem; color: #fff; font-size: 0.75rem; margin-bottom: 0.75rem; outline: none; box-sizing: border-box; }
             .fb-widget-container button.fb-action-btn { width: 100%; padding: 0.5rem 1rem; background: #4f46e5; color: white; border: none; border-radius: 0.5rem; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: background 0.2s; margin-bottom: 0.5rem; }
             .fb-widget-container button.fb-action-btn:hover { background: #4338ca; }
             #fb-connectionStatus { font-size: 0.75rem; font-weight: 500; margin-top: 0.5rem; }
@@ -215,20 +207,17 @@ export class FirebaseUploaderWidget {
                 </div>
                 <div class="fb-widget-body">
                     <div class="card">
-                        <h3>1. Connect Firebase</h3>
-                        <label for="fb-apiKeyInput">API Key:</label>
-                        <input type="text" id="fb-apiKeyInput" placeholder="Paste your Firebase API Key here">
-                        <button id="fb-initBtn" class="fb-action-btn">Connect Firebase</button>
-                        <div id="fb-connectionStatus">Status: Not connected</div>
+                        <h3>Connection Status</h3>
+                        <div id="fb-connectionStatus">Checking credentials...</div>
                     </div>
                     <div class="card" id="fb-uploadCard" style="opacity: 0.5; pointer-events: none;">
-                        <h3>2. Upload File</h3>
+                        <h3>Upload File</h3>
                         <input type="file" id="fb-fileInput">
                         <button id="fb-uploadBtn" class="fb-action-btn">Upload File in Chunks</button>
                         <div id="fb-status"></div>
                     </div>
                     <div class="card" id="fb-listCard" style="opacity: 0.5; pointer-events: none;">
-                        <h3>3. Uploaded Files in Collection</h3>
+                        <h3>Uploaded Files in Collection</h3>
                         <button id="fb-refreshBtn" class="fb-action-btn">Refresh File List</button>
                         <ul id="fb-fileList"></ul>
                     </div>
@@ -239,14 +228,44 @@ export class FirebaseUploaderWidget {
         document.body.appendChild(overlay);
     }
 
-    _bindEvents() {
-        const overlay = document.getElementById("fb-modal-overlay");
-        const closeBtn = document.getElementById("fb-closeModalBtn");
-        const apiKeyInput = document.getElementById("fb-apiKeyInput");
-        const initBtn = document.getElementById("fb-initBtn");
+    _checkAndConnect() {
         const connectionStatus = document.getElementById("fb-connectionStatus");
         const uploadCard = document.getElementById("fb-uploadCard");
         const listCard = document.getElementById("fb-listCard");
+        const fileList = document.getElementById("fb-fileList");
+        const statusDiv = document.getElementById("fb-status");
+
+        // Automatically pull credentials from localStorage (matching your settings inputs: fb_apikey, fb_projectid, fb_appid)
+        // Or check standard localStorage keys where your app saves settings
+        const apiKey = localStorage.getItem("fb_apikey") || localStorage.getItem("firebase_api_key");
+        const projectId = localStorage.getItem("fb_projectid") || "freedata-4c235";
+        const appId = localStorage.getItem("fb_appid") || "1:906764667278:web:aa229456f8de0740923cdf";
+
+        if (!apiKey) {
+            connectionStatus.textContent = "Status: Firebase API Key missing! Please configure it in your Settings tab. ❌";
+            connectionStatus.style.color = "#f87171";
+            return;
+        }
+
+        try {
+            this.fbService.init({ apiKey, projectId, appId });
+            connectionStatus.textContent = "Status: Connected automatically from stored credentials ✅";
+            connectionStatus.style.color = "#4ade80";
+            uploadCard.style.opacity = "1";
+            uploadCard.style.pointerEvents = "auto";
+            listCard.style.opacity = "1";
+            listCard.style.pointerEvents = "auto";
+            this._loadFiles(fileList, statusDiv);
+        } catch (err) {
+            console.error(err);
+            connectionStatus.textContent = "Status: Connection Failed ❌ (" + err.message + ")";
+            connectionStatus.style.color = "#f87171";
+        }
+    }
+
+    _bindEvents() {
+        const overlay = document.getElementById("fb-modal-overlay");
+        const closeBtn = document.getElementById("fb-closeModalBtn");
         const fileInput = document.getElementById("fb-fileInput");
         const uploadBtn = document.getElementById("fb-uploadBtn");
         const statusDiv = document.getElementById("fb-status");
@@ -257,43 +276,11 @@ export class FirebaseUploaderWidget {
             overlay.classList.add("hidden");
         });
 
-        // Close on outside click
         overlay.addEventListener("click", (e) => {
             if (e.target === overlay) {
                 overlay.classList.add("hidden");
             }
         });
-
-        initBtn.addEventListener("click", () => {
-            const key = apiKeyInput.value.trim();
-            if (!key) {
-                alert("Please enter a valid API Key.");
-                return;
-            }
-            try {
-                this.fbService.init(key);
-                StorageHelper.set(this.storageKey, key);
-                
-                connectionStatus.textContent = "Status: Connected ✅";
-                connectionStatus.style.color = "#4ade80";
-                uploadCard.style.opacity = "1";
-                uploadCard.style.pointerEvents = "auto";
-                listCard.style.opacity = "1";
-                listCard.style.pointerEvents = "auto";
-                this._loadFiles(fileList, statusDiv);
-            } catch (err) {
-                console.error(err);
-                connectionStatus.textContent = "Status: Connection Failed ❌";
-                connectionStatus.style.color = "#f87171";
-            }
-        });
-
-        // Auto-load if saved
-        const savedApiKey = StorageHelper.get(this.storageKey);
-        if (savedApiKey) {
-            apiKeyInput.value = savedApiKey;
-            initBtn.click();
-        }
 
         uploadBtn.addEventListener("click", async () => {
             const file = fileInput.files[0];
