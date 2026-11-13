@@ -89,7 +89,7 @@ function initSupabase(url, key, bucket) {
       filePreviewManager.setService(sbManager);
     }
 
-    document.getElementById('headerUrl').textContent = url + '  •  bucket: ' + bucket;
+    document.getElementById('headerUrl').innerHtml = url + '<br />Bucket: ' + bucket;
     if (breadcrumbManager) {
       breadcrumbManager.reset();
     }
