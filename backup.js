@@ -447,7 +447,8 @@ class FilePreviewManager {
           </div>`;
       }
 
-      await this.renderSidebarLazy(path, name, this.fileSize);
+      // Pass the url parameter here
+      await this.renderSidebarLazy(path, name, this.fileSize, url);
 
     } catch (err) {
       this.onToast(err.message || 'Failed to load file', 'error');
@@ -502,7 +503,7 @@ class FilePreviewManager {
           <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Size</span>
           <p class="wire-text font-mono text-xs">${fileSize ? formatBytes(fileSize) + ` (${fileSize} bytes)` : 'Unknown'}</p>
         </div>
-        
+
         <!-- Signed URL & Direct Download -->
         <div>
           <div class="flex justify-between items-center mb-1">
@@ -636,7 +637,9 @@ class FilePreviewManager {
       this.fileSize = this.currentArrayBuffer.byteLength;
       this.cachedContentHash = null;
       
-      await this.renderSidebarLazy(this.currentPreviewPath, this.currentPreviewName, this.fileSize);
+      // Re-fetch a fresh URL/sidebar state after saving
+      const { data } = await this.service.createSignedUrl(this.currentPreviewPath, 60);
+      await this.renderSidebarLazy(this.currentPreviewPath, this.currentPreviewName, this.fileSize, data?.signedUrl);
 
       this.onToast('File saved successfully', 'success');
       this.onSaveSuccess();
