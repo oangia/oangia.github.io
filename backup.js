@@ -16,14 +16,14 @@ function getExtension(name) {
 
 function getFileIcon(name) {
   const e = getExtension(name).toLowerCase();
-  if (['txt','md','log'].includes(e)) return '<i class="fa-solid fa-file-lines"></i>';
-  if (['json','js','ts','html','css','py','java','sql'].includes(e)) return '<i class="fa-solid fa-file-code"></i>';
-  if (['png','jpg','jpeg','gif','webp','svg'].includes(e)) return '<i class="fa-solid fa-file-image"></i>';
-  if (['mp3','wav','ogg'].includes(e)) return '<i class="fa-solid fa-file-audio"></i>';
-  if (['mp4','webm','mov'].includes(e)) return '<i class="fa-solid fa-file-video"></i>';
-  if (['pdf'].includes(e)) return '<i class="fa-solid fa-file-pdf"></i>';
-  if (['zip','rar','7z'].includes(e)) return '<i class="fa-solid fa-file-zipper"></i>';
-  return '<i class="fa-solid fa-file"></i>';
+  if (['txt','md','log'].includes(e)) return '<i class="fa-solid fa-file-lines opacity-60"></i>';
+  if (['json','js','ts','html','css','py','java','sql'].includes(e)) return '<i class="fa-solid fa-file-code opacity-60"></i>';
+  if (['png','jpg','jpeg','gif','webp','svg'].includes(e)) return '<i class="fa-solid fa-file-image opacity-60"></i>';
+  if (['mp3','wav','ogg'].includes(e)) return '<i class="fa-solid fa-file-audio opacity-60"></i>';
+  if (['mp4','webm','mov'].includes(e)) return '<i class="fa-solid fa-file-video opacity-60"></i>';
+  if (['pdf'].includes(e)) return '<i class="fa-solid fa-file-pdf opacity-60"></i>';
+  if (['zip','rar','7z'].includes(e)) return '<i class="fa-solid fa-file-zipper opacity-60"></i>';
+  return '<i class="fa-solid fa-file opacity-60"></i>';
 }
 
 function escapeHtml(str) {
@@ -710,21 +710,21 @@ class ItemsGridRenderer {
     if (isFolder) {
       return `
         <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
-          <i class="fa-solid fa-folder text-5xl"></i>
+          <i class="fa-solid fa-folder text-5xl opacity-60"></i>
         </div>`;
     }
 
     if (item.thumbUrl && isImage(item.name)) {
       return `
         <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
-          <img src="${item.thumbUrl}" alt="" class="w-full h-full object-cover rounded-lg" loading="lazy" onerror="this.style.display='none'">
+          <img src="${item.thumbUrl}" alt="" class="w-full h-full object-cover rounded-lg opacity-60" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     }
 
     if (item.thumbUrl && isVideo(item.name)) {
       return `
         <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
-          <video src="${item.thumbUrl}#t=0.5" class="w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
+          <video src="${item.thumbUrl}#t=0.5" class="w-full h-full object-cover rounded-lg pointer-events-none opacity-60" muted playsinline preload="metadata"></video>
           <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
         </div>`;
     }
