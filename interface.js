@@ -147,10 +147,51 @@ async function computeSha256(messageOrBuffer) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// ==========================================
+// ---------- Supabase Manager Class --------
+// ==========================================
+class SupabaseManager {
+  constructor() {
+    this.client = null;
+    this.bucket = 'files';
+  }
+
+  setClient(client, bucket) {
+    this.client = client;
+    if (bucket) this.bucket = bucket;
+  }
+
+  isInitialized() {
+    return !!this.client;
+  }
+
+  async list(path, options) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).list(path, options);
+  }
+
+  async createSignedUrl(path, expiresIn) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).createSignedUrl(path, expiresIn);
+  }
+
+  async upload(path, file, options) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).upload(path, file, options);
+  }
+
+  async remove(paths) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).remove(paths);
+  }
+}
+
+const sbManager = new SupabaseManager();
+
 class FilePreviewManager {
   constructor(options = {}) {
     this.bucket = options.bucket || 'files';
-    this.supabaseClient = options.supabaseClient || null;
+    this.supabaseManager = options.supabaseManager || sbManager;
     
     // Editor State
     this.currentPreviewPath = null;
@@ -166,13 +207,13 @@ class FilePreviewManager {
     this.onSaveSuccess = options.onSaveSuccess || (() => {});
   }
 
-  setConfig(client, bucket) {
-    if (client) this.supabaseClient = client;
+  setConfig(manager, bucket) {
+    if (manager) this.supabaseManager = manager;
     if (bucket) this.bucket = bucket;
   }
 
   async openPreview(path, name, fileSize = 0) {
-    if (!this.supabaseClient) {
+    if (!this.supabaseManager.isInitialized()) {
       this.onToast('Supabase client not initialized', 'error');
       return;
     }
@@ -211,10 +252,7 @@ class FilePreviewManager {
     if (modal) modal.classList.remove('hidden');
 
     try {
-      const { data, error } = await this.supabaseClient
-        .storage
-        .from(this.bucket)
-        .createSignedUrl(path, 60);
+      const { data, error } = await this.supabaseManager.createSignedUrl(path, 60);
 
       if (error) throw error;
 
@@ -377,10 +415,7 @@ class FilePreviewManager {
 
     try {
       if (!this.currentArrayBuffer) {
-        const { data, error } = await this.supabaseClient
-          .storage
-          .from(this.bucket)
-          .createSignedUrl(this.currentPreviewPath, 60);
+        const { data, error } = await this.supabaseManager.createSignedUrl(this.currentPreviewPath, 60);
 
         if (error) throw error;
 
@@ -449,14 +484,11 @@ class FilePreviewManager {
       const contentType = isHtml(this.currentPreviewName) ? 'text/html' : 'text/plain;charset=utf-8';
       const blob = new Blob([newContent], { type: contentType });
       
-      const { error } = await this.supabaseClient
-        .storage
-        .from(this.bucket)
-        .upload(this.currentPreviewPath, blob, {
-          cacheControl: 'no-cache',
-          upsert: true,
-          contentType: isHtml(this.currentPreviewName) ? 'text/html' : 'text/plain'
-        });
+      const { error } = await this.supabaseManager.upload(this.currentPreviewPath, blob, {
+        cacheControl: 'no-cache',
+        upsert: true,
+        contentType: isHtml(this.currentPreviewName) ? 'text/html' : 'text/plain'
+      });
 
       if (error) throw error;
 
@@ -483,19 +515,12 @@ class ItemsGridRenderer {
     this.onDeleteClick = options.onDeleteClick || (() => {});
   }
 
-  /**
-   * Main render method to populate the grid with items.
-   * @param {Array} items - Filtered list of files/folders
-   * @param {string} currentPath - Current active folder path
-   */
   render(items, currentPath) {
     if (!this.container) return;
     
-    // Ensure the container has your requested grid layout classes
     this.container.className = "grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 p-4 text-slate-100";
     this.container.innerHTML = '';
 
-    // Empty state design
     if (!items || items.length === 0) {
       this.container.innerHTML = `
         <div class="col-span-full py-16 text-center text-slate-400 text-sm">
@@ -617,45 +642,6 @@ class ItemsGridRenderer {
   }
 }
 
-
-// ==========================================
-// ---------- Init & Core Logic -------------
-// ==========================================
-class SupabaseManager {
-  constructor() {
-    this.client = null;
-    this.bucket = 'files';
-  }
-
-  setClient(client, bucket) {
-    this.client = client;
-    if (bucket) this.bucket = bucket;
-  }
-
-  async list(path, options) {
-    if (!this.client) throw new Error('Supabase client not initialized');
-    return await this.client.storage.from(this.bucket).list(path, options);
-  }
-
-  async createSignedUrl(path, expiresIn) {
-    if (!this.client) throw new Error('Supabase client not initialized');
-    return await this.client.storage.from(this.bucket).createSignedUrl(path, expiresIn);
-  }
-
-  async upload(path, file, options) {
-    if (!this.client) throw new Error('Supabase client not initialized');
-    return await this.client.storage.from(this.bucket).upload(path, file, options);
-  }
-
-  async remove(paths) {
-    if (!this.client) throw new Error('Supabase client not initialized');
-    return await this.client.storage.from(this.bucket).remove(paths);
-  }
-}
-
-const sbManager = new SupabaseManager();
-
-let supabaseClient = null;
 let currentBucket = 'files';
 let currentPath = '';
 let folderHistory = [{ path: '', name: 'root' }];
@@ -663,7 +649,6 @@ let allItems = [];
 let filteredItems = [];
 let filePreviewManager = null;
 let gridRenderer = null;
-
 
 // ==========================================
 // ---------- Init & Core Logic -------------
@@ -698,7 +683,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   filePreviewManager = new FilePreviewManager({
     bucket: currentBucket,
-    supabaseClient: supabaseClient,
+    supabaseManager: sbManager,
     onToast: (msg, type, duration) => showToast(msg, type, duration),
     onSaveSuccess: () => listFiles()
   });
@@ -755,12 +740,12 @@ function saveSettings() {
 
 function initSupabase(url, key, bucket) {
   try {
-    supabaseClient = window.supabase.createClient(url, key);
+    const client = window.supabase.createClient(url, key);
     currentBucket = bucket;
-    sbManager.setClient(supabaseClient, currentBucket);
+    sbManager.setClient(client, currentBucket);
 
     if (filePreviewManager) {
-      filePreviewManager.setConfig(supabaseClient, currentBucket);
+      filePreviewManager.setConfig(sbManager, currentBucket);
     }
 
     document.getElementById('headerUrl').textContent = url + '  •  bucket: ' + bucket;
@@ -775,7 +760,7 @@ function initSupabase(url, key, bucket) {
 
 // ---------- List files ----------
 async function listFiles() {
-  if (!supabaseClient) return;
+  if (!sbManager.isInitialized()) return;
 
   updateConnectionStatus(null, 'Loading...');
   try {
@@ -1014,7 +999,7 @@ async function downloadFile(path, name) {
 
 // ---------- Backup ----------
 async function createBackup() {
-  if (!supabaseClient) {
+  if (!sbManager.isInitialized()) {
     showToast('Not connected', 'warning');
     return;
   }
@@ -1023,7 +1008,7 @@ async function createBackup() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Backing up...</span>';
 
-  const backupManager = new SupabaseBackupManager(supabaseClient, currentBucket, (message, type) => {
+  const backupManager = new SupabaseBackupManager(sbManager.client, currentBucket, (message, type) => {
     showToast(message, type, type === 'warning' ? 2500 : 3500);
   });
 
