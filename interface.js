@@ -429,24 +429,15 @@ window.addEventListener('DOMContentLoaded', () => {
   const savedUrl = localStorage.getItem('sb_url');
   const savedKey = localStorage.getItem('sb_key');
   const savedBucket = localStorage.getItem('sb_bucket') || 'files';
-
-  if (savedUrl) document.getElementById('settingUrlInput').value = savedUrl;
-  if (savedKey) document.getElementById('settingApiKeyInput').value = savedKey;
-  document.getElementById('settingBucketInput').value = savedBucket;
-
-  const savedFbApiKey = localStorage.getItem('fb_apikey');
-  const savedFbAppId = localStorage.getItem('fb_appid');
-  const savedFbProjectId = localStorage.getItem('fb_projectid');
-
-  if (savedFbApiKey && document.getElementById('settingFirebaseApiKeyInput')) {
-    document.getElementById('settingFirebaseApiKeyInput').value = savedFbApiKey;
-  }
-  if (savedFbAppId && document.getElementById('settingFirebaseAppIdInput')) {
-    document.getElementById('settingFirebaseAppIdInput').value = savedFbAppId;
-  }
-  if (savedFbProjectId && document.getElementById('settingFirebaseProjectIdInput')) {
-    document.getElementById('settingFirebaseProjectIdInput').value = savedFbProjectId;
-  }
+  document.querySelectorAll('#viewSettings input[name]').forEach(el => {
+    const savedValue = localStorage.getItem(el.name);
+    
+    if (savedValue !== null && savedValue !== '') {
+      el.value = savedValue; // Sets the saved value into the input
+    } else if (el.dataset.default) {
+      el.value = el.dataset.default; // Falls back to default if nothing is saved
+    }
+  });
 
   filePreviewManager = new FilePreviewManager({
     service: sbManager,
