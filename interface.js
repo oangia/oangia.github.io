@@ -203,8 +203,11 @@ async function submitCreateFolder() {
 }
 
 // ---------- Upload ----------
-function toggleUploadMenu() {
-  document.getElementById('uploadMenu').classList.toggle('hidden');
+function toggleActionsMenu() {
+  const menu = document.getElementById("actionsMenu");
+  if (menu) {
+    menu.classList.toggle("hidden");
+  }
 }
 
 document.addEventListener('click', (e) => {
