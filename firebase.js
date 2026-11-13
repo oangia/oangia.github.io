@@ -154,7 +154,7 @@ export class FirebaseUploaderWidget {
                 const overlay = document.getElementById("fb-modal-overlay");
                 if (overlay) {
                     overlay.classList.remove("hidden");
-                    this._checkAndConnect(); // Refresh check when opened
+                    this._checkAndConnect();
                 }
                 return;
             }
@@ -182,7 +182,6 @@ export class FirebaseUploaderWidget {
             .fb-widget-container input[type="file"] { width: 100%; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 0.5rem; color: #fff; font-size: 0.75rem; margin-bottom: 0.75rem; outline: none; box-sizing: border-box; }
             .fb-widget-container button.fb-action-btn { width: 100%; padding: 0.5rem 1rem; background: #4f46e5; color: white; border: none; border-radius: 0.5rem; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: background 0.2s; margin-bottom: 0.5rem; }
             .fb-widget-container button.fb-action-btn:hover { background: #4338ca; }
-            #fb-connectionStatus { font-size: 0.75rem; font-weight: 500; margin-top: 0.5rem; }
             #fb-status { font-size: 0.75rem; font-weight: 500; color: #38bdf8; margin-top: 0.5rem; }
             .fb-widget-container ul { padding-left: 0; list-style: none; margin: 0; }
             .fb-widget-container li { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.75rem; margin-bottom: 0.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
@@ -207,18 +206,16 @@ export class FirebaseUploaderWidget {
                 </div>
                 <div class="fb-widget-body">
                     <div class="card">
-                        <h3>Connection Status</h3>
-                        <div id="fb-connectionStatus">Checking credentials...</div>
-                    </div>
-                    <div class="card" id="fb-uploadCard" style="opacity: 0.5; pointer-events: none;">
                         <h3>Upload File</h3>
                         <input type="file" id="fb-fileInput">
                         <button id="fb-uploadBtn" class="fb-action-btn">Upload File in Chunks</button>
                         <div id="fb-status"></div>
                     </div>
-                    <div class="card" id="fb-listCard" style="opacity: 0.5; pointer-events: none;">
-                        <h3>Uploaded Files in Collection</h3>
-                        <button id="fb-refreshBtn" class="fb-action-btn">Refresh File List</button>
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <h3 style="margin: 0;">Uploaded Files</h3>
+                            <button id="fb-refreshBtn" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.7rem; margin: 0;" class="fb-action-btn">Refresh</button>
+                        </div>
                         <ul id="fb-fileList"></ul>
                     </div>
                 </div>
@@ -229,37 +226,25 @@ export class FirebaseUploaderWidget {
     }
 
     _checkAndConnect() {
-        const connectionStatus = document.getElementById("fb-connectionStatus");
-        const uploadCard = document.getElementById("fb-uploadCard");
-        const listCard = document.getElementById("fb-listCard");
         const fileList = document.getElementById("fb-fileList");
         const statusDiv = document.getElementById("fb-status");
 
-        // Automatically pull credentials from localStorage (matching your settings inputs: fb_apikey, fb_projectid, fb_appid)
-        // Or check standard localStorage keys where your app saves settings
+        // Pull stored credentials from localStorage automatically
         const apiKey = localStorage.getItem("fb_apikey") || localStorage.getItem("firebase_api_key");
         const projectId = localStorage.getItem("fb_projectid") || "freedata-4c235";
         const appId = localStorage.getItem("fb_appid") || "1:906764667278:web:aa229456f8de0740923cdf";
 
         if (!apiKey) {
-            connectionStatus.textContent = "Status: Firebase API Key missing! Please configure it in your Settings tab. ❌";
-            connectionStatus.style.color = "#f87171";
+            fileList.innerHTML = "<li style='justify-content:center; color:#f87171;'>Firebase API Key missing! Please configure it in Settings.</li>";
             return;
         }
 
         try {
             this.fbService.init({ apiKey, projectId, appId });
-            connectionStatus.textContent = "Status: Connected automatically from stored credentials ✅";
-            connectionStatus.style.color = "#4ade80";
-            uploadCard.style.opacity = "1";
-            uploadCard.style.pointerEvents = "auto";
-            listCard.style.opacity = "1";
-            listCard.style.pointerEvents = "auto";
             this._loadFiles(fileList, statusDiv);
         } catch (err) {
             console.error(err);
-            connectionStatus.textContent = "Status: Connection Failed ❌ (" + err.message + ")";
-            connectionStatus.style.color = "#f87171";
+            fileList.innerHTML = `<li style='justify-content:center; color:#f87171;'>Connection error: ${err.message}</li>`;
         }
     }
 
