@@ -621,6 +621,39 @@ class ItemsGridRenderer {
 // ==========================================
 // ---------- Init & Core Logic -------------
 // ==========================================
+class SupabaseManager {
+  constructor() {
+    this.client = null;
+    this.bucket = 'files';
+  }
+
+  setClient(client, bucket) {
+    this.client = client;
+    if (bucket) this.bucket = bucket;
+  }
+
+  async list(path, options) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).list(path, options);
+  }
+
+  async createSignedUrl(path, expiresIn) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).createSignedUrl(path, expiresIn);
+  }
+
+  async upload(path, file, options) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).upload(path, file, options);
+  }
+
+  async remove(paths) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).remove(paths);
+  }
+}
+
+const sbManager = new SupabaseManager();
 
 let supabaseClient = null;
 let currentBucket = 'files';
@@ -630,6 +663,11 @@ let allItems = [];
 let filteredItems = [];
 let filePreviewManager = null;
 let gridRenderer = null;
+
+
+// ==========================================
+// ---------- Init & Core Logic -------------
+// ==========================================
 
 window.addEventListener('DOMContentLoaded', () => {
   const savedUrl = localStorage.getItem('sb_url');
@@ -719,6 +757,7 @@ function initSupabase(url, key, bucket) {
   try {
     supabaseClient = window.supabase.createClient(url, key);
     currentBucket = bucket;
+    sbManager.setClient(supabaseClient, currentBucket);
 
     if (filePreviewManager) {
       filePreviewManager.setConfig(supabaseClient, currentBucket);
@@ -740,14 +779,11 @@ async function listFiles() {
 
   updateConnectionStatus(null, 'Loading...');
   try {
-    const { data, error } = await supabaseClient
-      .storage
-      .from(currentBucket)
-      .list(currentPath, {
-        limit: 500,
-        offset: 0,
-        sortBy: { column: 'name', order: 'asc' }
-      });
+    const { data, error } = await sbManager.list(currentPath, {
+      limit: 500,
+      offset: 0,
+      sortBy: { column: 'name', order: 'asc' }
+    });
 
     if (error) throw error;
 
@@ -762,10 +798,7 @@ async function listFiles() {
 
       if (isImage(item.name) || isVideo(item.name)) {
         try {
-          const { data: signed, error: signErr } = await supabaseClient
-            .storage
-            .from(currentBucket)
-            .createSignedUrl(fullPath, 60);
+          const { data: signed, error: signErr } = await sbManager.createSignedUrl(fullPath, 60);
 
           if (!signErr && signed?.signedUrl) {
             item.thumbUrl = signed.signedUrl;
@@ -865,10 +898,7 @@ async function submitCreateFolder() {
   const folderPath = currentPath ? `${currentPath}/${name}/.emptyFolderPlaceholder` : `${name}/.emptyFolderPlaceholder`;
 
   try {
-    const { error } = await supabaseClient
-      .storage
-      .from(currentBucket)
-      .upload(folderPath, new Blob(['']), { upsert: false });
+    const { error } = await sbManager.upload(folderPath, new Blob(['']), { upsert: false });
 
     if (error) throw error;
 
@@ -914,13 +944,10 @@ async function handleFileUpload(event, isFolderUpload = false) {
         targetPath += file.name;
       }
 
-      const { error } = await supabaseClient
-        .storage
-        .from(currentBucket)
-        .upload(targetPath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
+      const { error } = await sbManager.upload(targetPath, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
 
       if (error) throw error;
       success++;
@@ -967,10 +994,7 @@ async function saveEditedText() {
 
 async function downloadFile(path, name) {
   try {
-    const { data, error } = await supabaseClient
-      .storage
-      .from(currentBucket)
-      .createSignedUrl(path, 60);
+    const { data, error } = await sbManager.createSignedUrl(path, 60);
 
     if (error) throw error;
 
@@ -1011,10 +1035,7 @@ async function createBackup() {
 
 async function listAllFilesRecursive(prefix = '') {
   const results = [];
-  const { data, error } = await supabaseClient
-    .storage
-    .from(currentBucket)
-    .list(prefix, { limit: 1000, offset: 0 });
+  const { data, error } = await sbManager.list(prefix, { limit: 1000, offset: 0 });
 
   if (error) throw error;
 
@@ -1041,10 +1062,7 @@ async function deleteItem(path, isFolder) {
 
   try {
     if (isFolder) {
-      const { data: files, error: listError } = await supabaseClient
-        .storage
-        .from(currentBucket)
-        .list(path, { limit: 1000 });
+      const { data: files, error: listError } = await sbManager.list(path, { limit: 1000 });
 
       if (listError) throw listError;
 
@@ -1057,17 +1075,11 @@ async function deleteItem(path, isFolder) {
       pathsToDelete.push(`${path}/.emptyFolderPlaceholder`);
 
       if (pathsToDelete.length > 0) {
-        const { error } = await supabaseClient
-          .storage
-          .from(currentBucket)
-          .remove(pathsToDelete);
+        const { error } = await sbManager.remove(pathsToDelete);
         if (error) throw error;
       }
     } else {
-      const { error } = await supabaseClient
-        .storage
-        .from(currentBucket)
-        .remove([path]);
+      const { error } = await sbManager.remove([path]);
       if (error) throw error;
     }
 
