@@ -165,16 +165,11 @@ class FilePreviewManager {
     this.onSaveSuccess = options.onSaveSuccess || (() => {});
   }
 
-  setConfig(manager) {
-    this.service = manager;
+  setService(service) {
+    this.service = service;
   }
 
   async openPreview(path, name, fileSize = 0) {
-    if (!this.service.isInitialized()) {
-      this.onToast('Supabase client not initialized', 'error');
-      return;
-    }
-
     const title = document.getElementById('previewTitle');
     const body = document.getElementById('previewBody');
     const sidebarDetails = document.getElementById('previewSidebarDetails');
@@ -697,7 +692,7 @@ function initSupabase(url, key, bucket) {
   try {
     sbManager.init({url: url, key: key, bucket: bucket});
     if (filePreviewManager) {
-      filePreviewManager.setConfig(sbManager);
+      filePreviewManager.setService(sbManager);
     }
 
     document.getElementById('headerUrl').textContent = url + '  •  bucket: ' + bucket;
@@ -712,8 +707,6 @@ function initSupabase(url, key, bucket) {
 
 // ---------- List files ----------
 async function listFiles() {
-  if (!sbManager.isInitialized()) return;
-
   updateConnectionStatus(null, 'Loading...');
   try {
     const { data, error } = await sbManager.list(currentPath, {
@@ -951,11 +944,6 @@ async function downloadFile(path, name) {
 
 // ---------- Backup ----------
 async function createBackup() {
-  if (!sbManager.isInitialized()) {
-    showToast('Not connected', 'warning');
-    return;
-  }
-
   const btn = document.getElementById('backupBtn');
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Backing up...</span>';
