@@ -468,7 +468,6 @@ window.addEventListener('DOMContentLoaded', () => {
   const savedFbApiKey = localStorage.getItem('fb_apikey');
   const savedFbAppId = localStorage.getItem('fb_appid');
   const savedFbProjectId = localStorage.getItem('fb_projectid');
-  const savedFbBucket = localStorage.getItem('fb_bucket');
 
   if (savedFbApiKey && document.getElementById('settingFirebaseApiKeyInput')) {
     document.getElementById('settingFirebaseApiKeyInput').value = savedFbApiKey;
@@ -478,9 +477,6 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   if (savedFbProjectId && document.getElementById('settingFirebaseProjectIdInput')) {
     document.getElementById('settingFirebaseProjectIdInput').value = savedFbProjectId;
-  }
-  if (savedFbBucket && document.getElementById('settingFirebaseBucketInput')) {
-    document.getElementById('settingFirebaseBucketInput').value = savedFbBucket;
   }
 
   filePreviewManager = new FilePreviewManager({
@@ -512,30 +508,20 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function saveSettings() {
-  const url = document.getElementById('settingUrlInput').value.trim();
-  const key = document.getElementById('settingApiKeyInput').value.trim();
-  const bucket = document.getElementById('settingBucketInput').value.trim() || 'files';
+  const inputs = document.querySelectorAll('#viewSettings input[name]');
+  const cfg = Object.fromEntries(
+    [...inputs].map(el => [el.name, el.value.trim() || el.dataset.default || ''])
+  );
 
-  const fbApiKey = document.getElementById('settingFirebaseApiKeyInput')?.value.trim() || '';
-  const fbAppId = document.getElementById('settingFirebaseAppIdInput')?.value.trim() || '';
-  const fbProjectId = document.getElementById('settingFirebaseProjectIdInput')?.value.trim() || '';
-  const fbBucket = document.getElementById('settingFirebaseBucketInput')?.value.trim() || '';
-
-  if (!url || !key) {
+  if (!cfg.sb_url || !cfg.sb_key) {
     showToast('URL and Anon Key are required', 'warning');
     return;
   }
 
-  localStorage.setItem('sb_url', url);
-  localStorage.setItem('sb_key', key);
-  localStorage.setItem('sb_bucket', bucket);
+  // Save each key-value pair to localStorage
+  Object.entries(cfg).forEach(([k, v]) => localStorage.setItem(k, v));
 
-  localStorage.setItem('fb_apikey', fbApiKey);
-  localStorage.setItem('fb_appid', fbAppId);
-  localStorage.setItem('fb_projectid', fbProjectId);
-  localStorage.setItem('fb_bucket', fbBucket);
-
-  initSupabase(url, key, bucket);
+  initSupabase(cfg.sb_url, cfg.sb_key, cfg.sb_bucket);
   switchTab('explorer');
 }
 
