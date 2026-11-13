@@ -147,11 +147,9 @@ async function computeSha256(messageOrBuffer) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-const sbManager = new SupabaseManager();
-
 class FilePreviewManager {
   constructor(options = {}) {
-    this.supabaseManager = options.supabaseManager || sbManager;
+    this.service = options.service;
     
     // Editor State
     this.currentPreviewPath = null;
@@ -167,12 +165,12 @@ class FilePreviewManager {
     this.onSaveSuccess = options.onSaveSuccess || (() => {});
   }
 
-  setConfig(manager, bucket) {
-    if (manager) this.supabaseManager = manager;
+  setConfig(manager) {
+    this.service = manager;
   }
 
   async openPreview(path, name, fileSize = 0) {
-    if (!this.supabaseManager.isInitialized()) {
+    if (!this.service.isInitialized()) {
       this.onToast('Supabase client not initialized', 'error');
       return;
     }
@@ -211,7 +209,7 @@ class FilePreviewManager {
     if (modal) modal.classList.remove('hidden');
 
     try {
-      const { data, error } = await this.supabaseManager.createSignedUrl(path, 60);
+      const { data, error } = await this.service.createSignedUrl(path, 60);
 
       if (error) throw error;
 
@@ -374,7 +372,7 @@ class FilePreviewManager {
 
     try {
       if (!this.currentArrayBuffer) {
-        const { data, error } = await this.supabaseManager.createSignedUrl(this.currentPreviewPath, 60);
+        const { data, error } = await this.service.createSignedUrl(this.currentPreviewPath, 60);
 
         if (error) throw error;
 
@@ -443,7 +441,7 @@ class FilePreviewManager {
       const contentType = isHtml(this.currentPreviewName) ? 'text/html' : 'text/plain;charset=utf-8';
       const blob = new Blob([newContent], { type: contentType });
       
-      const { error } = await this.supabaseManager.upload(this.currentPreviewPath, blob, {
+      const { error } = await this.service.upload(this.currentPreviewPath, blob, {
         cacheControl: 'no-cache',
         upsert: true,
         contentType: isHtml(this.currentPreviewName) ? 'text/html' : 'text/plain'
@@ -607,7 +605,7 @@ let allItems = [];
 let filteredItems = [];
 let filePreviewManager = null;
 let gridRenderer = null;
-
+const sbManager = new SupabaseManager();
 // ==========================================
 // ---------- Init & Core Logic -------------
 // ==========================================
@@ -640,7 +638,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   filePreviewManager = new FilePreviewManager({
-    supabaseManager: sbManager,
+    service: sbManager,
     onToast: (msg, type, duration) => showToast(msg, type, duration),
     onSaveSuccess: () => listFiles()
   });
