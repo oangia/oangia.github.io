@@ -1,3 +1,42 @@
+// ==========================================
+// ---------- Supabase Manager Class --------
+// ==========================================
+class SupabaseManager {
+  constructor() {
+    this.client = null;
+    this.bucket = 'files';
+  }
+
+  setClient(client, bucket) {
+    this.client = client;
+    if (bucket) this.bucket = bucket;
+  }
+
+  isInitialized() {
+    return !!this.client;
+  }
+
+  async list(path, options) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).list(path, options);
+  }
+
+  async createSignedUrl(path, expiresIn) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).createSignedUrl(path, expiresIn);
+  }
+
+  async upload(path, file, options) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).upload(path, file, options);
+  }
+
+  async remove(paths) {
+    if (!this.client) throw new Error('Supabase client not initialized');
+    return await this.client.storage.from(this.bucket).remove(paths);
+  }
+}
+
 class SupabaseBackupManager {
   constructor(supabaseClient, bucketName, onProgress = null) {
     if (!supabaseClient) throw new Error('Supabase client is required for backup.');
