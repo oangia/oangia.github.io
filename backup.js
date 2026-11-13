@@ -716,8 +716,8 @@ class ItemsGridRenderer {
 
     if (item.thumbUrl && isImage(item.name)) {
       return `
-        <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
-          <img src="${item.thumbUrl}" alt="" class="w-full h-full object-cover rounded-lg opacity-60" loading="lazy" onerror="this.style.display='none'">
+        <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors opacity-60">
+          <img src="${item.thumbUrl}" alt="" class="w-full h-full object-cover rounded-lg" loading="lazy" onerror="this.style.display='none'">
         </div>`;
     }
 
