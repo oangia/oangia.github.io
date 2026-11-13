@@ -486,7 +486,7 @@ class FilePreviewManager {
     }
   }
 
-  async renderSidebarLazy(path, name, fileSize) {
+  async renderSidebarLazy(path, name, fileSize, url) {
     const sidebarDetails = document.getElementById('previewSidebarDetails');
     if (!sidebarDetails) return;
 
@@ -501,6 +501,18 @@ class FilePreviewManager {
         <div>
           <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Size</span>
           <p class="wire-text font-mono text-xs">${fileSize ? formatBytes(fileSize) + ` (${fileSize} bytes)` : 'Unknown'}</p>
+        </div>
+        
+        <!-- Signed URL & Direct Download -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">Signed URL</span>
+            <div class="space-x-2">
+              <button onclick="navigator.clipboard.writeText('${escapeHtml(url)}'); showToast('URL copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy</button>
+              <a href="${escapeHtml(url)}" download="${escapeHtml(name)}" class="text-[11px] text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-download"></i> Download</a>
+            </div>
+          </div>
+          <div class="font-mono text-[9px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all max-h-16 overflow-y-auto">${escapeHtml(url)}</div>
         </div>
 
         <hr class="border-white/20">
