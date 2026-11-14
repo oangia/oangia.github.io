@@ -437,4 +437,109 @@ async function handleFileUpload(event, isFolderUpload = false) {
 
 // ---------- Preview Wrappers ----------
 async function openPreview(path, name) {
-  if (filePreviewManager
+  if (filePreviewManager) {
+    await filePreviewManager.openPreview(path, name);
+  }
+}
+
+function cancelEditText() {
+  if (filePreviewManager) {
+    filePreviewManager.cancelEditText();
+  }
+}
+
+async function saveEditedText() {
+  if (filePreviewManager) {
+    await filePreviewManager.saveEditedText();
+  }
+}
+
+async function downloadFile(path, name) {
+  try {
+    const { data, error } = await sbManager.createSignedUrl(path, 60);
+
+    if (error) throw error;
+
+    const res = await fetch(data.signedUrl, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Download failed');
+    const blob = await res.blob();
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    showToast(err.message || 'Download failed', 'error');
+  }
+}
+
+// ---------- Backup ----------
+async function createBackup() {
+  const btn = document.getElementById('backupBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Backing up...</span>';
+
+  await sbManager.runBackup();
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fa-solid fa-box-archive"></i> <span>Backup</span>';
+}
+
+async function listAllFilesRecursive(prefix = '') {
+  const results = [];
+  const { data, error } = await sbManager.list(prefix, { limit: 1000, offset: 0 });
+
+  if (error) throw error;
+
+  for (const item of (data || [])) {
+    if (item.name === '.emptyFolderPlaceholder') continue;
+
+    const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
+
+    if (!item.id) {
+      const subFiles = await listAllFilesRecursive(fullPath);
+      results.push(...subFiles);
+    } else {
+      results.push(fullPath);
+    }
+  }
+  return results;
+}
+
+// ---------- Delete ----------
+async function deleteItem(path, isFolder) {
+  if (!confirm(isFolder
+    ? `Delete folder "${path}" and all its contents?`
+    : `Delete file "${path}"?`)) return;
+
+  try {
+    if (isFolder) {
+      const { data: files, error: listError } = await sbManager.list(path, { limit: 1000 });
+
+      if (listError) throw listError;
+
+      const pathsToDelete = [];
+      if (files && files.length > 0) {
+        for (const f of files) {
+          pathsToDelete.push(`${path}/${f.name}`);
+        }
+      }
+      pathsToDelete.push(`${path}/.emptyFolderPlaceholder`);
+
+      if (pathsToDelete.length > 0) {
+        const { error } = await sbManager.remove(pathsToDelete);
+        if (error) throw error;
+      }
+    } else {
+      const { error } = await sbManager.remove([path]);
+      if (error) throw error;
+    }
+
+    showToast('Deleted successfully', 'success');
+    listFiles();
+  } catch (err) {
+    console.error(err);
+    showToast(err.message || 'Delete failed', 'error');
+  }
+}
