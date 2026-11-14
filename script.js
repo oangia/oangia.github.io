@@ -2,7 +2,7 @@
 // @name         File Manager
 // @namespace    http://tampermonkey.net/
 // @version      18.0
-// @match        https://youtube.com/*
+// @match        https://www.youtube.com/*
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==
