@@ -10,7 +10,6 @@ let breadcrumbManager = null;
 const sbManager = new SupabaseManager();
 
 window.addEventListener('DOMContentLoaded', () => {
-  // Initialize managers
   filePreviewManager = new FilePreviewManager({
     service: sbManager,
     onToast: (msg, type, duration) => showToast(msg, type, duration),
@@ -36,10 +35,10 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ===== Config Class – only this line is needed =====
+  // Only this line is needed for config
   new Config("navSettingsTab");
 
-  // Auto-connect if credentials already exist
+  // Auto connect if credentials exist
   const savedUrl = localStorage.getItem('sb_url');
   const savedKey = localStorage.getItem('sb_key');
   const savedBucket = localStorage.getItem('sb_bucket') || 'files';
@@ -78,9 +77,8 @@ class Config {
     this.#bindButton();
     this.#load();
 
-    // Auto-open if no credentials exist
-    const hasCreds = localStorage.getItem("sb_url") && localStorage.getItem("sb_key");
-    if (!hasCreds) {
+    // Auto-open if no credentials
+    if (!localStorage.getItem("sb_url") || !localStorage.getItem("sb_key")) {
       this.open();
     }
   }
@@ -101,85 +99,84 @@ class Config {
 
     const overlay = document.createElement("div");
     overlay.id = this.overlayId;
-    overlay.className = "hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm";
+    overlay.className = "hidden fixed inset-0 z-[60] bg-black/40";
 
     const panel = document.createElement("div");
     panel.id = this.panelId;
-    panel.className = "hidden fixed inset-0 z-[70] flex items-center justify-center p-4";
+    panel.className = "hidden fixed inset-0 z-[70] flex items-center justify-center p-6 overflow-y-auto";
 
+    // ===== Original style preserved =====
     panel.innerHTML = `
-      <div class="bg-zinc-900/95 border border-white/20 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div class="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-white/15 bg-zinc-900/95 backdrop-blur">
-          <div>
-            <h2 class="text-lg font-bold text-white">Configuration</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Supabase + Firebase credentials</p>
-          </div>
-          <button id="configCloseBtn" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition">
-            <i class="fa-solid fa-xmark text-lg"></i>
-          </button>
+      <div class="max-w-4xl w-full bg-zinc-900/0 border border-white/15 backdrop-blur-md rounded-2xl p-6 space-y-6 shadow-2xl relative">
+        
+        <button id="configCloseBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+
+        <div class="border-b border-white/10 pb-4">
+          <h2 class="text-lg font-bold text-white mb-1">Configuration</h2>
+          <p class="text-xs text-slate-400">Enter your Supabase and Firebase credentials.</p>
         </div>
-
-        <div class="p-6 space-y-6">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Supabase -->
-            <div class="bg-black/30 border border-white/10 p-5 rounded-xl space-y-4">
-              <h3 class="font-semibold text-sm text-white flex items-center gap-2">
-                <i class="fa-solid fa-bolt text-emerald-400"></i> Supabase
-              </h3>
-              
-              <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Project URL</label>
-                <input type="text" name="sb_url" placeholder="https://xxxxx.supabase.co"
-                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Anon Public Key</label>
-                <input type="text" name="sb_key" placeholder="eyJhbGciOiJIUzI1NiIsIn..."
-                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Storage Bucket</label>
-                <input type="text" name="sb_bucket" placeholder="files" value="files" data-default="files"
-                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-              </div>
+    
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Supabase Card -->
+          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
+            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
+              <i class="fa-solid fa-bolt text-emerald-400"></i> Supabase Credentials
+            </h3>
+            
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Project URL</label>
+              <input type="text" name="sb_url" placeholder="https://xxxxx.supabase.co" 
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
             </div>
-
-            <!-- Firebase -->
-            <div class="bg-black/30 border border-white/10 p-5 rounded-xl space-y-4">
-              <h3 class="font-semibold text-sm text-white flex items-center gap-2">
-                <i class="fa-solid fa-fire text-amber-400"></i> Firebase
-              </h3>
-
-              <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">API Key</label>
-                <input type="text" name="fb_apikey" placeholder="AIzaSy..."
-                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Project ID</label>
-                <input type="text" name="fb_projectid" placeholder="my-firebase-project"
-                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">App ID</label>
-                <input type="text" name="fb_appid" placeholder="1:123456789:web:abc123"
-                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-              </div>
+    
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Anon Public Key</label>
+              <input type="text" name="sb_key" placeholder="eyJhbGciOiJIUzI1NiIsIn..." 
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+            </div>
+    
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Storage Bucket Name</label>
+              <input type="text" name="sb_bucket" placeholder="files" value="files" data-default="files"
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
             </div>
           </div>
-
-          <div class="flex justify-end gap-3 pt-2">
-            <button id="configCancelBtn" class="px-5 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">
-              Cancel
-            </button>
-            <button id="configSaveBtn" class="px-5 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">
-              Save & Connect
-            </button>
+    
+          <!-- Firebase Card -->
+          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
+            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
+              <i class="fa-solid fa-fire text-amber-400"></i> Firebase Credentials
+            </h3>
+    
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Firebase API Key (<code class="text-[11px] text-indigo-300">apiKey</code>)</label>
+              <input type="text" name="fb_apikey" placeholder="AIzaSy..." 
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+            </div>
+    
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Project ID (<code class="text-[11px] text-indigo-300">projectId</code>)</label>
+              <input type="text" name="fb_projectid" placeholder="my-firebase-project" 
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+            </div>
+    
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">App ID (<code class="text-[11px] text-indigo-300">appId</code>)</label>
+              <input type="text" name="fb_appid" placeholder="1:123456789:web:abc123" 
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+            </div>
           </div>
+        </div>
+    
+        <div class="pt-2 flex justify-end gap-3">
+          <button id="configCancelBtn" class="px-5 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">
+            Cancel
+          </button>
+          <button id="configSaveBtn" class="px-5 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">
+            Save & Connect
+          </button>
         </div>
       </div>
     `;
@@ -187,6 +184,7 @@ class Config {
     document.body.appendChild(overlay);
     document.body.appendChild(panel);
 
+    // Events
     document.getElementById("configCloseBtn").onclick = () => this.close();
     document.getElementById("configCancelBtn").onclick = () => this.close();
     overlay.onclick = () => this.close();
@@ -197,10 +195,7 @@ class Config {
 
   #bindButton() {
     const btn = document.getElementById(this.btnId);
-    if (!btn) {
-      console.warn(`[Config] Button #${this.btnId} not found`);
-      return;
-    }
+    if (!btn) return;
 
     btn.onclick = (e) => {
       e.preventDefault();
@@ -240,23 +235,17 @@ class Config {
     try {
       sbManager.init({ url: cfg.sb_url, key: cfg.sb_key, bucket: cfg.sb_bucket });
 
-      if (typeof filePreviewManager !== "undefined" && filePreviewManager) {
+      if (filePreviewManager) {
         filePreviewManager.setService(sbManager);
       }
 
-      const headerEl = document.getElementById("headerUrl");
-      if (headerEl) {
-        headerEl.innerHTML = `${cfg.sb_url}<br>Bucket: ${cfg.sb_bucket}`;
-      }
+      document.getElementById("headerUrl").innerHTML = `${cfg.sb_url}<br>Bucket: ${cfg.sb_bucket}`;
 
-      if (typeof breadcrumbManager !== "undefined" && breadcrumbManager) {
+      if (breadcrumbManager) {
         breadcrumbManager.reset();
       }
 
-      if (typeof listFiles === "function") {
-        listFiles();
-      }
-
+      listFiles();
       this.close();
       showToast("Connected successfully", "success");
     } catch (err) {
@@ -267,7 +256,7 @@ class Config {
 }
 
 // ==========================================
-// ---------- File Operations & Core --------
+// ---------- File Operations ---------------
 // ==========================================
 
 async function listFiles() {
@@ -295,7 +284,6 @@ async function listFiles() {
       if (isImage(item.name) || isVideo(item.name)) {
         try {
           const { data: signed, error: signErr } = await sbManager.createSignedUrl(fullPath, 60);
-
           if (!signErr && signed?.signedUrl) {
             item.thumbUrl = signed.signedUrl;
           }
@@ -312,7 +300,6 @@ async function listFiles() {
   }
 }
 
-// ---------- Render ----------
 function renderView() {
   if (breadcrumbManager) {
     breadcrumbManager.render();
@@ -342,7 +329,6 @@ function handleSearch() {
   renderView();
 }
 
-// ---------- Create Folder ----------
 function openCreateFolderModal() {
   document.getElementById('folderNameInput').value = '';
   document.getElementById('modalCreateFolder').classList.remove('hidden');
@@ -357,7 +343,6 @@ async function submitCreateFolder() {
 
   try {
     const { error } = await sbManager.upload(folderPath, new Blob(['']), { upsert: false });
-
     if (error) throw error;
 
     closeModals();
@@ -368,12 +353,9 @@ async function submitCreateFolder() {
   }
 }
 
-// ---------- Upload ----------
 function toggleActionsMenu() {
   const menu = document.getElementById("actionsMenu");
-  if (menu) {
-    menu.classList.toggle("hidden");
-  }
+  if (menu) menu.classList.toggle("hidden");
 }
 
 document.addEventListener('click', (e) => {
@@ -388,7 +370,6 @@ async function handleFileUpload(event, isFolderUpload = false) {
   const files = Array.from(event.target.files || []);
   if (files.length === 0) return;
 
-  document.getElementById('uploadMenu')?.classList.add('hidden');
   showToast(`Uploading ${files.length} item(s) sequentially...`, 'info', 2500);
 
   let success = 0;
@@ -435,7 +416,6 @@ async function handleFileUpload(event, isFolderUpload = false) {
   event.target.value = '';
 }
 
-// ---------- Preview Wrappers ----------
 async function openPreview(path, name) {
   if (filePreviewManager) {
     await filePreviewManager.openPreview(path, name);
@@ -457,7 +437,6 @@ async function saveEditedText() {
 async function downloadFile(path, name) {
   try {
     const { data, error } = await sbManager.createSignedUrl(path, 60);
-
     if (error) throw error;
 
     const res = await fetch(data.signedUrl, { cache: 'no-store' });
@@ -474,7 +453,6 @@ async function downloadFile(path, name) {
   }
 }
 
-// ---------- Backup ----------
 async function createBackup() {
   const btn = document.getElementById('backupBtn');
   btn.disabled = true;
@@ -486,28 +464,6 @@ async function createBackup() {
   btn.innerHTML = '<i class="fa-solid fa-box-archive"></i> <span>Backup</span>';
 }
 
-async function listAllFilesRecursive(prefix = '') {
-  const results = [];
-  const { data, error } = await sbManager.list(prefix, { limit: 1000, offset: 0 });
-
-  if (error) throw error;
-
-  for (const item of (data || [])) {
-    if (item.name === '.emptyFolderPlaceholder') continue;
-
-    const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
-
-    if (!item.id) {
-      const subFiles = await listAllFilesRecursive(fullPath);
-      results.push(...subFiles);
-    } else {
-      results.push(fullPath);
-    }
-  }
-  return results;
-}
-
-// ---------- Delete ----------
 async function deleteItem(path, isFolder) {
   if (!confirm(isFolder
     ? `Delete folder "${path}" and all its contents?`
@@ -516,7 +472,6 @@ async function deleteItem(path, isFolder) {
   try {
     if (isFolder) {
       const { data: files, error: listError } = await sbManager.list(path, { limit: 1000 });
-
       if (listError) throw listError;
 
       const pathsToDelete = [];
