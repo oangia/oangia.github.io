@@ -145,9 +145,8 @@ async function computeSha256(messageOrBuffer) {
 }
 
 class Config {
-  constructor(btnId, onSaveCallback = null) {
+  constructor(btnId) {
     this.btnId = btnId;
-    this.onSaveCallback = onSaveCallback;
     this.panelId = "configPanel";
     this.overlayId = "configOverlay";
 
@@ -313,9 +312,7 @@ class Config {
     this.close();
 
     // Let the outside world handle the real connection logic
-    if (typeof this.onSaveCallback === "function") {
-      this.onSaveCallback(cfg);
-    }
+    location.reload();
   }
 }
 // ==========================================
