@@ -83,7 +83,7 @@
       </div>
     </div>
 
-    <!-- Center: Search Bar (Centered Flex Container) -->
+    <!-- Center: Search Bar -->
     <div class="flex-1 max-w-md mx-6">
       <div class="relative w-full">
         <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
@@ -150,10 +150,10 @@
         </div>
       </div>
 
-      <!-- Tab Switcher -->
+      <!-- Tab Switcher (Settings button is now controlled by Config class) -->
       <div class="flex items-center space-x-1.5 bg-white/5 border border-white/10 p-1 rounded-lg">
         <button onclick="switchTab('explorer')" id="navExplorerTab" class="px-3 py-1 text-xs font-semibold text-white bg-white/10 rounded-md border border-white/30 transition">Explorer</button>
-        <button onclick="switchTab('settings')" id="navSettingsTab" class="px-3 py-1 text-xs font-semibold text-slate-400 hover:text-white rounded-md border border-transparent hover:border-white/20 transition">Settings</button>
+        <button id="navSettingsTab" class="px-3 py-1 text-xs font-semibold text-slate-400 hover:text-white rounded-md border border-transparent hover:border-white/20 transition">Settings</button>
       </div>
     </div>
   </header>
@@ -186,73 +186,6 @@
       </div>
     </div>
 
-    <!-- Settings View -->
-    <div id="viewSettings" class="hidden flex-1 w-full h-full flex flex-col overflow-y-auto p-6 bg-transparent">
-      <div class="max-w-4xl w-full mx-auto bg-zinc-900/0 border border-white/15 backdrop-blur-md rounded-2xl p-6 space-y-6 my-auto shadow-2xl">
-        <div class="border-b border-white/10 pb-4">
-          <h2 class="text-lg font-bold text-white mb-1">Configuration</h2>
-          <p class="text-xs text-slate-400">Enter your Supabase and Firebase credentials.</p>
-        </div>
-    
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Supabase Card -->
-          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
-            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
-              <i class="fa-solid fa-bolt text-emerald-400"></i> Supabase Credentials
-            </h3>
-            
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Project URL</label>
-              <input type="text" name="sb_url" placeholder="https://xxxxx.supabase.co" 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-    
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Anon Public Key</label>
-              <input type="text" name="sb_key" placeholder="eyJhbGciOiJIUzI1NiIsIn..." 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-    
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Storage Bucket Name</label>
-              <input type="text" name="sb_bucket" placeholder="files" value="files" data-default="files"
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-          </div>
-    
-          <!-- Firebase Card -->
-          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
-            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
-              <i class="fa-solid fa-fire text-amber-400"></i> Firebase Credentials
-            </h3>
-    
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Firebase API Key (<code class="text-[11px] text-indigo-300">apiKey</code>)</label>
-              <input type="text" name="fb_apikey" placeholder="AIzaSy..." 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-    
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Project ID (<code class="text-[11px] text-indigo-300">projectId</code>)</label>
-              <input type="text" name="fb_projectid" placeholder="my-firebase-project" 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-    
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">App ID (<code class="text-[11px] text-indigo-300">appId</code>)</label>
-              <input type="text" name="fb_appid" placeholder="1:123456789:web:abc123" 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-          </div>
-        </div>
-    
-        <div class="pt-2">
-          <button onclick="saveSettings()" class="px-5 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">
-            Save & Connect
-          </button>
-        </div>
-      </div>
-    </div>
   </main>
 
   <!-- Create Folder Modal -->
@@ -283,7 +216,7 @@
         </button>
       </div>
   
-      <!-- Content Container: Split Screen (Left: Viewer, Right: Sidebar) -->
+      <!-- Content Container: Split Screen -->
       <div class="flex-1 flex overflow-hidden bg-transparent">
         
         <!-- Main Preview Area -->
@@ -323,7 +256,6 @@
   <script src="./interface.js"></script>
   <script type="module">
     import { FirebaseUploaderWidget } from './firebase.js';
-    // Initialize when user clicks your button
     const uploader = new FirebaseUploaderWidget("uploaded_files");
     uploader.init("openFirebaseWidgetBtn");
   </script>
