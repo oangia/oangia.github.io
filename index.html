@@ -99,6 +99,10 @@
       <!-- Explorer Action Controls -->
       <div id="headerActionControls" class="flex items-center gap-2.5">
         <div class="relative">
+          <button id="openTrackerBtn" class="px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/60 hover:border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-list-check text-emerald-400"></i>
+            <span>Tasks</span>
+          </button>
           <button onclick="toggleActionsMenu()" class="px-3 py-1.5 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400/60 hover:border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
             <i class="fa-solid fa-plus text-indigo-400"></i>
             <span>Actions</span>
@@ -322,6 +326,10 @@
     // Initialize when user clicks your button
     const uploader = new FirebaseUploaderWidget("uploaded_files");
     uploader.init("openFirebaseWidgetBtn");
+  </script>
+  <script src="./tracker.js"></script>
+  <script>
+    new Tracker("openTrackerBtn");
   </script>
 </body>
 </html>
