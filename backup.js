@@ -274,7 +274,7 @@ class Config {
     if (!btn) return;
 
     btn.onclick = (e) => {
-      e.default();
+      e.preventDefault();
       e.stopPropagation();
       this.open();
     };
