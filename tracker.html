@@ -25,12 +25,14 @@
         this.storageKey = options.storageKey || 'daily_tasks_status';
         this.mountSelector = options.mountSelector || '#task-tracker-app';
 
-        // Configurable attribute options focused on timeline and priority
+        // Configurable attribute options strictly from 'priority' down (timeline, priority, section, objective)
         this.options = {
           defaultSort: options.defaultSort || 'timeline',
           sortOptions: options.sortOptions || [
             { value: 'timeline', label: 'Timeline (Default)' },
-            { value: 'priority', label: 'Priority' }
+            { value: 'priority', label: 'Priority' },
+            { value: 'section', label: 'Section' },
+            { value: 'objective', label: 'Objective' }
           ],
           ...options
         };
@@ -151,11 +153,20 @@
       renderTaskListContainer(mainCard) {
         let tasksCopy = [...this.tasks];
 
-        // Sort logic focused on timeline (default) and priority
+        // Sort logic for attributes from priority down: timeline (default), priority, section, objective
         if (this.currentSort === 'timeline') {
           tasksCopy.sort((a, b) => (a.timeline ?? 99) - (b.timeline ?? 99));
         } else if (this.currentSort === 'priority') {
           tasksCopy.sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99));
+        } else if (this.currentSort === 'section') {
+          tasksCopy.sort((a, b) => (a.section || '').localeCompare(b.section || ''));
+        } else if (this.currentSort === 'objective') {
+          const objectiveRank = { useful: 1, healthy: 2, fun: 3 };
+          tasksCopy.sort((a, b) => {
+            const rankA = objectiveRank[a.objective] || 99;
+            const rankB = objectiveRank[b.objective] || 99;
+            return rankA - rankB;
+          });
         }
 
         const sectionWrapper = document.createElement('div');
