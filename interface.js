@@ -36,32 +36,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   // Only this line is needed for config
-new Config("navSettingsTab", (cfg) => {
-  // This is the only place that runs connection logic
-  try {
-    sbManager.init({
-      url: cfg.sb_url,
-      key: cfg.sb_key,
-      bucket: cfg.sb_bucket
-    });
-
-    if (filePreviewManager) {
-      filePreviewManager.setService(sbManager);
-    }
-
-    document.getElementById("headerUrl").innerHTML = `${cfg.sb_url}<br>Bucket: ${cfg.sb_bucket}`;
-
-    if (breadcrumbManager) {
-      breadcrumbManager.reset();
-    }
-
-    listFiles();
-    showToast("Connected successfully", "success");
-  } catch (err) {
-    console.error(err);
-    showToast("Failed to initialize Supabase client", "error");
-  }
-});
+new Config("navSettingsTab");
 
   // Auto connect if credentials exist
   const savedUrl = localStorage.getItem('sb_url');
