@@ -36,7 +36,32 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   // Only this line is needed for config
-  new Config("navSettingsTab");
+new Config("navSettingsTab", (cfg) => {
+  // This is the only place that runs connection logic
+  try {
+    sbManager.init({
+      url: cfg.sb_url,
+      key: cfg.sb_key,
+      bucket: cfg.sb_bucket
+    });
+
+    if (filePreviewManager) {
+      filePreviewManager.setService(sbManager);
+    }
+
+    document.getElementById("headerUrl").innerHTML = `${cfg.sb_url}<br>Bucket: ${cfg.sb_bucket}`;
+
+    if (breadcrumbManager) {
+      breadcrumbManager.reset();
+    }
+
+    listFiles();
+    showToast("Connected successfully", "success");
+  } catch (err) {
+    console.error(err);
+    showToast("Failed to initialize Supabase client", "error");
+  }
+});
 
   // Auto connect if credentials exist
   const savedUrl = localStorage.getItem('sb_url');
@@ -62,198 +87,6 @@ window.addEventListener('DOMContentLoaded', () => {
     updateConnectionStatus(false, 'Please configure credentials in Settings');
   }
 });
-
-// ==========================================
-// ---------- Config Class ------------------
-// ==========================================
-
-class Config {
-  constructor(btnId) {
-    this.btnId = btnId;
-    this.panelId = "configPanel";
-    this.overlayId = "configOverlay";
-
-    this.#createPanel();
-    this.#bindButton();
-    this.#load();
-
-    // Auto-open if no credentials
-    if (!localStorage.getItem("sb_url") || !localStorage.getItem("sb_key")) {
-      this.open();
-    }
-  }
-
-  open() {
-    document.getElementById(this.overlayId)?.classList.remove("hidden");
-    document.getElementById(this.panelId)?.classList.remove("hidden");
-  }
-
-  close() {
-    document.getElementById(this.overlayId)?.classList.add("hidden");
-    document.getElementById(this.panelId)?.classList.add("hidden");
-  }
-
-  #createPanel() {
-    document.getElementById(this.overlayId)?.remove();
-    document.getElementById(this.panelId)?.remove();
-
-    const overlay = document.createElement("div");
-    overlay.id = this.overlayId;
-    overlay.className = "hidden fixed inset-0 z-[60] bg-black/40";
-
-    const panel = document.createElement("div");
-    panel.id = this.panelId;
-    panel.className = "hidden fixed inset-0 z-[70] flex items-center justify-center p-6 overflow-y-auto";
-
-    // ===== Original style preserved =====
-    panel.innerHTML = `
-      <div class="max-w-4xl w-full bg-zinc-900/0 border border-white/15 backdrop-blur-md rounded-2xl p-6 space-y-6 shadow-2xl relative">
-        
-        <button id="configCloseBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 transition">
-          <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
-
-        <div class="border-b border-white/10 pb-4">
-          <h2 class="text-lg font-bold text-white mb-1">Configuration</h2>
-          <p class="text-xs text-slate-400">Enter your Supabase and Firebase credentials.</p>
-        </div>
-    
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Supabase Card -->
-          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
-            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
-              <i class="fa-solid fa-bolt text-emerald-400"></i> Supabase Credentials
-            </h3>
-            
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Project URL</label>
-              <input type="text" name="sb_url" placeholder="https://xxxxx.supabase.co" 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-    
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Anon Public Key</label>
-              <input type="text" name="sb_key" placeholder="eyJhbGciOiJIUzI1NiIsIn..." 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-    
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Storage Bucket Name</label>
-              <input type="text" name="sb_bucket" placeholder="files" value="files" data-default="files"
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-          </div>
-    
-          <!-- Firebase Card -->
-          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
-            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
-              <i class="fa-solid fa-fire text-amber-400"></i> Firebase Credentials
-            </h3>
-    
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Firebase API Key (<code class="text-[11px] text-indigo-300">apiKey</code>)</label>
-              <input type="text" name="fb_apikey" placeholder="AIzaSy..." 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-    
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Project ID (<code class="text-[11px] text-indigo-300">projectId</code>)</label>
-              <input type="text" name="fb_projectid" placeholder="my-firebase-project" 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-    
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">App ID (<code class="text-[11px] text-indigo-300">appId</code>)</label>
-              <input type="text" name="fb_appid" placeholder="1:123456789:web:abc123" 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-          </div>
-        </div>
-    
-        <div class="pt-2 flex justify-end gap-3">
-          <button id="configCancelBtn" class="px-5 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">
-            Cancel
-          </button>
-          <button id="configSaveBtn" class="px-5 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">
-            Save & Connect
-          </button>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(overlay);
-    document.body.appendChild(panel);
-
-    // Events
-    document.getElementById("configCloseBtn").onclick = () => this.close();
-    document.getElementById("configCancelBtn").onclick = () => this.close();
-    overlay.onclick = () => this.close();
-    panel.querySelector("div").onclick = (e) => e.stopPropagation();
-
-    document.getElementById("configSaveBtn").onclick = () => this.#save();
-  }
-
-  #bindButton() {
-    const btn = document.getElementById(this.btnId);
-    if (!btn) return;
-
-    btn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.open();
-    };
-  }
-
-  #load() {
-    const panel = document.getElementById(this.panelId);
-    if (!panel) return;
-
-    panel.querySelectorAll("input[name]").forEach(el => {
-      const saved = localStorage.getItem(el.name);
-      if (saved !== null && saved !== "") {
-        el.value = saved;
-      } else if (el.dataset.default) {
-        el.value = el.dataset.default;
-      }
-    });
-  }
-
-  #save() {
-    const panel = document.getElementById(this.panelId);
-    const inputs = panel.querySelectorAll("input[name]");
-    const cfg = Object.fromEntries(
-      [...inputs].map(el => [el.name, el.value.trim() || el.dataset.default || ""])
-    );
-
-    if (!cfg.sb_url || !cfg.sb_key) {
-      showToast("URL and Anon Key are required", "warning");
-      return;
-    }
-
-    Object.entries(cfg).forEach(([k, v]) => localStorage.setItem(k, v));
-
-    try {
-      sbManager.init({ url: cfg.sb_url, key: cfg.sb_key, bucket: cfg.sb_bucket });
-
-      if (filePreviewManager) {
-        filePreviewManager.setService(sbManager);
-      }
-
-      document.getElementById("headerUrl").innerHTML = `${cfg.sb_url}<br>Bucket: ${cfg.sb_bucket}`;
-
-      if (breadcrumbManager) {
-        breadcrumbManager.reset();
-      }
-
-      listFiles();
-      this.close();
-      showToast("Connected successfully", "success");
-    } catch (err) {
-      console.error(err);
-      showToast("Failed to initialize Supabase client", "error");
-    }
-  }
-}
 
 // ==========================================
 // ---------- File Operations ---------------
