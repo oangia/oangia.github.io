@@ -193,17 +193,18 @@
           const taskType = taskItem.type || 'daily';
           const taskDesc = taskItem.desc || '';
           const isDisabled = !!taskItem.disabled;
+          const isAlwaysChecked = !!taskItem.alwaysChecked;
           const objectiveKey = taskItem.objective || 'default';
           const sectionName = taskItem.section || 'General';
 
-          ul.appendChild(this.createTaskListItem(taskName, taskType, taskDesc, isDisabled, objectiveKey, sectionName, index));
+          ul.appendChild(this.createTaskListItem(taskName, taskType, taskDesc, isDisabled, objectiveKey, sectionName, index, isAlwaysChecked));
         });
 
         sectionWrapper.appendChild(ul);
         mainCard.appendChild(sectionWrapper);
       }
 
-      createTaskListItem(taskName, taskType, taskDesc, isDisabled, objectiveKey, sectionName, index) {
+      createTaskListItem(taskName, taskType, taskDesc, isDisabled, objectiveKey, sectionName, index, isAlwaysChecked = false) {
         const colors = this.objectiveColors[objectiveKey] || this.objectiveColors.default;
         const id = `task-${this.id}-${index}`;
         const li = document.createElement('li');
@@ -218,11 +219,11 @@
             <label for="${id}" class="relative flex items-start gap-2.5 w-full ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}">
               <input type="checkbox" id="${id}" data-task="${taskName}" data-type="${taskType}" ${
                 isDisabled ? 'disabled' : ''
-              } class="sr-only peer">
+              } ${isAlwaysChecked ? 'checked data-always-checked="true"' : ''} class="sr-only peer">
                     
               <!-- Custom colored checkbox box -->
               <div class="mt-0.5 w-3.5 h-3.5 rounded border ${colors.border} bg-white ${colors.bg} peer-checked:border-transparent flex items-center justify-center transition flex-shrink-0 ${isDisabled ? 'opacity-50' : ''}">
-                <svg class="w-2.5 h-2.5 text-white opacity-0 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-2.5 h-2.5 text-white ${isAlwaysChecked ? 'opacity-100' : 'opacity-0'} transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7"></path>
                 </svg>
               </div>
@@ -246,6 +247,9 @@
         const checkIcon = li.querySelector('svg');
 
         checkbox.addEventListener('change', () => {
+          if (isAlwaysChecked) {
+            checkbox.checked = true;
+          }
           checkIcon.classList.toggle('opacity-0', !checkbox.checked);
           checkIcon.classList.toggle('opacity-100', checkbox.checked);
         });
@@ -257,7 +261,7 @@
         const states = {};
         const checkboxes = this.wrapper.querySelectorAll('input[type="checkbox"]:not([disabled])');
         checkboxes.forEach(chk => {
-          states[chk.dataset.task] = chk.checked;
+          states[chk.dataset.task] = chk.checked || chk.dataset.alwaysChecked === 'true';
         });
         return states;
       }
@@ -266,7 +270,7 @@
         const checkboxes = this.wrapper.querySelectorAll('input[type="checkbox"]:not([disabled])');
         checkboxes.forEach(chk => {
           const taskName = chk.dataset.task;
-          if (states[taskName]) {
+          if (states[taskName] || chk.dataset.alwaysChecked === 'true') {
             chk.checked = true;
             const checkIcon = chk.parentElement.querySelector('svg');
             if (checkIcon) {
@@ -279,10 +283,26 @@
 
       updateProgress() {
         const checkboxes = Array.from(this.wrapper.querySelectorAll('input[type="checkbox"]:not([disabled])'));
+        const total = checkboxes.length;
         const completed = checkboxes.filter((chk) => chk.checked).length;
         const badge = document.getElementById(`progress-badge-${this.id}`);
         if (badge) {
-          badge.textContent = `${completed} / ${checkboxes.length} Completed`;
+          badge.textContent = `${completed} / ${total} Completed`;
+
+          const ratio = total > 0 ? completed / total : 0;
+          let colorClasses = 'bg-slate-800 text-slate-300 border-slate-700';
+
+          if (ratio === 1 && total > 0) {
+            colorClasses = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+          } else if (ratio >= 0.75) {
+            colorClasses = 'bg-sky-500/20 text-sky-300 border-sky-500/40';
+          } else if (ratio >= 0.4) {
+            colorClasses = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+          } else if (completed > 0) {
+            colorClasses = 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+          }
+
+          badge.className = `text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors duration-300 ${colorClasses}`;
         }
       }
 
@@ -354,20 +374,35 @@
 
       loadState() {
         const storedValue = localStorage.getItem(this.storageKey);
-        if (!storedValue) return;
+        const checkboxes = this.wrapper.querySelectorAll('input[type="checkbox"]:not([disabled])');
+
+        if (!storedValue) {
+          checkboxes.forEach((chk) => {
+            if (chk.dataset.alwaysChecked === 'true') {
+              chk.checked = true;
+              const checkIcon = chk.parentElement.querySelector('svg');
+              if (checkIcon) {
+                checkIcon.classList.remove('opacity-0');
+                checkIcon.classList.add('opacity-100');
+              }
+            }
+          });
+          return;
+        }
 
         try {
           const data = JSON.parse(storedValue);
           const today = this.getTodayDateString();
           const currentWeek = this.getWeekKey();
 
-          const checkboxes = this.wrapper.querySelectorAll('input[type="checkbox"]:not([disabled])');
           checkboxes.forEach((chk) => {
             const taskName = chk.dataset.task;
             const taskType = chk.dataset.type;
             const checkIcon = chk.parentElement.querySelector('svg');
 
-            if (taskType === 'weekly') {
+            if (chk.dataset.alwaysChecked === 'true') {
+              chk.checked = true;
+            } else if (taskType === 'weekly') {
               if (data.weekKey === currentWeek && data.weeklyTasks && data.weeklyTasks[taskName]) {
                 chk.checked = true;
               }
@@ -423,7 +458,8 @@
         priority: 3, 
         timeline: 3,
         section: 'Fun', 
-        objective: 'fun' 
+        objective: 'fun',
+        alwaysChecked: true
       }
     ], 'Tasks Tracker');
   </script>
