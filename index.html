@@ -235,8 +235,9 @@
 
   <script src="./backup.js?id=openTrackerBtn"></script>
   <script type="module">
-    import { FirebaseUploaderWidget } from './firebase.js';
-    const uploader = new FirebaseUploaderWidget("uploaded_files");
+    import { FirebaseService } from './firebase.js';
+    const fbService = new FirebaseService();
+    const uploader = new FirebaseUploaderWidget(fbService, "uploaded_files");
     uploader.init("openFirebaseWidgetBtn");
   </script>
 </body>
