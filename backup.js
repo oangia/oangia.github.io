@@ -1,50 +1,3 @@
-/**
- * Global Utilities & Helpers
- */
-const formatBytes=(e,t=1)=>{if(!e)return"0 B";const o=Math.floor(Math.log(e)/Math.log(1024));return`${parseFloat((e/Math.pow(1024,o)).toFixed(t))} ${["B","KB","MB","GB"][o]}`},escapeHtml=e=>String(e||"").replace(/[&<>'"]/g,e=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;",'"':"&quot;"}[e]||e)),getExtension=e=>e.includes(".")?e.split(".").pop().toLowerCase():"file",isType=(e,t)=>t.includes(getExtension(e)),isImage=e=>isType(e,["png","jpg","jpeg","gif","webp","svg","bmp","ico"]),isVideo=e=>isType(e,["mp4","webm","mov","avi","mkv","ogg"]),isText=e=>isType(e,["txt","md","json","js","ts","html","css","xml","csv","log","py","sql","yml","yaml"]);async function computeSha256(e){const t="string"==typeof e?(new TextEncoder).encode(e):e,o=await crypto.subtle.digest("SHA-256",t);return Array.from(new Uint8Array(o)).map(e=>e.toString(16).padStart(2,"0")).join("")}function showToast(e,t="info",o=4e3){const r=document.getElementById("toastContainer");r||(r=document.createElement("div"),r.id="toastContainer",r.className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full",document.body.appendChild(r));const a={success:{border:"border-emerald-800",text:"text-emerald-100",icon:"fa-circle-check text-emerald-400",bar:"border-l-emerald-500"},error:{border:"border-rose-800",text:"text-rose-100",icon:"fa-circle-exclamation text-rose-400",bar:"border-l-rose-500"},warning:{border:"border-amber-800",text:"text-amber-100",icon:"fa-triangle-exclamation text-amber-400",bar:"border-l-amber-500"},info:{border:"border-slate-700",text:"text-slate-100",icon:"fa-circle-info text-sky-400",bar:"border-l-sky-500"}}[t]||a.info,s=document.createElement("div");s.className=`pointer-events-auto flex items-center justify-between p-3.5 rounded-xl border shadow-xl bg-slate-900/90 backdrop-blur-md border-l-4 ${a.border} ${a.text} ${a.bar} transform transition-all duration-300 translate-x-12 opacity-0 text-xs font-medium`,s.innerHTML=`\n    <div class="flex items-center"><i class="fa-solid ${a.icon} text-base mr-3"></i><span>${escapeHtml(e)}</span></div>\n    <button onclick="this.parentElement.remove()" class="ml-4 text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark"></i></button>\n  `,r.appendChild(s),requestAnimationFrame(()=>s.classList.remove("translate-x-12","opacity-0")),o>0&&setTimeout(()=>{s.classList.add("translate-x-12","opacity-0"),setTimeout(()=>s.remove(),300)},o)}
-const isAudio = e => isType(e, ["mp3", "wav", "ogg", "m4a", "flac", "aac"]);
-function isHtml(e){return/\.(html|htm)$/i.test(e)}function updateConnectionStatus(e,i){const t=document.getElementById("statusDot"),a=document.getElementById("statusText");a&&t&&(a.textContent=i,t.className=!0===e?"w-2 h-2 rounded-full bg-emerald-500":!1===e?"w-2 h-2 rounded-full bg-rose-500":"w-2 h-2 rounded-full bg-amber-400 animate-pulse")}function closeModals(){document.querySelectorAll(".fixed").forEach(e=>{"toastContainer"!==e.id&&e.classList.add("hidden")}),filePreviewManager&&(filePreviewManager.isTextEditor=!1),document.getElementById("previewSaveBtn")?.classList.add("hidden"),document.getElementById("previewCancelEditBtn")?.classList.add("hidden")}
-
-/* ---------- Toast (uses Theme) ---------- */
-function showToast(e, t = "info", o = 4e3) {
-  let r = document.getElementById("toastContainer");
-  if (!r) {
-    r = document.createElement("div");
-    r.id = "toastContainer";
-    r.className = Theme.getToastContainerClasses();
-    document.body.appendChild(r);
-  }
-  const s = document.createElement("div");
-  s.className = Theme.getToastClasses(t);
-  s.innerHTML = Theme.getToastHTML(e, t);
-  r.appendChild(s);
-  requestAnimationFrame(() => s.classList.remove("translate-x-12", "opacity-0"));
-  if (o > 0) {
-    setTimeout(() => {
-      s.classList.add("translate-x-12", "opacity-0");
-      setTimeout(() => s.remove(), 300);
-    }, o);
-  }
-}
-
-function updateConnectionStatus(e, i) {
-  const t = document.getElementById("statusDot");
-  const a = document.getElementById("statusText");
-  if (a && t) {
-    a.textContent = i;
-    t.className = Theme.getStatusDotClasses(e);
-  }
-}
-
-function closeModals() {
-  document.querySelectorAll(".fixed").forEach(e => {
-    if (e.id !== "toastContainer") e.classList.add("hidden");
-  });
-  if (filePreviewManager) filePreviewManager.isTextEditor = false;
-  document.getElementById("previewSaveBtn")?.classList.add("hidden");
-  document.getElementById("previewCancelEditBtn")?.classList.add("hidden");
-}
-
 /* ============================================================
    Classes – now consume Theme instead of hard-coded HTML
    ============================================================ */
@@ -817,22 +770,6 @@ class Tracker {
   }
 }
 
-(function () {
-  "use strict";
-  const scriptTag = document.currentScript;
-  if (scriptTag) {
-    const src = scriptTag.getAttribute("src");
-    try {
-      const url = new URL(src, window.location.origin);
-      const btnId = url.searchParams.get("id");
-      if (btnId) window.currentTrackerInstance = new Tracker(btnId);
-    } catch (e) {
-      const match = src && src.match(/[?&]id=([^&]+)/);
-      if (match) window.currentTrackerInstance = new Tracker(match[1]);
-    }
-  }
-})();
-
 class SupabaseManager {
   constructor() {
     this.client = null;
@@ -1312,6 +1249,54 @@ class BreadcrumbManager {
   }
 }
 
+
+/**
+ * Global Utilities & Helpers
+ */
+const formatBytes=(e,t=1)=>{if(!e)return"0 B";const o=Math.floor(Math.log(e)/Math.log(1024));return`${parseFloat((e/Math.pow(1024,o)).toFixed(t))} ${["B","KB","MB","GB"][o]}`},escapeHtml=e=>String(e||"").replace(/[&<>'"]/g,e=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;",'"':"&quot;"}[e]||e)),getExtension=e=>e.includes(".")?e.split(".").pop().toLowerCase():"file",isType=(e,t)=>t.includes(getExtension(e)),isImage=e=>isType(e,["png","jpg","jpeg","gif","webp","svg","bmp","ico"]),isVideo=e=>isType(e,["mp4","webm","mov","avi","mkv","ogg"]),isText=e=>isType(e,["txt","md","json","js","ts","html","css","xml","csv","log","py","sql","yml","yaml"]);async function computeSha256(e){const t="string"==typeof e?(new TextEncoder).encode(e):e,o=await crypto.subtle.digest("SHA-256",t);return Array.from(new Uint8Array(o)).map(e=>e.toString(16).padStart(2,"0")).join("")}function showToast(e,t="info",o=4e3){const r=document.getElementById("toastContainer");r||(r=document.createElement("div"),r.id="toastContainer",r.className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full",document.body.appendChild(r));const a={success:{border:"border-emerald-800",text:"text-emerald-100",icon:"fa-circle-check text-emerald-400",bar:"border-l-emerald-500"},error:{border:"border-rose-800",text:"text-rose-100",icon:"fa-circle-exclamation text-rose-400",bar:"border-l-rose-500"},warning:{border:"border-amber-800",text:"text-amber-100",icon:"fa-triangle-exclamation text-amber-400",bar:"border-l-amber-500"},info:{border:"border-slate-700",text:"text-slate-100",icon:"fa-circle-info text-sky-400",bar:"border-l-sky-500"}}[t]||a.info,s=document.createElement("div");s.className=`pointer-events-auto flex items-center justify-between p-3.5 rounded-xl border shadow-xl bg-slate-900/90 backdrop-blur-md border-l-4 ${a.border} ${a.text} ${a.bar} transform transition-all duration-300 translate-x-12 opacity-0 text-xs font-medium`,s.innerHTML=`\n    <div class="flex items-center"><i class="fa-solid ${a.icon} text-base mr-3"></i><span>${escapeHtml(e)}</span></div>\n    <button onclick="this.parentElement.remove()" class="ml-4 text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark"></i></button>\n  `,r.appendChild(s),requestAnimationFrame(()=>s.classList.remove("translate-x-12","opacity-0")),o>0&&setTimeout(()=>{s.classList.add("translate-x-12","opacity-0"),setTimeout(()=>s.remove(),300)},o)}
+const isAudio = e => isType(e, ["mp3", "wav", "ogg", "m4a", "flac", "aac"]);
+function isHtml(e){return/\.(html|htm)$/i.test(e)}function updateConnectionStatus(e,i){const t=document.getElementById("statusDot"),a=document.getElementById("statusText");a&&t&&(a.textContent=i,t.className=!0===e?"w-2 h-2 rounded-full bg-emerald-500":!1===e?"w-2 h-2 rounded-full bg-rose-500":"w-2 h-2 rounded-full bg-amber-400 animate-pulse")}function closeModals(){document.querySelectorAll(".fixed").forEach(e=>{"toastContainer"!==e.id&&e.classList.add("hidden")}),filePreviewManager&&(filePreviewManager.isTextEditor=!1),document.getElementById("previewSaveBtn")?.classList.add("hidden"),document.getElementById("previewCancelEditBtn")?.classList.add("hidden")}
+
+/* ---------- Toast (uses Theme) ---------- */
+function showToast(e, t = "info", o = 4e3) {
+  let r = document.getElementById("toastContainer");
+  if (!r) {
+    r = document.createElement("div");
+    r.id = "toastContainer";
+    r.className = Theme.getToastContainerClasses();
+    document.body.appendChild(r);
+  }
+  const s = document.createElement("div");
+  s.className = Theme.getToastClasses(t);
+  s.innerHTML = Theme.getToastHTML(e, t);
+  r.appendChild(s);
+  requestAnimationFrame(() => s.classList.remove("translate-x-12", "opacity-0"));
+  if (o > 0) {
+    setTimeout(() => {
+      s.classList.add("translate-x-12", "opacity-0");
+      setTimeout(() => s.remove(), 300);
+    }, o);
+  }
+}
+
+function updateConnectionStatus(e, i) {
+  const t = document.getElementById("statusDot");
+  const a = document.getElementById("statusText");
+  if (a && t) {
+    a.textContent = i;
+    t.className = Theme.getStatusDotClasses(e);
+  }
+}
+
+function closeModals() {
+  document.querySelectorAll(".fixed").forEach(e => {
+    if (e.id !== "toastContainer") e.classList.add("hidden");
+  });
+  if (filePreviewManager) filePreviewManager.isTextEditor = false;
+  document.getElementById("previewSaveBtn")?.classList.add("hidden");
+  document.getElementById("previewCancelEditBtn")?.classList.add("hidden");
+}
+
 /* ---------- Global State & Init ---------- */
 let allItems = [];
 let filteredItems = [];
@@ -1319,6 +1304,22 @@ let filePreviewManager = null;
 let gridRenderer = null;
 let breadcrumbManager = null;
 const sbManager = new SupabaseManager();
+
+(function () {
+  "use strict";
+  const scriptTag = document.currentScript;
+  if (scriptTag) {
+    const src = scriptTag.getAttribute("src");
+    try {
+      const url = new URL(src, window.location.origin);
+      const btnId = url.searchParams.get("id");
+      if (btnId) window.currentTrackerInstance = new Tracker(btnId);
+    } catch (e) {
+      const match = src && src.match(/[?&]id=([^&]+)/);
+      if (match) window.currentTrackerInstance = new Tracker(match[1]);
+    }
+  }
+})();
 
 window.addEventListener("DOMContentLoaded", () => {
   filePreviewManager = new FilePreviewManager({
