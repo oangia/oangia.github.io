@@ -828,7 +828,7 @@ class ItemsGridRenderer {
       card.onclick = () => this.onItemClick(item, fullPath, isFolder);
       
       // Default placeholder preview container
-      const previewContainerId = `thumb-${Math.random().toString(36.substring(2, 9))}`;
+      const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
       
       card.innerHTML = `
         <button class="delete-btn opacity-0 group-hover:opacity-100 absolute top-2 right-2 text-xs bg-rose-600 hover:bg-rose-700 text-white rounded-full w-5 h-5 flex items-center justify-center transition">×</button>
