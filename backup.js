@@ -369,7 +369,7 @@ class LocalFileAdapterService {
     return total;
   }
 
-  async createSignedUrl(path) {
+  async getFileUrl(path) {
     const record = this.pathToFile.get(path);
     if (!record) return { data: null, error: new Error("File not found") };
     return { data: { signedUrl: record.fileUrl }, error: null };
@@ -837,7 +837,7 @@ class FilePreviewManager {
     if (modal) modal.classList.remove("hidden");
 
     try {
-      const { data, error } = await this.service.createSignedUrl(path, 60);
+      const { data, error } = await this.service.getFileUrl(path, 60);
       if (error) throw error;
       const url = data.signedUrl;
       if (downloadBtn) {
@@ -934,7 +934,7 @@ class FilePreviewManager {
    
      try {
        if (!this.currentArrayBuffer) {
-         const { data, error } = await this.service.createSignedUrl(this.currentPreviewPath, 60);
+         const { data, error } = await this.service.getFileUrl(this.currentPreviewPath, 60);
          if (error) throw error;
    
          const res = await fetch(data.signedUrl, { cache: "no-store" });
@@ -987,7 +987,7 @@ class FilePreviewManager {
       this.currentArrayBuffer = await blob.arrayBuffer();
       this.fileSize = this.currentArrayBuffer.byteLength;
       this.cachedContentHash = null;
-      const { data } = await this.service.createSignedUrl(this.currentPreviewPath, 60);
+      const { data } = await this.service.getFileUrl(this.currentPreviewPath, 60);
       await this.renderSidebarLazy(this.currentPreviewPath, this.currentPreviewName, this.fileSize, data?.signedUrl);
       this.onToast("File saved successfully", "success");
       this.onSaveSuccess();
@@ -1111,64 +1111,100 @@ const formatBytes=(e,t=1)=>{if(!e)return"0 B";const a=Math.floor(Math.log(e)/Mat
   }
 })();
 
-class SupabaseManager {
-  constructor() {
-    this.client = null;
-    this.bucket = "files";
+/**
+ * ==========================================
+ * 1. STANDARDIZED STORAGE SERVICE (Supabase)
+ * ==========================================
+ * Encapsulates all provider-specific configs, keys, 
+ * buckets, signed URLs, backups, and local storage keys.
+ */
+class SupabaseStorageService {
+  constructor(config = {}) {
+    // Service manages its own keys/buckets internally
+    const savedUrl = localStorage.getItem("sb_url") || config.url;
+    const savedKey = localStorage.getItem("sb_key") || config.key;
+    
+    this._bucket = localStorage.getItem("sb_bucket") || config.bucket || "files";
+    this.client = savedUrl && savedKey ? window.supabase.createClient(savedUrl, savedKey) : null;
+    this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
   }
-  init(config) {
-    this.client = window.supabase.createClient(config.url, config.key);
-    if (config.bucket) this.bucket = config.bucket;
-    this.backup = new SupabaseBackupManager(this.client, this.bucket, (message, type) => {
-      showToast(message, type, type === "warning" ? 2500 : 3500);
-    });
+
+  get bucket() {
+    return this._bucket;
   }
+
+  // Standardized initialization method
+  init(config = {}) {
+    const savedUrl = localStorage.getItem("sb_url") || config.url;
+    const savedKey = localStorage.getItem("sb_key") || config.key;
+    const savedBucket = localStorage.getItem("sb_bucket") || config.bucket;
+
+    if (savedUrl && savedKey) {
+      this.client = window.supabase.createClient(savedUrl, savedKey);
+    }
+    if (savedBucket) {
+      this._bucket = savedBucket;
+    }
+  }
+
   async list(path, options) {
     if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this.bucket).list(path, options);
+    return await this.client.storage.from(this._bucket).list(path, options);
   }
-  async createSignedUrl(path, expiresIn) {
+
+  async getFileUrl(path, expiresIn) {
     if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this.bucket).createSignedUrl(path, expiresIn);
+    return await this.client.storage.from(this._bucket).getFileUrl(path, expiresIn);
   }
+
   async upload(path, file, options) {
     if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this.bucket).upload(path, file, options);
+    return await this.client.storage.from(this._bucket).upload(path, file, options);
   }
+
   async remove(paths) {
     if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this.bucket).remove(paths);
+    return await this.client.storage.from(this._bucket).remove(paths);
   }
-  async runBackup() {
-    await this.backup.runBackup();
-  }
-}
 
-class SupabaseBackupManager {
-  constructor(supabaseClient, bucketName, onProgress = null) {
-    if (!supabaseClient) throw new Error("Supabase client is required for backup.");
-    this.supabase = supabaseClient;
-    this.bucket = bucketName;
-    this.onProgress = onProgress || ((msg) => console.log(msg));
+  async downloadFile(path, name) {
+    try {
+      const { data, error } = await this.getFileUrl(path, 60);
+      if (error) throw error;
+
+      const res = await fetch(data.signedUrl, { cache: "no-store" });
+      if (!res.ok) throw new Error("Download failed");
+
+      const blob = await res.blob();
+      this._triggerDownload(blob, name);
+    } catch (err) {
+      throw new Error(err.message || "Download failed");
+    }
   }
+
   async runBackup() {
     try {
       this.onProgress("Collecting all files...", "info");
       const allFiles = await this._listAllFilesRecursive("");
+      
       if (allFiles.length === 0) {
         this.onProgress("Bucket is empty – nothing to backup", "warning");
         return { success: false, error: "Bucket is empty" };
       }
+
       this.onProgress(`Found ${allFiles.length} file(s). Downloading fresh copies...`, "info");
       const zip = new JSZip();
       const hashParts = [];
       let processed = 0;
+
       for (const filePath of allFiles) {
         try {
-          const { data: signed, error: signErr } = await this.supabase.storage.from(this.bucket).createSignedUrl(filePath, 60);
+          const { data: signed, error: signErr } = await this.getFileUrl(filePath, 60);
           if (signErr) throw signErr;
+          
           const res = await fetch(signed.signedUrl, { cache: "no-store" });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          
           const arrayBuffer = await res.arrayBuffer();
           zip.file(filePath, arrayBuffer);
           hashParts.push({ path: filePath, buffer: arrayBuffer });
@@ -1181,12 +1217,15 @@ class SupabaseBackupManager {
           this.onProgress(`Downloaded ${processed} / ${allFiles.length}`, "info");
         }
       }
+
       this.onProgress("Calculating archive hash...", "info");
       const shortHash = await this._computeHash(hashParts);
       const today = new Date().toISOString().slice(0, 10);
-      const zipName = `${this.bucket}_${today}_${shortHash}.zip`;
+      const zipName = `${this._bucket}_${today}_${shortHash}.zip`;
+
       this.onProgress("Compressing into ZIP archive...", "info");
       const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+      
       this._triggerDownload(blob, zipName);
       this.onProgress(`Backup ready: ${zipName}`, "success");
       return { success: true, filename: zipName };
@@ -1196,10 +1235,12 @@ class SupabaseBackupManager {
       return { success: false, error: err.message };
     }
   }
+
   async _listAllFilesRecursive(prefix = "") {
     const results = [];
-    const { data, error } = await this.supabase.storage.from(this.bucket).list(prefix, { limit: 1000, offset: 0 });
+    const { data, error } = await this.list(prefix, { limit: 1000, offset: 0 });
     if (error) throw error;
+    
     for (const item of (data || [])) {
       if (item.name === ".emptyFolderPlaceholder") continue;
       const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
@@ -1212,11 +1253,13 @@ class SupabaseBackupManager {
     }
     return results;
   }
+
   async _computeHash(hashParts) {
     hashParts.sort((a, b) => a.path.localeCompare(b.path));
     const encoder = new TextEncoder();
     const chunks = [];
     let totalLength = 0;
+    
     for (const part of hashParts) {
       const pathBytes = encoder.encode(part.path);
       const contentBytes = new Uint8Array(part.buffer);
@@ -1225,16 +1268,19 @@ class SupabaseBackupManager {
       chunks.push(contentBytes);
       totalLength += pathBytes.length + 1 + contentBytes.length;
     }
+    
     const combined = new Uint8Array(totalLength);
     let offset = 0;
     for (const chunk of chunks) {
       combined.set(chunk, offset);
       offset += chunk.length;
     }
+    
     const hashBuffer = await crypto.subtle.digest("SHA-256", combined);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
   }
+
   _triggerDownload(blob, filename) {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -1244,10 +1290,17 @@ class SupabaseBackupManager {
   }
 }
 
+/**
+ * ==========================================
+ * 2. PURE FILE MANAGER (100% Agnostic)
+ * ==========================================
+ * Does not know what "sb_url", keys, or buckets are. 
+ * Just calls standard service methods.
+ */
 class FileManager {
   constructor(config = {}) {
-    this.bucket = config.bucket || "files";
-    this.service = new SupabaseManager();
+    this.service = config.storageService;
+    if (!this.service) throw new Error("A storage service is required.");
 
     this.allItems = [];
     this.filteredItems = [];
@@ -1280,11 +1333,10 @@ class FileManager {
       onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
     });
 
-    // Only independent config manager remains
     this.configManager = new Config("navSettingsTab");
 
     this.bindGlobalEvents();
-    this.loadCredentialsFromStorage();
+    this.initializeServiceConnection();
   }
 
   bindGlobalEvents() {
@@ -1297,27 +1349,26 @@ class FileManager {
     });
   }
 
-  loadCredentialsFromStorage() {
-    const savedUrl = localStorage.getItem("sb_url");
-    const savedKey = localStorage.getItem("sb_key");
-    const savedBucket = localStorage.getItem("sb_bucket") || this.bucket;
-
-    if (savedUrl && savedKey) {
-      try {
-        this.service.init({ url: savedUrl, key: savedKey, bucket: savedBucket });
-        this.filePreviewManager?.setService(this.service);
-
-        const headerUrl = document.getElementById("headerUrl");
-        if (headerUrl) headerUrl.innerHTML = `${savedUrl}<br />Bucket: ${savedBucket}`;
-
-        this.breadcrumbManager?.reset();
-        this.listFiles();
-      } catch (err) {
-        console.error(err);
-        this.showToast("Failed to initialize Supabase client", "error");
+  initializeServiceConnection() {
+    try {
+      // FileManager just tells the service to initialize itself. 
+      // How the service handles credentials is its own business.
+      if (typeof this.service.init === "function") {
+        this.service.init();
       }
-    } else {
-      this.updateConnectionStatus(false, "Please configure credentials in Settings");
+      this.filePreviewManager?.setService(this.service);
+
+      const headerUrl = document.getElementById("headerUrl");
+      if (headerUrl && this.service.bucket) {
+        headerUrl.innerHTML = `Storage Active<br />Container: ${this.service.bucket}`;
+      }
+
+      this.breadcrumbManager?.reset();
+      this.listFiles();
+    } catch (err) {
+      console.error(err);
+      this.updateConnectionStatus(false, err.message || "Failed to initialize storage service");
+      this.showToast("Failed to initialize storage service", "error");
     }
   }
 
@@ -1345,13 +1396,13 @@ class FileManager {
 
         if (this.isImage(item.name) || this.isVideo(item.name)) {
           try {
-            const { data: signed, error: signErr } = await this.service.createSignedUrl(fullPath, 60);
+            const { data: signed, error: signErr } = await this.service.getFileUrl(fullPath, 60);
             if (!signErr && signed?.signedUrl) item.thumbUrl = signed.signedUrl;
           } catch (e) {}
         }
       }));
 
-      this.updateConnectionStatus(true, `Connected • Bucket: ${this.service.bucket}`);
+      this.updateConnectionStatus(true, `Connected • Storage Active`);
       this.renderView();
     } catch (err) {
       console.error(err);
@@ -1468,18 +1519,7 @@ class FileManager {
 
   async downloadFile(path, name) {
     try {
-      const { data, error } = await this.service.createSignedUrl(path, 60);
-      if (error) throw error;
-
-      const res = await fetch(data.signedUrl, { cache: "no-store" });
-      if (!res.ok) throw new Error("Download failed");
-
-      const blob = await res.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = name;
-      a.click();
-      URL.revokeObjectURL(a.href);
+      await this.service.downloadFile(path, name);
     } catch (err) {
       this.showToast(err.message || "Download failed", "error");
     }
@@ -1491,7 +1531,9 @@ class FileManager {
       btn.disabled = true;
       btn.innerHTML = Theme.getBackupLoadingHTML();
     }
+    
     await this.service.runBackup();
+
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = Theme.getBackupIdleHTML();
