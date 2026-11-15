@@ -1581,8 +1581,9 @@ class FileManager {
 
 class DriveStorageService {
   constructor(config = {}) {
-    this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
-    this.passphrase = localStorage.getItem("gdrive_encryption_password") || config.gdrive_encryption_password;
+    this.clientId = localStorage.getItem("gdrive_oauth_client_id");
+     console.log(this.clientId);
+    this.passphrase = localStorage.getItem("gdrive_encryption_password");
     
     this._bucket = localStorage.getItem("sb_bucket") || config.bucket || "Google Drive Vault";
     this.token = localStorage.getItem("gdrive_access_token") || null;
