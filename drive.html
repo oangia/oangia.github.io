@@ -423,16 +423,17 @@
         else if (isImg) icon = 'fa-file-image text-sky-400';
         else if (isVid) icon = 'fa-file-video text-purple-400';
 
-        const clickAction = isFolder ? `openFolder('${f.id}', '${escapeHtml(f.name)}')` : `openPreview('${f.id}', '${escapeHtml(f.name)}')`;
+        const clickAction = isFolder 
+          ? `openFolder('${f.id}', '${escapeHtml(f.name)}')` 
+          : `openPreview('${f.id}', '${escapeHtml(f.name)}')`;
 
-        // Always try to show thumbnail for images (encrypted or not)
+        // Show thumbnail for images (both encrypted and normal)
         let mediaHtml;
         if (isImg && !isFolder) {
           mediaHtml = `
             <div class="h-28 flex items-center justify-center overflow-hidden rounded-lg bg-slate-800/50 relative">
               <img data-file-id="${f.id}" 
                    data-encrypted="${encrypted ? '1' : '0'}"
-                   data-thumb-link="${f.thumbnailLink || ''}"
                    class="thumb-img w-full h-full object-cover opacity-0 transition-opacity duration-300"
                    alt="${escapeHtml(displayName)}" />
               <i class="fa-solid ${icon} absolute text-3xl thumb-fallback"></i>
@@ -474,14 +475,13 @@
       for (const img of imgs) {
         const fileId = img.dataset.fileId;
         const isEncrypted = img.dataset.encrypted === '1';
-        const thumbLink = img.dataset.thumbLink;
         const fallback = img.parentElement.querySelector('.thumb-fallback');
 
         try {
           let blob;
 
           if (isEncrypted) {
-            // Decrypt encrypted image
+            // ===== ENCRYPTED IMAGE =====
             if (!passphrase) throw new Error('No encryption password set');
             const rawBlob = await drive.fetchBlob(fileId);
             const ciphertext = await rawBlob.text();
@@ -491,12 +491,13 @@
             const res = await fetch(`data:${match[1]};base64,${match[2]}`);
             blob = await res.blob();
           } else {
-            // Normal image – prefer thumbnailLink, otherwise full media
-            let urlToFetch = thumbLink || `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-            const res = await fetch(urlToFetch, {
-              headers: { Authorization: `Bearer ${drive.token}` }
-            });
-            if (!res.ok) throw new Error('thumb fetch failed');
+            // ===== NORMAL IMAGE =====
+            // Always use the official Drive media endpoint (no CORS issues)
+            const res = await fetch(
+              `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+              { headers: { Authorization: `Bearer ${drive.token}` } }
+            );
+            if (!res.ok) throw new Error('Failed to fetch image');
             blob = await res.blob();
           }
 
@@ -509,19 +510,42 @@
             if (fallback) fallback.style.display = 'none';
           };
         } catch (err) {
-          // Keep the icon fallback
           console.warn('Thumbnail load failed for', fileId, err);
+          // Keep the icon fallback
         }
       }
     }
 
+    // Fixed: correctly handles both encrypted and normal files
     async function getBlobAndType(fileId, storedFilename) {
       const rawBlob = await drive.fetchBlob(fileId);
 
+      // ===== NORMAL (non-encrypted) FILE =====
       if (!isEncryptedFile(storedFilename)) {
-        return { blob: rawBlob, mimeType: 'application/octet-stream' };
+        // Use the real MIME type from the blob when possible
+        let mimeType = rawBlob.type || 'application/octet-stream';
+
+        // Fallback: guess from filename extension if blob type is generic
+        if (mimeType === 'application/octet-stream' || !mimeType) {
+          const name = getOriginalFilename(storedFilename).toLowerCase();
+          if (name.match(/\.(png)$/)) mimeType = 'image/png';
+          else if (name.match(/\.(jpe?g)$/)) mimeType = 'image/jpeg';
+          else if (name.match(/\.(gif)$/)) mimeType = 'image/gif';
+          else if (name.match(/\.(webp)$/)) mimeType = 'image/webp';
+          else if (name.match(/\.(svg)$/)) mimeType = 'image/svg+xml';
+          else if (name.match(/\.(mp4)$/)) mimeType = 'video/mp4';
+          else if (name.match(/\.(webm)$/)) mimeType = 'video/webm';
+          else if (name.match(/\.(txt|md)$/)) mimeType = 'text/plain';
+          else if (name.match(/\.(json)$/)) mimeType = 'application/json';
+          else if (name.match(/\.(html?)$/)) mimeType = 'text/html';
+          else if (name.match(/\.(css)$/)) mimeType = 'text/css';
+          else if (name.match(/\.(js)$/)) mimeType = 'application/javascript';
+        }
+
+        return { blob: rawBlob, mimeType };
       }
 
+      // ===== ENCRYPTED FILE =====
       const passphrase = localStorage.getItem(SECRET_KEY);
       if (!passphrase) throw new Error('Encryption password is missing in settings!');
 
