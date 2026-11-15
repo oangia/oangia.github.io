@@ -1,3 +1,65 @@
+/**
+ * Global Utilities & Helpers
+ */
+const formatBytes = (bytes, decimals = 1) => {
+  if (!bytes) return '0 B';
+  const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(decimals))} ${sizes[i]}`;
+};
+
+const escapeHtml = (str) => String(str || '').replace(/[&<>'"]/g, tag => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;'
+}[tag] || tag));
+
+const getExtension = name => name.includes('.') ? name.split('.').pop().toLowerCase() : 'file';
+
+const isType = (name, types) => types.includes(getExtension(name));
+const isImage = name => isType(name, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico']);
+const isVideo = name => isType(name, ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg']);
+const isText = name => isType(name, ['txt', 'md', 'json', 'js', 'ts', 'html', 'css', 'xml', 'csv', 'log', 'py', 'sql', 'yml', 'yaml']);
+
+async function computeSha256(data) {
+  const buffer = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function showToast(message, type = 'info', duration = 4000) {
+  const container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full';
+    document.body.appendChild(container);
+  }
+
+  const styles = {
+    success: { border: 'border-emerald-800', text: 'text-emerald-100', icon: 'fa-circle-check text-emerald-400', bar: 'border-l-emerald-500' },
+    error: { border: 'border-rose-800', text: 'text-rose-100', icon: 'fa-circle-exclamation text-rose-400', bar: 'border-l-rose-500' },
+    warning: { border: 'border-amber-800', text: 'text-amber-100', icon: 'fa-triangle-exclamation text-amber-400', bar: 'border-l-amber-500' },
+    info: { border: 'border-slate-700', text: 'text-slate-100', icon: 'fa-circle-info text-sky-400', bar: 'border-l-sky-500' }
+  }[type] || styles.info;
+
+  const toast = document.createElement('div');
+  toast.className = `pointer-events-auto flex items-center justify-between p-3.5 rounded-xl border shadow-xl bg-slate-900/90 backdrop-blur-md border-l-4 ${styles.border} ${styles.text} ${styles.bar} transform transition-all duration-300 translate-x-12 opacity-0 text-xs font-medium`;
+  
+  toast.innerHTML = `
+    <div class="flex items-center"><i class="fa-solid ${styles.icon} text-base mr-3"></i><span>${escapeHtml(message)}</span></div>
+    <button onclick="this.parentElement.remove()" class="ml-4 text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark"></i></button>
+  `;
+
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.remove('translate-x-12', 'opacity-0'));
+  
+  if (duration > 0) {
+    setTimeout(() => {
+      toast.classList.add('translate-x-12', 'opacity-0');
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
+  }
+}
+
 class FirebaseUploaderWidget {
     constructor(fbService, collectionName = "uploaded_files") {
         this.collectionName = collectionName;
@@ -573,18 +635,6 @@ class LocalFileAdapterService {
 function isHtml(filename) {
   return /\.(html|htm)$/i.test(filename);
 }
-function formatBytes(bytes) {
-  if (!bytes || bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
-
-function getExtension(name) {
-  const parts = name.split('.');
-  return parts.length > 1 ? parts.pop() : 'File';
-}
 
 function getFileIcon(name) {
   const e = getExtension(name).toLowerCase();
@@ -598,36 +648,6 @@ function getFileIcon(name) {
   return '<i class="fa-solid fa-file opacity-90 hover:opacity-100"></i>';
 }
 
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function isImage(name) {
-  const e = getExtension(name).toLowerCase();
-  return ['png','jpg','jpeg','gif','webp','svg','bmp','ico'].includes(e);
-}
-
-function isVideo(name) {
-  const e = getExtension(name).toLowerCase();
-  return ['mp4','webm','mov','avi','mkv','ogg'].includes(e);
-}
-
-function isAudio(name) {
-  const e = getExtension(name).toLowerCase();
-  return ['mp3','wav','ogg','m4a','flac','aac'].includes(e);
-}
-
-function isText(name) {
-  const e = getExtension(name).toLowerCase();
-  return ['txt','md','json','js','ts','html','css','xml','csv','log','py','sql','yml','yaml'].includes(e);
-}
-
 function updateConnectionStatus(connected, message) {
   const dot = document.getElementById('statusDot');
   const text = document.getElementById('statusText');
@@ -636,44 +656,6 @@ function updateConnectionStatus(connected, message) {
   if (connected === true) dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
   else if (connected === false) dot.className = 'w-2 h-2 rounded-full bg-rose-500';
   else dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
-}
-
-function showToast(message, type = 'info', duration = 4000) {
-  const container = document.getElementById('toastContainer');
-  if (!container) return;
-  const toast = document.createElement('div');
-
-  let bg = 'bg-slate-900/90 border-slate-700 text-slate-100 backdrop-blur-md';
-  let icon = '<i class="fa-solid fa-circle-info text-sky-400 text-base mr-3"></i>';
-  let accent = 'border-l-4 border-l-sky-500';
-
-  if (type === 'success') {
-    bg = 'bg-slate-900/90 border-emerald-800 text-emerald-100 backdrop-blur-md';
-    icon = '<i class="fa-solid fa-circle-check text-emerald-400 text-base mr-3"></i>';
-    accent = 'border-l-4 border-l-emerald-500';
-  } else if (type === 'error') {
-    bg = 'bg-slate-900/90 border-rose-800 text-rose-100 backdrop-blur-md';
-    icon = '<i class="fa-solid fa-circle-exclamation text-rose-400 text-base mr-3"></i>';
-    accent = 'border-l-4 border-l-rose-500';
-  } else if (type === 'warning') {
-    bg = 'bg-slate-900/90 border-amber-800 text-amber-100 backdrop-blur-md';
-    icon = '<i class="fa-solid fa-triangle-exclamation text-amber-400 text-base mr-3"></i>';
-    accent = 'border-l-4 border-l-amber-500';
-  }
-
-  toast.className = `pointer-events-auto flex items-center justify-between p-3.5 rounded-xl border shadow-xl ${bg} ${accent} transform transition-all duration-300 translate-x-12 opacity-0 text-xs font-medium`;
-  toast.innerHTML = `
-    <div class="flex items-center">${icon}<span>${escapeHtml(message)}</span></div>
-    <button onclick="this.parentElement.remove()" class="ml-4 text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark"></i></button>
-  `;
-  container.appendChild(toast);
-  requestAnimationFrame(() => toast.classList.remove('translate-x-12', 'opacity-0'));
-  if (duration > 0) {
-    setTimeout(() => {
-      toast.classList.add('translate-x-12', 'opacity-0');
-      setTimeout(() => toast.remove(), 300);
-    }, duration);
-  }
 }
 
 function closeModals() {
@@ -704,16 +686,6 @@ function switchTab(tab) {
     tabSet.className = "px-3 py-1.5 text-xs font-semibold rounded-md border border-white/75 wire-text transition";
     tabExp.className = "px-3 py-1.5 text-xs font-semibold rounded-md border border-transparent wire-subtext hover:border-white/40 transition";
   }
-}
-
-async function computeSha256(messageOrBuffer) {
-  const msgBuffer = typeof messageOrBuffer === 'string' 
-    ? new TextEncoder().encode(messageOrBuffer) 
-    : messageOrBuffer;
-    
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 class Config {
