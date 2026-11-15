@@ -1332,9 +1332,6 @@ class FileManager {
       },
       onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
     });
-
-    this.configManager = new Config("navSettingsTab");
-
     this.bindGlobalEvents();
     this.initializeServiceConnection();
   }
@@ -1581,3 +1578,7 @@ class FileManager {
     if (typeof closeModals === "function") closeModals();
   }
 }
+new Config("navSettingsTab");
+const sbManager = new SupabaseManager();
+fileManager = new FileManager({service:sbManager});
+fileManager.init();
