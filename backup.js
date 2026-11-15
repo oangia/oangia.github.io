@@ -1581,16 +1581,18 @@ class FileManager {
 
 class DriveStorageService {
   constructor(config = {}) {
-    const savedClientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
-    const savedPassphrase = localStorage.getItem("gdrive_encryption_password") || config.gdrive_encryption_password;
+    this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
+    this.passphrase = localStorage.getItem("gdrive_encryption_password") || config.gdrive_encryption_password;
     
     this._bucket = localStorage.getItem("sb_bucket") || config.bucket || "Google Drive Vault";
     this.token = localStorage.getItem("gdrive_access_token") || null;
+    this.tokenExpiry = localStorage.getItem("gdrive_token_expiry") || null;
+    
     this.apiBase = "https://www.googleapis.com/drive/v3/files";
     this.uploadBase = "https://www.googleapis.com/upload/drive/v3/files";
     
-    // Directory navigation pointer cache (maps folder path strings to Drive folder IDs)
     this._folderCache = { "": "root" };
+    this.tokenClient = null;
     this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
   }
 
@@ -1598,16 +1600,74 @@ class DriveStorageService {
     return this._bucket;
   }
 
-  // Standardized initialization method matching Supabase storage service pattern
+  // Standardized initialization method
   init(config = {}) {
+    const savedClientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
+    if (savedClientId) {
+      this.clientId = savedClientId;
+    }
+
     const savedToken = localStorage.getItem("gdrive_access_token");
-    if (savedToken) {
+    const savedExpiry = localStorage.getItem("gdrive_token_expiry");
+
+    if (savedToken && savedExpiry && Date.now() < Number(savedExpiry)) {
       this.token = savedToken;
+    }
+
+    this._initOAuthClient();
+    this._bindAuthButton();
+  }
+
+  _initOAuthClient() {
+    if (!window.google?.accounts?.oauth2 || !this.clientId) return false;
+    
+    this.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: this.clientId,
+      scope: "https://www.googleapis.com/auth/drive",
+      callback: async (res) => {
+        if (res.error) {
+          this.onProgress(`Auth error: ${res.error}`, "error");
+          return;
+        }
+        this.token = res.access_token;
+        const expiresAt = Date.now() + (res.expires_in - 60) * 1000;
+        
+        localStorage.setItem("gdrive_access_token", this.token);
+        localStorage.setItem("gdrive_token_expiry", expiresAt);
+
+        this.onProgress("Connected to Google Drive successfully", "success");
+        
+        // Trigger page reload or view re-initialization if fileManager exists
+        if (typeof fileManager !== "undefined" && fileManager.initializeServiceConnection) {
+          fileManager.initializeServiceConnection();
+        }
+      }
+    });
+    return true;
+  }
+
+  _bindAuthButton() {
+    const authBtn = document.getElementById("authBtn");
+    if (authBtn && !authBtn.dataset.bound) {
+      authBtn.dataset.bound = "true";
+      authBtn.onclick = () => {
+        if (!this.clientId) {
+          this.onProgress("Please configure your Google Client ID in settings first", "warning");
+          const configModal = document.getElementById("configModal");
+          if (configModal) configModal.classList.remove("hidden");
+          return;
+        }
+        if (!this.tokenClient && !this._initOAuthClient()) {
+          this.onProgress("Google Identity script not loaded yet", "error");
+          return;
+        }
+        this.tokenClient.requestAccessToken({ prompt: "" });
+      };
     }
   }
 
   _headers(extra = {}) {
-    if (!this.token) throw new Error("Google Drive not connected (Missing access token)");
+    if (!this.token) throw new Error("Google Drive not connected. Please click 'Connect Drive'.");
     return { Authorization: `Bearer ${this.token}`, ...extra };
   }
 
@@ -1663,7 +1723,6 @@ class DriveStorageService {
     return new TextDecoder().decode(decrypted);
   }
 
-  // Resolves nested path strings like "folder/subfolder" to Google Drive parent IDs
   async _resolveFolderId(pathString) {
     if (!pathString || pathString === "") return "root";
     if (this._folderCache[pathString]) return this._folderCache[pathString];
@@ -1690,7 +1749,6 @@ class DriveStorageService {
         currentParentId = data.files[0].id;
         this._folderCache[accumulatedPath] = currentParentId;
       } else {
-        // Create folder dynamically if it doesn't exist
         const folderMeta = {
           name: segment,
           mimeType: "application/vnd.google-apps.folder",
@@ -1715,7 +1773,6 @@ class DriveStorageService {
   async list(path, options = {}) {
     try {
       const folderId = await this._resolveFolderId(path);
-      const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
       const params = new URLSearchParams({
         q: `'${folderId}' in parents and trashed = false`,
         fields: "files(id, name, mimeType, size, modifiedTime)",
@@ -1735,7 +1792,6 @@ class DriveStorageService {
         return {
           id: f.id,
           name: f.name,
-          // Mimic Supabase file object formatting
           updated_at: f.modifiedTime,
           metadata: { size: Number(f.size || 0) },
           ...(isFolder ? {} : { id: f.id })
@@ -1750,7 +1806,6 @@ class DriveStorageService {
 
   async getFileUrl(path, expiresIn = 60) {
     try {
-      // Split path into directory prefix and filename
       const lastSlashIdx = path.lastIndexOf("/");
       const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
       const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
@@ -1764,28 +1819,24 @@ class DriveStorageService {
       if (!json.files || json.files.length === 0) throw new Error("File not found");
       const fileId = json.files[0].id;
 
-      // Fetch file content blob to generate a local object URL proxy for signedUrl usage
       const mediaRes = await fetch(`${this.apiBase}/${fileId}?alt=media`, { headers: this._headers() });
       if (!mediaRes.ok) throw new Error("Failed to retrieve file stream");
       const blob = await mediaRes.blob();
       
-      const isEncrypted = fileName.endsWith(".enc");
       let finalBlob = blob;
+      const currentPassphrase = localStorage.getItem("gdrive_encryption_password") || this.passphrase;
 
-      if (isEncrypted) {
-        const passphrase = localStorage.getItem("gdrive_encryption_password");
-        if (passphrase) {
-          try {
-            const ciphertext = await blob.text();
-            const decryptedBase64 = await this._decryptText(ciphertext, passphrase);
-            const match = decryptedBase64.match(/^data:(.*?);base64,(.*)$/s);
-            if (match) {
-              const resData = await fetch(`data:${match[1]};base64,${match[2]}`);
-              finalBlob = await resData.blob();
-            }
-          } catch (e) {
-            console.warn("Could not decrypt file preview payload, serving raw cipher:", e);
+      if (fileName.endsWith(".enc") && currentPassphrase) {
+        try {
+          const ciphertext = await blob.text();
+          const decryptedBase64 = await this._decryptText(ciphertext, currentPassphrase);
+          const match = decryptedBase64.match(/^data:(.*?);base64,(.*)$/s);
+          if (match) {
+            const resData = await fetch(`data:${match[1]};base64,${match[2]}`);
+            finalBlob = await resData.blob();
           }
+        } catch (e) {
+          console.warn("Could not decrypt preview payload, serving raw cipher:", e);
         }
       }
 
@@ -1804,7 +1855,6 @@ class DriveStorageService {
 
       const parentId = await this._resolveFolderId(dirPath);
 
-      // Check if file already exists to handle upsert/replacement correctly
       const query = encodeURIComponent(`'${parentId}' in parents and name = '${fileName}' and trashed = false`);
       const searchRes = await fetch(`${this.apiBase}?q=${query}&fields=files(id)`, { headers: this._headers() });
       const searchJson = await searchRes.json();
@@ -1814,23 +1864,21 @@ class DriveStorageService {
       }
 
       let uploadFile = file;
-      const passphrase = localStorage.getItem("gdrive_encryption_password");
+      const currentPassphrase = localStorage.getItem("gdrive_encryption_password") || this.passphrase;
       
-      // Optional automatic transparent encryption if passphrase is configured and file isn't a placeholder
-      if (passphrase && fileName !== ".emptyFolderPlaceholder" && !fileName.endsWith(".enc")) {
+      if (currentPassphrase && fileName !== ".emptyFolderPlaceholder" && !fileName.endsWith(".enc")) {
         const reader = new FileReader();
         const base64Data = await new Promise((resolve, reject) => {
           reader.onload = () => resolve(reader.result);
           reader.onerror = reject;
           reader.readAsDataURL(file);
         });
-        const encryptedCipher = await this._encryptText(base64Data, passphrase);
+        const encryptedCipher = await this._encryptText(base64Data, currentPassphrase);
         uploadFile = new File([encryptedCipher], fileName + ".enc", { type: "application/octet-stream" });
       } else if (fileName === ".emptyFolderPlaceholder") {
         uploadFile = new File([file], ".emptyFolderPlaceholder", { type: "text/plain" });
       }
 
-      // If existing file found, delete old one before creating the replacement (simulating upsert)
       if (searchJson.files && searchJson.files.length > 0) {
         for (const existing of searchJson.files) {
           await fetch(`${this.apiBase}/${existing.id}`, { method: "DELETE", headers: this._headers() });
@@ -1961,15 +2009,10 @@ class DriveStorageService {
     for (const item of (data || [])) {
       if (item.name === ".emptyFolderPlaceholder") continue;
       const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
-      // Check if item is a folder (folders don't have an `id` property in our mapping or check mimeType)
-      // In Google Drive, folders can be distinguished. Let's check via recursive list item detection:
-      const folderIdCheck = await this._resolveFolderId(fullPath).catch(() => null);
       
-      // If it's a folder, traverse deeper; otherwise add file path
-      // A quick way is checking if listing it returns items or if it lacks file characteristics
       try {
         const subList = await this.list(fullPath, { limit: 1 });
-        if (subList.data && !subList.error && subList.data.length >= 0 && item.metadata?.size === undefined) {
+        if (subList.data && !subList.error && item.metadata?.size === undefined) {
           const subFiles = await this._listAllFilesRecursive(fullPath);
           results.push(...subFiles);
           continue;
