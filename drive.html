@@ -114,6 +114,10 @@
       return `${parseFloat((b / Math.pow(k, i)).toFixed(1))} ${s[i]}`;
     };
 
+    function getOriginalFilename(name) {
+      return name.endsWith('.b64.txt') ? name.slice(0, -8) : name;
+    }
+
     function showToast(msg, type = 'info') {
       let c = document.getElementById('toastContainer');
       if (!c) {
@@ -264,7 +268,7 @@
     function renderFiles() {
       const grid = document.getElementById('fileGrid');
       const q = document.getElementById('searchInput').value.toLowerCase();
-      const filtered = cachedFiles.filter(f => f.name.toLowerCase().includes(q));
+      const filtered = cachedFiles.filter(f => getOriginalFilename(f.name).toLowerCase().includes(q));
 
       if (!filtered.length) {
         grid.innerHTML = `<div class="col-span-full py-16 text-center text-slate-500 text-xs">No files found. Upload a file to get started.</div>`;
@@ -272,11 +276,12 @@
       }
 
       grid.innerHTML = filtered.map(f => {
-        const isImg = f.mimeType?.startsWith('image/');
-        const isVid = f.mimeType?.startsWith('video/');
+        const origName = getOriginalFilename(f.name);
+        const isImg = origName.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i);
+        const isVid = origName.match(/\.(mp4|webm|mov)$/i);
         const icon = isImg ? 'fa-file-image text-sky-400' : isVid ? 'fa-file-video text-purple-400' : 'fa-file-lines text-slate-300';
         return `
-          <div onclick="openPreview('${f.id}', '${escapeHtml(f.name)}', '${escapeHtml(f.mimeType)}')"
+          <div onclick="openPreview('${f.id}', '${escapeHtml(f.name)}')"
                class="group relative bg-slate-900/70 border border-white/10 hover:border-indigo-400 rounded-xl p-4 flex flex-col justify-between gap-3 cursor-pointer transition">
             <button onclick="event.stopPropagation(); removeFile('${f.id}', '${escapeHtml(f.name)}')"
                     class="opacity-0 group-hover:opacity-100 absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white text-[10px] flex items-center justify-center transition cursor-pointer">
@@ -286,7 +291,7 @@
               <i class="fa-solid ${icon}"></i>
             </div>
             <div class="border-t border-white/10 pt-2.5">
-              <p class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</p>
+              <p class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(origName)}">${escapeHtml(origName)}</p>
               <p class="text-[10px] font-mono text-slate-400 mt-0.5">${formatBytes(Number(f.size))}</p>
             </div>
           </div>
@@ -294,22 +299,45 @@
       }).join('');
     }
 
-    async function openPreview(fileId, name, mimeType) {
+    // --- Helper to Reconstruct Original File from Base64 Storage ---
+    async function getDecodedBlobAndType(fileId, storedFilename) {
+      const rawBlob = await drive.fetchBlob(fileId);
+      const text = await rawBlob.text();
+
+      // Check if it's our base64 encoded format: data:[mimeType];base64,[data]
+      const match = text.match(/^data:(.*?);base64,(.*)$/s);
+      if (match) {
+        const mimeType = match.realMime || match[1];
+        const base64Data = match[2];
+        
+        // Convert base64 back to binary Blob
+        const res = await fetch(`data:${mimeType};base64,${base64Data}`);
+        const reconstructedBlob = await res.blob();
+        return { blob: reconstructedBlob, mimeType, isBase64: true };
+      }
+
+      // Fallback for regular unencoded files
+      return { blob: rawBlob, mimeType: 'application/octet-stream', isBase64: false };
+    }
+
+    async function openPreview(fileId, storedFilename) {
       const modal = document.getElementById('previewModal');
       const body = document.getElementById('previewBody');
       const dlBtn = document.getElementById('previewDownloadBtn');
+      const origName = getOriginalFilename(storedFilename);
 
-      document.getElementById('previewTitle').textContent = name;
+      document.getElementById('previewTitle').textContent = origName;
       body.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-400"></i>`;
       modal.classList.remove('hidden');
 
       try {
         if (activeObjectUrl) URL.revokeObjectURL(activeObjectUrl);
-        const blob = await drive.fetchBlob(fileId);
+        
+        const { blob, mimeType } = await getDecodedBlobAndType(fileId, storedFilename);
         activeObjectUrl = URL.createObjectURL(blob);
 
         dlBtn.href = activeObjectUrl;
-        dlBtn.download = name;
+        dlBtn.download = origName;
 
         if (mimeType.startsWith('image/')) {
           body.innerHTML = `<img src="${activeObjectUrl}" class="max-w-full max-h-full object-contain rounded-lg" />`;
@@ -317,11 +345,11 @@
           body.innerHTML = `<video src="${activeObjectUrl}" controls class="max-w-full max-h-full rounded-lg"></video>`;
         } else if (mimeType.startsWith('audio/')) {
           body.innerHTML = `<audio src="${activeObjectUrl}" controls class="w-full max-w-md"></audio>`;
-        } else if (mimeType.startsWith('text/') || mimeType === 'application/json') {
-          const text = await blob.text();
-          body.innerHTML = `<pre class="w-full h-full p-4 bg-slate-950 text-slate-200 font-mono text-xs rounded-lg overflow-auto whitespace-pre-wrap">${escapeHtml(text)}</pre>`;
+        } else if (mimeType.startsWith('text/') || mimeType === 'application/json' || origName.match(/\.(txt|json|md|js|html|css)$/i)) {
+          const textContent = await blob.text();
+          body.innerHTML = `<pre class="w-full h-full p-4 bg-slate-950 text-slate-200 font-mono text-xs rounded-lg overflow-auto whitespace-pre-wrap">${escapeHtml(textContent)}</pre>`;
         } else {
-          body.innerHTML = `<div class="text-center text-slate-400 text-xs space-y-2"><i class="fa-solid fa-file text-4xl block"></i><p>No inline preview for ${escapeHtml(mimeType)}. Use Download above.</p></div>`;
+          body.innerHTML = `<div class="text-center text-slate-400 text-xs space-y-2"><i class="fa-solid fa-file text-4xl block"></i><p>Preview not available for ${escapeHtml(mimeType)}. Use Download above.</p></div>`;
         }
       } catch (err) {
         showToast(err.message, 'error');
@@ -330,10 +358,11 @@
     }
 
     async function removeFile(fileId, name) {
-      if (!confirm(`Delete "${name}" from Google Drive?`)) return;
+      const origName = getOriginalFilename(name);
+      if (!confirm(`Delete "${origName}" from Google Drive?`)) return;
       try {
         await drive.deleteFile(fileId);
-        showToast(`Deleted "${name}"`, 'success');
+        showToast(`Deleted "${origName}"`, 'success');
         await loadFiles();
       } catch (err) {
         showToast(err.message, 'error');
@@ -344,21 +373,15 @@
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result); // Returns full Data-URL string (e.g., "data:...;base64,...")
+        reader.onload = () => resolve(reader.result);
         reader.onerror = error => reject(error);
         reader.readAsDataURL(file);
       });
     }
 
     async function transformAndUploadFile(file) {
-      // 1. Convert file array buffer to Base64 data URL string
       const base64Data = await fileToBase64(file);
-
-      // 2. Wrap the base64 string into a new text/plain or application/json blob/file 
-      // (so Google Drive stores it as text containing the base64 payload)
       const encodedFile = new File([base64Data], file.name + '.b64.txt', { type: 'text/plain' });
-
-      // 3. Upload to Google Drive
       await drive.uploadFile(encodedFile);
     }
 
@@ -368,9 +391,9 @@
       
       for (const file of files) {
         try {
-          showToast(`Converting & uploading ${file.name} to Base64...`, 'info');
+          showToast(`Converting & uploading ${file.name}...`, 'info');
           await transformAndUploadFile(file);
-          showToast(`Uploaded ${file.name} as Base64`, 'success');
+          showToast(`Uploaded ${file.name}`, 'success');
         } catch (err) {
           showToast(`Failed ${file.name}: ${err.message}`, 'error');
         }
