@@ -1,235 +1,699 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-black/30 text-slate-100 h-full w-full overflow-hidden">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Supabase Storage File Manager</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Encrypted Drive Vault</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <style>
-    #searchInput::placeholder,
-    input::placeholder {
-      color: rgba(148, 163, 184, 0.7);
-    }
-    .thumb, .thumb-video {
-      width: 36px;
-      height: 36px;
-      object-fit: cover;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      flex-shrink: 0;
-    }
-    #editTextarea {
-      width: 100%;
-      min-height: 55vh;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 13px;
-      line-height: 1.5;
-      padding: 1rem;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      border-radius: 0.5rem;
-      resize: vertical;
-      background: rgba(15, 23, 42, 0.85);
-      color: #f8fafc;
-      outline: none;
-    }
-    #editTextarea:focus {
-      border-color: #818cf8;
-    }
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 9999px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.35);
-    }
-  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body class="text-slate-100 h-screen w-screen flex flex-col font-sans antialiased overflow-hidden m-0 p-0">
-
-  <!-- Toast Container -->
-  <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none max-w-sm w-full px-4 sm:px-0"></div>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col">
 
   <!-- Header -->
-  <header class="w-full border-b border-white/15 px-6 py-3 flex items-center justify-between gap-4 shrink-0">
-    <!-- Left -->
-    <div class="flex items-center space-x-3 shrink-0">
-      <div class="bg-indigo-500/10 border border-indigo-400/50 text-indigo-400 p-2 rounded-xl flex items-center justify-center">
-        <i class="fa-solid fa-cloud text-lg"></i>
+  <header class="bg-slate-900 border-b border-white/10 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-400 flex items-center justify-center text-lg">
+        <i class="fa-solid fa-shield-halved"></i>
       </div>
       <div>
-        <h1 class="font-bold text-base text-white leading-tight">Supabase Storage Explorer</h1>
-        <p class="text-xs font-mono text-slate-400 mt-0.5" id="headerUrl">Not connected</p>
+        <h1 class="text-sm font-bold text-white">Encrypted Drive Vault</h1>
+        <p id="statusText" class="text-xs text-slate-400">Not connected</p>
       </div>
     </div>
 
-    <!-- Center: Search -->
-    <div class="flex-1 max-w-md mx-6">
-      <div class="relative w-full">
-        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
-          <i class="fa-solid fa-magnifying-glass text-xs"></i>
-        </span>
-        <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Search files..." 
-               class="w-full pl-9 pr-4 py-1.5 bg-white/5 border border-white/20 text-white rounded-lg text-xs focus:outline-none focus:border-indigo-400 focus:bg-white/10 transition">
-      </div>
-    </div>
-
-    <!-- Right -->
-    <div class="flex items-center gap-2.5 shrink-0">
-      <div id="headerActionControls" class="flex items-center gap-2.5">
-        <button id="openFolderManagerBtn" class="px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/60 hover:border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
-          <i class="fa-solid fa-folder text-emerald-400"></i>
-          <span>Folder</span>
-        </button>
-        <button id="openTrackerBtn" class="px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/60 hover:border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
-          <i class="fa-solid fa-list-check text-emerald-400"></i>
-          <span>Tasks</span>
-        </button>
-
-        <div class="relative">
-          <button onclick="toggleActionsMenu()" class="px-3 py-1.5 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400/60 hover:border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
-            <i class="fa-solid fa-plus text-indigo-400"></i>
-            <span>Actions</span>
-            <i class="fa-solid fa-chevron-down text-[10px] ml-1 text-indigo-300"></i>
-          </button>
-          
-          <div id="actionsMenu" class="hidden absolute right-0 mt-1.5 w-52 bg-zinc-900/95 border border-white/20 shadow-xl shadow-black/80 backdrop-blur-md rounded-xl py-1 z-30 text-slate-200">
-            <label class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white cursor-pointer transition">
-              <i class="fa-solid fa-file mr-2.5 text-indigo-400 w-4"></i>
-              <span>Upload File(s)</span>
-              <input type="file" id="localFileUpload" multiple onchange="handleFileUpload(event, false); toggleActionsMenu();" class="hidden">
-            </label>
-
-            <label class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white cursor-pointer transition">
-              <i class="fa-solid fa-folder-open mr-2.5 text-amber-400 w-4"></i>
-              <span>Upload Folder</span>
-              <input type="file" id="localFolderUpload" webkitdirectory directory multiple onchange="handleFileUpload(event, true); toggleActionsMenu();" class="hidden">
-            </label>
-
-            <div class="border-t border-white/10 my-1"></div>
-
-            <button onclick="openCreateFolderModal(); toggleActionsMenu();" class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white transition">
-              <i class="fa-solid fa-folder-plus mr-2.5 text-amber-400 w-4"></i>
-              <span>New Folder</span>
-            </button>
-
-            <button id="openFirebaseWidgetBtn" class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white transition">
-              <i class="fa-solid fa-fire mr-2.5 text-amber-400 w-4"></i>
-              <span>Firebase</span>
-            </button>
-
-            <button onclick="createBackup(); toggleActionsMenu();" id="backupBtn" class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white transition">
-              <i class="fa-solid fa-box-archive mr-2.5 text-emerald-400 w-4"></i>
-              <span>Backup</span>
-            </button>
-
-            <div class="border-t border-white/10 my-1"></div>
-
-            <button id="navSettingsTab" class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white transition">
-              <i class="fa-solid fa-gear mr-2.5 text-emerald-400 w-4"></i>
-              <span>Settings</span>
-            </button>
-          </div>
-        </div>
-      </div>
+    <div class="flex items-center gap-3">
+      <button id="configBtn" class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-semibold text-slate-200 transition cursor-pointer">
+        <i class="fa-solid fa-gear mr-1.5"></i>Settings & Keys
+      </button>
+      <button id="authBtn" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition cursor-pointer shadow-sm">
+        <i class="fa-solid fa-right-to-bracket mr-1.5"></i>Connect Drive
+      </button>
     </div>
   </header>
 
-  <!-- Main -->
-  <main class="flex-1 w-full h-full overflow-hidden flex flex-col bg-transparent m-0 p-0">
-    <div id="viewExplorer" class="flex-1 w-full h-full flex flex-col overflow-hidden bg-transparent">
-      <!-- Breadcrumb -->
-      <div class="w-full px-6 py-2.5 border-b border-white/15 flex items-center justify-between shrink-0">
-        <div class="flex items-center space-x-2 text-sm text-slate-200">
-          <nav id="breadcrumbNav" class="flex items-center space-x-2"></nav>
-        </div>
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-6 flex flex-col gap-6">
+
+    <!-- Toolbar -->
+    <div id="toolbar" class="hidden flex flex-wrap items-center justify-between gap-4 bg-slate-900/60 border border-white/10 p-4 rounded-2xl">
+      <div class="flex items-center gap-3">
+        <label class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-lock"></i>
+          <span>Upload Encrypted</span>
+          <input type="file" id="encryptedFileInput" class="hidden" multiple />
+        </label>
+
+        <label class="px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>Upload</span>
+          <input type="file" id="fileInput" class="hidden" multiple />
+        </label>
+
+        <button id="newFolderBtn" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-folder-plus"></i>
+          <span>New Folder</span>
+        </button>
+        <button id="refreshBtn" class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-semibold text-slate-200 transition cursor-pointer">
+          <i class="fa-solid fa-rotate mr-1.5"></i>Refresh
+        </button>
       </div>
 
-      <!-- Grid -->
-      <div class="flex-1 w-full overflow-y-auto p-6 bg-transparent">
-        <div id="itemsGrid"></div>
-      </div>
-
-      <!-- Footer -->
-      <div class="w-full px-6 py-2.5 border-t border-white/15 flex items-center justify-between text-xs text-slate-400 shrink-0">
-        <div id="connectionStatus" class="flex items-center space-x-2">
-          <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="statusDot"></span>
-          <span id="statusText" class="text-slate-300">Not connected</span>
-        </div>
-        <div id="itemCountLabel">0 item(s)</div>
-      </div>
+      <input id="searchInput" type="text" placeholder="Filter items..."
+        class="bg-white/5 border border-white/15 text-slate-200 placeholder-slate-500 text-xs rounded-xl px-3.5 py-2 outline-none focus:border-indigo-400 w-60" />
     </div>
+
+    <!-- Breadcrumbs -->
+    <nav id="breadcrumbNav" class="hidden flex items-center gap-2 text-xs text-slate-400 px-1"></nav>
+
+    <!-- File Grid -->
+    <div id="emptyPrompt" class="flex-1 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/10 rounded-2xl p-12">
+      <i class="fa-solid fa-shield-halved text-4xl text-slate-600 mb-3"></i>
+      <h2 class="text-sm font-bold text-slate-300">Connect your Google Account</h2>
+      <p class="text-xs text-slate-500 max-w-md mt-1">
+        Configure your Client ID and private encryption key in settings, then connect to manage client-side encrypted files and folders.
+      </p>
+    </div>
+
+    <div id="fileGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
   </main>
 
-  <!-- Create Folder Modal -->
-  <div id="modalCreateFolder" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4">
-    <div class="bg-zinc-900/80 border border-white/20 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-      <h3 class="font-bold text-base text-white">Create New Folder</h3>
-      <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Folder Name</label>
-        <input type="text" id="folderNameInput" placeholder="e.g. documents" 
-               class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs focus:outline-none focus:border-indigo-400">
+  <!-- Configuration Modal -->
+  <div id="configModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-white/15 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 class="text-sm font-bold text-white">OAuth & Encryption Settings</h3>
+        <button id="closeConfigBtn" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="closeModals()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button>
-        <button onclick="submitCreateFolder()" class="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">Create Folder</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Preview Modal -->
-  <div id="modalPreview" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-0 m-0">
-    <div class="w-screen h-screen flex flex-col overflow-hidden m-0 p-0 text-slate-100">
-      <div class="flex items-center justify-between px-6 py-3.5 border-b border-white/15 bg-black/40 shrink-0">
-        <h3 id="previewTitle" class="font-bold text-sm text-white truncate"></h3>
-        <button onclick="closeModals()" class="text-slate-400 hover:text-white p-1 text-lg transition">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-  
-      <div class="flex-1 flex overflow-hidden bg-transparent">
-        <div id="previewBody" class="flex-1 overflow-auto flex items-center justify-center"></div>
-  
-        <div class="w-80 border-l border-white/15 bg-zinc-950/60 flex flex-col overflow-y-auto p-4 shrink-0">
-          <div class="flex items-center gap-2 pb-3 mb-3 border-b border-white/15">
-            <i class="fa-solid fa-fingerprint text-indigo-400 text-sm"></i>
-            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-200">File Details & Hashes</h4>
-          </div>
-          <div id="previewSidebarDetails" class="space-y-4 text-xs text-slate-300"></div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Google Client ID</label>
+          <input id="clientIdInput" type="text" placeholder="123456789-abc.apps.googleusercontent.com"
+            class="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-xs font-mono text-white outline-none focus:border-indigo-400" />
+          <p class="text-[10px] text-slate-400 mt-1">
+            Current origin: <code id="originLabel" class="text-indigo-300"></code>
+          </p>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Private Encryption Key / Password</label>
+          <input id="secretKeyInput" type="password" placeholder="Enter a secure encryption passphrase"
+            class="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-xs font-mono text-white outline-none focus:border-indigo-400" />
+          <p class="text-[10px] text-slate-400 mt-1">Required to encrypt/decrypt secure uploads.</p>
         </div>
       </div>
-  
-      <div class="px-6 py-3.5 border-t border-white/15 bg-black/40 flex justify-end gap-2 flex-wrap shrink-0">
-        <button id="previewSaveBtn" onclick="saveEditedText()" class="hidden px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg transition">
-          <i class="fa-solid fa-floppy-disk mr-1 text-emerald-400"></i> Save
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="saveConfigBtn" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition cursor-pointer">
+          Save Settings
         </button>
-        <button id="previewCancelEditBtn" onclick="cancelEditText()" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">
-          Cancel
-        </button>
-        <a id="previewDownloadBtn" href="#" download class="px-4 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg transition">
-          <i class="fa-solid fa-download mr-1 text-indigo-400"></i> Download
-        </a>
-        <button onclick="closeModals()" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Close</button>
       </div>
     </div>
   </div>
 
-  <script src="./backup.js?id=openTrackerBtn"></script>
-  <script type="module">
-    import { FirebaseService } from './firebase.js';
-    const fbService = new FirebaseService();
-    const uploader = new FirebaseUploaderWidget(fbService, "uploaded_files");
-    uploader.init("openFirebaseWidgetBtn");
+  <!-- File Preview Modal -->
+  <div id="previewModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-white/15 rounded-2xl max-w-4xl w-full h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-5 py-3 border-b border-white/10 flex items-center justify-between">
+        <h3 id="previewTitle" class="text-sm font-bold text-white truncate">Preview</h3>
+        <div class="flex items-center gap-3">
+          <a id="previewDownloadBtn" href="#" download="" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition">
+            <i class="fa-solid fa-download mr-1"></i>Download
+          </a>
+          <button id="closePreviewBtn" class="text-slate-400 hover:text-white px-2 py-1 cursor-pointer">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+      <div id="previewBody" class="flex-1 p-4 flex items-center justify-center overflow-auto bg-black/40"></div>
+    </div>
+  </div>
+
+  <script>
+    // --- Utilities ---
+    const escapeHtml = str => String(str || '').replace(/[&<>'"]/g, t => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[t]));
+    const formatBytes = b => {
+      if (!b) return '0 B';
+      const k = 1024, s = ['B', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(b) / Math.log(k));
+      return `${parseFloat((b / Math.pow(k, i)).toFixed(1))} ${s[i]}`;
+    };
+
+    function isEncryptedFile(name) {
+      return name.endsWith('.enc');
+    }
+
+    function getOriginalFilename(name) {
+      return isEncryptedFile(name) ? name.slice(0, -4) : name;
+    }
+
+    function showToast(msg, type = 'info') {
+      let c = document.getElementById('toastContainer');
+      if (!c) {
+        c = document.createElement('div');
+        c.id = 'toastContainer';
+        c.className = 'fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full';
+        document.body.appendChild(c);
+      }
+      const colors = {
+        success: 'border-emerald-700 text-emerald-100 border-l-emerald-500',
+        error: 'border-rose-700 text-rose-100 border-l-rose-500',
+        info: 'border-slate-700 text-slate-100 border-l-sky-500'
+      }[type] || 'border-slate-700 text-slate-100 border-l-sky-500';
+
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto p-3.5 rounded-xl border border-l-4 bg-slate-900/95 shadow-xl text-xs font-medium flex justify-between items-center ${colors}`;
+      el.innerHTML = `<span>${escapeHtml(msg)}</span><button onclick="this.parentElement.remove()" class="ml-3 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>`;
+      c.appendChild(el);
+      setTimeout(() => el.remove(), 4000);
+    }
+
+    // --- Cryptography Layer (AES-GCM) ---
+    async function getCryptoKey(passphrase) {
+      const enc = new TextEncoder();
+      const keyMaterial = await window.crypto.subtle.importKey(
+        "raw",
+        enc.encode(passphrase),
+        { name: "PBKDF2" },
+        false,
+        ["deriveKey"]
+      );
+      const salt = enc.encode("DriveManagerSecureSalt123");
+      return window.crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+      );
+    }
+
+    async function encryptText(text, passphrase) {
+      const key = await getCryptoKey(passphrase);
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const encoded = new TextEncoder().encode(text);
+      const ciphertext = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, encoded);
+      
+      const combined = new Uint8Array(iv.byteLength + ciphertext.byteLength);
+      combined.set(iv, 0);
+      combined.set(new Uint8Array(ciphertext), iv.byteLength);
+      
+      let binary = '';
+      for (let i = 0; i < combined.byteLength; i++) {
+        binary += String.fromCharCode(combined[i]);
+      }
+      return btoa(binary);
+    }
+
+    async function decryptText(base64Cipher, passphrase) {
+      const key = await getCryptoKey(passphrase);
+      const binary = atob(base64Cipher);
+      const combined = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        combined[i] = binary.charCodeAt(i);
+      }
+      
+      const iv = combined.slice(0, 12);
+      const ciphertext = combined.slice(12);
+      
+      const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, ciphertext);
+      return new TextDecoder().decode(decrypted);
+    }
+
+    // --- Google Drive API v3 Service ---
+    class GoogleDriveService {
+      constructor() {
+        this.token = null;
+        this.apiBase = 'https://www.googleapis.com/drive/v3/files';
+        this.uploadBase = 'https://www.googleapis.com/upload/drive/v3/files';
+      }
+
+      setToken(token) { this.token = token; }
+
+      headers(extra = {}) {
+        if (!this.token) throw new Error('Not authenticated');
+        return { Authorization: `Bearer ${this.token}`, ...extra };
+      }
+
+      async listFiles(parentId = 'root') {
+        const params = new URLSearchParams({
+          q: `'${parentId}' in parents and trashed = false`,
+          fields: 'files(id, name, mimeType, size, modifiedTime, thumbnailLink)',
+          orderBy: 'folder,name',
+          pageSize: '100'
+        });
+        const res = await fetch(`${this.apiBase}?${params}`, { headers: this.headers() });
+        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list items');
+        return (await res.json()).files || [];
+      }
+
+      async createFolder(name, parentId = 'root') {
+        const metadata = {
+          name: name,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [parentId]
+        };
+        const res = await fetch(this.apiBase, {
+          method: 'POST',
+          headers: this.headers({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(metadata)
+        });
+        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to create folder');
+        return res.json();
+      }
+
+      async uploadFile(file, parentId = 'root') {
+        const metadata = { 
+          name: file.name, 
+          mimeType: file.type || 'application/octet-stream',
+          parents: [parentId]
+        };
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', file);
+
+        const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=id,name,mimeType,size`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: form
+        });
+        if (!res.ok) throw new Error((await res.json()).error?.message || 'Upload failed');
+        return res.json();
+      }
+
+      async fetchBlob(fileId) {
+        const res = await fetch(`${this.apiBase}/${fileId}?alt=media`, { headers: this.headers() });
+        if (!res.ok) throw new Error('Failed to fetch file content');
+        return res.blob();
+      }
+
+      async deleteFile(fileId) {
+        const res = await fetch(`${this.apiBase}/${fileId}`, { method: 'DELETE', headers: this.headers() });
+        if (!res.ok) throw new Error('Delete failed');
+      }
+    }
+
+    // --- App Controller ---
+    const drive = new GoogleDriveService();
+    let tokenClient = null;
+    let cachedFiles = [];
+    let activeObjectUrl = null;
+    let thumbnailObjectUrls = [];
+
+    let currentFolderId = 'root';
+    let folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }];
+
+    const STORAGE_KEY = 'gdrive_oauth_client_id';
+    const SECRET_KEY = 'gdrive_encryption_password';
+    const TOKEN_KEY = 'gdrive_access_token';
+    const EXPIRY_KEY = 'gdrive_token_expiry';
+
+    document.getElementById('originLabel').textContent = window.location.origin;
+
+    function setConnectedState() {
+      document.getElementById('statusText').textContent = 'Connected (Vault Active)';
+      document.getElementById('statusText').className = 'text-xs text-emerald-400';
+      document.getElementById('emptyPrompt').classList.add('hidden');
+      document.getElementById('toolbar').classList.remove('hidden');
+      document.getElementById('breadcrumbNav').classList.remove('hidden');
+      document.getElementById('fileGrid').classList.remove('hidden');
+    }
+
+    function initOAuth(clientId) {
+      if (!window.google?.accounts?.oauth2) return false;
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/drive',
+        callback: async (res) => {
+          if (res.error) {
+            showToast(`Auth error: ${res.error}`, 'error');
+            return;
+          }
+          drive.setToken(res.access_token);
+          
+          const expiresAt = Date.now() + (res.expires_in - 60) * 1000;
+          localStorage.setItem(TOKEN_KEY, res.access_token);
+          localStorage.setItem(EXPIRY_KEY, expiresAt);
+
+          setConnectedState();
+          showToast('Connected to Google Drive', 'success');
+          await loadFiles();
+        }
+      });
+      return true;
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const clientId = localStorage.getItem(STORAGE_KEY);
+      const savedToken = localStorage.getItem(TOKEN_KEY);
+      const tokenExpiry = localStorage.getItem(EXPIRY_KEY);
+
+      if (clientId && savedToken && tokenExpiry && Date.now() < Number(tokenExpiry)) {
+        drive.setToken(savedToken);
+        setConnectedState();
+        initOAuth(clientId);
+        await loadFiles();
+      } else if (clientId) {
+        initOAuth(clientId);
+      }
+    });
+
+    async function loadFiles() {
+      const grid = document.getElementById('fileGrid');
+      thumbnailObjectUrls.forEach(url => URL.revokeObjectURL(url));
+      thumbnailObjectUrls = [];
+
+      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-xl mb-2 block"></i>Loading vault...</div>`;
+      renderBreadcrumbs();
+      try {
+        cachedFiles = await drive.listFiles(currentFolderId);
+        renderFiles();
+      } catch (err) {
+        showToast(err.message, 'error');
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-rose-400 text-xs">${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderBreadcrumbs() {
+      const nav = document.getElementById('breadcrumbNav');
+      nav.innerHTML = folderBreadcrumbs.map((b, idx) => {
+        const isLast = idx === folderBreadcrumbs.length - 1;
+        return `
+          <div class="flex items-center gap-2">
+            ${idx > 0 ? '<i class="fa-solid fa-chevron-right text-[10px] text-slate-600"></i>' : ''}
+            <button ${isLast ? '' : `onclick="navigateToBreadcrumb(${idx})"`} class="${isLast ? 'text-white font-bold cursor-default' : 'text-indigo-400 hover:underline cursor-pointer'}">
+              ${escapeHtml(b.name)}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.navigateToBreadcrumb = (index) => {
+      folderBreadcrumbs = folderBreadcrumbs.slice(0, index + 1);
+      currentFolderId = folderBreadcrumbs[folderBreadcrumbs.length - 1].id;
+      loadFiles();
+    };
+
+    function openFolder(folderId, folderName) {
+      folderBreadcrumbs.push({ id: folderId, name: folderName });
+      currentFolderId = folderId;
+      loadFiles();
+    }
+
+    function renderFiles() {
+      const grid = document.getElementById('fileGrid');
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = cachedFiles.filter(f => {
+        const name = f.mimeType === 'application/vnd.google-apps.folder' ? f.name : getOriginalFilename(f.name);
+        return name.toLowerCase().includes(q);
+      });
+
+      if (!filtered.length) {
+        grid.innerHTML = `<div class="col-span-full py-16 text-center text-slate-500 text-xs">This folder is empty. Upload a file or create a folder.</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(f => {
+        const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
+        const encrypted = !isFolder && isEncryptedFile(f.name);
+        const displayName = isFolder ? f.name : getOriginalFilename(f.name);
+        const isImg = displayName.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i);
+        const isVid = displayName.match(/\.(mp4|webm|mov)$/i);
+        
+        let icon = encrypted ? 'fa-file-shield text-emerald-400' : 'fa-file-lines text-slate-300';
+        if (isFolder) icon = 'fa-folder text-amber-400';
+        else if (isImg) icon = 'fa-file-image text-sky-400';
+        else if (isVid) icon = 'fa-file-video text-purple-400';
+
+        const clickAction = isFolder ? `openFolder('${f.id}', '${escapeHtml(f.name)}')` : `openPreview('${f.id}', '${escapeHtml(f.name)}')`;
+
+        // Always try to show thumbnail for images (encrypted or not)
+        let mediaHtml;
+        if (isImg && !isFolder) {
+          mediaHtml = `
+            <div class="h-28 flex items-center justify-center overflow-hidden rounded-lg bg-slate-800/50 relative">
+              <img data-file-id="${f.id}" 
+                   data-encrypted="${encrypted ? '1' : '0'}"
+                   data-thumb-link="${f.thumbnailLink || ''}"
+                   class="thumb-img w-full h-full object-cover opacity-0 transition-opacity duration-300"
+                   alt="${escapeHtml(displayName)}" />
+              <i class="fa-solid ${icon} absolute text-3xl thumb-fallback"></i>
+            </div>
+          `;
+        } else {
+          mediaHtml = `
+            <div class="py-4 flex items-center justify-center text-3xl h-28">
+              <i class="fa-solid ${icon}"></i>
+            </div>
+          `;
+        }
+
+        return `
+          <div onclick="${clickAction}"
+               class="group relative bg-slate-900/70 border border-white/10 hover:border-indigo-400 rounded-xl p-4 flex flex-col justify-between gap-3 cursor-pointer transition">
+            <button onclick="event.stopPropagation(); removeVaultItem('${f.id}', '${escapeHtml(displayName)}', ${isFolder})"
+                    class="opacity-0 group-hover:opacity-100 absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white text-[10px] flex items-center justify-center transition cursor-pointer z-10">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            ${mediaHtml}
+            <div class="border-t border-white/10 pt-2.5">
+              <p class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</p>
+              <p class="text-[10px] font-mono text-slate-400 mt-0.5">
+                ${isFolder ? 'Folder' : `${formatBytes(Number(f.size))} <span class="${encrypted ? 'text-emerald-400' : 'text-slate-400'} ml-1">[${encrypted ? 'Encrypted' : 'Normal'}]</span>`}
+              </p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      loadThumbnails();
+    }
+
+    async function loadThumbnails() {
+      const imgs = document.querySelectorAll('.thumb-img');
+      const passphrase = localStorage.getItem(SECRET_KEY);
+
+      for (const img of imgs) {
+        const fileId = img.dataset.fileId;
+        const isEncrypted = img.dataset.encrypted === '1';
+        const thumbLink = img.dataset.thumbLink;
+        const fallback = img.parentElement.querySelector('.thumb-fallback');
+
+        try {
+          let blob;
+
+          if (isEncrypted) {
+            // Decrypt encrypted image
+            if (!passphrase) throw new Error('No encryption password set');
+            const rawBlob = await drive.fetchBlob(fileId);
+            const ciphertext = await rawBlob.text();
+            const decryptedBase64 = await decryptText(ciphertext, passphrase);
+            const match = decryptedBase64.match(/^data:(.*?);base64,(.*)$/s);
+            if (!match) throw new Error('Invalid decrypted data');
+            const res = await fetch(`data:${match[1]};base64,${match[2]}`);
+            blob = await res.blob();
+          } else {
+            // Normal image – prefer thumbnailLink, otherwise full media
+            let urlToFetch = thumbLink || `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+            const res = await fetch(urlToFetch, {
+              headers: { Authorization: `Bearer ${drive.token}` }
+            });
+            if (!res.ok) throw new Error('thumb fetch failed');
+            blob = await res.blob();
+          }
+
+          const objectUrl = URL.createObjectURL(blob);
+          thumbnailObjectUrls.push(objectUrl);
+
+          img.src = objectUrl;
+          img.onload = () => {
+            img.classList.remove('opacity-0');
+            if (fallback) fallback.style.display = 'none';
+          };
+        } catch (err) {
+          // Keep the icon fallback
+          console.warn('Thumbnail load failed for', fileId, err);
+        }
+      }
+    }
+
+    async function getBlobAndType(fileId, storedFilename) {
+      const rawBlob = await drive.fetchBlob(fileId);
+
+      if (!isEncryptedFile(storedFilename)) {
+        return { blob: rawBlob, mimeType: 'application/octet-stream' };
+      }
+
+      const passphrase = localStorage.getItem(SECRET_KEY);
+      if (!passphrase) throw new Error('Encryption password is missing in settings!');
+
+      const ciphertext = await rawBlob.text();
+      try {
+        const decryptedBase64 = await decryptText(ciphertext, passphrase);
+        const match = decryptedBase64.match(/^data:(.*?);base64,(.*)$/s);
+        if (match) {
+          const mimeType = match[1];
+          const base64Data = match[2];
+          
+          const res = await fetch(`data:${mimeType};base64,${base64Data}`);
+          const reconstructedBlob = await res.blob();
+          return { blob: reconstructedBlob, mimeType };
+        }
+        throw new Error('Invalid decrypted data structure');
+      } catch (err) {
+        throw new Error('Decryption failed! Incorrect password or corrupted file.');
+      }
+    }
+
+    async function openPreview(fileId, storedFilename) {
+      const modal = document.getElementById('previewModal');
+      const body = document.getElementById('previewBody');
+      const dlBtn = document.getElementById('previewDownloadBtn');
+      const origName = getOriginalFilename(storedFilename);
+      const encrypted = isEncryptedFile(storedFilename);
+
+      document.getElementById('previewTitle').textContent = origName + (encrypted ? ' (Decrypted)' : '');
+      body.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-400"></i>`;
+      modal.classList.remove('hidden');
+
+      try {
+        if (activeObjectUrl) URL.revokeObjectURL(activeObjectUrl);
+        
+        const { blob, mimeType } = await getBlobAndType(fileId, storedFilename);
+        activeObjectUrl = URL.createObjectURL(blob);
+
+        dlBtn.href = activeObjectUrl;
+        dlBtn.download = origName;
+
+        if (mimeType.startsWith('image/')) {
+          body.innerHTML = `<img src="${activeObjectUrl}" class="max-w-full max-h-full object-contain rounded-lg" />`;
+        } else if (mimeType.startsWith('video/')) {
+          body.innerHTML = `<video src="${activeObjectUrl}" controls class="max-w-full max-h-full rounded-lg"></video>`;
+        } else if (mimeType.startsWith('audio/')) {
+          body.innerHTML = `<audio src="${activeObjectUrl}" controls class="w-full max-w-md"></audio>`;
+        } else if (mimeType.startsWith('text/') || mimeType === 'application/json' || origName.match(/\.(txt|json|md|js|html|css)$/i)) {
+          const textContent = await blob.text();
+          body.innerHTML = `<pre class="w-full h-full p-4 bg-slate-950 text-slate-200 font-mono text-xs rounded-lg overflow-auto whitespace-pre-wrap">${escapeHtml(textContent)}</pre>`;
+        } else {
+          body.innerHTML = `<div class="text-center text-slate-400 text-xs space-y-2"><i class="fa-solid fa-file text-4xl block"></i><p>Preview not available for this file type. Use Download above.</p></div>`;
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+        body.innerHTML = `<p class="text-xs text-rose-400">${escapeHtml(err.message)}</p>`;
+      }
+    }
+
+    async function removeVaultItem(fileId, name, isFolder) {
+      if (!confirm(`Delete "${name}" ${isFolder ? 'folder' : ''} from Google Drive?`)) return;
+      try {
+        await drive.deleteFile(fileId);
+        showToast(`Deleted "${name}"`, 'success');
+        await loadFiles();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // --- Upload Handlers ---
+    document.getElementById('encryptedFileInput').onchange = async (e) => {
+      const files = Array.from(e.target.files || []);
+      e.target.value = '';
+      if (!files.length) return;
+
+      const passphrase = localStorage.getItem(SECRET_KEY);
+      if (!passphrase) {
+        document.getElementById('configBtn').click();
+        return showToast('Set your encryption password in settings first!', 'error');
+      }
+      
+      for (const file of files) {
+        try {
+          showToast(`Encrypting & uploading ${file.name}...`, 'info');
+          const base64Data = await fileToBase64(file);
+          const encryptedCipher = await encryptText(base64Data, passphrase);
+          const encryptedFile = new File([encryptedCipher], file.name + '.enc', { type: 'application/octet-stream' });
+          await drive.uploadFile(encryptedFile, currentFolderId);
+          showToast(`Uploaded encrypted ${file.name}`, 'success');
+        } catch (err) {
+          showToast(`Failed ${file.name}: ${err.message}`, 'error');
+        }
+      }
+      await loadFiles();
+    };
+
+    document.getElementById('fileInput').onchange = async (e) => {
+      const files = Array.from(e.target.files || []);
+      e.target.value = '';
+      if (!files.length) return;
+      
+      for (const file of files) {
+        try {
+          showToast(`Uploading normal file ${file.name}...`, 'info');
+          await drive.uploadFile(file, currentFolderId);
+          showToast(`Uploaded ${file.name}`, 'success');
+        } catch (err) {
+          showToast(`Failed ${file.name}: ${err.message}`, 'error');
+        }
+      }
+      await loadFiles();
+    };
+
+    document.getElementById('newFolderBtn').onclick = async () => {
+      const folderName = prompt('Enter new folder name:');
+      if (!folderName || !folderName.trim()) return;
+      try {
+        showToast(`Creating folder...`, 'info');
+        await drive.createFolder(folderName.trim(), currentFolderId);
+        showToast(`Folder created`, 'success');
+        await loadFiles();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    };
+
+    document.getElementById('configBtn').onclick = () => {
+      document.getElementById('clientIdInput').value = localStorage.getItem(STORAGE_KEY) || '';
+      document.getElementById('secretKeyInput').value = localStorage.getItem(SECRET_KEY) || '';
+      document.getElementById('configModal').classList.remove('hidden');
+    };
+
+    document.getElementById('closeConfigBtn').onclick = () => document.getElementById('configModal').classList.add('hidden');
+
+    document.getElementById('saveConfigBtn').onclick = () => {
+      const clientId = document.getElementById('clientIdInput').value.trim();
+      const secretKey = document.getElementById('secretKeyInput').value.trim();
+      
+      if (!clientId) return showToast('Client ID is required', 'error');
+
+      localStorage.setItem(STORAGE_KEY, clientId);
+      if (secretKey) localStorage.setItem(SECRET_KEY, secretKey);
+      
+      tokenClient = null;
+      document.getElementById('configModal').classList.add('hidden');
+      showToast('Settings saved successfully', 'success');
+      initOAuth(clientId);
+    };
+
+    document.getElementById('authBtn').onclick = () => {
+      const clientId = localStorage.getItem(STORAGE_KEY);
+      if (!clientId) {
+        document.getElementById('configBtn').click();
+        return showToast('Please configure your Client ID first', 'info');
+      }
+      if (!tokenClient && !initOAuth(clientId)) return;
+      tokenClient.requestAccessToken({ prompt: '' });
+    };
+
+    document.getElementById('refreshBtn').onclick = loadFiles;
+    document.getElementById('searchInput').oninput = renderFiles;
+    document.getElementById('closePreviewBtn').onclick = () => document.getElementById('previewModal').classList.add('hidden');
   </script>
 </body>
 </html>
