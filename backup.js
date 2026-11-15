@@ -1358,7 +1358,7 @@ class SupabaseManager {
   init(config) {
     this.client = window.supabase.createClient(config.url, config.key);
     if (config.bucket) this.bucket = config.bucket;
-    this.backup = new SupabaseBackupManager(sbManager, (message, type) => {
+    this.backup = new SupabaseBackupManager(this.client, this.bucket, (message, type) => {
       showToast(message, type, type === 'warning' ? 2500 : 3500);
     });
   }
