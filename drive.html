@@ -205,7 +205,7 @@
       }
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/drive.file',
+        scope: 'https://www.googleapis.com/auth/drive',
         callback: async (res) => {
           if (res.error) {
             showToast(`Auth error: ${res.error}`, 'error');
