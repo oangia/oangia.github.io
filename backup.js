@@ -1,3 +1,200 @@
+class FolderManagerPanel {
+      constructor(triggerSelector) {
+        this.trigger = document.querySelector(triggerSelector);
+        this.container = null;
+        this.localService = null;
+        this.isInitialized = false;
+
+        if (this.trigger) {
+          this.trigger.addEventListener('click', () => this.open());
+        }
+      }
+
+      init() {
+        if (this.isInitialized) return;
+
+        this.container = document.createElement('div');
+        this.container.className = 'fixed inset-0 z-50 bg-slate-950 text-slate-100 font-sans flex flex-col h-screen w-screen overflow-hidden m-0 p-0 hidden';
+        this.container.innerHTML = `
+          <!-- Toast Container (required by backup.js showToast) -->
+          <div id="toastContainer" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+
+          <!-- Header -->
+          <div class="bg-slate-900 px-5 py-3 border-b border-white/10 flex items-center justify-between gap-4 shrink-0">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-400 flex items-center justify-center text-lg">
+                <i class="fa-solid fa-folder-tree"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-white">Folder Manager</h3>
+                <p id="itemCountLabel" class="text-[11px] text-slate-400">No folder loaded</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <input
+                id="searchInput"
+                type="text"
+                placeholder="Filter current folder..."
+                class="hidden sm:block bg-white/5 border border-white/15 text-slate-200 placeholder-slate-500 text-xs rounded-lg px-3 py-1.5 outline-none focus:border-indigo-400 w-48"
+              />
+              <label class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer">
+                <i class="fa-solid fa-folder-plus"></i> Select Folder
+                <input type="file" class="widget-folder-input-header hidden" webkitdirectory directory multiple>
+              </label>
+              <button id="closeFolderPanelBtn" class="text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition cursor-pointer">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Breadcrumb Bar (used by backup.js BreadcrumbManager) -->
+          <div id="breadcrumbBar" class="hidden bg-slate-900/70 border-b border-white/10 px-5 py-2 flex items-center justify-between text-xs shrink-0">
+            <nav id="breadcrumbNav" class="flex items-center flex-wrap gap-1"></nav>
+          </div>
+
+          <!-- Main Content Area -->
+          <div id="widget-browser-wrapper" class="flex-1 bg-slate-950 overflow-hidden flex flex-col min-h-0 relative">
+            <!-- Initial Select Screen -->
+            <div id="selectScreen" class="flex-1 bg-slate-900/40 hover:bg-indigo-950/20 transition-all p-8 flex flex-col items-center justify-center text-center relative cursor-pointer group border-2 border-dashed border-white/15 hover:border-indigo-400 m-4 rounded-2xl">
+              <input type="file" class="widget-folder-input-main absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" webkitdirectory directory multiple>
+              <div class="pointer-events-none flex flex-col items-center justify-center">
+                <div class="w-20 h-20 bg-indigo-500/10 border border-indigo-400/20 text-indigo-400 rounded-3xl flex items-center justify-center text-3xl group-hover:scale-105 transition-transform mb-4">
+                  <i class="fa-solid fa-folder-open"></i>
+                </div>
+                <h4 class="text-sm font-bold text-slate-100 mb-1">Click anywhere to select a folder</h4>
+                <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with instant previews, SHA-256 hashes, and computed folder sizes.</p>
+              </div>
+            </div>
+
+            <!-- Grid Container (used by backup.js ItemsGridRenderer) -->
+            <div id="gridScrollArea" class="hidden flex-1 overflow-y-auto">
+              <div id="itemsGrid"></div>
+            </div>
+          </div>
+
+          <!-- Preview Modal (required by backup.js FilePreviewManager) -->
+          <div id="modalPreview" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-white/15 rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+              <!-- Modal Header -->
+              <div class="px-5 py-3 border-b border-white/10 flex items-center justify-between gap-4 shrink-0">
+                <h3 id="previewTitle" class="text-sm font-bold text-white truncate">Preview</h3>
+                <div class="flex items-center gap-2">
+                  <button id="previewCancelEditBtn" onclick="cancelEditText()" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-slate-200 transition">
+                    Discard
+                  </button>
+                  <button id="previewSaveBtn" onclick="saveEditedText()" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition">
+                    <i class="fa-solid fa-floppy-disk mr-1"></i> Save Changes
+                  </button>
+                  <a id="previewDownloadBtn" href="#" download="" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition inline-flex items-center gap-1.5">
+                    <i class="fa-solid fa-download"></i> Download
+                  </a>
+                  <button onclick="closeModals()" class="text-slate-400 hover:text-white px-2 py-1 text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Modal Body + Sidebar -->
+              <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+                <div id="previewBody" class="flex-1 p-4 flex items-center justify-center overflow-auto bg-black/40"></div>
+                <aside class="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-white/10 p-4 overflow-y-auto bg-slate-900/90 shrink-0">
+                  <div id="previewSidebarDetails"></div>
+                </aside>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(this.container);
+        this.bindLogic();
+        this.isInitialized = true;
+      }
+
+      bindLogic() {
+        this.localService = new LocalFileAdapterService();
+
+        const renderLocalFolder = () => {
+          const currentPath = breadcrumbManager.path;
+          const searchVal = document.getElementById('searchInput').value.toLowerCase();
+          let items = this.localService.getItemsAtPath(currentPath);
+
+          if (searchVal) {
+            items = items.filter(i => i.name.toLowerCase().includes(searchVal));
+          }
+
+          document.getElementById('itemCountLabel').textContent =
+            `${items.length} item${items.length !== 1 ? 's' : ''}`;
+
+          gridRenderer.render(items, currentPath);
+        };
+
+        // Reuse FilePreviewManager from backup.js
+        filePreviewManager = new FilePreviewManager({
+          service: this.localService,
+          onToast: (msg, type, duration) => showToast(msg, type, duration),
+          onSaveSuccess: () => renderLocalFolder()
+        });
+
+        // Reuse ItemsGridRenderer from backup.js
+        gridRenderer = new ItemsGridRenderer('itemsGrid', {
+          onItemClick: (item, fullPath, isFolder) => {
+            if (isFolder) {
+              breadcrumbManager.navigateToFolder(fullPath, item.name);
+            } else {
+              const record = this.localService.pathToFile.get(fullPath);
+              filePreviewManager.openPreview(fullPath, item.name, record?.size || 0);
+            }
+          },
+          onDeleteClick: (fullPath, isFolder) => {
+            this.localService.deleteLocalPath(fullPath, isFolder);
+            showToast(`Removed "${fullPath}" from view`, 'success', 2000);
+            renderLocalFolder();
+          }
+        });
+
+        // Reuse BreadcrumbManager from backup.js
+        breadcrumbManager = new BreadcrumbManager('breadcrumbNav', {
+          onNavigate: () => renderLocalFolder()
+        });
+
+        document.getElementById('searchInput').addEventListener('input', renderLocalFolder);
+
+        document.querySelectorAll('.widget-folder-input-main, .widget-folder-input-header').forEach(input => {
+          input.addEventListener('change', async (e) => {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+
+            await this.localService.loadFiles(files);
+
+            document.getElementById('selectScreen').classList.add('hidden');
+            document.getElementById('breadcrumbBar').classList.remove('hidden');
+            document.getElementById('gridScrollArea').classList.remove('hidden');
+
+            breadcrumbManager.reset();
+            breadcrumbManager.history[0].name = this.localService.rootNode.name || 'root';
+            breadcrumbManager.render();
+            renderLocalFolder();
+
+            showToast(`Loaded "${this.localService.rootNode.name}"`, 'success', 2500);
+            e.target.value = '';
+          });
+        });
+
+        document.getElementById('closeFolderPanelBtn').addEventListener('click', () => this.close());
+      }
+
+      open() {
+        this.init();
+        this.container.classList.remove('hidden');
+      }
+
+      close() {
+        if (this.container) {
+          this.container.classList.add('hidden');
+        }
+      }
+    }
 class LocalFileAdapterService {
   constructor() {
     this.rootNode = { name: 'root', children: {}, files: [] };
