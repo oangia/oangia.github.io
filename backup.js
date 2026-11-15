@@ -1225,13 +1225,15 @@ class FileManager {
   constructor(config = {}) {
     this.bucket = config.bucket || "files";
     this.sbManager = new SupabaseManager();
-    
+
     this.allItems = [];
     this.filteredItems = [];
-    
+
     this.filePreviewManager = null;
     this.gridRenderer = null;
     this.breadcrumbManager = null;
+    this.configManager = null;
+    this.folderManagerPanel = null;
   }
 
   init() {
@@ -1256,7 +1258,22 @@ class FileManager {
       onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
     });
 
+    // Re-bind ID-driven UI panels from your original code
+    this.configManager = new Config("navSettingsTab");
+    this.folderManagerPanel = new FolderManagerPanel("#openFolderManagerBtn");
+
+    this.bindGlobalEvents();
     this.loadCredentialsFromStorage();
+  }
+
+  bindGlobalEvents() {
+    document.addEventListener("click", (e) => {
+      const menu = document.getElementById("actionsMenu");
+      if (!menu) return;
+      if (!menu.contains(e.target) && !e.target.closest("button")?.getAttribute("onclick")?.includes("toggleActionsMenu")) {
+        menu.classList.add("hidden");
+      }
+    });
   }
 
   loadCredentialsFromStorage() {
@@ -1268,10 +1285,10 @@ class FileManager {
       try {
         this.sbManager.init({ url: savedUrl, key: savedKey, bucket: savedBucket });
         this.filePreviewManager?.setService(this.sbManager);
-        
+
         const headerUrl = document.getElementById("headerUrl");
         if (headerUrl) headerUrl.innerHTML = `${savedUrl}<br />Bucket: ${savedBucket}`;
-        
+
         this.breadcrumbManager?.reset();
         this.listFiles();
       } catch (err) {
@@ -1362,7 +1379,7 @@ class FileManager {
     try {
       const { error } = await this.sbManager.upload(folderPath, new Blob([""]), { upsert: false });
       if (error) throw error;
-      
+
       this.closeModals();
       this.showToast(`Folder "${name}" created`, "success");
       this.listFiles();
@@ -1501,7 +1518,6 @@ class FileManager {
     if (typeof closeModals === "function") closeModals();
   }
 }
-
 // Instantiate and expose `window.fileManager` for the HTML inline calls
 window.addEventListener("DOMContentLoaded", () => {
   window.fileManager = new FileManager();
