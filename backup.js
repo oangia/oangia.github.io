@@ -1579,6 +1579,6 @@ class FileManager {
   }
 }
 new Config("navSettingsTab");
-const sbManager = new SupabaseManager();
+const sbManager = new SupabaseStorageService();
 fileManager = new FileManager({service:sbManager});
 fileManager.init();
