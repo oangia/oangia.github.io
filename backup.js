@@ -1,7 +1,7 @@
 class FirebaseUploaderWidget {
-    constructor(collectionName = "uploaded_files") {
+    constructor(fbService, collectionName = "uploaded_files") {
         this.collectionName = collectionName;
-        this.fbService = new FirebaseService();
+        this.fbService = fbService;
         this.isRendered = false;
     }
 
