@@ -38,14 +38,12 @@
     <!-- Toolbar -->
     <div id="toolbar" class="hidden flex flex-wrap items-center justify-between gap-4 bg-slate-900/60 border border-white/10 p-4 rounded-2xl">
       <div class="flex items-center gap-3">
-        <!-- Encrypted Upload -->
         <label class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
           <i class="fa-solid fa-lock"></i>
           <span>Upload Encrypted</span>
           <input type="file" id="encryptedFileInput" class="hidden" multiple />
         </label>
 
-        <!-- Normal Upload -->
         <label class="px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
           <i class="fa-solid fa-cloud-arrow-up"></i>
           <span>Upload</span>
@@ -66,9 +64,7 @@
     </div>
 
     <!-- Breadcrumbs -->
-    <nav id="breadcrumbNav" class="hidden flex items-center gap-2 text-xs text-slate-400 px-1">
-      <!-- Breadcrumbs injected dynamically -->
-    </nav>
+    <nav id="breadcrumbNav" class="hidden flex items-center gap-2 text-xs text-slate-400 px-1"></nav>
 
     <!-- File Grid -->
     <div id="emptyPrompt" class="flex-1 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/10 rounded-2xl p-12">
@@ -239,7 +235,7 @@
       async listFiles(parentId = 'root') {
         const params = new URLSearchParams({
           q: `'${parentId}' in parents and trashed = false`,
-          fields: 'files(id, name, mimeType, size, modifiedTime)',
+          fields: 'files(id, name, mimeType, size, modifiedTime, thumbnailLink)',
           orderBy: 'folder,name',
           pageSize: '100'
         });
@@ -299,6 +295,7 @@
     let tokenClient = null;
     let cachedFiles = [];
     let activeObjectUrl = null;
+    let thumbnailObjectUrls = [];
 
     let currentFolderId = 'root';
     let folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }];
@@ -360,6 +357,9 @@
 
     async function loadFiles() {
       const grid = document.getElementById('fileGrid');
+      thumbnailObjectUrls.forEach(url => URL.revokeObjectURL(url));
+      thumbnailObjectUrls = [];
+
       grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-xl mb-2 block"></i>Loading vault...</div>`;
       renderBreadcrumbs();
       try {
@@ -425,16 +425,35 @@
 
         const clickAction = isFolder ? `openFolder('${f.id}', '${escapeHtml(f.name)}')` : `openPreview('${f.id}', '${escapeHtml(f.name)}')`;
 
+        // Always try to show thumbnail for images (encrypted or not)
+        let mediaHtml;
+        if (isImg && !isFolder) {
+          mediaHtml = `
+            <div class="h-28 flex items-center justify-center overflow-hidden rounded-lg bg-slate-800/50 relative">
+              <img data-file-id="${f.id}" 
+                   data-encrypted="${encrypted ? '1' : '0'}"
+                   data-thumb-link="${f.thumbnailLink || ''}"
+                   class="thumb-img w-full h-full object-cover opacity-0 transition-opacity duration-300"
+                   alt="${escapeHtml(displayName)}" />
+              <i class="fa-solid ${icon} absolute text-3xl thumb-fallback"></i>
+            </div>
+          `;
+        } else {
+          mediaHtml = `
+            <div class="py-4 flex items-center justify-center text-3xl h-28">
+              <i class="fa-solid ${icon}"></i>
+            </div>
+          `;
+        }
+
         return `
           <div onclick="${clickAction}"
                class="group relative bg-slate-900/70 border border-white/10 hover:border-indigo-400 rounded-xl p-4 flex flex-col justify-between gap-3 cursor-pointer transition">
             <button onclick="event.stopPropagation(); removeVaultItem('${f.id}', '${escapeHtml(displayName)}', ${isFolder})"
-                    class="opacity-0 group-hover:opacity-100 absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white text-[10px] flex items-center justify-center transition cursor-pointer">
+                    class="opacity-0 group-hover:opacity-100 absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white text-[10px] flex items-center justify-center transition cursor-pointer z-10">
               <i class="fa-solid fa-xmark"></i>
             </button>
-            <div class="py-4 flex items-center justify-center text-3xl">
-              <i class="fa-solid ${icon}"></i>
-            </div>
+            ${mediaHtml}
             <div class="border-t border-white/10 pt-2.5">
               <p class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</p>
               <p class="text-[10px] font-mono text-slate-400 mt-0.5">
@@ -444,17 +463,65 @@
           </div>
         `;
       }).join('');
+
+      loadThumbnails();
+    }
+
+    async function loadThumbnails() {
+      const imgs = document.querySelectorAll('.thumb-img');
+      const passphrase = localStorage.getItem(SECRET_KEY);
+
+      for (const img of imgs) {
+        const fileId = img.dataset.fileId;
+        const isEncrypted = img.dataset.encrypted === '1';
+        const thumbLink = img.dataset.thumbLink;
+        const fallback = img.parentElement.querySelector('.thumb-fallback');
+
+        try {
+          let blob;
+
+          if (isEncrypted) {
+            // Decrypt encrypted image
+            if (!passphrase) throw new Error('No encryption password set');
+            const rawBlob = await drive.fetchBlob(fileId);
+            const ciphertext = await rawBlob.text();
+            const decryptedBase64 = await decryptText(ciphertext, passphrase);
+            const match = decryptedBase64.match(/^data:(.*?);base64,(.*)$/s);
+            if (!match) throw new Error('Invalid decrypted data');
+            const res = await fetch(`data:${match[1]};base64,${match[2]}`);
+            blob = await res.blob();
+          } else {
+            // Normal image – prefer thumbnailLink, otherwise full media
+            let urlToFetch = thumbLink || `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+            const res = await fetch(urlToFetch, {
+              headers: { Authorization: `Bearer ${drive.token}` }
+            });
+            if (!res.ok) throw new Error('thumb fetch failed');
+            blob = await res.blob();
+          }
+
+          const objectUrl = URL.createObjectURL(blob);
+          thumbnailObjectUrls.push(objectUrl);
+
+          img.src = objectUrl;
+          img.onload = () => {
+            img.classList.remove('opacity-0');
+            if (fallback) fallback.style.display = 'none';
+          };
+        } catch (err) {
+          // Keep the icon fallback
+          console.warn('Thumbnail load failed for', fileId, err);
+        }
+      }
     }
 
     async function getBlobAndType(fileId, storedFilename) {
       const rawBlob = await drive.fetchBlob(fileId);
 
-      // If it's a normal unencrypted file, return directly
       if (!isEncryptedFile(storedFilename)) {
         return { blob: rawBlob, mimeType: 'application/octet-stream' };
       }
 
-      // If encrypted, decrypt it
       const passphrase = localStorage.getItem(SECRET_KEY);
       if (!passphrase) throw new Error('Encryption password is missing in settings!');
 
