@@ -58,13 +58,13 @@ class Theme {
   /* ---------- File Icons ---------- */
   static getFileIcon(filename) {
     const ext = getExtension(filename).toLowerCase();
-    if (["txt", "md", "log"].includes(ext)) return '<i class="fa-solid fa-file-lines opacity-90 hover:opacity-100"></i>';
-    if (["json", "js", "ts", "html", "css", "py", "java", "sql", "yml", "yaml"].includes(ext)) return '<i class="fa-solid fa-file-code opacity-90 hover:opacity-100"></i>';
-    if (["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"].includes(ext)) return '<i class="fa-solid fa-file-image opacity-90 hover:opacity-100"></i>';
-    if (["mp3", "wav", "ogg"].includes(ext)) return '<i class="fa-solid fa-file-audio opacity-90 hover:opacity-100"></i>';
-    if (["mp4", "webm", "mov", "avi", "mkv"].includes(ext)) return '<i class="fa-solid fa-file-video opacity-90 hover:opacity-100"></i>';
-    if (["pdf"].includes(ext)) return '<i class="fa-solid fa-file-pdf opacity-90 hover:opacity-100"></i>';
-    if (["zip", "rar", "7z"].includes(ext)) return '<i class="fa-solid fa-file-zipper opacity-90 hover:opacity-100"></i>';
+    if (["txt", "md", "log"].includes(ext)) return '<i class="fa-solid fa-file-lines text-5xl opacity-80 hover:opacity-100"></i>';
+    if (["json", "js", "ts", "html", "css", "py", "java", "sql", "yml", "yaml"].includes(ext)) return '<i class="fa-solid fa-file-code text-5xl opacity-80 hover:opacity-100"></i>';
+    if (["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"].includes(ext)) return '<i class="fa-solid fa-file-image text-5xl opacity-80 hover:opacity-100"></i>';
+    if (["mp3", "wav", "ogg"].includes(ext)) return '<i class="fa-solid fa-file-audio text-5xl opacity-80 hover:opacity-100"></i>';
+    if (["mp4", "webm", "mov", "avi", "mkv"].includes(ext)) return '<i class="fa-solid fa-file-video text-5xl opacity-80 hover:opacity-100"></i>';
+    if (["pdf"].includes(ext)) return '<i class="fa-solid fa-file-pdf text-5xl opacity-80 hover:opacity-100"></i>';
+    if (["zip", "rar", "7z"].includes(ext)) return '<i class="fa-solid fa-file-zipper text-5xl opacity-80 hover:opacity-100"></i>';
     return '<i class="fa-solid fa-file opacity-90 hover:opacity-100"></i>';
   }
 
@@ -472,7 +472,6 @@ class Theme {
     return `
       <div class="widget-preview-area flex-1 w-full flex flex-col items-center justify-center overflow-hidden rounded-lg bg-transparent relative transition-colors gap-1">
         <div class="text-3xl text-slate-200">${this.getFileIcon(filename)}</div>
-        <span class="text-[9px] font-mono text-slate-300 uppercase tracking-wide">${escapeHtml(ext)}</span>
       </div>`;
   }
 
