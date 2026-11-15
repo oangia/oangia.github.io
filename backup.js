@@ -793,139 +793,6 @@ class Tracker {
   }
 }
 
-class SupabaseManager {
-  constructor() {
-    this.client = null;
-    this.bucket = "files";
-  }
-  init(config) {
-    this.client = window.supabase.createClient(config.url, config.key);
-    if (config.bucket) this.bucket = config.bucket;
-    this.backup = new SupabaseBackupManager(this.client, this.bucket, (message, type) => {
-      showToast(message, type, type === "warning" ? 2500 : 3500);
-    });
-  }
-  async list(path, options) {
-    if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this.bucket).list(path, options);
-  }
-  async createSignedUrl(path, expiresIn) {
-    if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this.bucket).createSignedUrl(path, expiresIn);
-  }
-  async upload(path, file, options) {
-    if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this.bucket).upload(path, file, options);
-  }
-  async remove(paths) {
-    if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this.bucket).remove(paths);
-  }
-  async runBackup() {
-    await this.backup.runBackup();
-  }
-}
-
-class SupabaseBackupManager {
-  constructor(supabaseClient, bucketName, onProgress = null) {
-    if (!supabaseClient) throw new Error("Supabase client is required for backup.");
-    this.supabase = supabaseClient;
-    this.bucket = bucketName;
-    this.onProgress = onProgress || ((msg) => console.log(msg));
-  }
-  async runBackup() {
-    try {
-      this.onProgress("Collecting all files...", "info");
-      const allFiles = await this._listAllFilesRecursive("");
-      if (allFiles.length === 0) {
-        this.onProgress("Bucket is empty – nothing to backup", "warning");
-        return { success: false, error: "Bucket is empty" };
-      }
-      this.onProgress(`Found ${allFiles.length} file(s). Downloading fresh copies...`, "info");
-      const zip = new JSZip();
-      const hashParts = [];
-      let processed = 0;
-      for (const filePath of allFiles) {
-        try {
-          const { data: signed, error: signErr } = await this.supabase.storage.from(this.bucket).createSignedUrl(filePath, 60);
-          if (signErr) throw signErr;
-          const res = await fetch(signed.signedUrl, { cache: "no-store" });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const arrayBuffer = await res.arrayBuffer();
-          zip.file(filePath, arrayBuffer);
-          hashParts.push({ path: filePath, buffer: arrayBuffer });
-        } catch (err) {
-          console.warn(`Failed to download ${filePath}:`, err);
-          this.onProgress(`Skipped ${filePath}`, "warning");
-        }
-        processed++;
-        if (processed % 5 === 0 || processed === allFiles.length) {
-          this.onProgress(`Downloaded ${processed} / ${allFiles.length}`, "info");
-        }
-      }
-      this.onProgress("Calculating archive hash...", "info");
-      const shortHash = await this._computeHash(hashParts);
-      const today = new Date().toISOString().slice(0, 10);
-      const zipName = `${this.bucket}_${today}_${shortHash}.zip`;
-      this.onProgress("Compressing into ZIP archive...", "info");
-      const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
-      this._triggerDownload(blob, zipName);
-      this.onProgress(`Backup ready: ${zipName}`, "success");
-      return { success: true, filename: zipName };
-    } catch (err) {
-      console.error("Backup failed:", err);
-      this.onProgress(err.message || "Backup failed", "error");
-      return { success: false, error: err.message };
-    }
-  }
-  async _listAllFilesRecursive(prefix = "") {
-    const results = [];
-    const { data, error } = await this.supabase.storage.from(this.bucket).list(prefix, { limit: 1000, offset: 0 });
-    if (error) throw error;
-    for (const item of (data || [])) {
-      if (item.name === ".emptyFolderPlaceholder") continue;
-      const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
-      if (!item.id) {
-        const subFiles = await this._listAllFilesRecursive(fullPath);
-        results.push(...subFiles);
-      } else {
-        results.push(fullPath);
-      }
-    }
-    return results;
-  }
-  async _computeHash(hashParts) {
-    hashParts.sort((a, b) => a.path.localeCompare(b.path));
-    const encoder = new TextEncoder();
-    const chunks = [];
-    let totalLength = 0;
-    for (const part of hashParts) {
-      const pathBytes = encoder.encode(part.path);
-      const contentBytes = new Uint8Array(part.buffer);
-      chunks.push(pathBytes);
-      chunks.push(new Uint8Array([0]));
-      chunks.push(contentBytes);
-      totalLength += pathBytes.length + 1 + contentBytes.length;
-    }
-    const combined = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      combined.set(chunk, offset);
-      offset += chunk.length;
-    }
-    const hashBuffer = await crypto.subtle.digest("SHA-256", combined);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
-  }
-  _triggerDownload(blob, filename) {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-}
-
 class FilePreviewManager {
   constructor(options = {}) {
     this.service = options.service;
@@ -1244,10 +1111,143 @@ const formatBytes=(e,t=1)=>{if(!e)return"0 B";const a=Math.floor(Math.log(e)/Mat
   }
 })();
 
+class SupabaseManager {
+  constructor() {
+    this.client = null;
+    this.bucket = "files";
+  }
+  init(config) {
+    this.client = window.supabase.createClient(config.url, config.key);
+    if (config.bucket) this.bucket = config.bucket;
+    this.backup = new SupabaseBackupManager(this.client, this.bucket, (message, type) => {
+      showToast(message, type, type === "warning" ? 2500 : 3500);
+    });
+  }
+  async list(path, options) {
+    if (!this.client) throw new Error("Supabase client not initialized");
+    return await this.client.storage.from(this.bucket).list(path, options);
+  }
+  async createSignedUrl(path, expiresIn) {
+    if (!this.client) throw new Error("Supabase client not initialized");
+    return await this.client.storage.from(this.bucket).createSignedUrl(path, expiresIn);
+  }
+  async upload(path, file, options) {
+    if (!this.client) throw new Error("Supabase client not initialized");
+    return await this.client.storage.from(this.bucket).upload(path, file, options);
+  }
+  async remove(paths) {
+    if (!this.client) throw new Error("Supabase client not initialized");
+    return await this.client.storage.from(this.bucket).remove(paths);
+  }
+  async runBackup() {
+    await this.backup.runBackup();
+  }
+}
+
+class SupabaseBackupManager {
+  constructor(supabaseClient, bucketName, onProgress = null) {
+    if (!supabaseClient) throw new Error("Supabase client is required for backup.");
+    this.supabase = supabaseClient;
+    this.bucket = bucketName;
+    this.onProgress = onProgress || ((msg) => console.log(msg));
+  }
+  async runBackup() {
+    try {
+      this.onProgress("Collecting all files...", "info");
+      const allFiles = await this._listAllFilesRecursive("");
+      if (allFiles.length === 0) {
+        this.onProgress("Bucket is empty – nothing to backup", "warning");
+        return { success: false, error: "Bucket is empty" };
+      }
+      this.onProgress(`Found ${allFiles.length} file(s). Downloading fresh copies...`, "info");
+      const zip = new JSZip();
+      const hashParts = [];
+      let processed = 0;
+      for (const filePath of allFiles) {
+        try {
+          const { data: signed, error: signErr } = await this.supabase.storage.from(this.bucket).createSignedUrl(filePath, 60);
+          if (signErr) throw signErr;
+          const res = await fetch(signed.signedUrl, { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const arrayBuffer = await res.arrayBuffer();
+          zip.file(filePath, arrayBuffer);
+          hashParts.push({ path: filePath, buffer: arrayBuffer });
+        } catch (err) {
+          console.warn(`Failed to download ${filePath}:`, err);
+          this.onProgress(`Skipped ${filePath}`, "warning");
+        }
+        processed++;
+        if (processed % 5 === 0 || processed === allFiles.length) {
+          this.onProgress(`Downloaded ${processed} / ${allFiles.length}`, "info");
+        }
+      }
+      this.onProgress("Calculating archive hash...", "info");
+      const shortHash = await this._computeHash(hashParts);
+      const today = new Date().toISOString().slice(0, 10);
+      const zipName = `${this.bucket}_${today}_${shortHash}.zip`;
+      this.onProgress("Compressing into ZIP archive...", "info");
+      const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+      this._triggerDownload(blob, zipName);
+      this.onProgress(`Backup ready: ${zipName}`, "success");
+      return { success: true, filename: zipName };
+    } catch (err) {
+      console.error("Backup failed:", err);
+      this.onProgress(err.message || "Backup failed", "error");
+      return { success: false, error: err.message };
+    }
+  }
+  async _listAllFilesRecursive(prefix = "") {
+    const results = [];
+    const { data, error } = await this.supabase.storage.from(this.bucket).list(prefix, { limit: 1000, offset: 0 });
+    if (error) throw error;
+    for (const item of (data || [])) {
+      if (item.name === ".emptyFolderPlaceholder") continue;
+      const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
+      if (!item.id) {
+        const subFiles = await this._listAllFilesRecursive(fullPath);
+        results.push(...subFiles);
+      } else {
+        results.push(fullPath);
+      }
+    }
+    return results;
+  }
+  async _computeHash(hashParts) {
+    hashParts.sort((a, b) => a.path.localeCompare(b.path));
+    const encoder = new TextEncoder();
+    const chunks = [];
+    let totalLength = 0;
+    for (const part of hashParts) {
+      const pathBytes = encoder.encode(part.path);
+      const contentBytes = new Uint8Array(part.buffer);
+      chunks.push(pathBytes);
+      chunks.push(new Uint8Array([0]));
+      chunks.push(contentBytes);
+      totalLength += pathBytes.length + 1 + contentBytes.length;
+    }
+    const combined = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      combined.set(chunk, offset);
+      offset += chunk.length;
+    }
+    const hashBuffer = await crypto.subtle.digest("SHA-256", combined);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+  }
+  _triggerDownload(blob, filename) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+}
+
 class FileManager {
   constructor(config = {}) {
     this.bucket = config.bucket || "files";
-    this.sbManager = new SupabaseManager();
+    this.service = new SupabaseManager();
 
     this.allItems = [];
     this.filteredItems = [];
@@ -1264,7 +1264,7 @@ class FileManager {
     });
 
     this.filePreviewManager = new FilePreviewManager({
-      service: this.sbManager,
+      service: this.service,
       onToast: (msg, type, duration) => this.showToast(msg, type, duration),
       onSaveSuccess: () => this.listFiles()
     });
@@ -1304,8 +1304,8 @@ class FileManager {
 
     if (savedUrl && savedKey) {
       try {
-        this.sbManager.init({ url: savedUrl, key: savedKey, bucket: savedBucket });
-        this.filePreviewManager?.setService(this.sbManager);
+        this.service.init({ url: savedUrl, key: savedKey, bucket: savedBucket });
+        this.filePreviewManager?.setService(this.service);
 
         const headerUrl = document.getElementById("headerUrl");
         if (headerUrl) headerUrl.innerHTML = `${savedUrl}<br />Bucket: ${savedBucket}`;
@@ -1329,7 +1329,7 @@ class FileManager {
     this.updateConnectionStatus(null, "Loading...");
     try {
       const currentPath = this.activePath;
-      const { data, error } = await this.sbManager.list(currentPath, {
+      const { data, error } = await this.service.list(currentPath, {
         limit: 500, offset: 0, sortBy: { column: "name", order: "asc" }
       });
       if (error) throw error;
@@ -1345,13 +1345,13 @@ class FileManager {
 
         if (this.isImage(item.name) || this.isVideo(item.name)) {
           try {
-            const { data: signed, error: signErr } = await this.sbManager.createSignedUrl(fullPath, 60);
+            const { data: signed, error: signErr } = await this.service.createSignedUrl(fullPath, 60);
             if (!signErr && signed?.signedUrl) item.thumbUrl = signed.signedUrl;
           } catch (e) {}
         }
       }));
 
-      this.updateConnectionStatus(true, `Connected • Bucket: ${this.sbManager.bucket}`);
+      this.updateConnectionStatus(true, `Connected • Bucket: ${this.service.bucket}`);
       this.renderView();
     } catch (err) {
       console.error(err);
@@ -1398,7 +1398,7 @@ class FileManager {
       : `${name}/.emptyFolderPlaceholder`;
 
     try {
-      const { error } = await this.sbManager.upload(folderPath, new Blob([""]), { upsert: false });
+      const { error } = await this.service.upload(folderPath, new Blob([""]), { upsert: false });
       if (error) throw error;
 
       this.closeModals();
@@ -1431,7 +1431,7 @@ class FileManager {
           targetPath += file.name;
         }
 
-        const { error } = await this.sbManager.upload(targetPath, file, { cacheControl: "3600", upsert: true });
+        const { error } = await this.service.upload(targetPath, file, { cacheControl: "3600", upsert: true });
         if (error) throw error;
 
         success++;
@@ -1468,7 +1468,7 @@ class FileManager {
 
   async downloadFile(path, name) {
     try {
-      const { data, error } = await this.sbManager.createSignedUrl(path, 60);
+      const { data, error } = await this.service.createSignedUrl(path, 60);
       if (error) throw error;
 
       const res = await fetch(data.signedUrl, { cache: "no-store" });
@@ -1491,7 +1491,7 @@ class FileManager {
       btn.disabled = true;
       btn.innerHTML = Theme.getBackupLoadingHTML();
     }
-    await this.sbManager.runBackup();
+    await this.service.runBackup();
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = Theme.getBackupIdleHTML();
@@ -1506,18 +1506,18 @@ class FileManager {
 
     try {
       if (isFolder) {
-        const { data: files, error: listError } = await this.sbManager.list(path, { limit: 1000 });
+        const { data: files, error: listError } = await this.service.list(path, { limit: 1000 });
         if (listError) throw listError;
 
         const pathsToDelete = (files || []).map(f => `${path}/${f.name}`);
         pathsToDelete.push(`${path}/.emptyFolderPlaceholder`);
 
         if (pathsToDelete.length > 0) {
-          const { error } = await this.sbManager.remove(pathsToDelete);
+          const { error } = await this.service.remove(pathsToDelete);
           if (error) throw error;
         }
       } else {
-        const { error } = await this.sbManager.remove([path]);
+        const { error } = await this.service.remove([path]);
         if (error) throw error;
       }
 
