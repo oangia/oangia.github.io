@@ -231,7 +231,30 @@ class Theme {
 
         <div class="border-b border-white/10 pb-4">
           <h2 class="text-lg font-bold text-white mb-1">Configuration</h2>
-          <p class="text-xs text-slate-400">Enter your Supabase and Firebase credentials.</p>
+          <p class="text-xs text-slate-400">Enter your Google Drive, Supabase, and Firebase credentials.</p>
+        </div>
+
+        <!-- Google Drive & Encryption Credentials -->
+        <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
+          <h3 class="font-semibold text-sm text-white flex items-center gap-2">
+            <i class="fa-solid fa-shield-halved text-indigo-400"></i> Google Drive & Encryption
+          </h3>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Google Client ID</label>
+              <input id="clientIdInput" name="gdrive_oauth_client_id" type="text" placeholder="123456789-abc.apps.googleusercontent.com"
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+              <p class="text-[10px] text-slate-400 mt-1">
+                Current origin: <code id="originLabel" class="text-indigo-300">${window.location.origin}</code>
+              </p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Private Encryption Key / Password</label>
+              <input id="secretKeyInput" name="gdrive_encryption_password" type="password" placeholder="Enter a secure encryption passphrase"
+                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+              <p class="text-[10px] text-slate-400 mt-1">Required to encrypt/decrypt secure uploads.</p>
+            </div>
+          </div>
         </div>
     
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
