@@ -40,7 +40,7 @@
       <div class="flex items-center gap-3">
         <label class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
           <i class="fa-solid fa-cloud-arrow-up"></i>
-          <span>Upload File</span>
+          <span>Upload File (Base64)</span>
           <input type="file" id="fileInput" class="hidden" multiple />
         </label>
         <button id="refreshBtn" class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-semibold text-slate-200 transition cursor-pointer">
@@ -221,7 +221,6 @@
           }
           drive.setToken(res.access_token);
           
-          // Cache token and calculate expiry (expires_in is usually 3600 seconds minus 60s buffer)
           const expiresAt = Date.now() + (res.expires_in - 60) * 1000;
           localStorage.setItem(TOKEN_KEY, res.access_token);
           localStorage.setItem(EXPIRY_KEY, expiresAt);
@@ -241,10 +240,9 @@
       const tokenExpiry = localStorage.getItem(EXPIRY_KEY);
 
       if (clientId && savedToken && tokenExpiry && Date.now() < Number(tokenExpiry)) {
-        // Valid cached session found! Restore automatically without popup.
         drive.setToken(savedToken);
         setConnectedState();
-        initOAuth(clientId); // Initialize client in background for subsequent actions
+        initOAuth(clientId);
         await loadFiles();
       } else if (clientId) {
         initOAuth(clientId);
@@ -342,6 +340,45 @@
       }
     }
 
+    // --- Convert File to Base64 Before Upload ---
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result); // Returns full Data-URL string (e.g., "data:...;base64,...")
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function transformAndUploadFile(file) {
+      // 1. Convert file array buffer to Base64 data URL string
+      const base64Data = await fileToBase64(file);
+
+      // 2. Wrap the base64 string into a new text/plain or application/json blob/file 
+      // (so Google Drive stores it as text containing the base64 payload)
+      const encodedFile = new File([base64Data], file.name + '.b64.txt', { type: 'text/plain' });
+
+      // 3. Upload to Google Drive
+      await drive.uploadFile(encodedFile);
+    }
+
+    document.getElementById('fileInput').onchange = async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      
+      for (const file of files) {
+        try {
+          showToast(`Converting & uploading ${file.name} to Base64...`, 'info');
+          await transformAndUploadFile(file);
+          showToast(`Uploaded ${file.name} as Base64`, 'success');
+        } catch (err) {
+          showToast(`Failed ${file.name}: ${err.message}`, 'error');
+        }
+      }
+      e.target.value = '';
+      await loadFiles();
+    };
+
     // --- Event Listeners ---
     document.getElementById('configBtn').onclick = () => {
       document.getElementById('clientIdInput').value = localStorage.getItem(STORAGE_KEY) || '';
@@ -368,22 +405,6 @@
       }
       if (!tokenClient && !initOAuth(clientId)) return;
       tokenClient.requestAccessToken({ prompt: '' });
-    };
-
-    document.getElementById('fileInput').onchange = async (e) => {
-      const files = Array.from(e.target.files || []);
-      if (!files.length) return;
-      for (const file of files) {
-        try {
-          showToast(`Uploading ${file.name}...`, 'info');
-          await drive.uploadFile(file);
-          showToast(`Uploaded ${file.name}`, 'success');
-        } catch (err) {
-          showToast(`Failed ${file.name}: ${err.message}`, 'error');
-        }
-      }
-      e.target.value = '';
-      await loadFiles();
     };
 
     document.getElementById('refreshBtn').onclick = loadFiles;
