@@ -1256,7 +1256,6 @@ class FileManager {
     this.gridRenderer = null;
     this.breadcrumbManager = null;
     this.configManager = null;
-    this.folderManagerPanel = null;
   }
 
   init() {
@@ -1281,9 +1280,8 @@ class FileManager {
       onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
     });
 
-    // Re-bind ID-driven UI panels from your original code
+    // Only independent config manager remains
     this.configManager = new Config("navSettingsTab");
-    this.folderManagerPanel = new FolderManagerPanel("#openFolderManagerBtn");
 
     this.bindGlobalEvents();
     this.loadCredentialsFromStorage();
@@ -1541,8 +1539,10 @@ class FileManager {
     if (typeof closeModals === "function") closeModals();
   }
 }
-// Instantiate and expose `window.fileManager` for the HTML inline calls
+
+// Instantiate and expose `window.fileManager`
 window.addEventListener("DOMContentLoaded", () => {
   window.fileManager = new FileManager();
   window.fileManager.init();
+   new FolderManagerPanel("#openFolderManagerBtn");
 });
