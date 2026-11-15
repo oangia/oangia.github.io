@@ -236,6 +236,15 @@
     const uploader = new FirebaseUploaderWidget(fbService, "uploaded_files");
     uploader.init("openFirebaseWidgetBtn");
     new FolderManagerPanel("#openFolderManagerBtn");
+
+    if (window.self === window.top) {
+      document.body.style.backgroundImage = "linear-gradient(rgba(5, 8, 17, 0.45), rgba(5, 8, 17, 0.7)), url('https://images.unsplash.com/photo-1772511988871-a010197b94ae?auto=format&fit=crop&w=1920&q=80')";
+      document.body.style.backgroundSize = "cover";
+      document.body.style.backgroundPosition = "center";
+      document.body.style.backgroundRepeat = "no-repeat";
+      document.body.style.backgroundAttachment = "fixed";
+      document.body.style.backgroundColor = "#050811";
+    }
   </script>
 </body>
 </html>
