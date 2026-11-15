@@ -57,7 +57,7 @@
       <i class="fa-brands fa-google-drive text-4xl text-slate-600 mb-3"></i>
       <h2 class="text-sm font-bold text-slate-300">Connect your Google Account</h2>
       <p class="text-xs text-slate-500 max-w-md mt-1">
-        Configure your OAuth Client ID and click <strong>Connect Drive</strong> to list, preview, and upload files via the <code class="text-indigo-400">drive.file</code> scope.
+        Configure your OAuth Client ID and click <strong>Connect Drive</strong> to list, preview, and manage files via full <code class="text-indigo-400">drive</code> scope.
       </p>
     </div>
 
@@ -196,13 +196,21 @@
     let activeObjectUrl = null;
 
     const STORAGE_KEY = 'gdrive_oauth_client_id';
+    const TOKEN_KEY = 'gdrive_access_token';
+    const EXPIRY_KEY = 'gdrive_token_expiry';
+
     document.getElementById('originLabel').textContent = window.location.origin;
 
+    function setConnectedState() {
+      document.getElementById('statusText').textContent = 'Connected (Full Drive Scope)';
+      document.getElementById('statusText').className = 'text-xs text-emerald-400';
+      document.getElementById('emptyPrompt').classList.add('hidden');
+      document.getElementById('toolbar').classList.remove('hidden');
+      document.getElementById('fileGrid').classList.remove('hidden');
+    }
+
     function initOAuth(clientId) {
-      if (!window.google?.accounts?.oauth2) {
-        showToast('Google Identity script still loading, try again in a second.', 'info');
-        return false;
-      }
+      if (!window.google?.accounts?.oauth2) return false;
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: 'https://www.googleapis.com/auth/drive',
@@ -212,17 +220,36 @@
             return;
           }
           drive.setToken(res.access_token);
-          document.getElementById('statusText').textContent = 'Connected (drive.file scope)';
-          document.getElementById('statusText').className = 'text-xs text-emerald-400';
-          document.getElementById('emptyPrompt').classList.add('hidden');
-          document.getElementById('toolbar').classList.remove('hidden');
-          document.getElementById('fileGrid').classList.remove('hidden');
+          
+          // Cache token and calculate expiry (expires_in is usually 3600 seconds minus 60s buffer)
+          const expiresAt = Date.now() + (res.expires_in - 60) * 1000;
+          localStorage.setItem(TOKEN_KEY, res.access_token);
+          localStorage.setItem(EXPIRY_KEY, expiresAt);
+
+          setConnectedState();
           showToast('Connected to Google Drive', 'success');
           await loadFiles();
         }
       });
       return true;
     }
+
+    // --- Automatic Session Restore on Load ---
+    window.addEventListener('DOMContentLoaded', async () => {
+      const clientId = localStorage.getItem(STORAGE_KEY);
+      const savedToken = localStorage.getItem(TOKEN_KEY);
+      const tokenExpiry = localStorage.getItem(EXPIRY_KEY);
+
+      if (clientId && savedToken && tokenExpiry && Date.now() < Number(tokenExpiry)) {
+        // Valid cached session found! Restore automatically without popup.
+        drive.setToken(savedToken);
+        setConnectedState();
+        initOAuth(clientId); // Initialize client in background for subsequent actions
+        await loadFiles();
+      } else if (clientId) {
+        initOAuth(clientId);
+      }
+    });
 
     async function loadFiles() {
       const grid = document.getElementById('fileGrid');
@@ -330,6 +357,7 @@
       tokenClient = null;
       document.getElementById('configModal').classList.add('hidden');
       showToast('Client ID saved', 'success');
+      initOAuth(val);
     };
 
     document.getElementById('authBtn').onclick = () => {
@@ -339,7 +367,7 @@
         return showToast('Enter your Google OAuth Client ID first', 'info');
       }
       if (!tokenClient && !initOAuth(clientId)) return;
-      tokenClient.requestAccessToken({ prompt: 'consent' });
+      tokenClient.requestAccessToken({ prompt: '' });
     };
 
     document.getElementById('fileInput').onchange = async (e) => {
