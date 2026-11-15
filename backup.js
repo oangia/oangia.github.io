@@ -1022,105 +1022,55 @@ class FilePreviewManager {
   }
 
   async renderSidebarLazy(path, name, fileSize, url) {
-    const sidebarDetails = document.getElementById("previewSidebarDetails");
-    if (!sidebarDetails) return;
-    const pathHash = await computeSha256(path);
-    // Keep the detailed sidebar HTML here for now (very large). 
-    // You can move pieces into Theme later if desired.
-    sidebarDetails.innerHTML = `
-      <div class="space-y-4 text-xs wire-subtext">
-        <div>
-          <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Name</span>
-          <p class="wire-text font-medium break-all">${escapeHtml(name)}</p>
-        </div>
-        <div>
-          <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Size</span>
-          <p class="wire-text font-mono text-xs">${fileSize ? formatBytes(fileSize) + ` (${fileSize} bytes)` : "Unknown"}</p>
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">Signed URL</span>
-            <div class="space-x-2">
-              <button onclick="navigator.clipboard.writeText('${escapeHtml(url)}'); showToast('URL copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy</button>
-              <a href="${escapeHtml(url)}" download="${escapeHtml(name)}" class="text-[11px] text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-download"></i> Download</a>
-            </div>
-          </div>
-          <div class="font-mono text-[9px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all max-h-16 overflow-y-auto">${escapeHtml(url)}</div>
-        </div>
-        <hr class="border-white/20">
-        <div class="space-y-1.5">
-          <div class="flex justify-between items-center">
-            <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">1. Path Hash</span>
-            <button onclick="navigator.clipboard.writeText('${pathHash}'); showToast('Path hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
-          </div>
-          <div>
-            <span class="text-[10px] wire-subtext block mb-0.5">Exact string hashed: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">${escapeHtml(path)}</code></span>
-            <div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${pathHash}</div>
-          </div>
-        </div>
-        <div class="space-y-3" id="hashesComputeContainer">
-          <div>
-            <span class="text-[10px] wire-subtext block mb-1">Content & Combined Hashes are uncalculated</span>
-            <button onclick="filePreviewManager.computeContentAndCombinedHashes()" class="w-full py-2.5 bg-transparent hover:border-indigo-300 wire-border text-indigo-300 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-fingerprint"></i> Calculate Content & Combined Hashes
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  async computeContentAndCombinedHashes() {
-    const container = document.getElementById("hashesComputeContainer");
-    if (!container || !this.currentPreviewPath) return;
-    container.innerHTML = `
-      <div class="flex items-center justify-center py-4 wire-subtext text-xs gap-2">
-        <i class="fa-solid fa-spinner fa-spin text-indigo-400 text-base"></i> Fetching file & computing hashes...
-      </div>
-    `;
-    try {
-      if (!this.currentArrayBuffer) {
-        const { data, error } = await this.service.createSignedUrl(this.currentPreviewPath, 60);
-        if (error) throw error;
-        const res = await fetch(data.signedUrl, { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to fetch file content");
-        this.currentArrayBuffer = await res.arrayBuffer();
-        if (!this.fileSize) this.fileSize = this.currentArrayBuffer.byteLength;
-      }
-      const pathHash = await computeSha256(this.currentPreviewPath);
-      const contentHash = await computeSha256(this.currentArrayBuffer);
-      this.cachedContentHash = contentHash;
-      const rawCombinedString = pathHash + contentHash;
-      const combinedHash = await computeSha256(rawCombinedString);
-      container.innerHTML = `
-        <div class="space-y-4">
-          <div class="space-y-1.5">
-            <div class="flex justify-between items-center">
-              <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">2. Content Hash</span>
-              <button onclick="navigator.clipboard.writeText('${contentHash}'); showToast('Content hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
-            </div>
-            <div>
-              <span class="text-[10px] wire-subtext block mb-0.5">Hashed input: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">ArrayBuffer (${this.currentArrayBuffer.byteLength} bytes)</code></span>
-              <div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${contentHash}</div>
-            </div>
-          </div>
-          <div class="space-y-1.5">
-            <div class="flex justify-between items-center">
-              <span class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">3. Combined Hash</span>
-              <button onclick="navigator.clipboard.writeText('${combinedHash}'); showToast('Combined hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
-            </div>
-            <div>
-              <span class="text-[10px] wire-subtext block mb-0.5">Exact concatenated string hashed:</span>
-              <div class="font-mono text-[9px] bg-black/40 wire-subtext p-1.5 rounded wire-border break-all select-all max-h-14 overflow-y-auto mb-1">${escapeHtml(rawCombinedString)}</div>
-              <div class="font-mono text-[10px] bg-slate-950/90 text-emerald-400 p-2 rounded wire-border break-all select-all">${combinedHash}</div>
-            </div>
-          </div>
-        </div>
-      `;
-    } catch (err) {
-      container.innerHTML = `<div class="text-xs text-rose-400 p-2 bg-rose-950/60 wire-border rounded">Failed to compute hashes: ${escapeHtml(err.message)}</div>`;
-    }
-  }
+     const sidebarDetails = document.getElementById("previewSidebarDetails");
+     if (!sidebarDetails) return;
+   
+     const pathHash = await computeSha256(path);
+   
+     sidebarDetails.innerHTML = Theme.getPreviewSidebarHTML({
+       name,
+       fileSize,
+       url,
+       path,
+       pathHash
+     });
+   }
+   
+   async computeContentAndCombinedHashes() {
+     const container = document.getElementById("hashesComputeContainer");
+     if (!container || !this.currentPreviewPath) return;
+   
+     container.innerHTML = Theme.getHashesLoadingHTML();
+   
+     try {
+       if (!this.currentArrayBuffer) {
+         const { data, error } = await this.service.createSignedUrl(this.currentPreviewPath, 60);
+         if (error) throw error;
+   
+         const res = await fetch(data.signedUrl, { cache: "no-store" });
+         if (!res.ok) throw new Error("Failed to fetch file content");
+   
+         this.currentArrayBuffer = await res.arrayBuffer();
+         if (!this.fileSize) this.fileSize = this.currentArrayBuffer.byteLength;
+       }
+   
+       const pathHash = await computeSha256(this.currentPreviewPath);
+       const contentHash = await computeSha256(this.currentArrayBuffer);
+       this.cachedContentHash = contentHash;
+   
+       const rawCombinedString = pathHash + contentHash;
+       const combinedHash = await computeSha256(rawCombinedString);
+   
+       container.innerHTML = Theme.getHashesResultHTML({
+         contentHash,
+         combinedHash,
+         rawCombinedString,
+         byteLength: this.currentArrayBuffer.byteLength
+       });
+     } catch (err) {
+       container.innerHTML = Theme.getHashesErrorHTML(err.message);
+     }
+   }
 
   cancelEditText() {
     if (!this.isTextEditor || this.currentPreviewText === null) return;
