@@ -1205,14 +1205,6 @@ class BreadcrumbManager {
  */
 const formatBytes=(e,t=1)=>{if(!e)return"0 B";const a=Math.floor(Math.log(e)/Math.log(1024));return`${parseFloat((e/Math.pow(1024,a)).toFixed(t))} ${["B","KB","MB","GB"][a]}`},escapeHtml=e=>String(e||"").replace(/[&<>'"]/g,e=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;",'"':"&quot;"}[e]||e)),getExtension=e=>e.includes(".")?e.split(".").pop().toLowerCase():"file",isType=(e,t)=>t.includes(getExtension(e)),isImage=e=>isType(e,["png","jpg","jpeg","gif","webp","svg","bmp","ico"]),isVideo=e=>isType(e,["mp4","webm","mov","avi","mkv","ogg"]),isText=e=>isType(e,["txt","md","json","js","ts","html","css","xml","csv","log","py","sql","yml","yaml"]);async function computeSha256(e){const t="string"==typeof e?(new TextEncoder).encode(e):e,a=await crypto.subtle.digest("SHA-256",t);return Array.from(new Uint8Array(a)).map(e=>e.toString(16).padStart(2,"0")).join("")}function showToast(e,t="info",a=4e3){const n=document.getElementById("toastContainer");n||(n=document.createElement("div"),n.id="toastContainer",n.className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full",document.body.appendChild(n));const o={success:{border:"border-emerald-800",text:"text-emerald-100",icon:"fa-circle-check text-emerald-400",bar:"border-l-emerald-500"},error:{border:"border-rose-800",text:"text-rose-100",icon:"fa-circle-exclamation text-rose-400",bar:"border-l-rose-500"},warning:{border:"border-amber-800",text:"text-amber-100",icon:"fa-triangle-exclamation text-amber-400",bar:"border-l-amber-500"},info:{border:"border-slate-700",text:"text-slate-100",icon:"fa-circle-info text-sky-400",bar:"border-l-sky-500"}}[t]||o.info,s=document.createElement("div");s.className=`pointer-events-auto flex items-center justify-between p-3.5 rounded-xl border shadow-xl bg-slate-900/90 backdrop-blur-md border-l-4 ${o.border} ${o.text} ${o.bar} transform transition-all duration-300 translate-x-12 opacity-0 text-xs font-medium`,s.innerHTML=`\n    <div class="flex items-center"><i class="fa-solid ${o.icon} text-base mr-3"></i><span>${escapeHtml(e)}</span></div>\n    <button onclick="this.parentElement.remove()" class="ml-4 text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark"></i></button>\n  `,n.appendChild(s),requestAnimationFrame(()=>s.classList.remove("translate-x-12","opacity-0")),a>0&&setTimeout(()=>{s.classList.add("translate-x-12","opacity-0"),setTimeout(()=>s.remove(),300)},a)}const isAudio=e=>isType(e,["mp3","wav","ogg","m4a","flac","aac"]);function isHtml(e){return/\.(html|htm)$/i.test(e)}function updateConnectionStatus(e,t){const a=document.getElementById("statusDot"),n=document.getElementById("statusText");n&&a&&(n.textContent=t,a.className=!0===e?"w-2 h-2 rounded-full bg-emerald-500":!1===e?"w-2 h-2 rounded-full bg-rose-500":"w-2 h-2 rounded-full bg-amber-400 animate-pulse")}function closeModals(){document.querySelectorAll(".fixed").forEach(e=>{"toastContainer"!==e.id&&e.classList.add("hidden")}),filePreviewManager&&(filePreviewManager.isTextEditor=!1),document.getElementById("previewSaveBtn")?.classList.add("hidden"),document.getElementById("previewCancelEditBtn")?.classList.add("hidden")}function showToast(e,t="info",a=4e3){let n=document.getElementById("toastContainer");n||(n=document.createElement("div"),n.id="toastContainer",n.className=Theme.getToastContainerClasses(),document.body.appendChild(n));const o=document.createElement("div");o.className=Theme.getToastClasses(t),o.innerHTML=Theme.getToastHTML(e,t),n.appendChild(o),requestAnimationFrame(()=>o.classList.remove("translate-x-12","opacity-0")),a>0&&setTimeout(()=>{o.classList.add("translate-x-12","opacity-0"),setTimeout(()=>o.remove(),300)},a)}function updateConnectionStatus(e,t){const a=document.getElementById("statusDot"),n=document.getElementById("statusText");n&&a&&(n.textContent=t,a.className=Theme.getStatusDotClasses(e))}function closeModals(){document.querySelectorAll(".fixed").forEach(e=>{"toastContainer"!==e.id&&e.classList.add("hidden")}),filePreviewManager&&(filePreviewManager.isTextEditor=!1),document.getElementById("previewSaveBtn")?.classList.add("hidden"),document.getElementById("previewCancelEditBtn")?.classList.add("hidden")}
 
-/* ---------- Global State & Init ---------- */
-let allItems = [];
-let filteredItems = [];
-let filePreviewManager = null;
-let gridRenderer = null;
-let breadcrumbManager = null;
-const sbManager = new SupabaseManager();
-
 (function () {
   "use strict";
   const scriptTag = document.currentScript;
@@ -1229,217 +1221,311 @@ const sbManager = new SupabaseManager();
   }
 })();
 
-window.addEventListener("DOMContentLoaded", () => {
-  filePreviewManager = new FilePreviewManager({
-    service: sbManager,
-    onToast: (msg, type, duration) => showToast(msg, type, duration),
-    onSaveSuccess: () => listFiles()
-  });
-
-  gridRenderer = new ItemsGridRenderer("itemsGrid", {
-    onItemClick: (item, fullPath, isFolder) => {
-      if (isFolder) breadcrumbManager.navigateToFolder(fullPath, item.name);
-      else openPreview(fullPath, item.name);
-    },
-    onDeleteClick: (fullPath, isFolder) => deleteItem(fullPath, isFolder)
-  });
-
-  breadcrumbManager = new BreadcrumbManager("breadcrumbNav", {
-    onNavigate: () => listFiles()
-  });
-
-  new Config("navSettingsTab");
-  new FolderManagerPanel("#openFolderManagerBtn");
-
-  const savedUrl = localStorage.getItem("sb_url");
-  const savedKey = localStorage.getItem("sb_key");
-  const savedBucket = localStorage.getItem("sb_bucket") || "files";
-
-  if (savedUrl && savedKey) {
-    try {
-      sbManager.init({ url: savedUrl, key: savedKey, bucket: savedBucket });
-      if (filePreviewManager) filePreviewManager.setService(sbManager);
-      document.getElementById("headerUrl").innerHTML = savedUrl + "<br />Bucket: " + savedBucket;
-      if (breadcrumbManager) breadcrumbManager.reset();
-      listFiles();
-    } catch (err) {
-      console.error(err);
-      showToast("Failed to initialize Supabase client", "error");
-    }
-  } else {
-    updateConnectionStatus(false, "Please configure credentials in Settings");
+class FileManager {
+  constructor(config = {}) {
+    this.bucket = config.bucket || "files";
+    this.sbManager = new SupabaseManager();
+    
+    // Internal state
+    this.allItems = [];
+    this.filteredItems = [];
+    
+    // Sub-managers initialized internally
+    this.filePreviewManager = null;
+    this.gridRenderer = null;
+    this.breadcrumbManager = null;
   }
-});
 
-/* ---------- File Operations ---------- */
-async function listFiles() {
-  updateConnectionStatus(null, "Loading...");
-  try {
-    const activePath = breadcrumbManager ? breadcrumbManager.path : "";
-    const { data, error } = await sbManager.list(activePath, {
-      limit: 500, offset: 0, sortBy: { column: "name", order: "asc" }
+  /* ---------- Initialization ---------- */
+
+  init() {
+    this.breadcrumbManager = new BreadcrumbManager("breadcrumbNav", {
+      onNavigate: () => this.listFiles()
     });
-    if (error) throw error;
-    allItems = (data || []).filter(item => item.name !== ".emptyFolderPlaceholder");
-    await Promise.all(allItems.map(async (item) => {
-      const isFolder = !item.id;
-      if (isFolder) return;
-      const activePath = breadcrumbManager ? breadcrumbManager.path : "";
-      const fullPath = activePath ? `${activePath}/${item.name}` : item.name;
-      item.fullPath = fullPath;
-      if (isImage(item.name) || isVideo(item.name)) {
-        try {
-          const { data: signed, error: signErr } = await sbManager.createSignedUrl(fullPath, 60);
-          if (!signErr && signed?.signedUrl) item.thumbUrl = signed.signedUrl;
-        } catch (e) {}
+
+    this.filePreviewManager = new FilePreviewManager({
+      service: this.sbManager,
+      onToast: (msg, type, duration) => this.showToast(msg, type, duration),
+      onSaveSuccess: () => this.listFiles()
+    });
+
+    this.gridRenderer = new ItemsGridRenderer("itemsGrid", {
+      onItemClick: (item, fullPath, isFolder) => {
+        if (isFolder) {
+          this.breadcrumbManager.navigateToFolder(fullPath, item.name);
+        } else {
+          this.openPreview(fullPath, item.name);
+        }
+      },
+      onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
+    });
+
+    this.bindEvents();
+    this.loadCredentialsFromStorage();
+  }
+
+  bindEvents() {
+    // Search input listener
+    document.getElementById("searchInput")?.addEventListener("input", () => this.renderView());
+
+    // File upload listener
+    document.getElementById("fileUploadInput")?.addEventListener("change", (e) => this.handleFileUpload(e));
+
+    // Global click listener to close action menus
+    document.addEventListener("click", (e) => {
+      const menu = document.getElementById("actionsMenu");
+      if (!menu) return;
+      if (!menu.contains(e.target) && !e.target.closest("#actionsMenuTrigger")) {
+        menu.classList.add("hidden");
       }
-    }));
-    updateConnectionStatus(true, `Connected • Bucket: ${sbManager.bucket}`);
-    renderView();
-  } catch (err) {
-    console.error(err);
-    updateConnectionStatus(false, err.message || "Failed to list files");
-    showToast(err.message || "Failed to list files", "error");
+    });
   }
-}
 
-function renderView() {
-  if (breadcrumbManager) breadcrumbManager.render();
-  const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
-  filteredItems = searchVal ? allItems.filter(i => i.name.toLowerCase().includes(searchVal)) : [...allItems];
-  filteredItems.sort((a, b) => {
-    const aFolder = !a.id;
-    const bFolder = !b.id;
-    if (aFolder !== bFolder) return aFolder ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-  const label = document.getElementById("itemCountLabel");
-  if (label) label.textContent = `${filteredItems.length} item${filteredItems.length !== 1 ? "s" : ""}`;
-  if (gridRenderer) {
-    const activePath = breadcrumbManager ? breadcrumbManager.path : "";
-    gridRenderer.render(filteredItems, activePath);
-  }
-}
+  loadCredentialsFromStorage() {
+    const savedUrl = localStorage.getItem("sb_url");
+    const savedKey = localStorage.getItem("sb_key");
+    const savedBucket = localStorage.getItem("sb_bucket") || this.bucket;
 
-function handleSearch() { renderView(); }
-
-function openCreateFolderModal() {
-  document.getElementById("folderNameInput").value = "";
-  document.getElementById("modalCreateFolder").classList.remove("hidden");
-}
-
-async function submitCreateFolder() {
-  const name = document.getElementById("folderNameInput").value.trim();
-  if (!name) return;
-  const activePath = breadcrumbManager ? breadcrumbManager.path : "";
-  const folderPath = activePath ? `${activePath}/${name}/.emptyFolderPlaceholder` : `${name}/.emptyFolderPlaceholder`;
-  try {
-    const { error } = await sbManager.upload(folderPath, new Blob([""]), { upsert: false });
-    if (error) throw error;
-    closeModals();
-    showToast(`Folder "${name}" created`, "success");
-    listFiles();
-  } catch (err) {
-    showToast(err.message || "Failed to create folder", "error");
-  }
-}
-
-function toggleActionsMenu() {
-  const menu = document.getElementById("actionsMenu");
-  if (menu) menu.classList.toggle("hidden");
-}
-
-document.addEventListener("click", (e) => {
-  const menu = document.getElementById("actionsMenu");
-  if (!menu) return;
-  if (!menu.contains(e.target) && !e.target.closest("button")?.getAttribute("onclick")?.includes("toggleActionsMenu")) {
-    menu.classList.add("hidden");
-  }
-});
-
-async function handleFileUpload(event, isFolderUpload = false) {
-  const files = Array.from(event.target.files || []);
-  if (files.length === 0) return;
-  showToast(`Uploading ${files.length} item(s) sequentially...`, "info", 2500);
-  let success = 0, failed = 0;
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    try {
-      const activePath = breadcrumbManager ? breadcrumbManager.path : "";
-      let targetPath = activePath ? `${activePath}/` : "";
-      if (isFolderUpload && file.webkitRelativePath) targetPath += file.webkitRelativePath;
-      else targetPath += file.name;
-      const { error } = await sbManager.upload(targetPath, file, { cacheControl: "3600", upsert: true });
-      if (error) throw error;
-      success++;
-      if ((i + 1) % 5 === 0 || i === files.length - 1) showToast(`Uploaded ${i + 1} / ${files.length}`, "info", 1200);
-    } catch (err) {
-      console.error(err);
-      failed++;
-      showToast(`Failed: ${file.name}`, "error", 2500);
-    }
-  }
-  await listFiles();
-  if (failed === 0) showToast(`Successfully uploaded ${success} item(s)`, "success");
-  else showToast(`Uploaded ${success}, failed ${failed}`, "warning");
-  event.target.value = "";
-}
-
-async function openPreview(path, name) {
-  if (filePreviewManager) await filePreviewManager.openPreview(path, name);
-}
-function cancelEditText() { if (filePreviewManager) filePreviewManager.cancelEditText(); }
-async function saveEditedText() { if (filePreviewManager) await filePreviewManager.saveEditedText(); }
-
-async function downloadFile(path, name) {
-  try {
-    const { data, error } = await sbManager.createSignedUrl(path, 60);
-    if (error) throw error;
-    const res = await fetch(data.signedUrl, { cache: "no-store" });
-    if (!res.ok) throw new Error("Download failed");
-    const blob = await res.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  } catch (err) {
-    showToast(err.message || "Download failed", "error");
-  }
-}
-
-async function createBackup() {
-  const btn = document.getElementById("backupBtn");
-  btn.disabled = true;
-  btn.innerHTML = Theme.getBackupLoadingHTML();
-  await sbManager.runBackup();
-  btn.disabled = false;
-  btn.innerHTML = Theme.getBackupIdleHTML();
-}
-
-async function deleteItem(path, isFolder) {
-  if (!confirm(isFolder ? `Delete folder "${path}" and all its contents?` : `Delete file "${path}"?`)) return;
-  try {
-    if (isFolder) {
-      const { data: files, error: listError } = await sbManager.list(path, { limit: 1000 });
-      if (listError) throw listError;
-      const pathsToDelete = [];
-      if (files && files.length > 0) {
-        for (const f of files) pathsToDelete.push(`${path}/${f.name}`);
-      }
-      pathsToDelete.push(`${path}/.emptyFolderPlaceholder`);
-      if (pathsToDelete.length > 0) {
-        const { error } = await sbManager.remove(pathsToDelete);
-        if (error) throw error;
+    if (savedUrl && savedKey) {
+      try {
+        this.sbManager.init({ url: savedUrl, key: savedKey, bucket: savedBucket });
+        this.filePreviewManager?.setService(this.sbManager);
+        
+        const headerUrl = document.getElementById("headerUrl");
+        if (headerUrl) headerUrl.innerHTML = `${savedUrl}<br />Bucket: ${savedBucket}`;
+        
+        this.breadcrumbManager?.reset();
+        this.listFiles();
+      } catch (err) {
+        console.error(err);
+        this.showToast("Failed to initialize Supabase client", "error");
       }
     } else {
-      const { error } = await sbManager.remove([path]);
-      if (error) throw error;
+      this.updateConnectionStatus(false, "Please configure credentials in Settings");
     }
-    showToast("Deleted successfully", "success");
-    listFiles();
-  } catch (err) {
-    console.error(err);
-    showToast(err.message || "Delete failed", "error");
   }
+
+  get activePath() {
+    return this.breadcrumbManager ? this.breadcrumbManager.path : "";
+  }
+
+  /* ---------- File & View Operations ---------- */
+
+  async listFiles() {
+    this.updateConnectionStatus(null, "Loading...");
+    try {
+      const currentPath = this.activePath;
+      const { data, error } = await this.sbManager.list(currentPath, {
+        limit: 500, offset: 0, sortBy: { column: "name", order: "asc" }
+      });
+      if (error) throw error;
+
+      this.allItems = (data || []).filter(item => item.name !== ".emptyFolderPlaceholder");
+
+      await Promise.all(this.allItems.map(async (item) => {
+        const isFolder = !item.id;
+        if (isFolder) return;
+
+        const fullPath = currentPath ? `${currentPath}/${item.name}` : item.name;
+        item.fullPath = fullPath;
+
+        if (this.isImage(item.name) || this.isVideo(item.name)) {
+          try {
+            const { data: signed, error: signErr } = await this.sbManager.createSignedUrl(fullPath, 60);
+            if (!signErr && signed?.signedUrl) item.thumbUrl = signed.signedUrl;
+          } catch (e) {}
+        }
+      }));
+
+      this.updateConnectionStatus(true, `Connected • Bucket: ${this.sbManager.bucket}`);
+      this.renderView();
+    } catch (err) {
+      console.error(err);
+      this.updateConnectionStatus(false, err.message || "Failed to list files");
+      this.showToast(err.message || "Failed to list files", "error");
+    }
+  }
+
+  renderView() {
+    this.breadcrumbManager?.render();
+
+    const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
+    this.filteredItems = searchVal
+      ? this.allItems.filter(i => i.name.toLowerCase().includes(searchVal))
+      : [...this.allItems];
+
+    this.filteredItems.sort((a, b) => {
+      const aFolder = !a.id;
+      const bFolder = !b.id;
+      if (aFolder !== bFolder) return aFolder ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    const label = document.getElementById("itemCountLabel");
+    if (label) label.textContent = `${this.filteredItems.length} item${this.filteredItems.length !== 1 ? "s" : ""}`;
+
+    this.gridRenderer?.render(this.filteredItems, this.activePath);
+  }
+
+  openCreateFolderModal() {
+    const input = document.getElementById("folderNameInput");
+    const modal = document.getElementById("modalCreateFolder");
+    if (input) input.value = "";
+    if (modal) modal.classList.remove("hidden");
+  }
+
+  async submitCreateFolder() {
+    const name = document.getElementById("folderNameInput")?.value.trim();
+    if (!name) return;
+
+    const currentPath = this.activePath;
+    const folderPath = currentPath
+      ? `${currentPath}/${name}/.emptyFolderPlaceholder`
+      : `${name}/.emptyFolderPlaceholder`;
+
+    try {
+      const { error } = await this.sbManager.upload(folderPath, new Blob([""]), { upsert: false });
+      if (error) throw error;
+      
+      this.closeModals();
+      this.showToast(`Folder "${name}" created`, "success");
+      this.listFiles();
+    } catch (err) {
+      this.showToast(err.message || "Failed to create folder", "error");
+    }
+  }
+
+  toggleActionsMenu() {
+    document.getElementById("actionsMenu")?.classList.toggle("hidden");
+  }
+
+  async handleFileUpload(event, isFolderUpload = false) {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    this.showToast(`Uploading ${files.length} item(s) sequentially...`, "info", 2500);
+    let success = 0, failed = 0;
+    const currentPath = this.activePath;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        let targetPath = currentPath ? `${currentPath}/` : "";
+        if (isFolderUpload && file.webkitRelativePath) {
+          targetPath += file.webkitRelativePath;
+        } else {
+          targetPath += file.name;
+        }
+
+        const { error } = await this.sbManager.upload(targetPath, file, { cacheControl: "3600", upsert: true });
+        if (error) throw error;
+
+        success++;
+        if ((i + 1) % 5 === 0 || i === files.length - 1) {
+          this.showToast(`Uploaded ${i + 1} / ${files.length}`, "info", 1200);
+        }
+      } catch (err) {
+        console.error(err);
+        failed++;
+        this.showToast(`Failed: ${file.name}`, "error", 2500);
+      }
+    }
+
+    await this.listFiles();
+    if (failed === 0) {
+      this.showToast(`Successfully uploaded ${success} item(s)`, "success");
+    } else {
+      this.showToast(`Uploaded ${success}, failed ${failed}`, "warning");
+    }
+    event.target.value = "";
+  }
+
+  async openPreview(path, name) {
+    if (this.filePreviewManager) await this.filePreviewManager.openPreview(path, name);
+  }
+
+  cancelEditText() {
+    this.filePreviewManager?.cancelEditText();
+  }
+
+  async saveEditedText() {
+    await this.filePreviewManager?.saveEditedText();
+  }
+
+  async downloadFile(path, name) {
+    try {
+      const { data, error } = await this.sbManager.createSignedUrl(path, 60);
+      if (error) throw error;
+
+      const res = await fetch(data.signedUrl, { cache: "no-store" });
+      if (!res.ok) throw new Error("Download failed");
+
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (err) {
+      this.showToast(err.message || "Download failed", "error");
+    }
+  }
+
+  async createBackup() {
+    const btn = document.getElementById("backupBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = Theme.getBackupLoadingHTML();
+    }
+    await this.sbManager.runBackup();
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = Theme.getBackupIdleHTML();
+    }
+  }
+
+  async deleteItem(path, isFolder) {
+    const confirmMsg = isFolder
+      ? `Delete folder "${path}" and all its contents?`
+      : `Delete file "${path}"?`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      if (isFolder) {
+        const { data: files, error: listError } = await this.sbManager.list(path, { limit: 1000 });
+        if (listError) throw listError;
+
+        const pathsToDelete = (files || []).map(f => `${path}/${f.name}`);
+        pathsToDelete.push(`${path}/.emptyFolderPlaceholder`);
+
+        if (pathsToDelete.length > 0) {
+          const { error } = await this.sbManager.remove(pathsToDelete);
+          if (error) throw error;
+        }
+      } else {
+        const { error } = await this.sbManager.remove([path]);
+        if (error) throw error;
+      }
+
+      this.showToast("Deleted successfully", "success");
+      this.listFiles();
+    } catch (err) {
+      console.error(err);
+      this.showToast(err.message || "Delete failed", "error");
+    }
+  }
+
+  /* ---------- Helpers ---------- */
+
+  isImage(name) { return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name); }
+  isVideo(name) { return /\.(mp4|webm|ogg|mov)$/i.test(name); }
+  showToast(msg, type, duration) { if (typeof showToast === "function") showToast(msg, type, duration); }
+  updateConnectionStatus(status, msg) { if (typeof updateConnectionStatus === "function") updateConnectionStatus(status, msg); }
+  closeModals() { if (typeof closeModals === "function") closeModals(); }
 }
+
+// Single clean entry point
+window.addEventListener("DOMContentLoaded", () => {
+  window.fileManager = new FileManager();
+  window.fileManager.init();
+});
