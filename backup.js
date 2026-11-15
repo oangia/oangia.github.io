@@ -1613,6 +1613,8 @@ class DriveStorageService {
 
     if (savedToken && savedExpiry && Date.now() < Number(savedExpiry)) {
       this.token = savedToken;
+    } else {
+      this.token = null; // Ensure token is cleared if expired or missing
     }
 
     this._initOAuthClient();
