@@ -1600,7 +1600,6 @@ class DriveStorageService {
     return this._bucket;
   }
 
-  // Standardized initialization method called by FileManager
   init(config = {}) {
     const savedClientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     if (savedClientId) this.clientId = savedClientId;
@@ -1617,14 +1616,12 @@ class DriveStorageService {
     this._initOAuthClient();
     this._bindAuthButton();
 
-    // Safety fallback: re-bind/initialize after window load if scripts load asynchronously
     window.addEventListener("load", () => {
       this._initOAuthClient();
       this._bindAuthButton();
     });
   }
 
-  // --- Internal OAuth & Auth Button Handling ---
   _initOAuthClient() {
     if (this.tokenClient) return true;
     if (!window.google?.accounts?.oauth2) return false;
@@ -1648,7 +1645,6 @@ class DriveStorageService {
           this.onProgress("Connected to Google Drive successfully", "success");
           if (typeof showToast === "function") showToast("Connected to Google Drive successfully", "success");
 
-          // Refresh the File Manager connection state
           if (typeof fileManager !== "undefined" && typeof fileManager.initializeServiceConnection === "function") {
             fileManager.initializeServiceConnection();
           } else {
@@ -1697,7 +1693,6 @@ class DriveStorageService {
     return { Authorization: `Bearer ${this.token}`, ...extra };
   }
 
-  // --- Cryptography Helpers (AES-GCM) ---
   async _getCryptoKey(passphrase) {
     const enc = new TextEncoder();
     const keyMaterial = await window.crypto.subtle.importKey(
@@ -1795,11 +1790,9 @@ class DriveStorageService {
     return currentParentId;
   }
 
-  // --- Core Storage Interface Methods ---
-
   async list(path, options = {}) {
     if (!this.token) {
-      return { data: [], error: null }; // Silent return until user connects
+      return { data: [], error: null };
     }
     try {
       const folderId = await this._resolveFolderId(path);
@@ -1816,11 +1809,10 @@ class DriveStorageService {
       const mapped = files.map(f => {
         const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
         return {
-          id: f.id,
           name: f.name,
           updated_at: f.modifiedTime,
           metadata: { size: Number(f.size || 0) },
-          ...(isFolder ? {} : { id: f.id })
+          ...(isFolder ? { id: null } : { id: f.id })
         };
       });
       return { data: mapped, error: null };
