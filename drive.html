@@ -7,6 +7,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- JSZip Library for client-side archive extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col">
 
@@ -45,11 +47,18 @@
           <input type="file" id="encryptedFileInput" class="hidden" multiple />
         </label>
 
-        <!-- Normal Upload -->
-        <label class="px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
+        <!-- Standard Upload -->
+        <label class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
           <i class="fa-solid fa-cloud-arrow-up"></i>
-          <span>Upload</span>
-          <input type="file" id="fileInput" class="hidden" multiple />
+          <span>Upload File</span>
+          <input type="file" id="normalFileInput" class="hidden" multiple />
+        </label>
+
+        <!-- Unpack ZIP Upload -->
+        <label class="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-file-zipper"></i>
+          <span>Unpack & Upload ZIP</span>
+          <input type="file" id="zipInput" class="hidden" accept=".zip" />
         </label>
 
         <button id="newFolderBtn" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
@@ -428,7 +437,7 @@
         return `
           <div onclick="${clickAction}"
                class="group relative bg-slate-900/70 border border-white/10 hover:border-indigo-400 rounded-xl p-4 flex flex-col justify-between gap-3 cursor-pointer transition">
-            <button onclick="event.stopPropagation(); removeVaultItem('${f.id}', '${escapeHtml(displayName)}', ${isFolder})"
+            <button onclick="event.stopPropagation(); removeVaultItem('${f.id}', '${escapeHtml(f.name)}', ${isFolder})"
                     class="opacity-0 group-hover:opacity-100 absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white text-[10px] flex items-center justify-center transition cursor-pointer">
               <i class="fa-solid fa-xmark"></i>
             </button>
@@ -438,7 +447,7 @@
             <div class="border-t border-white/10 pt-2.5">
               <p class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</p>
               <p class="text-[10px] font-mono text-slate-400 mt-0.5">
-                ${isFolder ? 'Folder' : `${formatBytes(Number(f.size))} <span class="${encrypted ? 'text-emerald-400' : 'text-slate-400'} ml-1">[${encrypted ? 'Encrypted' : 'Normal'}]</span>`}
+                ${isFolder ? 'Folder' : `${formatBytes(Number(f.size))}`}
               </p>
             </div>
           </div>
@@ -449,12 +458,10 @@
     async function getBlobAndType(fileId, storedFilename) {
       const rawBlob = await drive.fetchBlob(fileId);
 
-      // If it's a normal unencrypted file, return directly
       if (!isEncryptedFile(storedFilename)) {
-        return { blob: rawBlob, mimeType: 'application/octet-stream' };
+        return { blob: rawBlob, mimeType: rawBlob.type || 'application/octet-stream' };
       }
 
-      // If encrypted, decrypt it
       const passphrase = localStorage.getItem(SECRET_KEY);
       if (!passphrase) throw new Error('Encryption password is missing in settings!');
 
@@ -481,9 +488,8 @@
       const body = document.getElementById('previewBody');
       const dlBtn = document.getElementById('previewDownloadBtn');
       const origName = getOriginalFilename(storedFilename);
-      const encrypted = isEncryptedFile(storedFilename);
 
-      document.getElementById('previewTitle').textContent = origName + (encrypted ? ' (Decrypted)' : '');
+      document.getElementById('previewTitle').textContent = origName;
       body.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-400"></i>`;
       modal.classList.remove('hidden');
 
@@ -561,14 +567,14 @@
       await loadFiles();
     };
 
-    document.getElementById('fileInput').onchange = async (e) => {
+    document.getElementById('normalFileInput').onchange = async (e) => {
       const files = Array.from(e.target.files || []);
       e.target.value = '';
       if (!files.length) return;
       
       for (const file of files) {
         try {
-          showToast(`Uploading normal file ${file.name}...`, 'info');
+          showToast(`Uploading ${file.name}...`, 'info');
           await drive.uploadFile(file, currentFolderId);
           showToast(`Uploaded ${file.name}`, 'success');
         } catch (err) {
@@ -576,6 +582,83 @@
         }
       }
       await loadFiles();
+    };
+
+    // --- ZIP Extraction Handler ---
+    document.getElementById('zipInput').onchange = async (e) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+
+      const passphrase = localStorage.getItem(SECRET_KEY);
+      if (!passphrase) {
+        document.getElementById('configBtn').click();
+        return showToast('Set your encryption password in settings first!', 'error');
+      }
+
+      try {
+        showToast(`Unpacking ${file.name}...`, 'info');
+        const zip = new JSZip();
+        const zipContent = await zip.loadAsync(file);
+
+        // Fetch current directory items to prevent duplicate folder creation
+        const existingItems = await drive.listFiles(currentFolderId);
+        const folderCache = { '': currentFolderId };
+
+        for (const item of existingItems) {
+          if (item.mimeType === 'application/vnd.google-apps.folder') {
+            folderCache[item.name] = item.id;
+          }
+        }
+
+        async function getOrCreatePath(relativePath) {
+          const parts = relativePath.split('/').filter(Boolean);
+          let currentPath = '';
+          let parentId = currentFolderId;
+
+          for (const part of parts) {
+            const parentPath = currentPath;
+            currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+            if (!folderCache[currentPath]) {
+              const newFolder = await drive.createFolder(part, parentId);
+              folderCache[currentPath] = newFolder.id;
+            }
+            parentId = folderCache[currentPath];
+          }
+          return parentId;
+        }
+
+        for (const [relativePath, zipEntry] of Object.entries(zipContent.files)) {
+          const pathParts = relativePath.split('/');
+          const fileName = pathParts.pop();
+          const dirPath = pathParts.join('/');
+
+          if (!fileName) continue; // Skip empty directory entries
+
+          const targetFolderId = await getOrCreatePath(dirPath);
+
+          if (!zipEntry.dir) {
+            showToast(`Processing ${fileName}...`, 'info');
+            const fileBlob = await zipEntry.async('blob');
+            
+            const base64Data = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(fileBlob);
+            });
+
+            const encryptedCipher = await encryptText(base64Data, passphrase);
+            const encryptedFile = new File([encryptedCipher], fileName + '.enc', { type: 'application/octet-stream' });
+            await drive.uploadFile(encryptedFile, targetFolderId);
+          }
+        }
+
+        showToast(`Successfully unpacked and encrypted "${file.name}"!`, 'success');
+        await loadFiles();
+      } catch (err) {
+        showToast(`Failed to unpack ZIP: ${err.message}`, 'error');
+      }
     };
 
     document.getElementById('newFolderBtn').onclick = async () => {
