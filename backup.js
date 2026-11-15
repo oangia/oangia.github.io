@@ -1299,8 +1299,8 @@ class SupabaseStorageService {
  */
 class FileManager {
   constructor(config = {}) {
-    this.service = config.storageService;
-    if (!this.service) throw new Error("A storage service is required.");
+    this.storageService = config.storageService;
+    if (!this.storageService) throw new Error("A storage service is required.");
 
     this.allItems = [];
     this.filteredItems = [];
@@ -1317,7 +1317,7 @@ class FileManager {
     });
 
     this.filePreviewManager = new FilePreviewManager({
-      service: this.service,
+      service: this.storageService,
       onToast: (msg, type, duration) => this.showToast(msg, type, duration),
       onSaveSuccess: () => this.listFiles()
     });
@@ -1350,14 +1350,14 @@ class FileManager {
     try {
       // FileManager just tells the service to initialize itself. 
       // How the service handles credentials is its own business.
-      if (typeof this.service.init === "function") {
-        this.service.init();
+      if (typeof this.storageService.init === "function") {
+        this.storageService.init();
       }
-      this.filePreviewManager?.setService(this.service);
+      this.filePreviewManager?.setService(this.storageService);
 
       const headerUrl = document.getElementById("headerUrl");
-      if (headerUrl && this.service.bucket) {
-        headerUrl.innerHTML = `Storage Active<br />Container: ${this.service.bucket}`;
+      if (headerUrl && this.storageService.bucket) {
+        headerUrl.innerHTML = `Storage Active<br />Container: ${this.storageService.bucket}`;
       }
 
       this.breadcrumbManager?.reset();
@@ -1377,7 +1377,7 @@ class FileManager {
     this.updateConnectionStatus(null, "Loading...");
     try {
       const currentPath = this.activePath;
-      const { data, error } = await this.service.list(currentPath, {
+      const { data, error } = await this.storageService.list(currentPath, {
         limit: 500, offset: 0, sortBy: { column: "name", order: "asc" }
       });
       if (error) throw error;
@@ -1393,7 +1393,7 @@ class FileManager {
 
         if (this.isImage(item.name) || this.isVideo(item.name)) {
           try {
-            const { data: signed, error: signErr } = await this.service.getFileUrl(fullPath, 60);
+            const { data: signed, error: signErr } = await this.storageService.getFileUrl(fullPath, 60);
             if (!signErr && signed?.signedUrl) item.thumbUrl = signed.signedUrl;
           } catch (e) {}
         }
@@ -1446,7 +1446,7 @@ class FileManager {
       : `${name}/.emptyFolderPlaceholder`;
 
     try {
-      const { error } = await this.service.upload(folderPath, new Blob([""]), { upsert: false });
+      const { error } = await this.storageService.upload(folderPath, new Blob([""]), { upsert: false });
       if (error) throw error;
 
       this.closeModals();
@@ -1479,7 +1479,7 @@ class FileManager {
           targetPath += file.name;
         }
 
-        const { error } = await this.service.upload(targetPath, file, { cacheControl: "3600", upsert: true });
+        const { error } = await this.storageService.upload(targetPath, file, { cacheControl: "3600", upsert: true });
         if (error) throw error;
 
         success++;
@@ -1516,7 +1516,7 @@ class FileManager {
 
   async downloadFile(path, name) {
     try {
-      await this.service.downloadFile(path, name);
+      await this.storageService.downloadFile(path, name);
     } catch (err) {
       this.showToast(err.message || "Download failed", "error");
     }
@@ -1529,7 +1529,7 @@ class FileManager {
       btn.innerHTML = Theme.getBackupLoadingHTML();
     }
     
-    await this.service.runBackup();
+    await this.storageService.runBackup();
 
     if (btn) {
       btn.disabled = false;
@@ -1545,18 +1545,18 @@ class FileManager {
 
     try {
       if (isFolder) {
-        const { data: files, error: listError } = await this.service.list(path, { limit: 1000 });
+        const { data: files, error: listError } = await this.storageService.list(path, { limit: 1000 });
         if (listError) throw listError;
 
         const pathsToDelete = (files || []).map(f => `${path}/${f.name}`);
         pathsToDelete.push(`${path}/.emptyFolderPlaceholder`);
 
         if (pathsToDelete.length > 0) {
-          const { error } = await this.service.remove(pathsToDelete);
+          const { error } = await this.storageService.remove(pathsToDelete);
           if (error) throw error;
         }
       } else {
-        const { error } = await this.service.remove([path]);
+        const { error } = await this.storageService.remove([path]);
         if (error) throw error;
       }
 
@@ -1580,5 +1580,5 @@ class FileManager {
 }
 new Config("navSettingsTab");
 const sbManager = new SupabaseStorageService();
-fileManager = new FileManager({service:sbManager});
+fileManager = new FileManager({storageService:sbManager});
 fileManager.init();
