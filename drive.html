@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <!-- JSZip Library for client-side archive extraction -->
+  <!-- JSZip Library for client-side virtual archive navigation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col">
@@ -52,13 +52,6 @@
           <i class="fa-solid fa-cloud-arrow-up"></i>
           <span>Upload File</span>
           <input type="file" id="normalFileInput" class="hidden" multiple />
-        </label>
-
-        <!-- Unpack ZIP Upload -->
-        <label class="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
-          <i class="fa-solid fa-file-zipper"></i>
-          <span>Unpack & Upload ZIP</span>
-          <input type="file" id="zipInput" class="hidden" accept=".zip" />
         </label>
 
         <button id="newFolderBtn" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
@@ -311,6 +304,9 @@
 
     let currentFolderId = 'root';
     let folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }];
+    
+    // Virtual ZIP inspection state
+    let activeZipContext = null; // { fileId, fileName, zipInstance, currentSubPath }
 
     const STORAGE_KEY = 'gdrive_oauth_client_id';
     const SECRET_KEY = 'gdrive_encryption_password';
@@ -368,6 +364,7 @@
     });
 
     async function loadFiles() {
+      activeZipContext = null; // Reset zip view when loading drive folders
       const grid = document.getElementById('fileGrid');
       grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-xl mb-2 block"></i>Loading vault...</div>`;
       renderBreadcrumbs();
@@ -397,14 +394,198 @@
 
     window.navigateToBreadcrumb = (index) => {
       folderBreadcrumbs = folderBreadcrumbs.slice(0, index + 1);
-      currentFolderId = folderBreadcrumbs[folderBreadcrumbs.length - 1].id;
-      loadFiles();
+      const target = folderBreadcrumbs[folderBreadcrumbs.length - 1];
+      
+      if (target.type === 'zip_root' || target.type === 'zip_sub') {
+        currentFolderId = target.driveFolderId;
+        openVirtualZipFolder(target.zipFileId, target.zipFileName, target.subPath || '');
+      } else {
+        currentFolderId = target.id;
+        loadFiles();
+      }
     };
 
     function openFolder(folderId, folderName) {
       folderBreadcrumbs.push({ id: folderId, name: folderName });
       currentFolderId = folderId;
       loadFiles();
+    }
+
+    // --- Virtual ZIP Directory Inspection ---
+    async function openVirtualZip(fileId, storedFilename) {
+      const origName = getOriginalFilename(storedFilename);
+      const grid = document.getElementById('fileGrid');
+      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-xl mb-2 block"></i>Reading archive contents...</div>`;
+
+      try {
+        const { blob } = await getBlobAndType(fileId, storedFilename);
+        const zip = new JSZip();
+        const zipContent = await zip.loadAsync(blob);
+
+        activeZipContext = {
+          fileId,
+          fileName: origName,
+          zipInstance: zipContent,
+          currentSubPath: ''
+        };
+
+        folderBreadcrumbs.push({ 
+          type: 'zip_root', 
+          name: origName, 
+          zipFileId: fileId, 
+          zipFileName: origName, 
+          subPath: '',
+          driveFolderId: currentFolderId 
+        });
+
+        renderBreadcrumbs();
+        renderZipContents('');
+      } catch (err) {
+        showToast(`Failed to read ZIP: ${err.message}`, 'error');
+        renderFiles();
+      }
+    }
+
+    function openVirtualZipSubfolder(subPath) {
+      if (!activeZipContext) return;
+      activeZipContext.currentSubPath = subPath;
+      const folderName = subPath.split('/').filter(Boolean).pop();
+
+      folderBreadcrumbs.push({ 
+        type: 'zip_sub', 
+        name: folderName, 
+        zipFileId: activeZipContext.fileId, 
+        zipFileName: activeZipContext.fileName, 
+        subPath: subPath,
+        driveFolderId: currentFolderId 
+      });
+
+      renderBreadcrumbs();
+      renderZipContents(subPath);
+    }
+
+    function renderZipContents(subPath) {
+      const grid = document.getElementById('fileGrid');
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      
+      const entries = Object.entries(activeZipContext.zipInstance.files);
+      const foldersMap = new Map();
+      const filesMap = new Map();
+
+      const normalizedSub = subPath ? (subPath.endsWith('/') ? subPath : subPath + '/') : '';
+
+      for (const [relativePath, zipEntry] of entries) {
+        if (!relativePath.startsWith(normalizedSub)) continue;
+        const remainder = relativePath.slice(normalizedSub.length);
+        if (!remainder) continue;
+
+        const parts = remainder.split('/');
+        const currentPart = parts[0];
+
+        if (parts.length > 1 || zipEntry.dir) {
+          const folderRelPath = normalizedSub + currentPart + '/';
+          if (!foldersMap.has(currentPart) && folderRelPath !== normalizedSub) {
+            foldersMap.set(currentPart, folderRelPath);
+          }
+        } else {
+          if (currentPart) {
+            filesMap.set(currentPart, zipEntry);
+          }
+        }
+      }
+
+      const items = [];
+      for (const [folderName, relPath] of foldersMap.entries()) {
+        if (folderName.toLowerCase().includes(q)) {
+          items.push({ name: folderName, isFolder: true, path: relPath });
+        }
+      }
+      for (const [fileName, zipEntry] of filesMap.entries()) {
+        if (fileName.toLowerCase().includes(q)) {
+          items.push({ name: fileName, isFolder: false, entry: zipEntry });
+        }
+      }
+
+      if (!items.length) {
+        grid.innerHTML = `<div class="col-span-full py-16 text-center text-slate-500 text-xs">This archive folder is empty.</div>`;
+        return;
+      }
+
+      grid.innerHTML = items.map(item => {
+        if (item.isFolder) {
+          return `
+            <div onclick="openVirtualZipSubfolder('${escapeHtml(item.path)}')"
+                 class="group relative bg-slate-900/70 border border-white/10 hover:border-indigo-400 rounded-xl p-4 flex flex-col justify-between gap-3 cursor-pointer transition">
+              <div class="py-4 flex items-center justify-center text-3xl">
+                <i class="fa-solid fa-folder text-amber-400"></i>
+              </div>
+              <div class="border-t border-white/10 pt-2.5">
+                <p class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</p>
+                <p class="text-[10px] font-mono text-slate-400 mt-0.5">Folder</p>
+              </div>
+            </div>
+          `;
+        } else {
+          const isImg = item.name.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i);
+          const isVid = item.name.match(/\.(mp4|webm|mov)$/i);
+          let icon = 'fa-file-lines text-slate-300';
+          if (isImg) icon = 'fa-file-image text-sky-400';
+          else if (isVid) icon = 'fa-file-video text-purple-400';
+
+          return `
+            <div onclick="openZipFilePreview('${escapeHtml(item.name)}')"
+                 class="group relative bg-slate-900/70 border border-white/10 hover:border-indigo-400 rounded-xl p-4 flex flex-col justify-between gap-3 cursor-pointer transition">
+              <div class="py-4 flex items-center justify-center text-3xl">
+                <i class="fa-solid ${icon}"></i>
+              </div>
+              <div class="border-t border-white/10 pt-2.5">
+                <p class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</p>
+                <p class="text-[10px] font-mono text-slate-400 mt-0.5">Archive File</p>
+              </div>
+            </div>
+          `;
+        }
+      }).join('');
+    }
+
+    async function openZipFilePreview(fileName) {
+      if (!activeZipContext) return;
+      const fullPath = (activeZipContext.currentSubPath ? activeZipContext.currentSubPath : '') + fileName;
+      const zipEntry = activeZipContext.zipInstance.file(fullPath);
+      if (!zipEntry) return showToast('File not found in archive', 'error');
+
+      const modal = document.getElementById('previewModal');
+      const body = document.getElementById('previewBody');
+      const dlBtn = document.getElementById('previewDownloadBtn');
+
+      document.getElementById('previewTitle').textContent = fileName;
+      body.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-400"></i>`;
+      modal.classList.remove('hidden');
+
+      try {
+        if (activeObjectUrl) URL.revokeObjectURL(activeObjectUrl);
+        const blob = await zipEntry.async('blob');
+        activeObjectUrl = URL.createObjectURL(blob);
+
+        dlBtn.href = activeObjectUrl;
+        dlBtn.download = fileName;
+
+        if (fileName.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i)) {
+          body.innerHTML = `<img src="${activeObjectUrl}" class="max-w-full max-h-full object-contain rounded-lg" />`;
+        } else if (fileName.match(/\.(mp4|webm|mov)$/i)) {
+          body.innerHTML = `<video src="${activeObjectUrl}" controls class="max-w-full max-h-full rounded-lg"></video>`;
+        } else if (fileName.match(/\.(mp3|wav|ogg)$/i)) {
+          body.innerHTML = `<audio src="${activeObjectUrl}" controls class="w-full max-w-md"></audio>`;
+        } else if (fileName.match(/\.(txt|json|md|js|html|css)$/i)) {
+          const textContent = await blob.text();
+          body.innerHTML = `<pre class="w-full h-full p-4 bg-slate-950 text-slate-200 font-mono text-xs rounded-lg overflow-auto whitespace-pre-wrap">${escapeHtml(textContent)}</pre>`;
+        } else {
+          body.innerHTML = `<div class="text-center text-slate-400 text-xs space-y-2"><i class="fa-solid fa-file text-4xl block"></i><p>Preview not available. Use Download above.</p></div>`;
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+        body.innerHTML = `<p class="text-xs text-rose-400">${escapeHtml(err.message)}</p>`;
+      }
     }
 
     function renderFiles() {
@@ -424,15 +605,20 @@
         const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
         const encrypted = !isFolder && isEncryptedFile(f.name);
         const displayName = isFolder ? f.name : getOriginalFilename(f.name);
+        const isZip = !isFolder && displayName.toLowerCase().endsWith('.zip');
         const isImg = displayName.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i);
         const isVid = displayName.match(/\.(mp4|webm|mov)$/i);
         
         let icon = encrypted ? 'fa-file-shield text-emerald-400' : 'fa-file-lines text-slate-300';
         if (isFolder) icon = 'fa-folder text-amber-400';
+        else if (isZip) icon = 'fa-file-zipper text-purple-400';
         else if (isImg) icon = 'fa-file-image text-sky-400';
         else if (isVid) icon = 'fa-file-video text-purple-400';
 
-        const clickAction = isFolder ? `openFolder('${f.id}', '${escapeHtml(f.name)}')` : `openPreview('${f.id}', '${escapeHtml(f.name)}')`;
+        let clickAction = isFolder ? `openFolder('${f.id}', '${escapeHtml(f.name)}')` : `openPreview('${f.id}', '${escapeHtml(f.name)}')`;
+        if (isZip) {
+          clickAction = `openVirtualZip('${f.id}', '${escapeHtml(f.name)}')`;
+        }
 
         return `
           <div onclick="${clickAction}"
@@ -447,7 +633,7 @@
             <div class="border-t border-white/10 pt-2.5">
               <p class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</p>
               <p class="text-[10px] font-mono text-slate-400 mt-0.5">
-                ${isFolder ? 'Folder' : `${formatBytes(Number(f.size))}`}
+                ${isFolder ? 'Folder' : isZip ? 'ZIP Archive' : `${formatBytes(Number(f.size))}`}
               </p>
             </div>
           </div>
@@ -484,10 +670,14 @@
     }
 
     async function openPreview(fileId, storedFilename) {
+      const origName = getOriginalFilename(storedFilename);
+      if (origName.toLowerCase().endsWith('.zip')) {
+        return openVirtualZip(fileId, storedFilename);
+      }
+
       const modal = document.getElementById('previewModal');
       const body = document.getElementById('previewBody');
       const dlBtn = document.getElementById('previewDownloadBtn');
-      const origName = getOriginalFilename(storedFilename);
 
       document.getElementById('previewTitle').textContent = origName;
       body.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-400"></i>`;
@@ -525,7 +715,11 @@
       try {
         await drive.deleteFile(fileId);
         showToast(`Deleted "${name}"`, 'success');
-        await loadFiles();
+        if (activeZipContext) {
+          loadFiles();
+        } else {
+          await loadFiles();
+        }
       } catch (err) {
         showToast(err.message, 'error');
       }
@@ -584,83 +778,6 @@
       await loadFiles();
     };
 
-    // --- ZIP Extraction Handler ---
-    document.getElementById('zipInput').onchange = async (e) => {
-      const file = e.target.files?.[0];
-      e.target.value = '';
-      if (!file) return;
-
-      const passphrase = localStorage.getItem(SECRET_KEY);
-      if (!passphrase) {
-        document.getElementById('configBtn').click();
-        return showToast('Set your encryption password in settings first!', 'error');
-      }
-
-      try {
-        showToast(`Unpacking ${file.name}...`, 'info');
-        const zip = new JSZip();
-        const zipContent = await zip.loadAsync(file);
-
-        // Fetch current directory items to prevent duplicate folder creation
-        const existingItems = await drive.listFiles(currentFolderId);
-        const folderCache = { '': currentFolderId };
-
-        for (const item of existingItems) {
-          if (item.mimeType === 'application/vnd.google-apps.folder') {
-            folderCache[item.name] = item.id;
-          }
-        }
-
-        async function getOrCreatePath(relativePath) {
-          const parts = relativePath.split('/').filter(Boolean);
-          let currentPath = '';
-          let parentId = currentFolderId;
-
-          for (const part of parts) {
-            const parentPath = currentPath;
-            currentPath = currentPath ? `${currentPath}/${part}` : part;
-
-            if (!folderCache[currentPath]) {
-              const newFolder = await drive.createFolder(part, parentId);
-              folderCache[currentPath] = newFolder.id;
-            }
-            parentId = folderCache[currentPath];
-          }
-          return parentId;
-        }
-
-        for (const [relativePath, zipEntry] of Object.entries(zipContent.files)) {
-          const pathParts = relativePath.split('/');
-          const fileName = pathParts.pop();
-          const dirPath = pathParts.join('/');
-
-          if (!fileName) continue; // Skip empty directory entries
-
-          const targetFolderId = await getOrCreatePath(dirPath);
-
-          if (!zipEntry.dir) {
-            showToast(`Processing ${fileName}...`, 'info');
-            const fileBlob = await zipEntry.async('blob');
-            
-            const base64Data = await new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result);
-              reader.readAsDataURL(fileBlob);
-            });
-
-            const encryptedCipher = await encryptText(base64Data, passphrase);
-            const encryptedFile = new File([encryptedCipher], fileName + '.enc', { type: 'application/octet-stream' });
-            await drive.uploadFile(encryptedFile, targetFolderId);
-          }
-        }
-
-        showToast(`Successfully unpacked and encrypted "${file.name}"!`, 'success');
-        await loadFiles();
-      } catch (err) {
-        showToast(`Failed to unpack ZIP: ${err.message}`, 'error');
-      }
-    };
-
     document.getElementById('newFolderBtn').onclick = async () => {
       const folderName = prompt('Enter new folder name:');
       if (!folderName || !folderName.trim()) return;
@@ -708,7 +825,13 @@
     };
 
     document.getElementById('refreshBtn').onclick = loadFiles;
-    document.getElementById('searchInput').oninput = renderFiles;
+    document.getElementById('searchInput').oninput = () => {
+      if (activeZipContext) {
+        renderZipContents(activeZipContext.currentSubPath);
+      } else {
+        renderFiles();
+      }
+    };
     document.getElementById('closePreviewBtn').onclick = () => document.getElementById('previewModal').classList.add('hidden');
   </script>
 </body>
