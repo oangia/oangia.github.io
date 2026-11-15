@@ -1226,17 +1226,13 @@ class FileManager {
     this.bucket = config.bucket || "files";
     this.sbManager = new SupabaseManager();
     
-    // Internal state
     this.allItems = [];
     this.filteredItems = [];
     
-    // Sub-managers initialized internally
     this.filePreviewManager = null;
     this.gridRenderer = null;
     this.breadcrumbManager = null;
   }
-
-  /* ---------- Initialization ---------- */
 
   init() {
     this.breadcrumbManager = new BreadcrumbManager("breadcrumbNav", {
@@ -1260,25 +1256,7 @@ class FileManager {
       onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
     });
 
-    this.bindEvents();
     this.loadCredentialsFromStorage();
-  }
-
-  bindEvents() {
-    // Search input listener
-    document.getElementById("searchInput")?.addEventListener("input", () => this.renderView());
-
-    // File upload listener
-    document.getElementById("fileUploadInput")?.addEventListener("change", (e) => this.handleFileUpload(e));
-
-    // Global click listener to close action menus
-    document.addEventListener("click", (e) => {
-      const menu = document.getElementById("actionsMenu");
-      if (!menu) return;
-      if (!menu.contains(e.target) && !e.target.closest("#actionsMenuTrigger")) {
-        menu.classList.add("hidden");
-      }
-    });
   }
 
   loadCredentialsFromStorage() {
@@ -1308,8 +1286,6 @@ class FileManager {
   get activePath() {
     return this.breadcrumbManager ? this.breadcrumbManager.path : "";
   }
-
-  /* ---------- File & View Operations ---------- */
 
   async listFiles() {
     this.updateConnectionStatus(null, "Loading...");
@@ -1515,16 +1491,18 @@ class FileManager {
     }
   }
 
-  /* ---------- Helpers ---------- */
-
   isImage(name) { return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name); }
   isVideo(name) { return /\.(mp4|webm|ogg|mov)$/i.test(name); }
   showToast(msg, type, duration) { if (typeof showToast === "function") showToast(msg, type, duration); }
   updateConnectionStatus(status, msg) { if (typeof updateConnectionStatus === "function") updateConnectionStatus(status, msg); }
-  closeModals() { if (typeof closeModals === "function") closeModals(); }
+  closeModals() {
+    document.getElementById("modalCreateFolder")?.classList.add("hidden");
+    document.getElementById("modalPreview")?.classList.add("hidden");
+    if (typeof closeModals === "function") closeModals();
+  }
 }
 
-// Single clean entry point
+// Instantiate and expose `window.fileManager` for the HTML inline calls
 window.addEventListener("DOMContentLoaded", () => {
   window.fileManager = new FileManager();
   window.fileManager.init();
