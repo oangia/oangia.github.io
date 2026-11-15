@@ -798,12 +798,15 @@ class ItemsGridRenderer {
     this.container = document.getElementById(containerId);
     this.onItemClick = options.onItemClick || (() => {});
     this.onDeleteClick = options.onDeleteClick || (() => {});
+    this.storageService = options.storageService; // Pass storage service to fetch thumbs lazily
   }
 
   isEncryptedFile(name) { return String(name || "").endsWith(".enc"); }
   getOriginalFilename(name) { return this.isEncryptedFile(name) ? name.slice(0, -4) : name; }
+  isImage(name) { return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(this.getOriginalFilename(name)); }
+  isVideo(name) { return /\.(mp4|webm|ogg|mov)$/i.test(this.getOriginalFilename(name)); }
 
-  render(items, currentPath) {
+  async render(items, currentPath) {
     if (!this.container) return;
     this.container.className = "grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 p-4 text-slate-100";
     this.container.innerHTML = "";
@@ -813,7 +816,7 @@ class ItemsGridRenderer {
       return;
     }
 
-    items.forEach(item => {
+    items.forEach(async (item) => {
       const isFolder = !item.id;
       const encrypted = !isFolder && this.isEncryptedFile(item.name);
       const displayName = isFolder ? item.name : this.getOriginalFilename(item.name);
@@ -824,11 +827,14 @@ class ItemsGridRenderer {
       card.className = "relative flex flex-col items-center justify-between p-3 bg-slate-900/70 border border-white/10 hover:border-indigo-400 rounded-xl cursor-pointer transition h-36 group";
       card.onclick = () => this.onItemClick(item, fullPath, isFolder);
       
-      const mediaHTML = this.buildMediaPreview(item, isFolder, encrypted);
+      // Default placeholder preview container
+      const previewContainerId = `thumb-${Math.random().toString(36.substring(2, 9))}`;
       
       card.innerHTML = `
         <button class="delete-btn opacity-0 group-hover:opacity-100 absolute top-2 right-2 text-xs bg-rose-600 hover:bg-rose-700 text-white rounded-full w-5 h-5 flex items-center justify-center transition">×</button>
-        ${mediaHTML}
+        <div id="${previewContainerId}" class="py-4 flex items-center justify-center text-3xl h-20 w-full">
+          <i class="fa-solid ${isFolder ? 'fa-folder text-amber-400' : (encrypted ? 'fa-file-shield text-emerald-400' : 'fa-file-lines text-slate-300')}"></i>
+        </div>
         <div class="w-full text-center truncate mt-2">
           <p class="text-xs font-semibold truncate" title="${displayName}">${displayName}</p>
           <p class="text-[10px] ${encrypted ? 'text-emerald-400' : 'text-slate-400'}">${isFolder ? 'Folder' : `${sizeStr} • ${encrypted ? 'Encrypted' : 'Normal'}`}</p>
@@ -842,21 +848,22 @@ class ItemsGridRenderer {
       };
 
       this.container.appendChild(card);
-    });
-  }
 
-  buildMediaPreview(item, isFolder, encrypted) {
-    if (isFolder) return `<div class="py-4 flex items-center justify-center text-3xl h-20"><i class="fa-solid fa-folder text-amber-400"></i></div>`;
-    
-    // If it's an image and has a thumbnail URL loaded on-demand
-    const cleanName = this.getOriginalFilename(item.name);
-    if (item.thumbUrl && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(cleanName)) {
-      return `<div class="w-full h-20 flex items-center justify-center overflow-hidden rounded"><img src="${item.thumbUrl}" class="object-cover h-full w-full" /></div>`;
-    }
-    
-    // Encrypted files get a secure shield icon; normal files get a standard file icon
-    const iconClass = encrypted ? "fa-file-shield text-emerald-400" : "fa-file-lines text-slate-300";
-    return `<div class="py-4 flex items-center justify-center text-3xl h-20"><i class="fa-solid ${iconClass}"></i></div>`;
+      // LAZY THUMBNAIL FETCH: Only fetch if it's an image and has a storage service
+      if (!isFolder && this.storageService && this.isImage(item.name)) {
+        try {
+          const { data, error } = await this.storageService.getFileUrl(fullPath, 60);
+          if (!error && data?.signedUrl) {
+            const thumbEl = document.getElementById(previewContainerId);
+            if (thumbEl) {
+              thumbEl.innerHTML = `<img src="${data.signedUrl}" class="object-cover h-full w-full rounded" />`;
+            }
+          }
+        } catch (e) {
+          // Fallback gracefully to icon if thumbnail decryption/fetch fails
+        }
+      }
+    });
   }
 }
 
@@ -1192,15 +1199,16 @@ class FileManager {
     });
 
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", {
-      onItemClick: (item, fullPath, isFolder) => {
-        if (isFolder) {
-          this.breadcrumbManager.navigateToFolder(fullPath, item.name);
-        } else {
-          this.openPreview(fullPath, item.name);
-        }
-      },
-      onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
-    });
+     storageService: this.storageService, // <-- Pass this so cards can load thumbs lazily
+     onItemClick: (item, fullPath, isFolder) => {
+       if (isFolder) {
+         this.breadcrumbManager.navigateToFolder(fullPath, item.name);
+       } else {
+         this.openPreview(fullPath, item.name);
+       }
+     },
+     onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
+   });
     this.bindGlobalEvents();
     this.initializeServiceConnection();
   }
