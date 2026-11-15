@@ -1581,9 +1581,8 @@ class FileManager {
 
 class DriveStorageService {
   constructor(config = {}) {
-    this.clientId = localStorage.getItem("gdrive_oauth_client_id");
-     console.log(this.clientId);
-    this.passphrase = localStorage.getItem("gdrive_encryption_password");
+    this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
+    this.passphrase = localStorage.getItem("gdrive_encryption_password") || config.gdrive_encryption_password;
     
     this._bucket = localStorage.getItem("sb_bucket") || config.bucket || "Google Drive Vault";
     this.token = localStorage.getItem("gdrive_access_token") || null;
@@ -1601,7 +1600,6 @@ class DriveStorageService {
     return this._bucket;
   }
 
-  // Standardized initialization method
   init(config = {}) {
     const savedClientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     if (savedClientId) {
@@ -1614,63 +1612,96 @@ class DriveStorageService {
     if (savedToken && savedExpiry && Date.now() < Number(savedExpiry)) {
       this.token = savedToken;
     } else {
-      this.token = null; // Ensure token is cleared if expired or missing
+      this.token = null;
     }
 
+    // Try initializing immediately, and also bind the button
     this._initOAuthClient();
     this._bindAuthButton();
+
+    // Safety fallback: re-attempt binding and initializing after window load in case Google script was still downloading
+    window.addEventListener("load", () => {
+      this._initOAuthClient();
+      this._bindAuthButton();
+    });
   }
 
   _initOAuthClient() {
-    if (!window.google?.accounts?.oauth2 || !this.clientId) return false;
+    if (this.tokenClient) return true;
+    if (!window.google?.accounts?.oauth2) return false;
     
-    this.tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: this.clientId,
-      scope: "https://www.googleapis.com/auth/drive",
-      callback: async (res) => {
-        if (res.error) {
-          this.onProgress(`Auth error: ${res.error}`, "error");
-          return;
-        }
-        this.token = res.access_token;
-        const expiresAt = Date.now() + (res.expires_in - 60) * 1000;
-        
-        localStorage.setItem("gdrive_access_token", this.token);
-        localStorage.setItem("gdrive_token_expiry", expiresAt);
+    try {
+      this.tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: this.clientId,
+        scope: "https://www.googleapis.com/auth/drive",
+        callback: async (res) => {
+          if (res.error) {
+            this.onProgress(`Auth error: ${res.error}`, "error");
+            if (typeof showToast === "function") showToast(`Auth error: ${res.error}`, "error");
+            return;
+          }
+          this.token = res.access_token;
+          const expiresAt = Date.now() + (res.expires_in - 60) * 1000;
+          
+          localStorage.setItem("gdrive_access_token", this.token);
+          localStorage.setItem("gdrive_token_expiry", expiresAt);
 
-        this.onProgress("Connected to Google Drive successfully", "success");
-        
-        // Trigger page reload or view re-initialization if fileManager exists
-        if (typeof fileManager !== "undefined" && fileManager.initializeServiceConnection) {
-          fileManager.initializeServiceConnection();
+          this.onProgress("Connected to Google Drive successfully", "success");
+          if (typeof showToast === "function") showToast("Connected to Google Drive successfully", "success");
+          
+          // Refresh UI/file list if fileManager is active
+          if (typeof fileManager !== "undefined" && typeof fileManager.initializeServiceConnection === "function") {
+            fileManager.initializeServiceConnection();
+          } else {
+            window.location.reload();
+          }
         }
-      }
-    });
-    return true;
+      });
+      return true;
+    } catch (err) {
+      console.error("Failed to init Google OAuth client:", err);
+      return false;
+    }
   }
 
   _bindAuthButton() {
     const authBtn = document.getElementById("authBtn");
-    if (authBtn && !authBtn.dataset.bound) {
-      authBtn.dataset.bound = "true";
-      authBtn.onclick = () => {
-        if (!this.clientId) {
-          this.onProgress("Please configure your Google Client ID in settings first", "warning");
-          const configModal = document.getElementById("configModal");
-          if (configModal) configModal.classList.remove("hidden");
+    if (!authBtn) return;
+
+    // Replace onclick directly to prevent duplicate/stale bindings
+    authBtn.onclick = () => {
+      if (!this.clientId) {
+        if (typeof showToast === "function") {
+          showToast("Please configure your Google Client ID in settings first!", "error");
+        } else {
+          alert("Please configure your Google Client ID in settings first!");
+        }
+        const configModal = document.getElementById("configModal") || document.getElementById("modalConfig");
+        if (configModal) configModal.classList.remove("hidden");
+        return;
+      }
+
+      // Try initializing client on click if it wasn't ready earlier
+      if (!this.tokenClient) {
+        const initialized = this._initOAuthClient();
+        if (!initialized || !this.tokenClient) {
+          if (typeof showToast === "function") {
+            showToast("Google API is still loading or blocked. Please check your connection and try again.", "error");
+          } else {
+            alert("Google API is still loading. Please wait a second and try again.");
+          }
           return;
         }
-        if (!this.tokenClient && !this._initOAuthClient()) {
-          this.onProgress("Google Identity script not loaded yet", "error");
-          return;
-        }
-        this.tokenClient.requestAccessToken({ prompt: "" });
-      };
-    }
+      }
+
+      this.tokenClient.requestAccessToken({ prompt: "" });
+    };
   }
 
   _headers(extra = {}) {
-    if (!this.token) throw new Error("Google Drive not connected. Please click 'Connect Drive'.");
+    if (!this.token) {
+      throw new Error("Not authenticated. Please click 'Connect Drive' first.");
+    }
     return { Authorization: `Bearer ${this.token}`, ...extra };
   }
 
@@ -1774,6 +1805,9 @@ class DriveStorageService {
   // --- Core Storage Interface Methods ---
 
   async list(path, options = {}) {
+    if (!this.token) {
+      return { data: [], error: null }; // Graceful: returns empty until authenticated
+    }
     try {
       const folderId = await this._resolveFolderId(path);
       const params = new URLSearchParams({
@@ -1808,200 +1842,178 @@ class DriveStorageService {
   }
 
   async getFileUrl(path, expiresIn = 60) {
-    try {
-      const lastSlashIdx = path.lastIndexOf("/");
-      const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
-      const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
+    const lastSlashIdx = path.lastIndexOf("/");
+    const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
+    const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
 
-      const folderId = await this._resolveFolderId(dirPath);
-      const query = encodeURIComponent(`'${folderId}' in parents and name = '${fileName}' and trashed = false`);
-      const res = await fetch(`${this.apiBase}?q=${query}&fields=files(id, name)`, { headers: this._headers() });
-      if (!res.ok) throw new Error("File lookup failed");
-      
-      const json = await res.json();
-      if (!json.files || json.files.length === 0) throw new Error("File not found");
-      const fileId = json.files[0].id;
+    const folderId = await this._resolveFolderId(dirPath);
+    const query = encodeURIComponent(`'${folderId}' in parents and name = '${fileName}' and trashed = false`);
+    const res = await fetch(`${this.apiBase}?q=${query}&fields=files(id, name)`, { headers: this._headers() });
+    if (!res.ok) throw new Error("File lookup failed");
+    
+    const json = await res.json();
+    if (!json.files || json.files.length === 0) throw new Error("File not found");
+    const fileId = json.files[0].id;
 
-      const mediaRes = await fetch(`${this.apiBase}/${fileId}?alt=media`, { headers: this._headers() });
-      if (!mediaRes.ok) throw new Error("Failed to retrieve file stream");
-      const blob = await mediaRes.blob();
-      
-      let finalBlob = blob;
-      const currentPassphrase = localStorage.getItem("gdrive_encryption_password") || this.passphrase;
+    const mediaRes = await fetch(`${this.apiBase}/${fileId}?alt=media`, { headers: this._headers() });
+    if (!mediaRes.ok) throw new Error("Failed to retrieve file stream");
+    const blob = await mediaRes.blob();
+    
+    let finalBlob = blob;
+    const currentPassphrase = localStorage.getItem("gdrive_encryption_password") || this.passphrase;
 
-      if (fileName.endsWith(".enc") && currentPassphrase) {
-        try {
-          const ciphertext = await blob.text();
-          const decryptedBase64 = await this._decryptText(ciphertext, currentPassphrase);
-          const match = decryptedBase64.match(/^data:(.*?);base64,(.*)$/s);
-          if (match) {
-            const resData = await fetch(`data:${match[1]};base64,${match[2]}`);
-            finalBlob = await resData.blob();
-          }
-        } catch (e) {
-          console.warn("Could not decrypt preview payload, serving raw cipher:", e);
+    if (fileName.endsWith(".enc") && currentPassphrase) {
+      try {
+        const ciphertext = await blob.text();
+        const decryptedBase64 = await this._decryptText(ciphertext, currentPassphrase);
+        const match = decryptedBase64.match(/^data:(.*?);base64,(.*)$/s);
+        if (match) {
+          const resData = await fetch(`data:${match[1]};base64,${match[2]}`);
+          finalBlob = await resData.blob();
         }
+      } catch (e) {
+        console.warn("Could not decrypt preview payload, serving raw cipher:", e);
       }
-
-      const signedUrl = URL.createObjectURL(finalBlob);
-      return { data: { signedUrl }, error: null };
-    } catch (err) {
-      return { data: null, error: err };
     }
+
+    const signedUrl = URL.createObjectURL(finalBlob);
+    return { data: { signedUrl }, error: null };
   }
 
   async upload(path, file, options = {}) {
-    try {
+    const lastSlashIdx = path.lastIndexOf("/");
+    const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
+    const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
+
+    const parentId = await this._resolveFolderId(dirPath);
+
+    const query = encodeURIComponent(`'${parentId}' in parents and name = '${fileName}' and trashed = false`);
+    const searchRes = await fetch(`${this.apiBase}?q=${query}&fields=files(id)`, { headers: this._headers() });
+    const searchJson = await searchRes.json();
+    
+    if (searchJson.files && searchJson.files.length > 0 && options.upsert === false) {
+      return { data: null, error: new Error("File already exists and upsert is disabled") };
+    }
+
+    let uploadFile = file;
+    const currentPassphrase = localStorage.getItem("gdrive_encryption_password") || this.passphrase;
+    
+    if (currentPassphrase && fileName !== ".emptyFolderPlaceholder" && !fileName.endsWith(".enc")) {
+      const reader = new FileReader();
+      const base64Data = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const encryptedCipher = await this._encryptText(base64Data, currentPassphrase);
+      uploadFile = new File([encryptedCipher], fileName + ".enc", { type: "application/octet-stream" });
+    } else if (fileName === ".emptyFolderPlaceholder") {
+      uploadFile = new File([file], ".emptyFolderPlaceholder", { type: "text/plain" });
+    }
+
+    if (searchJson.files && searchJson.files.length > 0) {
+      for (const existing of searchJson.files) {
+        await fetch(`${this.apiBase}/${existing.id}`, { method: "DELETE", headers: this._headers() });
+      }
+    }
+
+    const metadata = {
+      name: uploadFile.name,
+      mimeType: uploadFile.type || "application/octet-stream",
+      parents: [parentId]
+    };
+
+    const form = new FormData();
+    form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+    form.append("file", uploadFile);
+
+    const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=id,name,size`, {
+      method: "POST",
+      headers: this._headers(),
+      body: form
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json();
+      throw new Error(errJson.error?.message || "Upload failed");
+    }
+
+    return { data: await res.json(), error: null };
+  }
+
+  async remove(paths) {
+    for (const path of paths) {
       const lastSlashIdx = path.lastIndexOf("/");
       const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
       const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
 
       const parentId = await this._resolveFolderId(dirPath);
-
       const query = encodeURIComponent(`'${parentId}' in parents and name = '${fileName}' and trashed = false`);
       const searchRes = await fetch(`${this.apiBase}?q=${query}&fields=files(id)`, { headers: this._headers() });
       const searchJson = await searchRes.json();
-      
-      if (searchJson.files && searchJson.files.length > 0 && options.upsert === false) {
-        return { data: null, error: new Error("File already exists and upsert is disabled") };
-      }
 
-      let uploadFile = file;
-      const currentPassphrase = localStorage.getItem("gdrive_encryption_password") || this.passphrase;
-      
-      if (currentPassphrase && fileName !== ".emptyFolderPlaceholder" && !fileName.endsWith(".enc")) {
-        const reader = new FileReader();
-        const base64Data = await new Promise((resolve, reject) => {
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        const encryptedCipher = await this._encryptText(base64Data, currentPassphrase);
-        uploadFile = new File([encryptedCipher], fileName + ".enc", { type: "application/octet-stream" });
-      } else if (fileName === ".emptyFolderPlaceholder") {
-        uploadFile = new File([file], ".emptyFolderPlaceholder", { type: "text/plain" });
-      }
-
-      if (searchJson.files && searchJson.files.length > 0) {
-        for (const existing of searchJson.files) {
-          await fetch(`${this.apiBase}/${existing.id}`, { method: "DELETE", headers: this._headers() });
+      if (searchJson.files) {
+        for (const file of searchJson.files) {
+          await fetch(`${this.apiBase}/${file.id}`, { method: "DELETE", headers: this._headers() });
         }
       }
-
-      const metadata = {
-        name: uploadFile.name,
-        mimeType: uploadFile.type || "application/octet-stream",
-        parents: [parentId]
-      };
-
-      const form = new FormData();
-      form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-      form.append("file", uploadFile);
-
-      const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=id,name,size`, {
-        method: "POST",
-        headers: this._headers(),
-        body: form
-      });
-
-      if (!res.ok) {
-        const errJson = await res.json();
-        throw new Error(errJson.error?.message || "Upload failed");
-      }
-
-      return { data: await res.json(), error: null };
-    } catch (err) {
-      return { data: null, error: err };
     }
-  }
-
-  async remove(paths) {
-    try {
-      for (const path of paths) {
-        const lastSlashIdx = path.lastIndexOf("/");
-        const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
-        const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
-
-        const parentId = await this._resolveFolderId(dirPath);
-        const query = encodeURIComponent(`'${parentId}' in parents and name = '${fileName}' and trashed = false`);
-        const searchRes = await fetch(`${this.apiBase}?q=${query}&fields=files(id)`, { headers: this._headers() });
-        const searchJson = await searchRes.json();
-
-        if (searchJson.files) {
-          for (const file of searchJson.files) {
-            await fetch(`${this.apiBase}/${file.id}`, { method: "DELETE", headers: this._headers() });
-          }
-        }
-      }
-      return { data: {}, error: null };
-    } catch (err) {
-      return { data: null, error: err };
-    }
+    return { data: {}, error: null };
   }
 
   async downloadFile(path, name) {
-    try {
-      const { data, error } = await this.getFileUrl(path, 60);
-      if (error) throw error;
+    const { data, error } = await this.getFileUrl(path, 60);
+    if (error) throw error;
 
-      const res = await fetch(data.signedUrl, { cache: "no-store" });
-      if (!res.ok) throw new Error("Download failed");
+    const res = await fetch(data.signedUrl, { cache: "no-store" });
+    if (!res.ok) throw new Error("Download failed");
 
-      const blob = await res.blob();
-      this._triggerDownload(blob, name);
-    } catch (err) {
-      throw new Error(err.message || "Download failed");
-    }
+    const blob = await res.blob();
+    this._triggerDownload(blob, name);
   }
 
   async runBackup() {
-    try {
-      this.onProgress("Collecting all files from Google Drive...", "info");
-      const allFiles = await this._listAllFilesRecursive("");
-      
-      if (allFiles.length === 0) {
-        this.onProgress("Vault is empty – nothing to backup", "warning");
-        return { success: false, error: "Vault is empty" };
-      }
-
-      this.onProgress(`Found ${allFiles.length} file(s). Preparing archive...`, "info");
-      const zip = new JSZip();
-      let processed = 0;
-
-      for (const filePath of allFiles) {
-        try {
-          const { data: signed, error: signErr } = await this.getFileUrl(filePath, 60);
-          if (signErr) throw signErr;
-          
-          const res = await fetch(signed.signedUrl, { cache: "no-store" });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          
-          const arrayBuffer = await res.arrayBuffer();
-          zip.file(filePath, arrayBuffer);
-        } catch (err) {
-          console.warn(`Failed to package ${filePath}:`, err);
-          this.onProgress(`Skipped ${filePath}`, "warning");
-        }
-        processed++;
-        if (processed % 5 === 0 || processed === allFiles.length) {
-          this.onProgress(`Processed ${processed} / ${allFiles.length}`, "info");
-        }
-      }
-
-      const today = new Date().toISOString().slice(0, 10);
-      const zipName = `GoogleDrive_Vault_${today}.zip`;
-
-      this.onProgress("Compressing into ZIP archive...", "info");
-      const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
-      
-      this._triggerDownload(blob, zipName);
-      this.onProgress(`Backup ready: ${zipName}`, "success");
-      return { success: true, filename: zipName };
-    } catch (err) {
-      console.error("Backup failed:", err);
-      this.onProgress(err.message || "Backup failed", "error");
-      return { success: false, error: err.message };
+    this.onProgress("Collecting all files from Google Drive...", "info");
+    const allFiles = await this._listAllFilesRecursive("");
+    
+    if (allFiles.length === 0) {
+      this.onProgress("Vault is empty – nothing to backup", "warning");
+      return { success: false, error: "Vault is empty" };
     }
+
+    this.onProgress(`Found ${allFiles.length} file(s). Preparing archive...`, "info");
+    const zip = new JSZip();
+    let processed = 0;
+
+    for (const filePath of allFiles) {
+      try {
+        const { data: signed, error: signErr } = await this.getFileUrl(filePath, 60);
+        if (signErr) throw signErr;
+        
+        const res = await fetch(signed.signedUrl, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const arrayBuffer = await res.arrayBuffer();
+        zip.file(filePath, arrayBuffer);
+      } catch (err) {
+        console.warn(`Failed to package ${filePath}:`, err);
+        this.onProgress(`Skipped ${filePath}`, "warning");
+      }
+      processed++;
+      if (processed % 5 === 0 || processed === allFiles.length) {
+        this.onProgress(`Processed ${processed} / ${allFiles.length}`, "info");
+      }
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const zipName = `GoogleDrive_Vault_${today}.zip`;
+
+    this.onProgress("Compressing into ZIP archive...", "info");
+    const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+    
+    this._triggerDownload(blob, zipName);
+    this.onProgress(`Backup ready: ${zipName}`, "success");
+    return { success: true, filename: zipName };
   }
 
   async _listAllFilesRecursive(prefix = "") {
