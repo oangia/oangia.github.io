@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google Drive File Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-slate-900 border-b border-white/10 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-400 flex items-center justify-center text-lg">
+        <i class="fa-brands fa-google-drive"></i>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold text-white">Drive Storage Manager</h1>
+        <p id="statusText" class="text-xs text-slate-400">Not connected</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button id="configBtn" class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-semibold text-slate-200 transition cursor-pointer">
+        <i class="fa-solid fa-gear mr-1.5"></i>Client ID
+      </button>
+      <button id="authBtn" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition cursor-pointer shadow-sm">
+        <i class="fa-solid fa-right-to-bracket mr-1.5"></i>Connect Drive
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-6 flex flex-col gap-6">
+
+    <!-- Toolbar (Hidden until authenticated) -->
+    <div id="toolbar" class="hidden flex flex-wrap items-center justify-between gap-4 bg-slate-900/60 border border-white/10 p-4 rounded-2xl">
+      <div class="flex items-center gap-3">
+        <label class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>Upload File</span>
+          <input type="file" id="fileInput" class="hidden" multiple />
+        </label>
+        <button id="refreshBtn" class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-semibold text-slate-200 transition cursor-pointer">
+          <i class="fa-solid fa-rotate mr-1.5"></i>Refresh
+        </button>
+      </div>
+
+      <input id="searchInput" type="text" placeholder="Filter files..."
+        class="bg-white/5 border border-white/15 text-slate-200 placeholder-slate-500 text-xs rounded-xl px-3.5 py-2 outline-none focus:border-indigo-400 w-60" />
+    </div>
+
+    <!-- File Grid -->
+    <div id="emptyPrompt" class="flex-1 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/10 rounded-2xl p-12">
+      <i class="fa-brands fa-google-drive text-4xl text-slate-600 mb-3"></i>
+      <h2 class="text-sm font-bold text-slate-300">Connect your Google Account</h2>
+      <p class="text-xs text-slate-500 max-w-md mt-1">
+        Configure your OAuth Client ID and click <strong>Connect Drive</strong> to list, preview, and upload files via the <code class="text-indigo-400">drive.file</code> scope.
+      </p>
+    </div>
+
+    <div id="fileGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+  </main>
+
+  <!-- Client ID Modal -->
+  <div id="configModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-white/15 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 class="text-sm font-bold text-white">Google OAuth Configuration</h3>
+        <button id="closeConfigBtn" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-300 mb-1.5">Web Application Client ID</label>
+        <input id="clientIdInput" type="text" placeholder="123456789-abc.apps.googleusercontent.com"
+          class="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-xs font-mono text-white outline-none focus:border-indigo-400" />
+        <p class="text-[11px] text-slate-400 mt-2">
+          Ensure your current origin (<code id="originLabel" class="text-indigo-300"></code>) is added to Authorized JavaScript origins in Google Cloud Console.
+        </p>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="saveConfigBtn" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition cursor-pointer">
+          Save Client ID
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- File Preview Modal -->
+  <div id="previewModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-white/15 rounded-2xl max-w-4xl w-full h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-5 py-3 border-b border-white/10 flex items-center justify-between">
+        <h3 id="previewTitle" class="text-sm font-bold text-white truncate">Preview</h3>
+        <div class="flex items-center gap-3">
+          <a id="previewDownloadBtn" href="#" download="" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition">
+            <i class="fa-solid fa-download mr-1"></i>Download
+          </a>
+          <button id="closePreviewBtn" class="text-slate-400 hover:text-white px-2 py-1 cursor-pointer">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+      <div id="previewBody" class="flex-1 p-4 flex items-center justify-center overflow-auto bg-black/40"></div>
+    </div>
+  </div>
+
+  <script>
+    // --- Utilities ---
+    const escapeHtml = str => String(str || '').replace(/[&<>'"]/g, t => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[t]));
+    const formatBytes = b => {
+      if (!b) return '0 B';
+      const k = 1024, s = ['B', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(b) / Math.log(k));
+      return `${parseFloat((b / Math.pow(k, i)).toFixed(1))} ${s[i]}`;
+    };
+
+    function showToast(msg, type = 'info') {
+      let c = document.getElementById('toastContainer');
+      if (!c) {
+        c = document.createElement('div');
+        c.id = 'toastContainer';
+        c.className = 'fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full';
+        document.body.appendChild(c);
+      }
+      const colors = {
+        success: 'border-emerald-700 text-emerald-100 border-l-emerald-500',
+        error: 'border-rose-700 text-rose-100 border-l-rose-500',
+        info: 'border-slate-700 text-slate-100 border-l-sky-500'
+      }[type] || 'border-slate-700 text-slate-100 border-l-sky-500';
+
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto p-3.5 rounded-xl border border-l-4 bg-slate-900/95 shadow-xl text-xs font-medium flex justify-between items-center ${colors}`;
+      el.innerHTML = `<span>${escapeHtml(msg)}</span><button onclick="this.parentElement.remove()" class="ml-3 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>`;
+      c.appendChild(el);
+      setTimeout(() => el.remove(), 4000);
+    }
+
+    // --- Google Drive API v3 Service ---
+    class GoogleDriveService {
+      constructor() {
+        this.token = null;
+        this.apiBase = 'https://www.googleapis.com/drive/v3/files';
+        this.uploadBase = 'https://www.googleapis.com/upload/drive/v3/files';
+      }
+
+      setToken(token) { this.token = token; }
+
+      headers(extra = {}) {
+        if (!this.token) throw new Error('Not authenticated');
+        return { Authorization: `Bearer ${this.token}`, ...extra };
+      }
+
+      async listFiles() {
+        const params = new URLSearchParams({
+          q: "trashed = false",
+          fields: 'files(id, name, mimeType, size, modifiedTime)',
+          orderBy: 'modifiedTime desc',
+          pageSize: '100'
+        });
+        const res = await fetch(`${this.apiBase}?${params}`, { headers: this.headers() });
+        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list files');
+        return (await res.json()).files || [];
+      }
+
+      async uploadFile(file) {
+        const metadata = { name: file.name, mimeType: file.type || 'application/octet-stream' };
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', file);
+
+        const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=id,name,mimeType,size`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: form
+        });
+        if (!res.ok) throw new Error((await res.json()).error?.message || 'Upload failed');
+        return res.json();
+      }
+
+      async fetchBlob(fileId) {
+        const res = await fetch(`${this.apiBase}/${fileId}?alt=media`, { headers: this.headers() });
+        if (!res.ok) throw new Error('Failed to fetch file content');
+        return res.blob();
+      }
+
+      async deleteFile(fileId) {
+        const res = await fetch(`${this.apiBase}/${fileId}`, { method: 'DELETE', headers: this.headers() });
+        if (!res.ok) throw new Error('Delete failed');
+      }
+    }
+
+    // --- App Controller ---
+    const drive = new GoogleDriveService();
+    let tokenClient = null;
+    let cachedFiles = [];
+    let activeObjectUrl = null;
+
+    const STORAGE_KEY = 'gdrive_oauth_client_id';
+    document.getElementById('originLabel').textContent = window.location.origin;
+
+    function initOAuth(clientId) {
+      if (!window.google?.accounts?.oauth2) {
+        showToast('Google Identity script still loading, try again in a second.', 'info');
+        return false;
+      }
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: async (res) => {
+          if (res.error) {
+            showToast(`Auth error: ${res.error}`, 'error');
+            return;
+          }
+          drive.setToken(res.access_token);
+          document.getElementById('statusText').textContent = 'Connected (drive.file scope)';
+          document.getElementById('statusText').className = 'text-xs text-emerald-400';
+          document.getElementById('emptyPrompt').classList.add('hidden');
+          document.getElementById('toolbar').classList.remove('hidden');
+          document.getElementById('fileGrid').classList.remove('hidden');
+          showToast('Connected to Google Drive', 'success');
+          await loadFiles();
+        }
+      });
+      return true;
+    }
+
+    async function loadFiles() {
+      const grid = document.getElementById('fileGrid');
+      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-xl mb-2 block"></i>Loading files...</div>`;
+      try {
+        cachedFiles = await drive.listFiles();
+        renderFiles();
+      } catch (err) {
+        showToast(err.message, 'error');
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-rose-400 text-xs">${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderFiles() {
+      const grid = document.getElementById('fileGrid');
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = cachedFiles.filter(f => f.name.toLowerCase().includes(q));
+
+      if (!filtered.length) {
+        grid.innerHTML = `<div class="col-span-full py-16 text-center text-slate-500 text-xs">No files found. Upload a file to get started.</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(f => {
+        const isImg = f.mimeType?.startsWith('image/');
+        const isVid = f.mimeType?.startsWith('video/');
+        const icon = isImg ? 'fa-file-image text-sky-400' : isVid ? 'fa-file-video text-purple-400' : 'fa-file-lines text-slate-300';
+        return `
+          <div onclick="openPreview('${f.id}', '${escapeHtml(f.name)}', '${escapeHtml(f.mimeType)}')"
+               class="group relative bg-slate-900/70 border border-white/10 hover:border-indigo-400 rounded-xl p-4 flex flex-col justify-between gap-3 cursor-pointer transition">
+            <button onclick="event.stopPropagation(); removeFile('${f.id}', '${escapeHtml(f.name)}')"
+                    class="opacity-0 group-hover:opacity-100 absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white text-[10px] flex items-center justify-center transition cursor-pointer">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="py-4 flex items-center justify-center text-3xl">
+              <i class="fa-solid ${icon}"></i>
+            </div>
+            <div class="border-t border-white/10 pt-2.5">
+              <p class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</p>
+              <p class="text-[10px] font-mono text-slate-400 mt-0.5">${formatBytes(Number(f.size))}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function openPreview(fileId, name, mimeType) {
+      const modal = document.getElementById('previewModal');
+      const body = document.getElementById('previewBody');
+      const dlBtn = document.getElementById('previewDownloadBtn');
+
+      document.getElementById('previewTitle').textContent = name;
+      body.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-400"></i>`;
+      modal.classList.remove('hidden');
+
+      try {
+        if (activeObjectUrl) URL.revokeObjectURL(activeObjectUrl);
+        const blob = await drive.fetchBlob(fileId);
+        activeObjectUrl = URL.createObjectURL(blob);
+
+        dlBtn.href = activeObjectUrl;
+        dlBtn.download = name;
+
+        if (mimeType.startsWith('image/')) {
+          body.innerHTML = `<img src="${activeObjectUrl}" class="max-w-full max-h-full object-contain rounded-lg" />`;
+        } else if (mimeType.startsWith('video/')) {
+          body.innerHTML = `<video src="${activeObjectUrl}" controls class="max-w-full max-h-full rounded-lg"></video>`;
+        } else if (mimeType.startsWith('audio/')) {
+          body.innerHTML = `<audio src="${activeObjectUrl}" controls class="w-full max-w-md"></audio>`;
+        } else if (mimeType.startsWith('text/') || mimeType === 'application/json') {
+          const text = await blob.text();
+          body.innerHTML = `<pre class="w-full h-full p-4 bg-slate-950 text-slate-200 font-mono text-xs rounded-lg overflow-auto whitespace-pre-wrap">${escapeHtml(text)}</pre>`;
+        } else {
+          body.innerHTML = `<div class="text-center text-slate-400 text-xs space-y-2"><i class="fa-solid fa-file text-4xl block"></i><p>No inline preview for ${escapeHtml(mimeType)}. Use Download above.</p></div>`;
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+        body.innerHTML = `<p class="text-xs text-rose-400">${escapeHtml(err.message)}</p>`;
+      }
+    }
+
+    async function removeFile(fileId, name) {
+      if (!confirm(`Delete "${name}" from Google Drive?`)) return;
+      try {
+        await drive.deleteFile(fileId);
+        showToast(`Deleted "${name}"`, 'success');
+        await loadFiles();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // --- Event Listeners ---
+    document.getElementById('configBtn').onclick = () => {
+      document.getElementById('clientIdInput').value = localStorage.getItem(STORAGE_KEY) || '';
+      document.getElementById('configModal').classList.remove('hidden');
+    };
+
+    document.getElementById('closeConfigBtn').onclick = () => document.getElementById('configModal').classList.add('hidden');
+
+    document.getElementById('saveConfigBtn').onclick = () => {
+      const val = document.getElementById('clientIdInput').value.trim();
+      if (!val) return showToast('Client ID is required', 'error');
+      localStorage.setItem(STORAGE_KEY, val);
+      tokenClient = null;
+      document.getElementById('configModal').classList.add('hidden');
+      showToast('Client ID saved', 'success');
+    };
+
+    document.getElementById('authBtn').onclick = () => {
+      const clientId = localStorage.getItem(STORAGE_KEY);
+      if (!clientId) {
+        document.getElementById('configBtn').click();
+        return showToast('Enter your Google OAuth Client ID first', 'info');
+      }
+      if (!tokenClient && !initOAuth(clientId)) return;
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    };
+
+    document.getElementById('fileInput').onchange = async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      for (const file of files) {
+        try {
+          showToast(`Uploading ${file.name}...`, 'info');
+          await drive.uploadFile(file);
+          showToast(`Uploaded ${file.name}`, 'success');
+        } catch (err) {
+          showToast(`Failed ${file.name}: ${err.message}`, 'error');
+        }
+      }
+      e.target.value = '';
+      await loadFiles();
+    };
+
+    document.getElementById('refreshBtn').onclick = loadFiles;
+    document.getElementById('searchInput').oninput = renderFiles;
+    document.getElementById('closePreviewBtn').onclick = () => document.getElementById('previewModal').classList.add('hidden');
+  </script>
+</body>
+</html>
