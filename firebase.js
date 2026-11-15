@@ -1,16 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
-import { 
-    getFirestore, 
-    collection, 
-    addDoc, 
-    getDocs, 
-    deleteDoc,
-    doc,
-    serverTimestamp, 
-    query, 
-    orderBy,
-    where 
-} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, orderBy, where } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
 class FirebaseService {
     constructor() {
