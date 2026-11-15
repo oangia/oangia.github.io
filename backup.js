@@ -1539,10 +1539,3 @@ class FileManager {
     if (typeof closeModals === "function") closeModals();
   }
 }
-
-// Instantiate and expose `window.fileManager`
-window.addEventListener("DOMContentLoaded", () => {
-  window.fileManager = new FileManager();
-  window.fileManager.init();
-   new FolderManagerPanel("#openFolderManagerBtn");
-});
