@@ -183,6 +183,12 @@ class FolderManagerPanel {
     this.container = null;
     this.localService = null;
     this.isInitialized = false;
+    
+    // Isolated sub-managers for local folder view
+    this.localBreadcrumbManager = null;
+    this.localGridRenderer = null;
+    this.localFilePreviewManager = null;
+
     if (this.trigger) {
       this.trigger.addEventListener("click", () => this.open());
     }
@@ -202,27 +208,36 @@ class FolderManagerPanel {
     this.localService = new LocalFileAdapterService();
 
     const renderLocalFolder = () => {
-      const currentPath = breadcrumbManager.path;
-      const searchVal = document.getElementById("searchInput").value.toLowerCase();
+      const currentPath = this.localBreadcrumbManager ? this.localBreadcrumbManager.path : "";
+      const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
       let items = this.localService.getItemsAtPath(currentPath);
-      if (searchVal) items = items.filter(i => i.name.toLowerCase().includes(searchVal));
-      document.getElementById("itemCountLabel").textContent = `${items.length} item${items.length !== 1 ? "s" : ""}`;
-      gridRenderer.render(items, currentPath);
+      
+      if (searchVal) {
+        items = items.filter(i => i.name.toLowerCase().includes(searchVal));
+      }
+      
+      const label = document.getElementById("itemCountLabel");
+      if (label) {
+        label.textContent = `${items.length} item${items.length !== 1 ? "s" : ""}`;
+      }
+      
+      this.localGridRenderer?.render(items, currentPath);
     };
 
-    filePreviewManager = new FilePreviewManager({
+    // Use local instances instead of overwriting global ones
+    this.localFilePreviewManager = new FilePreviewManager({
       service: this.localService,
       onToast: (msg, type, duration) => showToast(msg, type, duration),
       onSaveSuccess: () => renderLocalFolder()
     });
 
-    gridRenderer = new ItemsGridRenderer("itemsGrid", {
+    this.localGridRenderer = new ItemsGridRenderer("itemsGrid", {
       onItemClick: (item, fullPath, isFolder) => {
         if (isFolder) {
-          breadcrumbManager.navigateToFolder(fullPath, item.name);
+          this.localBreadcrumbManager?.navigateToFolder(fullPath, item.name);
         } else {
           const record = this.localService.pathToFile.get(fullPath);
-          filePreviewManager.openPreview(fullPath, item.name, record?.size || 0);
+          this.localFilePreviewManager?.openPreview(fullPath, item.name, record?.size || 0);
         }
       },
       onDeleteClick: (fullPath, isFolder) => {
@@ -232,30 +247,38 @@ class FolderManagerPanel {
       }
     });
 
-    breadcrumbManager = new BreadcrumbManager("breadcrumbNav", {
+    this.localBreadcrumbManager = new BreadcrumbManager("breadcrumbNav", {
       onNavigate: () => renderLocalFolder()
     });
 
-    document.getElementById("searchInput").addEventListener("input", renderLocalFolder);
+    document.getElementById("searchInput")?.addEventListener("input", renderLocalFolder);
 
     document.querySelectorAll(".widget-folder-input-main, .widget-folder-input-header").forEach(input => {
       input.addEventListener("change", async (e) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
+
         await this.localService.loadFiles(files);
-        document.getElementById("selectScreen").classList.add("hidden");
-        document.getElementById("breadcrumbBar").classList.remove("hidden");
-        document.getElementById("gridScrollArea").classList.remove("hidden");
-        breadcrumbManager.reset();
-        breadcrumbManager.history[0].name = this.localService.rootNode.name || "root";
-        breadcrumbManager.render();
+        
+        document.getElementById("selectScreen")?.classList.add("hidden");
+        document.getElementById("breadcrumbBar")?.classList.remove("hidden");
+        document.getElementById("gridScrollArea")?.classList.remove("hidden");
+        
+        if (this.localBreadcrumbManager) {
+          this.localBreadcrumbManager.reset();
+          if (this.localBreadcrumbManager.history[0]) {
+            this.localBreadcrumbManager.history[0].name = this.localService.rootNode.name || "root";
+          }
+          this.localBreadcrumbManager.render();
+        }
+        
         renderLocalFolder();
         showToast(`Loaded "${this.localService.rootNode.name}"`, "success", 2500);
         e.target.value = "";
       });
     });
 
-    document.getElementById("closeFolderPanelBtn").addEventListener("click", () => this.close());
+    document.getElementById("closeFolderPanelBtn")?.addEventListener("click", () => this.close());
   }
 
   open() {
