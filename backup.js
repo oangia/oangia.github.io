@@ -816,7 +816,7 @@ class ItemsGridRenderer {
       return;
     }
 
-    items.forEach(async (item) => {
+    for (const item of items) {
       const isFolder = !item.id;
       const encrypted = !isFolder && this.isEncryptedFile(item.name);
       const displayName = isFolder ? item.name : this.getOriginalFilename(item.name);
@@ -824,22 +824,28 @@ class ItemsGridRenderer {
       const sizeStr = isFolder ? "" : formatBytes(item.metadata?.size || 0);
       
       const card = document.createElement("div");
-      card.className = "file-card relative flex flex-col items-center justify-between p-3 rounded-xl cursor-pointer transition h-36 group";
+      card.className = "group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden";
       card.onclick = () => this.onItemClick(item, fullPath, isFolder);
       
       const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
       
-      // Build media HTML placeholder
-      const mediaHTML = `
-        <div id="${previewContainerId}" class="py-4 flex items-center justify-center text-3xl h-20 w-full overflow-hidden rounded">
-          <i class="fa-solid ${isFolder ? 'fa-folder text-amber-400' : (encrypted ? 'fa-file-shield text-emerald-400' : 'fa-file-lines opacity-70')}"></i>
+      const mediaHTML = isFolder 
+        ? `<div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-folder text-5xl"></i></div>`
+        : `<div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors">
+             <i class="fa-solid ${encrypted ? 'fa-file-shield text-emerald-400 text-3xl' : 'fa-file-lines text-slate-400 text-3xl'}"></i>
+           </div>`;
+
+      card.innerHTML = `
+        ${mediaHTML}
+        <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
+          <span class="w-full text-xs font-bold text-slate-700 truncate" title="${displayName}">${displayName}</span>
+          <span class="text-[9px] text-slate-400 font-mono mt-0.5">${sizeStr}</span>
         </div>
+        <button class="delete-btn absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500 p-1">
+          <i class="fa-solid fa-trash text-xs"></i>
+        </button>
       `;
 
-      // Use your Theme class method to populate the card HTML consistently
-      card.innerHTML = Theme.getGridCardHTML(mediaHTML, displayName, sizeStr, isFolder);
-
-      // Bind delete button action from the rendered template
       const deleteBtn = card.querySelector(".delete-btn");
       if (deleteBtn) {
         deleteBtn.onclick = (e) => {
@@ -850,19 +856,18 @@ class ItemsGridRenderer {
 
       this.container.appendChild(card);
 
-      // Lazy load image thumbnails on-demand
       if (!isFolder && this.storageService && this.isImage(item.name)) {
         try {
           const { data, error } = await this.storageService.getFileUrl(fullPath, 60);
           if (!error && data?.signedUrl) {
             const thumbEl = document.getElementById(previewContainerId);
             if (thumbEl) {
-              thumbEl.innerHTML = `<img src="${data.signedUrl}" class="object-cover h-full w-full rounded" />`;
+              thumbEl.innerHTML = `<img src="${data.signedUrl}" alt="${displayName}" class="w-full h-full object-cover rounded-lg" />`;
             }
           }
         } catch (e) {}
       }
-    });
+    }
   }
 }
 
