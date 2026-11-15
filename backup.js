@@ -1,64 +1,8 @@
 /**
  * Global Utilities & Helpers
  */
-const formatBytes = (bytes, decimals = 1) => {
-  if (!bytes) return '0 B';
-  const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(decimals))} ${sizes[i]}`;
-};
-
-const escapeHtml = (str) => String(str || '').replace(/[&<>'"]/g, tag => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;'
-}[tag] || tag));
-
-const getExtension = name => name.includes('.') ? name.split('.').pop().toLowerCase() : 'file';
-
-const isType = (name, types) => types.includes(getExtension(name));
-const isImage = name => isType(name, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico']);
-const isVideo = name => isType(name, ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg']);
-const isText = name => isType(name, ['txt', 'md', 'json', 'js', 'ts', 'html', 'css', 'xml', 'csv', 'log', 'py', 'sql', 'yml', 'yaml']);
-
-async function computeSha256(data) {
-  const buffer = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function showToast(message, type = 'info', duration = 4000) {
-  const container = document.getElementById('toastContainer');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'toastContainer';
-    container.className = 'fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full';
-    document.body.appendChild(container);
-  }
-
-  const styles = {
-    success: { border: 'border-emerald-800', text: 'text-emerald-100', icon: 'fa-circle-check text-emerald-400', bar: 'border-l-emerald-500' },
-    error: { border: 'border-rose-800', text: 'text-rose-100', icon: 'fa-circle-exclamation text-rose-400', bar: 'border-l-rose-500' },
-    warning: { border: 'border-amber-800', text: 'text-amber-100', icon: 'fa-triangle-exclamation text-amber-400', bar: 'border-l-amber-500' },
-    info: { border: 'border-slate-700', text: 'text-slate-100', icon: 'fa-circle-info text-sky-400', bar: 'border-l-sky-500' }
-  }[type] || styles.info;
-
-  const toast = document.createElement('div');
-  toast.className = `pointer-events-auto flex items-center justify-between p-3.5 rounded-xl border shadow-xl bg-slate-900/90 backdrop-blur-md border-l-4 ${styles.border} ${styles.text} ${styles.bar} transform transition-all duration-300 translate-x-12 opacity-0 text-xs font-medium`;
-  
-  toast.innerHTML = `
-    <div class="flex items-center"><i class="fa-solid ${styles.icon} text-base mr-3"></i><span>${escapeHtml(message)}</span></div>
-    <button onclick="this.parentElement.remove()" class="ml-4 text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark"></i></button>
-  `;
-
-  container.appendChild(toast);
-  requestAnimationFrame(() => toast.classList.remove('translate-x-12', 'opacity-0'));
-  
-  if (duration > 0) {
-    setTimeout(() => {
-      toast.classList.add('translate-x-12', 'opacity-0');
-      setTimeout(() => toast.remove(), 300);
-    }, duration);
-  }
-}
+const formatBytes=(e,t=1)=>{if(!e)return"0 B";const o=Math.floor(Math.log(e)/Math.log(1024));return`${parseFloat((e/Math.pow(1024,o)).toFixed(t))} ${["B","KB","MB","GB"][o]}`},escapeHtml=e=>String(e||"").replace(/[&<>'"]/g,e=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;",'"':"&quot;"}[e]||e)),getExtension=e=>e.includes(".")?e.split(".").pop().toLowerCase():"file",isType=(e,t)=>t.includes(getExtension(e)),isImage=e=>isType(e,["png","jpg","jpeg","gif","webp","svg","bmp","ico"]),isVideo=e=>isType(e,["mp4","webm","mov","avi","mkv","ogg"]),isText=e=>isType(e,["txt","md","json","js","ts","html","css","xml","csv","log","py","sql","yml","yaml"]);async function computeSha256(e){const t="string"==typeof e?(new TextEncoder).encode(e):e,o=await crypto.subtle.digest("SHA-256",t);return Array.from(new Uint8Array(o)).map(e=>e.toString(16).padStart(2,"0")).join("")}function showToast(e,t="info",o=4e3){const r=document.getElementById("toastContainer");r||(r=document.createElement("div"),r.id="toastContainer",r.className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full",document.body.appendChild(r));const a={success:{border:"border-emerald-800",text:"text-emerald-100",icon:"fa-circle-check text-emerald-400",bar:"border-l-emerald-500"},error:{border:"border-rose-800",text:"text-rose-100",icon:"fa-circle-exclamation text-rose-400",bar:"border-l-rose-500"},warning:{border:"border-amber-800",text:"text-amber-100",icon:"fa-triangle-exclamation text-amber-400",bar:"border-l-amber-500"},info:{border:"border-slate-700",text:"text-slate-100",icon:"fa-circle-info text-sky-400",bar:"border-l-sky-500"}}[t]||a.info,s=document.createElement("div");s.className=`pointer-events-auto flex items-center justify-between p-3.5 rounded-xl border shadow-xl bg-slate-900/90 backdrop-blur-md border-l-4 ${a.border} ${a.text} ${a.bar} transform transition-all duration-300 translate-x-12 opacity-0 text-xs font-medium`,s.innerHTML=`\n    <div class="flex items-center"><i class="fa-solid ${a.icon} text-base mr-3"></i><span>${escapeHtml(e)}</span></div>\n    <button onclick="this.parentElement.remove()" class="ml-4 text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark"></i></button>\n  `,r.appendChild(s),requestAnimationFrame(()=>s.classList.remove("translate-x-12","opacity-0")),o>0&&setTimeout(()=>{s.classList.add("translate-x-12","opacity-0"),setTimeout(()=>s.remove(),300)},o)}
+function isHtml(e){return/\.(html|htm)$/i.test(e)}function getFileIcon(e){const i=getExtension(e).toLowerCase();return["txt","md","log"].includes(i)?'<i class="fa-solid fa-file-lines opacity-90 hover:opacity-100"></i>':["json","js","ts","html","css","py","java","sql"].includes(i)?'<i class="fa-solid fa-file-code opacity-90 hover:opacity-100"></i>':["png","jpg","jpeg","gif","webp","svg"].includes(i)?'<i class="fa-solid fa-file-image opacity-90 hover:opacity-100"></i>':["mp3","wav","ogg"].includes(i)?'<i class="fa-solid fa-file-audio opacity-90 hover:opacity-100"></i>':["mp4","webm","mov"].includes(i)?'<i class="fa-solid fa-file-video opacity-90 hover:opacity-100"></i>':["pdf"].includes(i)?'<i class="fa-solid fa-file-pdf opacity-90 hover:opacity-100"></i>':["zip","rar","7z"].includes(i)?'<i class="fa-solid fa-file-zipper opacity-90 hover:opacity-100"></i>':'<i class="fa-solid fa-file opacity-90 hover:opacity-100"></i>'}function updateConnectionStatus(e,i){const t=document.getElementById("statusDot"),a=document.getElementById("statusText");a&&t&&(a.textContent=i,t.className=!0===e?"w-2 h-2 rounded-full bg-emerald-500":!1===e?"w-2 h-2 rounded-full bg-rose-500":"w-2 h-2 rounded-full bg-amber-400 animate-pulse")}function closeModals(){document.querySelectorAll(".fixed").forEach(e=>{"toastContainer"!==e.id&&e.classList.add("hidden")}),filePreviewManager&&(filePreviewManager.isTextEditor=!1),document.getElementById("previewSaveBtn")?.classList.add("hidden"),document.getElementById("previewCancelEditBtn")?.classList.add("hidden")}
 
 class FirebaseUploaderWidget {
     constructor(fbService, collectionName = "uploaded_files") {
@@ -292,202 +236,202 @@ class FirebaseUploaderWidget {
     }
 }
 class FolderManagerPanel {
-      constructor(triggerSelector) {
-        this.trigger = document.querySelector(triggerSelector);
-        this.container = null;
-        this.localService = null;
-        this.isInitialized = false;
+  constructor(triggerSelector) {
+    this.trigger = document.querySelector(triggerSelector);
+    this.container = null;
+    this.localService = null;
+    this.isInitialized = false;
 
-        if (this.trigger) {
-          this.trigger.addEventListener('click', () => this.open());
-        }
-      }
+    if (this.trigger) {
+      this.trigger.addEventListener('click', () => this.open());
+    }
+  }
 
-      init() {
-        if (this.isInitialized) return;
+  init() {
+    if (this.isInitialized) return;
 
-        this.container = document.createElement('div');
-        this.container.className = 'fixed inset-0 z-50 bg-slate-950 text-slate-100 font-sans flex flex-col h-screen w-screen overflow-hidden m-0 p-0 hidden';
-        this.container.innerHTML = `
-          <!-- Toast Container (required by backup.js showToast) -->
-          <div id="toastContainer" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+    this.container = document.createElement('div');
+    this.container.className = 'fixed inset-0 z-50 bg-slate-950 text-slate-100 font-sans flex flex-col h-screen w-screen overflow-hidden m-0 p-0 hidden';
+    this.container.innerHTML = `
+      <!-- Toast Container (required by backup.js showToast) -->
+      <div id="toastContainer" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
 
-          <!-- Header -->
-          <div class="bg-slate-900 px-5 py-3 border-b border-white/10 flex items-center justify-between gap-4 shrink-0">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-400 flex items-center justify-center text-lg">
-                <i class="fa-solid fa-folder-tree"></i>
-              </div>
-              <div>
-                <h3 class="text-sm font-bold text-white">Folder Manager</h3>
-                <p id="itemCountLabel" class="text-[11px] text-slate-400">No folder loaded</p>
-              </div>
+      <!-- Header -->
+      <div class="bg-slate-900 px-5 py-3 border-b border-white/10 flex items-center justify-between gap-4 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-folder-tree"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Folder Manager</h3>
+            <p id="itemCountLabel" class="text-[11px] text-slate-400">No folder loaded</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Filter current folder..."
+            class="hidden sm:block bg-white/5 border border-white/15 text-slate-200 placeholder-slate-500 text-xs rounded-lg px-3 py-1.5 outline-none focus:border-indigo-400 w-48"
+          />
+          <label class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer">
+            <i class="fa-solid fa-folder-plus"></i> Select Folder
+            <input type="file" class="widget-folder-input-header hidden" webkitdirectory directory multiple>
+          </label>
+          <button id="closeFolderPanelBtn" class="text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition cursor-pointer">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Breadcrumb Bar (used by backup.js BreadcrumbManager) -->
+      <div id="breadcrumbBar" class="hidden bg-slate-900/70 border-b border-white/10 px-5 py-2 flex items-center justify-between text-xs shrink-0">
+        <nav id="breadcrumbNav" class="flex items-center flex-wrap gap-1"></nav>
+      </div>
+
+      <!-- Main Content Area -->
+      <div id="widget-browser-wrapper" class="flex-1 bg-slate-950 overflow-hidden flex flex-col min-h-0 relative">
+        <!-- Initial Select Screen -->
+        <div id="selectScreen" class="flex-1 bg-slate-900/40 hover:bg-indigo-950/20 transition-all p-8 flex flex-col items-center justify-center text-center relative cursor-pointer group border-2 border-dashed border-white/15 hover:border-indigo-400 m-4 rounded-2xl">
+          <input type="file" class="widget-folder-input-main absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" webkitdirectory directory multiple>
+          <div class="pointer-events-none flex flex-col items-center justify-center">
+            <div class="w-20 h-20 bg-indigo-500/10 border border-indigo-400/20 text-indigo-400 rounded-3xl flex items-center justify-center text-3xl group-hover:scale-105 transition-transform mb-4">
+              <i class="fa-solid fa-folder-open"></i>
             </div>
+            <h4 class="text-sm font-bold text-slate-100 mb-1">Click anywhere to select a folder</h4>
+            <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with instant previews, SHA-256 hashes, and computed folder sizes.</p>
+          </div>
+        </div>
 
-            <div class="flex items-center gap-3">
-              <input
-                id="searchInput"
-                type="text"
-                placeholder="Filter current folder..."
-                class="hidden sm:block bg-white/5 border border-white/15 text-slate-200 placeholder-slate-500 text-xs rounded-lg px-3 py-1.5 outline-none focus:border-indigo-400 w-48"
-              />
-              <label class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer">
-                <i class="fa-solid fa-folder-plus"></i> Select Folder
-                <input type="file" class="widget-folder-input-header hidden" webkitdirectory directory multiple>
-              </label>
-              <button id="closeFolderPanelBtn" class="text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition cursor-pointer">
+        <!-- Grid Container (used by backup.js ItemsGridRenderer) -->
+        <div id="gridScrollArea" class="hidden flex-1 overflow-y-auto">
+          <div id="itemsGrid"></div>
+        </div>
+      </div>
+
+      <!-- Preview Modal (required by backup.js FilePreviewManager) -->
+      <div id="modalPreview" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-white/15 rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+          <!-- Modal Header -->
+          <div class="px-5 py-3 border-b border-white/10 flex items-center justify-between gap-4 shrink-0">
+            <h3 id="previewTitle" class="text-sm font-bold text-white truncate">Preview</h3>
+            <div class="flex items-center gap-2">
+              <button id="previewCancelEditBtn" onclick="cancelEditText()" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-slate-200 transition">
+                Discard
+              </button>
+              <button id="previewSaveBtn" onclick="saveEditedText()" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition">
+                <i class="fa-solid fa-floppy-disk mr-1"></i> Save Changes
+              </button>
+              <a id="previewDownloadBtn" href="#" download="" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition inline-flex items-center gap-1.5">
+                <i class="fa-solid fa-download"></i> Download
+              </a>
+              <button onclick="closeModals()" class="text-slate-400 hover:text-white px-2 py-1 text-sm">
                 <i class="fa-solid fa-xmark"></i>
               </button>
             </div>
           </div>
 
-          <!-- Breadcrumb Bar (used by backup.js BreadcrumbManager) -->
-          <div id="breadcrumbBar" class="hidden bg-slate-900/70 border-b border-white/10 px-5 py-2 flex items-center justify-between text-xs shrink-0">
-            <nav id="breadcrumbNav" class="flex items-center flex-wrap gap-1"></nav>
+          <!-- Modal Body + Sidebar -->
+          <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            <div id="previewBody" class="flex-1 p-4 flex items-center justify-center overflow-auto bg-black/40"></div>
+            <aside class="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-white/10 p-4 overflow-y-auto bg-slate-900/90 shrink-0">
+              <div id="previewSidebarDetails"></div>
+            </aside>
           </div>
+        </div>
+      </div>
+    `;
 
-          <!-- Main Content Area -->
-          <div id="widget-browser-wrapper" class="flex-1 bg-slate-950 overflow-hidden flex flex-col min-h-0 relative">
-            <!-- Initial Select Screen -->
-            <div id="selectScreen" class="flex-1 bg-slate-900/40 hover:bg-indigo-950/20 transition-all p-8 flex flex-col items-center justify-center text-center relative cursor-pointer group border-2 border-dashed border-white/15 hover:border-indigo-400 m-4 rounded-2xl">
-              <input type="file" class="widget-folder-input-main absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" webkitdirectory directory multiple>
-              <div class="pointer-events-none flex flex-col items-center justify-center">
-                <div class="w-20 h-20 bg-indigo-500/10 border border-indigo-400/20 text-indigo-400 rounded-3xl flex items-center justify-center text-3xl group-hover:scale-105 transition-transform mb-4">
-                  <i class="fa-solid fa-folder-open"></i>
-                </div>
-                <h4 class="text-sm font-bold text-slate-100 mb-1">Click anywhere to select a folder</h4>
-                <p class="text-xs text-slate-400 max-w-sm">Loads directory layout with instant previews, SHA-256 hashes, and computed folder sizes.</p>
-              </div>
-            </div>
+    document.body.appendChild(this.container);
+    this.bindLogic();
+    this.isInitialized = true;
+  }
 
-            <!-- Grid Container (used by backup.js ItemsGridRenderer) -->
-            <div id="gridScrollArea" class="hidden flex-1 overflow-y-auto">
-              <div id="itemsGrid"></div>
-            </div>
-          </div>
+  bindLogic() {
+    this.localService = new LocalFileAdapterService();
 
-          <!-- Preview Modal (required by backup.js FilePreviewManager) -->
-          <div id="modalPreview" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div class="bg-slate-900 border border-white/15 rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden shadow-2xl">
-              <!-- Modal Header -->
-              <div class="px-5 py-3 border-b border-white/10 flex items-center justify-between gap-4 shrink-0">
-                <h3 id="previewTitle" class="text-sm font-bold text-white truncate">Preview</h3>
-                <div class="flex items-center gap-2">
-                  <button id="previewCancelEditBtn" onclick="cancelEditText()" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-slate-200 transition">
-                    Discard
-                  </button>
-                  <button id="previewSaveBtn" onclick="saveEditedText()" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition">
-                    <i class="fa-solid fa-floppy-disk mr-1"></i> Save Changes
-                  </button>
-                  <a id="previewDownloadBtn" href="#" download="" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition inline-flex items-center gap-1.5">
-                    <i class="fa-solid fa-download"></i> Download
-                  </a>
-                  <button onclick="closeModals()" class="text-slate-400 hover:text-white px-2 py-1 text-sm">
-                    <i class="fa-solid fa-xmark"></i>
-                  </button>
-                </div>
-              </div>
+    const renderLocalFolder = () => {
+      const currentPath = breadcrumbManager.path;
+      const searchVal = document.getElementById('searchInput').value.toLowerCase();
+      let items = this.localService.getItemsAtPath(currentPath);
 
-              <!-- Modal Body + Sidebar -->
-              <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
-                <div id="previewBody" class="flex-1 p-4 flex items-center justify-center overflow-auto bg-black/40"></div>
-                <aside class="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-white/10 p-4 overflow-y-auto bg-slate-900/90 shrink-0">
-                  <div id="previewSidebarDetails"></div>
-                </aside>
-              </div>
-            </div>
-          </div>
-        `;
-
-        document.body.appendChild(this.container);
-        this.bindLogic();
-        this.isInitialized = true;
+      if (searchVal) {
+        items = items.filter(i => i.name.toLowerCase().includes(searchVal));
       }
 
-      bindLogic() {
-        this.localService = new LocalFileAdapterService();
+      document.getElementById('itemCountLabel').textContent =
+        `${items.length} item${items.length !== 1 ? 's' : ''}`;
 
-        const renderLocalFolder = () => {
-          const currentPath = breadcrumbManager.path;
-          const searchVal = document.getElementById('searchInput').value.toLowerCase();
-          let items = this.localService.getItemsAtPath(currentPath);
+      gridRenderer.render(items, currentPath);
+    };
 
-          if (searchVal) {
-            items = items.filter(i => i.name.toLowerCase().includes(searchVal));
-          }
+    // Reuse FilePreviewManager from backup.js
+    filePreviewManager = new FilePreviewManager({
+      service: this.localService,
+      onToast: (msg, type, duration) => showToast(msg, type, duration),
+      onSaveSuccess: () => renderLocalFolder()
+    });
 
-          document.getElementById('itemCountLabel').textContent =
-            `${items.length} item${items.length !== 1 ? 's' : ''}`;
-
-          gridRenderer.render(items, currentPath);
-        };
-
-        // Reuse FilePreviewManager from backup.js
-        filePreviewManager = new FilePreviewManager({
-          service: this.localService,
-          onToast: (msg, type, duration) => showToast(msg, type, duration),
-          onSaveSuccess: () => renderLocalFolder()
-        });
-
-        // Reuse ItemsGridRenderer from backup.js
-        gridRenderer = new ItemsGridRenderer('itemsGrid', {
-          onItemClick: (item, fullPath, isFolder) => {
-            if (isFolder) {
-              breadcrumbManager.navigateToFolder(fullPath, item.name);
-            } else {
-              const record = this.localService.pathToFile.get(fullPath);
-              filePreviewManager.openPreview(fullPath, item.name, record?.size || 0);
-            }
-          },
-          onDeleteClick: (fullPath, isFolder) => {
-            this.localService.deleteLocalPath(fullPath, isFolder);
-            showToast(`Removed "${fullPath}" from view`, 'success', 2000);
-            renderLocalFolder();
-          }
-        });
-
-        // Reuse BreadcrumbManager from backup.js
-        breadcrumbManager = new BreadcrumbManager('breadcrumbNav', {
-          onNavigate: () => renderLocalFolder()
-        });
-
-        document.getElementById('searchInput').addEventListener('input', renderLocalFolder);
-
-        document.querySelectorAll('.widget-folder-input-main, .widget-folder-input-header').forEach(input => {
-          input.addEventListener('change', async (e) => {
-            const files = e.target.files;
-            if (!files || files.length === 0) return;
-
-            await this.localService.loadFiles(files);
-
-            document.getElementById('selectScreen').classList.add('hidden');
-            document.getElementById('breadcrumbBar').classList.remove('hidden');
-            document.getElementById('gridScrollArea').classList.remove('hidden');
-
-            breadcrumbManager.reset();
-            breadcrumbManager.history[0].name = this.localService.rootNode.name || 'root';
-            breadcrumbManager.render();
-            renderLocalFolder();
-
-            showToast(`Loaded "${this.localService.rootNode.name}"`, 'success', 2500);
-            e.target.value = '';
-          });
-        });
-
-        document.getElementById('closeFolderPanelBtn').addEventListener('click', () => this.close());
-      }
-
-      open() {
-        this.init();
-        this.container.classList.remove('hidden');
-      }
-
-      close() {
-        if (this.container) {
-          this.container.classList.add('hidden');
+    // Reuse ItemsGridRenderer from backup.js
+    gridRenderer = new ItemsGridRenderer('itemsGrid', {
+      onItemClick: (item, fullPath, isFolder) => {
+        if (isFolder) {
+          breadcrumbManager.navigateToFolder(fullPath, item.name);
+        } else {
+          const record = this.localService.pathToFile.get(fullPath);
+          filePreviewManager.openPreview(fullPath, item.name, record?.size || 0);
         }
+      },
+      onDeleteClick: (fullPath, isFolder) => {
+        this.localService.deleteLocalPath(fullPath, isFolder);
+        showToast(`Removed "${fullPath}" from view`, 'success', 2000);
+        renderLocalFolder();
       }
+    });
+
+    // Reuse BreadcrumbManager from backup.js
+    breadcrumbManager = new BreadcrumbManager('breadcrumbNav', {
+      onNavigate: () => renderLocalFolder()
+    });
+
+    document.getElementById('searchInput').addEventListener('input', renderLocalFolder);
+
+    document.querySelectorAll('.widget-folder-input-main, .widget-folder-input-header').forEach(input => {
+      input.addEventListener('change', async (e) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        await this.localService.loadFiles(files);
+
+        document.getElementById('selectScreen').classList.add('hidden');
+        document.getElementById('breadcrumbBar').classList.remove('hidden');
+        document.getElementById('gridScrollArea').classList.remove('hidden');
+
+        breadcrumbManager.reset();
+        breadcrumbManager.history[0].name = this.localService.rootNode.name || 'root';
+        breadcrumbManager.render();
+        renderLocalFolder();
+
+        showToast(`Loaded "${this.localService.rootNode.name}"`, 'success', 2500);
+        e.target.value = '';
+      });
+    });
+
+    document.getElementById('closeFolderPanelBtn').addEventListener('click', () => this.close());
+  }
+
+  open() {
+    this.init();
+    this.container.classList.remove('hidden');
+  }
+
+  close() {
+    if (this.container) {
+      this.container.classList.add('hidden');
     }
+  }
+}
 class LocalFileAdapterService {
   constructor() {
     this.rootNode = { name: 'root', children: {}, files: [] };
@@ -629,62 +573,6 @@ class LocalFileAdapterService {
         parentNode.files = parentNode.files.filter(f => f.fullPath !== path);
       }
     }
-  }
-}
-
-function isHtml(filename) {
-  return /\.(html|htm)$/i.test(filename);
-}
-
-function getFileIcon(name) {
-  const e = getExtension(name).toLowerCase();
-  if (['txt','md','log'].includes(e)) return '<i class="fa-solid fa-file-lines opacity-90 hover:opacity-100"></i>';
-  if (['json','js','ts','html','css','py','java','sql'].includes(e)) return '<i class="fa-solid fa-file-code opacity-90 hover:opacity-100"></i>';
-  if (['png','jpg','jpeg','gif','webp','svg'].includes(e)) return '<i class="fa-solid fa-file-image opacity-90 hover:opacity-100"></i>';
-  if (['mp3','wav','ogg'].includes(e)) return '<i class="fa-solid fa-file-audio opacity-90 hover:opacity-100"></i>';
-  if (['mp4','webm','mov'].includes(e)) return '<i class="fa-solid fa-file-video opacity-90 hover:opacity-100"></i>';
-  if (['pdf'].includes(e)) return '<i class="fa-solid fa-file-pdf opacity-90 hover:opacity-100"></i>';
-  if (['zip','rar','7z'].includes(e)) return '<i class="fa-solid fa-file-zipper opacity-90 hover:opacity-100"></i>';
-  return '<i class="fa-solid fa-file opacity-90 hover:opacity-100"></i>';
-}
-
-function updateConnectionStatus(connected, message) {
-  const dot = document.getElementById('statusDot');
-  const text = document.getElementById('statusText');
-  if (!text || !dot) return;
-  text.textContent = message;
-  if (connected === true) dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-  else if (connected === false) dot.className = 'w-2 h-2 rounded-full bg-rose-500';
-  else dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
-}
-
-function closeModals() {
-  document.querySelectorAll('.fixed').forEach(m => {
-    if (m.id !== 'toastContainer') m.classList.add('hidden');
-  });
-  if (filePreviewManager) {
-    filePreviewManager.isTextEditor = false;
-  }
-  document.getElementById('previewSaveBtn')?.classList.add('hidden');
-  document.getElementById('previewCancelEditBtn')?.classList.add('hidden');
-}
-
-function switchTab(tab) {
-  const viewExp = document.getElementById('viewExplorer');
-  const viewSet = document.getElementById('viewSettings');
-  const tabExp = document.getElementById('navExplorerTab');
-  const tabSet = document.getElementById('navSettingsTab');
-
-  if (tab === 'explorer') {
-    viewExp.classList.remove('hidden');
-    viewSet.classList.add('hidden');
-    tabExp.className = "px-3 py-1.5 text-xs font-semibold rounded-md border border-white/75 wire-text transition";
-    tabSet.className = "px-3 py-1.5 text-xs font-semibold rounded-md border border-transparent wire-subtext hover:border-white/40 transition";
-  } else {
-    viewExp.classList.add('hidden');
-    viewSet.classList.remove('hidden');
-    tabSet.className = "px-3 py-1.5 text-xs font-semibold rounded-md border border-white/75 wire-text transition";
-    tabExp.className = "px-3 py-1.5 text-xs font-semibold rounded-md border border-transparent wire-subtext hover:border-white/40 transition";
   }
 }
 
