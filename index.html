@@ -234,8 +234,6 @@
     const fbService = new FirebaseService();
     const uploader = new FirebaseUploaderWidget(fbService, "uploaded_files");
     uploader.init("openFirebaseWidgetBtn");
-    window.fileManager = new FileManager();
-    window.fileManager.init();
     new FolderManagerPanel("#openFolderManagerBtn");
   </script>
 </body>
