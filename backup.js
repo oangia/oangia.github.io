@@ -793,219 +793,6 @@ class Tracker {
   }
 }
 
-class FilePreviewManager {
-  constructor(options = {}) {
-    this.service = options.service;
-    this.currentPreviewPath = null;
-    this.currentPreviewName = null;
-    this.currentPreviewText = null;
-    this.isTextEditor = false;
-    this.currentArrayBuffer = null;
-    this.cachedContentHash = null;
-    this.fileSize = 0;
-    this.onToast = options.onToast || ((msg, type) => showToast(msg, type));
-    this.onSaveSuccess = options.onSaveSuccess || (() => {});
-  }
-
-  setService(service) {
-    this.service = service;
-  }
-
-  isEncryptedFile(name) { return String(name || "").endsWith(".enc"); }
-  getOriginalFilename(name) { return this.isEncryptedFile(name) ? name.slice(0, -4) : name; }
-
-  async openPreview(path, name, fileSize = 0) {
-    const title = document.getElementById("previewTitle");
-    const body = document.getElementById("previewBody");
-    const sidebarDetails = document.getElementById("previewSidebarDetails");
-    const downloadBtn = document.getElementById("previewDownloadBtn");
-    const saveBtn = document.getElementById("previewSaveBtn");
-    const cancelBtn = document.getElementById("previewCancelEditBtn");
-
-    this.currentPreviewPath = path;
-    this.currentPreviewName = name;
-    this.currentPreviewText = null;
-    this.currentArrayBuffer = null;
-    this.cachedContentHash = null;
-    this.fileSize = fileSize;
-    this.isTextEditor = false;
-
-    const origName = this.getOriginalFilename(name);
-    const encrypted = this.isEncryptedFile(name);
-
-    if (saveBtn) saveBtn.classList.add("hidden");
-    if (cancelBtn) cancelBtn.classList.add("hidden");
-    if (title) title.textContent = origName + (encrypted ? " (Decrypted Vault Item)" : "");
-    if (body) body.innerHTML = Theme.getPreviewLoadingHTML();
-    if (sidebarDetails) sidebarDetails.innerHTML = Theme.getPreviewSidebarLoadingHTML();
-
-    const modal = document.getElementById("modalPreview");
-    if (modal) modal.classList.remove("hidden");
-
-    try {
-      const { data, error } = await this.service.getFileUrl(path, 60);
-      if (error) throw error;
-      const url = data.signedUrl;
-      if (downloadBtn) {
-        downloadBtn.href = url;
-        downloadBtn.download = origName;
-      }
-
-      if (isImage(origName)) {
-        body.innerHTML = Theme.getPreviewImageHTML(url, origName);
-      } else if (isAudio(origName)) {
-        body.innerHTML = Theme.getPreviewAudioHTML(url, origName);
-      } else if (isVideo(origName)) {
-        body.innerHTML = Theme.getPreviewVideoHTML(url);
-      } else if (isText(origName) || isHtml(origName)) {
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to fetch file content");
-        this.currentArrayBuffer = await res.arrayBuffer();
-        if (!this.fileSize) this.fileSize = this.currentArrayBuffer.byteLength;
-        const text = new TextDecoder().decode(this.currentArrayBuffer);
-        this.currentPreviewText = text;
-        this.isTextEditor = true;
-
-        if (isHtml(origName)) {
-          body.innerHTML = Theme.getPreviewHtmlEditorHTML(text);
-          setTimeout(() => {
-            const frame = document.getElementById("htmlPreviewFrame");
-            if (frame) frame.srcdoc = text;
-          }, 50);
-        } else {
-          body.innerHTML = Theme.getPreviewTextEditorHTML(text);
-        }
-        if (saveBtn) saveBtn.classList.remove("hidden");
-        if (cancelBtn) cancelBtn.classList.remove("hidden");
-      } else {
-        body.innerHTML = Theme.getPreviewUnsupportedHTML();
-      }
-
-      await this.renderSidebarLazy(path, origName, this.fileSize, url, encrypted);
-    } catch (err) {
-      this.onToast(err.message || "Failed to load file", "error");
-      if (sidebarDetails) {
-        sidebarDetails.innerHTML = `<div class="p-3 bg-rose-950/60 border border-rose-500/50 text-rose-200 rounded text-xs">Failed to load details</div>`;
-      }
-    }
-  }
-
-  switchHtmlView(mode) {
-    const previewTab = document.getElementById("htmlPreviewTab");
-    const editorTab = document.getElementById("htmlEditorTab");
-    const previewContainer = document.getElementById("htmlPreviewContainer");
-    const editorContainer = document.getElementById("htmlEditorContainer");
-    const textarea = document.getElementById("editTextarea");
-    if (!previewTab || !editorTab || !previewContainer || !editorContainer) return;
-
-    if (mode === "preview") {
-      if (textarea && this.currentPreviewText !== textarea.value) {
-        this.currentPreviewText = textarea.value;
-        const frame = document.getElementById("htmlPreviewFrame");
-        if (frame) frame.srcdoc = this.currentPreviewText;
-      }
-      previewTab.className = "px-3 py-1 rounded bg-indigo-600 text-white font-medium transition";
-      editorTab.className = "px-3 py-1 rounded wire-subtext hover:text-white transition";
-      previewContainer.classList.remove("hidden");
-      editorContainer.classList.add("hidden");
-    } else {
-      previewTab.className = "px-3 py-1 rounded wire-subtext hover:text-white transition";
-      editorTab.className = "px-3 py-1 rounded bg-indigo-600 text-white font-medium transition";
-      previewContainer.classList.add("hidden");
-      editorContainer.classList.remove("hidden");
-      if (textarea) textarea.focus();
-    }
-  }
-
-  async renderSidebarLazy(path, name, fileSize, url, isEncrypted = false) {
-    const sidebarDetails = document.getElementById("previewSidebarDetails");
-    if (!sidebarDetails) return;
-  
-    const pathHash = await computeSha256(path);
-  
-    sidebarDetails.innerHTML = Theme.getPreviewSidebarHTML({
-      name,
-      fileSize,
-      url,
-      path,
-      pathHash,
-      isEncrypted
-    });
-  }
-   
-  async computeContentAndCombinedHashes() {
-    const container = document.getElementById("hashesComputeContainer");
-    if (!container || !this.currentPreviewPath) return;
-  
-    container.innerHTML = Theme.getHashesLoadingHTML();
-  
-    try {
-      if (!this.currentArrayBuffer) {
-        const { data, error } = await this.service.getFileUrl(this.currentPreviewPath, 60);
-        if (error) throw error;
-  
-        const res = await fetch(data.signedUrl, { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to fetch file content");
-  
-        this.currentArrayBuffer = await res.arrayBuffer();
-        if (!this.fileSize) this.fileSize = this.currentArrayBuffer.byteLength;
-      }
-  
-      const pathHash = await computeSha256(this.currentPreviewPath);
-      const contentHash = await computeSha256(this.currentArrayBuffer);
-      this.cachedContentHash = contentHash;
-  
-      const rawCombinedString = pathHash + contentHash;
-      const combinedHash = await computeSha256(rawCombinedString);
-  
-      container.innerHTML = Theme.getHashesResultHTML({
-        contentHash,
-        combinedHash,
-        rawCombinedString,
-        byteLength: this.currentArrayBuffer.byteLength
-      });
-    } catch (err) {
-      container.innerHTML = Theme.getHashesErrorHTML(err.message);
-    }
-  }
-
-  cancelEditText() {
-    if (!this.isTextEditor || this.currentPreviewText === null) return;
-    const textarea = document.getElementById("editTextarea");
-    if (textarea) textarea.value = this.currentPreviewText;
-    this.onToast("Changes discarded", "info", 1500);
-  }
-
-  async saveEditedText() {
-    const textarea = document.getElementById("editTextarea");
-    if (!textarea || !this.currentPreviewPath || !this.isTextEditor) return;
-    const newContent = textarea.value;
-    try {
-      this.onToast("Saving...", "info", 1500);
-      const origName = this.getOriginalFilename(this.currentPreviewName);
-      const contentType = isHtml(origName) ? "text/html" : "text/plain;charset=utf-8";
-      const blob = new Blob([newContent], { type: contentType });
-      const { error } = await this.service.upload(this.currentPreviewPath, blob, {
-        cacheControl: "no-cache",
-        upsert: true,
-        contentType: isHtml(origName) ? "text/html" : "text/plain"
-      });
-      if (error) throw error;
-      this.currentPreviewText = newContent;
-      this.currentArrayBuffer = await blob.arrayBuffer();
-      this.fileSize = this.currentArrayBuffer.byteLength;
-      this.cachedContentHash = null;
-      const { data } = await this.service.getFileUrl(this.currentPreviewPath, 60);
-      await this.renderSidebarLazy(this.currentPreviewPath, origName, this.fileSize, data?.signedUrl, this.isEncryptedFile(this.currentPreviewName));
-      this.onToast("File saved successfully", "success");
-      this.onSaveSuccess();
-    } catch (err) {
-      console.error(err);
-      this.onToast(err.message || "Failed to save file", "error");
-    }
-  }
-}
-
 class ItemsGridRenderer {
   constructor(containerId, options = {}) {
     this.container = document.getElementById(containerId);
@@ -1020,10 +807,12 @@ class ItemsGridRenderer {
     if (!this.container) return;
     this.container.className = "grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 p-4 text-slate-100";
     this.container.innerHTML = "";
+    
     if (!items || items.length === 0) {
-      this.container.innerHTML = Theme.getGridEmptyHTML();
+      this.container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400">No items found</div>`;
       return;
     }
+
     items.forEach(item => {
       const isFolder = !item.id;
       const encrypted = !isFolder && this.isEncryptedFile(item.name);
@@ -1032,42 +821,90 @@ class ItemsGridRenderer {
       const sizeStr = isFolder ? "" : formatBytes(item.metadata?.size || 0);
       
       const card = document.createElement("div");
-      card.className = Theme.getGridCardClasses();
+      card.className = "relative flex flex-col items-center justify-between p-3 bg-slate-900/70 border border-white/10 hover:border-indigo-400 rounded-xl cursor-pointer transition h-36 group";
       card.onclick = () => this.onItemClick(item, fullPath, isFolder);
       
       const mediaHTML = this.buildMediaPreview(item, isFolder, encrypted);
       
-      // Inject encrypted badge status matching drive.html design
-      card.innerHTML = Theme.getGridCardHTML ? Theme.getGridCardHTML(mediaHTML, displayName, sizeStr, isFolder, encrypted) : `
-        <div class="relative flex flex-col items-center justify-between p-3 bg-slate-900/70 border border-white/10 hover:border-indigo-400 rounded-xl cursor-pointer transition h-36">
-          <button class="delete-btn opacity-0 hover:opacity-15 absolute top-2 right-2 text-xs bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center">×</button>
-          ${mediaHTML}
-          <div class="w-full text-center truncate mt-2">
-            <p class="text-xs font-semibold truncate" title="${displayName}">${displayName}</p>
-            <p class="text-[10px] ${encrypted ? 'text-emerald-400' : 'text-slate-400'}">${isFolder ? 'Folder' : `${sizeStr} [${encrypted ? 'Encrypted' : 'Normal'}]`}</p>
-          </div>
+      card.innerHTML = `
+        <button class="delete-btn opacity-0 group-hover:opacity-100 absolute top-2 right-2 text-xs bg-rose-600 hover:bg-rose-700 text-white rounded-full w-5 h-5 flex items-center justify-center transition">×</button>
+        ${mediaHTML}
+        <div class="w-full text-center truncate mt-2">
+          <p class="text-xs font-semibold truncate" title="${displayName}">${displayName}</p>
+          <p class="text-[10px] ${encrypted ? 'text-emerald-400' : 'text-slate-400'}">${isFolder ? 'Folder' : `${sizeStr} • ${encrypted ? 'Encrypted' : 'Normal'}`}</p>
         </div>
       `;
 
       const deleteBtn = card.querySelector(".delete-btn");
-      if (deleteBtn) {
-        deleteBtn.onclick = (e) => {
-          e.stopPropagation();
-          this.onDeleteClick(fullPath, isFolder);
-        };
-      }
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.onDeleteClick(fullPath, isFolder);
+      };
+
       this.container.appendChild(card);
     });
   }
 
   buildMediaPreview(item, isFolder, encrypted) {
-    if (isFolder) return Theme.getFolderPreviewHTML ? Theme.getFolderPreviewHTML() : `<i class="fa-solid fa-folder text-amber-400 text-3xl"></i>`;
-    if (item.thumbUrl && isImage(this.getOriginalFilename(item.name))) return Theme.getImagePreviewHTML(item.thumbUrl);
-    if (item.thumbUrl && isVideo(this.getOriginalFilename(item.name))) return Theme.getVideoPreviewHTML(item.thumbUrl);
+    if (isFolder) return `<div class="py-4 flex items-center justify-center text-3xl h-20"><i class="fa-solid fa-folder text-amber-400"></i></div>`;
     
-    // Encrypted files get the secure shield icon representation from drive.html[cite: 1]
+    // If it's an image and has a thumbnail URL loaded on-demand
+    const cleanName = this.getOriginalFilename(item.name);
+    if (item.thumbUrl && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(cleanName)) {
+      return `<div class="w-full h-20 flex items-center justify-center overflow-hidden rounded"><img src="${item.thumbUrl}" class="object-cover h-full w-full" /></div>`;
+    }
+    
+    // Encrypted files get a secure shield icon; normal files get a standard file icon
     const iconClass = encrypted ? "fa-file-shield text-emerald-400" : "fa-file-lines text-slate-300";
     return `<div class="py-4 flex items-center justify-center text-3xl h-20"><i class="fa-solid ${iconClass}"></i></div>`;
+  }
+}
+
+class FilePreviewManager {
+  constructor(options = {}) {
+    this.service = options.service;
+    this.currentPreviewPath = null;
+    this.currentPreviewName = null;
+    this.onToast = options.onToast || ((msg, type) => console.log(msg));
+  }
+
+  setService(service) { this.service = service; }
+
+  isEncryptedFile(name) { return String(name || "").endsWith(".enc"); }
+  getOriginalFilename(name) { return this.isEncryptedFile(name) ? name.slice(0, -4) : name; }
+
+  async openPreview(path, name) {
+    const title = document.getElementById("previewTitle");
+    const body = document.getElementById("previewBody");
+    const modal = document.getElementById("modalPreview");
+    
+    const origName = this.getOriginalFilename(name);
+    const encrypted = this.isEncryptedFile(name);
+
+    if (title) title.textContent = origName + (encrypted ? " (Decrypted securely)" : "");
+    if (body) body.innerHTML = `<div class="text-center py-10 text-slate-400">Decrypting and loading...</div>`;
+    if (modal) modal.classList.remove("hidden");
+
+    try {
+      // This calls storageService.getFileUrl(), which transparently decrypts .enc files on-demand!
+      const { data, error } = await this.service.getFileUrl(path, 60);
+      if (error) throw error;
+      const url = data.signedUrl;
+
+      if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(origName)) {
+        body.innerHTML = `<div class="flex items-center justify-center h-full"><img src="${url}" class="max-h-[70vh] object-contain rounded" /></div>`;
+      } else if (/\.(mp4|webm|ogg|mov)$/i.test(origName)) {
+        body.innerHTML = `<div class="flex items-center justify-center h-full"><video src="${url}" controls class="max-h-[70vh] rounded"></video></div>`;
+      } else {
+        // Fallback for text or general files
+        const res = await fetch(url);
+        const text = await res.text();
+        body.innerHTML = `<textarea class="w-full h-96 bg-slate-950 text-slate-100 p-3 rounded font-mono text-xs" readonly>${text}</textarea>`;
+      }
+    } catch (err) {
+      console.error(err);
+      if (body) body.innerHTML = `<div class="text-center py-10 text-rose-400">Failed to decrypt or load file. Check your password in settings.</div>`;
+    }
   }
 }
 
@@ -1414,24 +1251,14 @@ class FileManager {
 
       this.allItems = (data || []).filter(item => item.name !== ".emptyFolderPlaceholder");
 
-      await Promise.all(this.allItems.map(async (item) => {
+      // FIX: Just assign paths and names instantly. No network downloads or decryption here!
+      this.allItems.forEach(item => {
         const isFolder = !item.id;
-        if (isFolder) return;
-
         const fullPath = currentPath ? `${currentPath}/${item.name}` : item.name;
         item.fullPath = fullPath;
-        
-        // Expose encryption metadata flags matching drive.html specs[cite: 1]
         item.isEncrypted = this.isEncryptedFile(item.name);
         item.displayName = item.isEncrypted ? this.getOriginalFilename(item.name) : item.name;
-
-        if (this.isImage(item.name) || this.isVideo(item.name)) {
-          try {
-            const { data: signed, error: signErr } = await this.storageService.getFileUrl(fullPath, 60);
-            if (!signErr && signed?.signedUrl) item.thumbUrl = signed.signedUrl;
-          } catch (e) {}
-        }
-      }));
+      });
 
       this.updateConnectionStatus(true, `Connected • Encrypted Vault Active`);
       this.renderView();
