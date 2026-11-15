@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-black text-slate-100 h-full w-full overflow-hidden">
+<html lang="en" class="bg-black/30 text-slate-100 h-full w-full overflow-hidden">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,10 +9,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
-    html, body {
-      background: rgba(0, 0, 0, 0.2) !important; 
-      color: #f8fafc;
-    }
     #searchInput::placeholder,
     input::placeholder {
       color: rgba(148, 163, 184, 0.7);
@@ -59,7 +55,7 @@
     }
   </style>
 </head>
-<body class="bg-black text-slate-100 h-screen w-screen flex flex-col font-sans antialiased overflow-hidden m-0 p-0">
+<body class="text-slate-100 h-screen w-screen flex flex-col font-sans antialiased overflow-hidden m-0 p-0">
 
   <!-- Toast Container -->
   <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none max-w-sm w-full px-4 sm:px-0"></div>
