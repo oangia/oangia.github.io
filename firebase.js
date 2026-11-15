@@ -6,7 +6,7 @@ class FirebaseService {
         this.app = null;
         this.db = null;
     }
-    _getConfig() {
+    _getConfig(config) {
         return {
             projectId: config.projectId || "freedata-4c235",
             appId: config.appId || "1:906764667278:web:aa229456f8de0740923cdf",
@@ -14,7 +14,7 @@ class FirebaseService {
         }
     }
     init(config) {
-        this.app = initializeApp(this._getConfig());
+        this.app = initializeApp(this._getConfig(config));
         this.db = getFirestore(this.app);
     }
     async create(collectionName, data) {
