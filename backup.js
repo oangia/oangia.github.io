@@ -1854,7 +1854,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Only this line is needed for config
 new Config("navSettingsTab");
-
+new FolderManagerPanel('#openFolderManagerBtn');
   // Auto connect if credentials exist
   const savedUrl = localStorage.getItem('sb_url');
   const savedKey = localStorage.getItem('sb_key');
