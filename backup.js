@@ -816,6 +816,9 @@ class ItemsGridRenderer {
       return;
     }
 
+    const thumbnailTasks = [];
+
+    // 1. Render all cards instantly without awaiting network calls in the loop
     for (const item of items) {
       const isFolder = !item.id;
       const encrypted = !isFolder && this.isEncryptedFile(item.name);
@@ -856,17 +859,25 @@ class ItemsGridRenderer {
 
       this.container.appendChild(card);
 
+      // 2. Queue image thumbnail fetching tasks for background execution
       if (!isFolder && this.storageService && this.isImage(item.name)) {
-        try {
-          const { data, error } = await this.storageService.getFileUrl(fullPath, 60);
-          if (!error && data?.signedUrl) {
-            const thumbEl = document.getElementById(previewContainerId);
-            if (thumbEl) {
-              thumbEl.innerHTML = `<img src="${data.signedUrl}" alt="${displayName}" class="w-full h-full object-cover rounded-lg" />`;
+        thumbnailTasks.push(async () => {
+          try {
+            const { data, error } = await this.storageService.getFileUrl(fullPath, 60);
+            if (!error && data?.signedUrl) {
+              const thumbEl = document.getElementById(previewContainerId);
+              if (thumbEl) {
+                thumbEl.innerHTML = `<img src="${data.signedUrl}" alt="${displayName}" class="w-full h-full object-cover rounded-lg" />`;
+              }
             }
-          }
-        } catch (e) {}
+          } catch (e) {}
+        });
       }
+    }
+
+    // 3. Fire all thumbnail requests concurrently in the background without blocking the grid
+    if (thumbnailTasks.length > 0) {
+      Promise.all(thumbnailTasks.map(task => task())).catch(() => {});
     }
   }
 }
