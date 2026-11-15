@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Google Drive Encrypted File Manager</title>
+  <title>Encrypted Drive Vault</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -17,7 +17,7 @@
         <i class="fa-solid fa-shield-halved"></i>
       </div>
       <div>
-        <h1 class="text-sm font-bold text-white">Encrypted Drive Manager</h1>
+        <h1 class="text-sm font-bold text-white">Encrypted Drive Vault</h1>
         <p id="statusText" class="text-xs text-slate-400">Not connected</p>
       </div>
     </div>
@@ -38,11 +38,15 @@
     <!-- Toolbar -->
     <div id="toolbar" class="hidden flex flex-wrap items-center justify-between gap-4 bg-slate-900/60 border border-white/10 p-4 rounded-2xl">
       <div class="flex items-center gap-3">
-        <label class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
+        <label class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
           <i class="fa-solid fa-lock"></i>
-          <span>Encrypt & Upload</span>
+          <span>Upload File</span>
           <input type="file" id="fileInput" class="hidden" multiple />
         </label>
+        <button id="newFolderBtn" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer transition flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-folder-plus"></i>
+          <span>New Folder</span>
+        </button>
         <button id="refreshBtn" class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-semibold text-slate-200 transition cursor-pointer">
           <i class="fa-solid fa-rotate mr-1.5"></i>Refresh
         </button>
@@ -52,12 +56,17 @@
         class="bg-white/5 border border-white/15 text-slate-200 placeholder-slate-500 text-xs rounded-xl px-3.5 py-2 outline-none focus:border-indigo-400 w-60" />
     </div>
 
+    <!-- Breadcrumbs -->
+    <nav id="breadcrumbNav" class="hidden flex items-center gap-2 text-xs text-slate-400 px-1">
+      <!-- Breadcrumbs injected dynamically -->
+    </nav>
+
     <!-- File Grid -->
     <div id="emptyPrompt" class="flex-1 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/10 rounded-2xl p-12">
       <i class="fa-solid fa-shield-halved text-4xl text-slate-600 mb-3"></i>
       <h2 class="text-sm font-bold text-slate-300">Connect your Google Account</h2>
       <p class="text-xs text-slate-500 max-w-md mt-1">
-        Configure your Client ID and private encryption key in settings, then connect to manage client-side encrypted files.
+        Configure your Client ID and private encryption key in settings, then connect to manage client-side encrypted files and folders.
       </p>
     </div>
 
@@ -123,7 +132,7 @@
     };
 
     function getOriginalFilename(name) {
-      return name.endsWith('.b64.enc') ? name.slice(0, -12) : name;
+      return name.endsWith('.enc') ? name.slice(0, -4) : name;
     }
 
     function showToast(msg, type = 'info') {
@@ -214,21 +223,39 @@
         return { Authorization: `Bearer ${this.token}`, ...extra };
       }
 
-      async listFiles() {
-        // Exclude native Google Drive folders from the encrypted file manager view
+      async listFiles(parentId = 'root') {
         const params = new URLSearchParams({
-          q: "trashed = false and mimeType != 'application/vnd.google-apps.folder'",
+          q: `'${parentId}' in parents and trashed = false`,
           fields: 'files(id, name, mimeType, size, modifiedTime)',
-          orderBy: 'modifiedTime desc',
+          orderBy: 'folder,name',
           pageSize: '100'
         });
         const res = await fetch(`${this.apiBase}?${params}`, { headers: this.headers() });
-        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list files');
+        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list items');
         return (await res.json()).files || [];
       }
 
-      async uploadFile(file) {
-        const metadata = { name: file.name, mimeType: file.type || 'application/octet-stream' };
+      async createFolder(name, parentId = 'root') {
+        const metadata = {
+          name: name,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [parentId]
+        };
+        const res = await fetch(this.apiBase, {
+          method: 'POST',
+          headers: this.headers({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(metadata)
+        });
+        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to create folder');
+        return res.json();
+      }
+
+      async uploadFile(file, parentId = 'root') {
+        const metadata = { 
+          name: file.name, 
+          mimeType: file.type || 'application/octet-stream',
+          parents: [parentId]
+        };
         const form = new FormData();
         form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
         form.append('file', file);
@@ -260,6 +287,9 @@
     let cachedFiles = [];
     let activeObjectUrl = null;
 
+    let currentFolderId = 'root';
+    let folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }];
+
     const STORAGE_KEY = 'gdrive_oauth_client_id';
     const SECRET_KEY = 'gdrive_encryption_password';
     const TOKEN_KEY = 'gdrive_access_token';
@@ -268,10 +298,11 @@
     document.getElementById('originLabel').textContent = window.location.origin;
 
     function setConnectedState() {
-      document.getElementById('statusText').textContent = 'Connected (Encrypted Mode)';
+      document.getElementById('statusText').textContent = 'Connected (Encrypted Vault)';
       document.getElementById('statusText').className = 'text-xs text-emerald-400';
       document.getElementById('emptyPrompt').classList.add('hidden');
       document.getElementById('toolbar').classList.remove('hidden');
+      document.getElementById('breadcrumbNav').classList.remove('hidden');
       document.getElementById('fileGrid').classList.remove('hidden');
     }
 
@@ -316,9 +347,10 @@
 
     async function loadFiles() {
       const grid = document.getElementById('fileGrid');
-      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-xl mb-2 block"></i>Loading files...</div>`;
+      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-xl mb-2 block"></i>Loading vault...</div>`;
+      renderBreadcrumbs();
       try {
-        cachedFiles = await drive.listFiles();
+        cachedFiles = await drive.listFiles(currentFolderId);
         renderFiles();
       } catch (err) {
         showToast(err.message, 'error');
@@ -326,25 +358,63 @@
       }
     }
 
+    function renderBreadcrumbs() {
+      const nav = document.getElementById('breadcrumbNav');
+      nav.innerHTML = folderBreadcrumbs.map((b, idx) => {
+        const isLast = idx === folderBreadcrumbs.length - 1;
+        return `
+          <div class="flex items-center gap-2">
+            ${idx > 0 ? '<i class="fa-solid fa-chevron-right text-[10px] text-slate-600"></i>' : ''}
+            <button ${isLast ? '' : `onclick="navigateToBreadcrumb(${idx})"`} class="${isLast ? 'text-white font-bold cursor-default' : 'text-indigo-400 hover:underline cursor-pointer'}">
+              ${escapeHtml(b.name)}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.navigateToBreadcrumb = (index) => {
+      folderBreadcrumbs = folderBreadcrumbs.slice(0, index + 1);
+      currentFolderId = folderBreadcrumbs[folderBreadcrumbs.length - 1].id;
+      loadFiles();
+    };
+
+    function openFolder(folderId, folderName) {
+      folderBreadcrumbs.push({ id: folderId, name: folderName });
+      currentFolderId = folderId;
+      loadFiles();
+    }
+
     function renderFiles() {
       const grid = document.getElementById('fileGrid');
       const q = document.getElementById('searchInput').value.toLowerCase();
-      const filtered = cachedFiles.filter(f => getOriginalFilename(f.name).toLowerCase().includes(q));
+      const filtered = cachedFiles.filter(f => {
+        const name = f.mimeType === 'application/vnd.google-apps.folder' ? f.name : getOriginalFilename(f.name);
+        return name.toLowerCase().includes(q);
+      });
 
       if (!filtered.length) {
-        grid.innerHTML = `<div class="col-span-full py-16 text-center text-slate-500 text-xs">No files found. Upload an encrypted file to get started.</div>`;
+        grid.innerHTML = `<div class="col-span-full py-16 text-center text-slate-500 text-xs">This folder is empty. Upload a file or create a folder.</div>`;
         return;
       }
 
       grid.innerHTML = filtered.map(f => {
-        const origName = getOriginalFilename(f.name);
-        const isImg = origName.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i);
-        const isVid = origName.match(/\.(mp4|webm|mov)$/i);
-        const icon = isImg ? 'fa-file-image text-sky-400' : isVid ? 'fa-file-video text-purple-400' : 'fa-file-shield text-emerald-400';
+        const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
+        const displayName = isFolder ? f.name : getOriginalFilename(f.name);
+        const isImg = displayName.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i);
+        const isVid = displayName.match(/\.(mp4|webm|mov)$/i);
+        
+        let icon = 'fa-file-shield text-emerald-400';
+        if (isFolder) icon = 'fa-folder text-amber-400';
+        else if (isImg) icon = 'fa-file-image text-sky-400';
+        else if (isVid) icon = 'fa-file-video text-purple-400';
+
+        const clickAction = isFolder ? `openFolder('${f.id}', '${escapeHtml(f.name)}')` : `openPreview('${f.id}', '${escapeHtml(f.name)}')`;
+
         return `
-          <div onclick="openPreview('${f.id}', '${escapeHtml(f.name)}')"
+          <div onclick="${clickAction}"
                class="group relative bg-slate-900/70 border border-white/10 hover:border-indigo-400 rounded-xl p-4 flex flex-col justify-between gap-3 cursor-pointer transition">
-            <button onclick="event.stopPropagation(); removeFile('${f.id}', '${escapeHtml(f.name)}')"
+            <button onclick="event.stopPropagation(); removeVaultItem('${f.id}', '${escapeHtml(displayName)}', ${isFolder})"
                     class="opacity-0 group-hover:opacity-100 absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white text-[10px] flex items-center justify-center transition cursor-pointer">
               <i class="fa-solid fa-xmark"></i>
             </button>
@@ -352,15 +422,17 @@
               <i class="fa-solid ${icon}"></i>
             </div>
             <div class="border-t border-white/10 pt-2.5">
-              <p class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(origName)}">${escapeHtml(origName)}</p>
-              <p class="text-[10px] font-mono text-slate-400 mt-0.5">${formatBytes(Number(f.size))} <span class="text-emerald-400 ml-1">[Encrypted]</span></p>
+              <p class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</p>
+              <p class="text-[10px] font-mono text-slate-400 mt-0.5">
+                ${isFolder ? 'Folder' : `${formatBytes(Number(f.size))} <span class="text-emerald-400 ml-1">[Encrypted]</span>`}
+              </p>
             </div>
           </div>
         `;
       }).join('');
     }
 
-    async function getDecodedBlobAndType(fileId, storedFilename) {
+    async function getDecodedBlobAndType(fileId) {
       const passphrase = localStorage.getItem(SECRET_KEY);
       if (!passphrase) throw new Error('Encryption key/password is missing in settings!');
 
@@ -397,7 +469,7 @@
       try {
         if (activeObjectUrl) URL.revokeObjectURL(activeObjectUrl);
         
-        const { blob, mimeType } = await getDecodedBlobAndType(fileId, storedFilename);
+        const { blob, mimeType } = await getDecodedBlobAndType(fileId);
         activeObjectUrl = URL.createObjectURL(blob);
 
         dlBtn.href = activeObjectUrl;
@@ -421,12 +493,11 @@
       }
     }
 
-    async function removeFile(fileId, name) {
-      const origName = getOriginalFilename(name);
-      if (!confirm(`Delete "${origName}" from Google Drive?`)) return;
+    async function removeVaultItem(fileId, name, isFolder) {
+      if (!confirm(`Delete "${name}" ${isFolder ? 'folder' : ''} from Google Drive?`)) return;
       try {
         await drive.deleteFile(fileId);
-        showToast(`Deleted "${origName}"`, 'success');
+        showToast(`Deleted "${name}"`, 'success');
         await loadFiles();
       } catch (err) {
         showToast(err.message, 'error');
@@ -448,8 +519,8 @@
 
       const base64Data = await fileToBase64(file);
       const encryptedCipher = await encryptText(base64Data, passphrase);
-      const encryptedFile = new File([encryptedCipher], file.name + '.b64.enc', { type: 'text/plain' });
-      await drive.uploadFile(encryptedFile);
+      const encryptedFile = new File([encryptedCipher], file.name + '.enc', { type: 'application/octet-stream' });
+      await drive.uploadFile(encryptedFile, currentFolderId);
     }
 
     document.getElementById('fileInput').onchange = async (e) => {
@@ -467,6 +538,19 @@
       }
       e.target.value = '';
       await loadFiles();
+    };
+
+    document.getElementById('newFolderBtn').onclick = async () => {
+      const folderName = prompt('Enter new folder name:');
+      if (!folderName || !folderName.trim()) return;
+      try {
+        showToast(`Creating folder...`, 'info');
+        await drive.createFolder(folderName.trim(), currentFolderId);
+        showToast(`Folder created`, 'success');
+        await loadFiles();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     };
 
     document.getElementById('configBtn').onclick = () => {
