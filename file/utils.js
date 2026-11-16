@@ -37,7 +37,6 @@ function showToast(message, type = "info", duration = 4000) {
     if (!container) {
         container = document.createElement("div");
         container.id = "toastContainer";
-        // Fallback classes if Theme is not defined
         container.className = typeof Theme !== "undefined" && Theme.getToastContainerClasses 
             ? Theme.getToastContainerClasses() 
             : "fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full";
@@ -50,7 +49,6 @@ function showToast(message, type = "info", duration = 4000) {
         toast.className = Theme.getToastClasses(type);
         toast.innerHTML = Theme.getToastHTML(message, type);
     } else {
-        // Fallback default styles if Theme object is missing
         const themes = {
             success: { border: "border-emerald-800", text: "text-emerald-100", icon: "fa-circle-check text-emerald-400", bar: "border-l-emerald-500" },
             error:   { border: "border-rose-800", text: "text-rose-100", icon: "fa-circle-exclamation text-rose-400", bar: "border-l-rose-500" },
