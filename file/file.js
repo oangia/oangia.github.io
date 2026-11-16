@@ -66,82 +66,61 @@ class ItemsGridRenderer {
   }
 }
 
-class FilePreviewManager {
-  constructor(options = {}) {
-    this.service = options.service;
-    this.currentPreviewPath = null;
-    this.currentPreviewName = null;
-    this.onToast = options.onToast || ((msg, type) => console.log(msg));
-  }
-
-  setService(service) { this.service = service; }
-
-  isEncryptedFile(name) { return String(name || "").endsWith(".enc"); }
-  getOriginalFilename(name) { return this.isEncryptedFile(name) ? name.slice(0, -4) : name; }
-
-  async openPreview(path, name) {
-    const title = document.getElementById("previewTitle");
-    const body = document.getElementById("previewBody");
-    const modal = document.getElementById("modalPreview");
-    
-    // Sidebar elements (make sure these IDs exist in your HTML sidebar)
-    const sidebarSize = document.getElementById("sidebarFileSize");
-    const sidebarType = document.getElementById("sidebarFileType");
-    const sidebarDimensions = document.getElementById("sidebarFileDimensions");
-    const sidebarStatus = document.getElementById("sidebarEncryptionStatus");
-    
-    const origName = this.getOriginalFilename(name);
-    const encrypted = this.isEncryptedFile(name);
-
-    if (title) title.textContent = origName + (encrypted ? " (Decrypted securely)" : "");
-    if (body) body.innerHTML = `<div class="text-center py-10 text-slate-400">Decrypting and loading...</div>`;
-    if (modal) modal.classList.remove("hidden");
-
-    // Reset sidebar text while loading
-    if (sidebarSize) sidebarSize.textContent = "Calculating...";
-    if (sidebarType) sidebarType.textContent = origName.split('.').pop().toUpperCase();
-    if (sidebarStatus) sidebarStatus.textContent = encrypted ? "Encrypted (.enc)" : "Standard";
-
-    try {
-      const { data, error } = await this.service.getFileUrl(path, 60);
-      if (error) throw error;
-      const url = data.signedUrl;
-
-      // Optional: Fetch file blob to calculate exact size or process details if needed
-      const res = await fetch(url);
-      const blob = await res.blob();
-      
-      if (sidebarSize) {
-        sidebarSize.textContent = formatBytes(blob.size); // Assumes formatBytes is globally available
+sidebar.innerHTML = Theme.getPreviewSidebarHTML({
+          name: origName,
+          fileSize: fileSize,
+          url: url,
+          path: path,
+          pathHash: pathHash
+        });
       }
 
       if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(origName)) {
-        body.innerHTML = `<div class="flex items-center justify-center h-full"><img id="previewImg" src="${url}" class="max-h-[70vh] object-contain rounded" /></div>`;
-        
-        // Calculate image dimensions for sidebar
-        const img = document.getElementById("previewImg");
-        img.onload = () => {
-          if (sidebarDimensions) {
-            sidebarDimensions.textContent = `${img.naturalWidth} x ${img.naturalHeight} px`;
-          }
-        };
+        body.innerHTML = Theme.getPreviewImageHTML(url, origName);
       } else if (/\.(mp4|webm|ogg|mov)$/i.test(origName)) {
-        body.innerHTML = `<div class="flex items-center justify-center h-full"><video id="previewVideo" src="${url}" controls class="max-h-[70vh] rounded"></video></div>`;
-        
-        const video = document.getElementById("previewVideo");
-        video.onloadedmetadata = () => {
-          if (sidebarDimensions) {
-            sidebarDimensions.textContent = `${video.videoWidth} x ${video.videoHeight} (${Math.round(video.duration)}s)`;
-          }
-        };
+        body.innerHTML = Theme.getPreviewVideoHTML(url);
+      } else if (/\.(mp3|wav|ogg)$/i.test(origName)) {
+        body.innerHTML = Theme.getPreviewAudioHTML(url, origName);
+      } else if (/\.(html|htm)$/i.test(origName)) {
+        const text = await blob.text();
+        body.innerHTML = Theme.getPreviewHtmlEditorHTML(text);
+        setTimeout(() => {
+          const iframe = document.getElementById("htmlPreviewFrame");
+          if (iframe) iframe.srcdoc = text;
+        }, 50);
       } else {
         const text = await blob.text();
-        body.innerHTML = `<textarea class="w-full h-96 bg-slate-950 text-slate-100 p-3 rounded font-mono text-xs" readonly>${text}</textarea>`;
-        if (sidebarDimensions) sidebarDimensions.textContent = `${text.length} characters`;
+        body.innerHTML = Theme.getPreviewTextEditorHTML(text);
       }
     } catch (err) {
       console.error(err);
-      if (body) body.innerHTML = `<div class="text-center py-10 text-rose-400">Failed to decrypt or load file. Check your password in settings.</div>`;
+      if (body) body.innerHTML = Theme.getPreviewUnsupportedHTML();
+      if (sidebar) sidebar.innerHTML = `<p class="text-xs text-rose-400 p-2">Failed to load file details.</p>`;
+    }
+  }
+
+  async cancelEditText() {
+    if (this.currentPreviewPath && this.currentPreviewName) {
+      this.openPreview(this.currentPreviewPath, this.currentPreviewName);
+    }
+  }
+
+  async saveEditedText() {
+    const textarea = document.getElementById("editTextarea");
+    if (!textarea || !this.currentPreviewPath) return;
+
+    try {
+      const updatedContent = textarea.value;
+      const blob = new Blob([updatedContent], { type: 'text/plain;charset=utf-8' });
+      
+      const { error } = await this.service.upload(this.currentPreviewPath, blob, { upsert: true });
+      if (error) throw error;
+
+      this.onToast("Changes saved successfully", "success", 2000);
+      this.onSaveSuccess();
+    } catch (err) {
+      console.error(err);
+      this.onToast(err.message || "Failed to save changes", "error", 2500);
     }
   }
 }
