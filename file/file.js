@@ -463,8 +463,8 @@ class FileManager {
     if (typeof closeModals === "function") closeModals();
   }
 }
-//const sbManager = new SupabaseStorageService();
-const driveService = new DriveStorageService();
+const sbManager = new SupabaseStorageService();
+//const driveService = new DriveStorageService();
 
 fileManager = new FileManager({ storageService: driveService });
 fileManager.init();
