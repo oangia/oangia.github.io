@@ -3,7 +3,6 @@ class ItemsGridRenderer {
     this.container = document.getElementById(containerId);
     this.onItemClick = options.onItemClick || (() => {});
     this.onDeleteClick = options.onDeleteClick || (() => {});
-    this.storageService = options.storageService;
   }
   
   async render(items, currentPath) {
@@ -35,7 +34,7 @@ class ItemsGridRenderer {
       if (deleteBtn) {
         deleteBtn.onclick = (e) => {
           e.stopPropagation();
-          this.onDeleteClick(file.getFullPath(), file.isFolderNode());
+          this.onDeleteClick(file);
         };
       }
 
@@ -44,8 +43,8 @@ class ItemsGridRenderer {
       if (file.isImage()) {
         thumbnailTasks.push(async () => {
           try {
-            const { data, error } = await this.storageService.getFileUrl(file.getFullPath(), 60);
-            console.log(data);
+            // Uses FileRecord instance method directly
+            const { data, error } = await file.fetchSignedUrl(60);
             if (!error && data?.signedUrl) {
               const thumbEl = document.getElementById(previewContainerId);
               if (thumbEl) {
@@ -106,20 +105,14 @@ class ItemsGridRenderer {
 
 class FilePreviewManager {
   constructor(options = {}) {
-    this.service = options.service;
-    this.currentPreviewPath = null;
-    this.currentPreviewName = null;
+    this.currentFileRecord = null;
     this.onToast = options.onToast || ((msg, type) => console.log(msg));
     this.onSaveSuccess = options.onSaveSuccess || (() => {});
   }
 
-  setService(service) { this.service = service; }
-
   async openPreview(path, name, file = null) {
     const fileRecord = file || new FileRecord({ name: name, full_path: path });
-    
-    this.currentPreviewPath = fileRecord.getFullPath();
-    this.currentPreviewName = fileRecord.getName();
+    this.currentFileRecord = fileRecord;
 
     const title = document.getElementById("previewTitle");
     const body = document.getElementById("previewBody");
@@ -132,7 +125,8 @@ class FilePreviewManager {
     if (modal) modal.classList.remove("hidden");
 
     try {
-      const { data, error } = await this.service.getFileUrl(fileRecord.getFullPath(), 60);
+      // Uses FileRecord instance method
+      const { data, error } = await fileRecord.fetchSignedUrl(60);
       if (error) throw error;
       const url = data.signedUrl;
 
@@ -185,21 +179,25 @@ class FilePreviewManager {
   }
 
   async cancelEditText() {
-    if (this.currentPreviewPath && this.currentPreviewName) {
-      this.openPreview(this.currentPreviewPath, this.currentPreviewName);
+    if (this.currentFileRecord) {
+      this.openPreview(
+        this.currentFileRecord.getFullPath(),
+        this.currentFileRecord.getName(),
+        this.currentFileRecord
+      );
     }
   }
 
   async saveEditedText() {
     const textarea = document.getElementById("editTextarea");
-    if (!textarea || !this.currentPreviewPath) return;
+    if (!textarea || !this.currentFileRecord) return;
 
     try {
       const updatedContent = textarea.value;
       const blob = new Blob([updatedContent], { type: 'text/plain;charset=utf-8' });
       
-      const { error } = await this.service.upload(this.currentPreviewPath, blob, { upsert: true });
-      if (error) throw error;
+      // Uses FileRecord instance .save() method
+      await this.currentFileRecord.save(blob);
 
       this.onToast("Changes saved successfully", "success", 2000);
       this.onSaveSuccess();
@@ -262,9 +260,6 @@ class BreadcrumbManager {
 
 class FileManager {
   constructor(config = {}) {
-    this.storageService = this._getService(config.storageService);
-    if (!this.storageService) throw new Error("A storage service is required.");
-
     this.allItems = [];
     this.filteredItems = [];
 
@@ -274,30 +269,17 @@ class FileManager {
     this.configManager = null;
   }
 
-  _getService(serviceName) {
-    const StorageRegistry = {
-      drive: DriveStorageService,
-      supa: SupabaseStorageService,
-      supabase: SupabaseStorageService,
-      local: LocalFileService
-    };
-    const ServiceClass = StorageRegistry[serviceName.toLowerCase()];
-    return new ServiceClass();
-  }
-
   init() {
     this.breadcrumbManager = new BreadcrumbManager("breadcrumbNav", {
       onNavigate: () => this.listFiles()
     });
 
     this.filePreviewManager = new FilePreviewManager({
-      service: this.storageService,
       onToast: (msg, type, duration) => this.showToast(msg, type, duration),
       onSaveSuccess: () => this.listFiles()
     });
 
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", {
-      storageService: this.storageService,
       onItemClick: (file, fullPath, isFolder) => {
         if (isFolder) {
           this.breadcrumbManager.navigateToFolder(fullPath, file.getName());
@@ -305,21 +287,18 @@ class FileManager {
           this.openPreview(fullPath, file.getName(), file);
         }
       },
-      onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
+      onDeleteClick: (file) => this.deleteItem(file)
     });
+
     this.initializeServiceConnection();
   }
   
   initializeServiceConnection() {
     try {
-      if (typeof this.storageService.init === "function") {
-        this.storageService.init();
-      }
-      this.filePreviewManager?.setService(this.storageService);
-
       const headerUrl = document.getElementById("headerUrl");
-      if (headerUrl && this.storageService.bucket) {
-        headerUrl.innerHTML = `Storage Active<br />Container: ${this.storageService.bucket}`;
+      const bucketName = FileRecord.getBucketName();
+      if (headerUrl && bucketName) {
+        headerUrl.innerHTML = `Storage Active<br />Container: ${bucketName}`;
       }
 
       this.breadcrumbManager?.reset();
@@ -338,8 +317,7 @@ class FileManager {
   async listFiles() {
     this.updateConnectionStatus(null, "Loading...");
     try {
-      const currentPath = this.activePath;
-      const { data, error } = await FileRecord.all(currentPath);
+      const { data, error } = await FileRecord.all(this.activePath);
       if (error) throw error;
 
       this.allItems = data;
@@ -391,7 +369,7 @@ class FileManager {
       : `${name}/.emptyFolderPlaceholder`;
 
     try {
-      const { error } = await this.storageService.upload(folderPath, new Blob([""]), { upsert: false });
+      const { error } = await FileRecord.create(folderPath, new Blob([""]), { upsert: false });
       if (error) throw error;
 
       this.closeModals();
@@ -424,7 +402,8 @@ class FileManager {
           targetPath += file.name;
         }
 
-        const { error } = await this.storageService.upload(targetPath, file, { cacheControl: "3600", upsert: true, isEncrypted });
+        // Uses FileRecord.update (upsert: true)
+        const { error } = await FileRecord.update(targetPath, file, { cacheControl: "3600", isEncrypted });
         if (error) throw error;
 
         success++;
@@ -461,7 +440,7 @@ class FileManager {
 
   async downloadFile(path, name) {
     try {
-      await this.storageService.downloadFile(path, name);
+      await FileRecord.download(path, name);
     } catch (err) {
       this.showToast(err.message || "Download failed", "error");
     }
@@ -474,7 +453,7 @@ class FileManager {
       btn.innerHTML = Theme.getBackupLoadingHTML();
     }
     
-    await this.storageService.runBackup();
+    await FileRecord.backup();
 
     if (btn) {
       btn.disabled = false;
@@ -482,7 +461,12 @@ class FileManager {
     }
   }
 
-  async deleteItem(path, isFolder) {
+  async deleteItem(fileOrPath, isFolderFlag = false) {
+    // Supports either a FileRecord instance or raw (path, isFolder) arguments
+    const isRecord = fileOrPath instanceof FileRecord;
+    const path = isRecord ? fileOrPath.getFullPath() : fileOrPath;
+    const isFolder = isRecord ? fileOrPath.isFolderNode() : isFolderFlag;
+
     const confirmMsg = isFolder
       ? `Delete folder "${path}" and all its contents?`
       : `Delete file "${path}"?`;
@@ -490,18 +474,21 @@ class FileManager {
 
     try {
       if (isFolder) {
-        const { data: files, error: listError } = await this.storageService.list(path, { limit: 1000 });
+        // List contents via FileRecord.all() and bulk destroy
+        const { data: children, error: listError } = await FileRecord.all(path, { limit: 1000 });
         if (listError) throw listError;
 
-        const pathsToDelete = (files || []).map(f => `${path}/${f.name}`);
+        const pathsToDelete = (children || []).map(child => child.getFullPath());
         pathsToDelete.push(`${path}/.emptyFolderPlaceholder`);
 
-        if (pathsToDelete.length > 0) {
-          const { error } = await this.storageService.remove(pathsToDelete);
-          if (error) throw error;
-        }
+        const { error } = await FileRecord.destroy(pathsToDelete);
+        if (error) throw error;
+      } else if (isRecord) {
+        // Delete directly on the entity instance
+        const { error } = await fileOrPath.delete();
+        if (error) throw error;
       } else {
-        const { error } = await this.storageService.remove([path]);
+        const { error } = await FileRecord.destroy(path);
         if (error) throw error;
       }
 
@@ -530,5 +517,5 @@ document.addEventListener("click", (e) => {
   }
 });
 
-fileManager = new FileManager({ storageService: 'drive' });
+const fileManager = new FileManager();
 fileManager.init();
