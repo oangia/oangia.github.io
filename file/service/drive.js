@@ -227,13 +227,11 @@ class DriveStorageService {
       const files = (await res.json()).files || [];
       const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, '') : '';
 
-      // Map Google Drive API response to generic FileRecord instances
-      const fileRecords = await Promise.all(files.map(async (f) => {
+      const fileRecords = files.map((f) => {
         const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
         const fullPath = cleanBasePath ? `${cleanBasePath}/${f.name}` : f.name;
 
-        // Instantiate the generic FileRecord
-        const record = new FileRecord({
+        return new FileRecord({
           id: isFolder ? null : f.id,
           name: f.name,
           full_path: fullPath,
@@ -243,15 +241,48 @@ class DriveStorageService {
           updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null,
           isFolder: isFolder
         });
-        console.log(record);
-        // Ensure async hash calculation finishes
+      });
 
-        return record;
-      }));
-
-      console.log(fileRecords);
-      console.log(JSON.stringify(fileRecords[10]))
       return { data: fileRecords, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async get(path) {
+    if (!this.token) return { data: null, error: new Error("Not authenticated") };
+    try {
+      const lastSlashIdx = path.lastIndexOf("/");
+      const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
+      const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
+      const folderId = await this._resolveFolderId(dirPath);
+
+      const params = new URLSearchParams({
+        q: `'${folderId}' in parents and name = '${fileName}' and trashed = false`,
+        fields: 'files(id, name, mimeType, size, modifiedTime, webContentLink)'
+      });
+      const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
+      if (!res.ok) throw new Error('Failed to fetch file metadata');
+      
+      const json = await res.json();
+      if (!json.files || json.files.length === 0) throw new Error('File not found');
+
+      const f = json.files[0];
+      const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
+      const cleanPath = path.replace(/^\/+|\/+$/g, '');
+
+      const record = new FileRecord({
+        id: isFolder ? null : f.id,
+        name: f.name,
+        full_path: cleanPath,
+        size: Number(f.size || 0),
+        mimetype: f.mimeType,
+        url: f.webContentLink || null,
+        updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null,
+        isFolder: isFolder
+      });
+
+      return { data: record, error: null };
     } catch (err) {
       return { data: null, error: err };
     }
@@ -350,13 +381,29 @@ class DriveStorageService {
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
       form.append('file', uploadFile);
 
-      const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=id,name,mimeType,size`, {
+      const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=id,name,mimeType,size,modifiedTime,webContentLink`, {
         method: 'POST',
         headers: this._headers(),
         body: form
       });
       if (!res.ok) throw new Error((await res.json()).error?.message || 'Upload failed');
-      return { data: await res.json(), error: null };
+      
+      const f = await res.json();
+      const cleanPath = path.replace(/^\/+|\/+$/g, '');
+
+      // Wrap upload response into a uniform FileRecord
+      const record = new FileRecord({
+        id: f.id,
+        name: f.name,
+        full_path: cleanPath,
+        size: Number(f.size || uploadFile.size || 0),
+        mimetype: f.mimeType,
+        url: f.webContentLink || null,
+        updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : Date.now(),
+        isFolder: false
+      });
+
+      return { data: record, error: null };
     } catch (err) {
       return { data: null, error: err };
     }
