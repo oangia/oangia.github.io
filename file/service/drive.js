@@ -314,14 +314,19 @@ class DriveStorageService {
       if (fileName.endsWith(".enc") && currentPassphrase) {
         try {
           const ciphertext = await blob.text();
-          const decryptedBase64 = await this._decryptText(ciphertext, currentPassphrase);
-          const match = decryptedBase64.match(/^data:(.*?);base64,(.*)$/s);
+          const decryptedText = await this._decryptText(ciphertext, currentPassphrase);
+          
+          // Check if it's a data URL format
+          const match = decryptedText.match(/^data:(.*?);base64,(.*)$/s);
           if (match) {
             const resData = await fetch(`data:${match[1]};base64,${match[2]}`);
             finalBlob = await resData.blob();
+          } else {
+            // Fallback: Treat decrypted output as raw text or binary blob
+            finalBlob = new Blob([decryptedText]);
           }
         } catch (e) {
-          console.warn("Could not decrypt payload, serving raw cipher:", e);
+          console.warn("Could not decrypt thumbnail/file payload:", e);
         }
       }
 
