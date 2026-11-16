@@ -56,8 +56,9 @@ class FileRecord {
   }
 
   getExtension() {
-    const lastDot = this._name.lastIndexOf(".");
-    return lastDot !== -1 ? this._name.substring(lastDot + 1).toLowerCase() : "";
+    const realName = this.getDisplayName(); // Strips ".enc" if present
+    const lastDot = realName.lastIndexOf(".");
+    return lastDot !== -1 ? realName.substring(lastDot + 1).toLowerCase() : "";
   }
 
   getFormattedSize() {
@@ -80,30 +81,34 @@ class FileRecord {
   }
 
   isImage() {
+    const ext = this.getExtension(); // Now uses getDisplayName() under the hood
     return !this.isFolderNode() && (
       this.getMimeType()?.startsWith("image/") ||
-      ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"].includes(this.getExtension())
+      ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"].includes(ext)
     );
   }
 
   isVideo() {
+    const ext = this.getExtension();
     return !this.isFolderNode() && (
       this.getMimeType()?.startsWith("video/") ||
-      ["mp4", "webm", "mov", "avi", "mkv"].includes(this.getExtension())
+      ["mp4", "webm", "mov", "avi", "mkv"].includes(ext)
     );
   }
 
   isAudio() {
+    const ext = this.getExtension();
     return !this.isFolderNode() && (
       this.getMimeType()?.startsWith("audio/") ||
-      ["mp3", "wav", "ogg"].includes(this.getExtension())
+      ["mp3", "wav", "ogg"].includes(ext)
     );
   }
 
   isHtml() {
-    return !this.isFolderNode() && ["html", "htm"].includes(this.getExtension());
+    const ext = this.getExtension();
+    return !this.isFolderNode() && ["html", "htm"].includes(ext);
   }
-
+  
   getFileIconClass() {
     if (this.isFolderNode()) return "fa-solid fa-folder text-amber-500";
     if (this.isEncryptedFile()) return "fa-solid fa-file-shield text-emerald-400";
