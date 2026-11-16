@@ -190,6 +190,11 @@ class FilePreviewManager {
             </div>
           </div>
         `;
+
+        const hashBtn = sidebar.querySelector(".content-hash");
+        if (hashBtn) {
+          hashBtn.addEventListener("click", () => this.computeContentAndCombinedHashes());
+        }
       }
 
       if (fileRecord.isImage()) {
@@ -221,6 +226,12 @@ class FilePreviewManager {
             </div>
           </div>
         `;
+
+        const previewTab = document.getElementById("htmlPreviewTab");
+        const editorTab = document.getElementById("htmlEditorTab");
+        if (previewTab) previewTab.addEventListener("click", () => this.switchHtmlView("preview"));
+        if (editorTab) editorTab.addEventListener("click", () => this.switchHtmlView("editor"));
+
         setTimeout(() => {
           const iframe = document.getElementById("htmlPreviewFrame");
           if (iframe) iframe.srcdoc = text;
@@ -239,6 +250,28 @@ class FilePreviewManager {
           </div>`;
       }
       if (sidebar) sidebar.innerHTML = `<p class="text-xs text-rose-400 p-2">Failed to load file details.</p>`;
+    }
+  }
+
+  switchHtmlView(view) {
+    const previewTab = document.getElementById("htmlPreviewTab");
+    const editorTab = document.getElementById("htmlEditorTab");
+    const previewContainer = document.getElementById("htmlPreviewContainer");
+    const editorContainer = document.getElementById("htmlEditorContainer");
+    const iframe = document.getElementById("htmlPreviewFrame");
+    const textarea = document.getElementById("editTextarea");
+
+    if (view === "preview") {
+      if (iframe && textarea) iframe.srcdoc = textarea.value;
+      previewContainer?.classList.remove("hidden");
+      editorContainer?.classList.add("hidden");
+      if (previewTab) previewTab.className = "px-3 py-1 rounded bg-indigo-600 text-white font-medium transition";
+      if (editorTab) editorTab.className = "px-3 py-1 rounded wire-subtext hover:text-white transition";
+    } else {
+      previewContainer?.classList.add("hidden");
+      editorContainer?.classList.remove("hidden");
+      if (editorTab) editorTab.className = "px-3 py-1 rounded bg-indigo-600 text-white font-medium transition";
+      if (previewTab) previewTab.className = "px-3 py-1 rounded wire-subtext hover:text-white transition";
     }
   }
 
