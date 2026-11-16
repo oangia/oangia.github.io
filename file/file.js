@@ -19,7 +19,7 @@ class ItemsGridRenderer {
 
     const thumbnailTasks = [];
 
-    // Render cards directly using FRecord properties
+    // Render cards using FileRecord instances
     for (const item of items) {
       const sizeStr = item.isFolder 
         ? "" 
@@ -31,7 +31,7 @@ class ItemsGridRenderer {
       
       const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
       
-      const mediaHTML = Theme.getGridCardMediaHTML(previewContainerId, item);      
+      const mediaHTML = Theme.getGridCardMediaHTML(previewContainerId, item);     
       card.innerHTML = Theme.getGridCardHTML(mediaHTML, item.display_name, sizeStr, item.isFolder);
 
       const deleteBtn = card.querySelector(".delete-btn");
@@ -44,7 +44,7 @@ class ItemsGridRenderer {
 
       this.container.appendChild(card);
 
-      // Queue background thumbnail tasks using direct properties
+      // Queue background thumbnail tasks using FileRecord isImage() method
       if (!item.isFolder && this.storageService && item.isImage()) {
         thumbnailTasks.push(async () => {
           try {
@@ -65,6 +65,7 @@ class ItemsGridRenderer {
     }
   }
 }
+
 class FilePreviewManager {
   constructor(options = {}) {
     this.service = options.service;
@@ -76,13 +77,6 @@ class FilePreviewManager {
 
   setService(service) { this.service = service; }
 
-  async computeSha256(message) {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
   async openPreview(path, name, item = null) {
     this.currentPreviewPath = path;
     this.currentPreviewName = name;
@@ -92,7 +86,6 @@ class FilePreviewManager {
     const sidebar = document.getElementById("previewSidebarDetails");
     const modal = document.getElementById("modalPreview");
     
-    // Use item properties directly if available, otherwise fallback to name checks
     const encrypted = item ? item.isEncrypted : String(name || "").endsWith(".enc");
     const origName = item && item.display_name ? item.display_name : (encrypted ? name.slice(0, -4) : name);
 
@@ -109,7 +102,21 @@ class FilePreviewManager {
       const res = await fetch(url);
       const blob = await res.blob();
       const fileSize = blob.size;
-      const pathHash = await this.computeSha256(path);
+
+      // Use FileRecord's built-in hashing methods if item is provided
+      let pathHash = item ? item.hash_filename : null;
+      if (item && !pathHash) {
+        await item.hashFullpath();
+        pathHash = item.hash_filename;
+      } else if (!pathHash) {
+        pathHash = await FileRecord.computeSha256(path);
+      }
+
+      // Compute content & combined hash using FileRecord if available
+      if (item) {
+        item.url = url;
+        await item.hashContent(url);
+      }
 
       if (sidebar) {
         sidebar.innerHTML = Theme.getPreviewSidebarHTML({
@@ -117,7 +124,8 @@ class FilePreviewManager {
           fileSize: fileSize,
           url: url,
           path: path,
-          pathHash: pathHash
+          pathHash: pathHash,
+          fileHash: item ? item.hash_file : null
         });
       }
 
@@ -170,6 +178,7 @@ class FilePreviewManager {
     }
   }
 }
+
 class BreadcrumbManager {
   constructor(containerId, options = {}) {
     this.container = document.getElementById(containerId);
@@ -223,7 +232,6 @@ class BreadcrumbManager {
 class FileManager {
   constructor(config = {}) {
     this.storageService = this._getService(config.storageService);
-    //const driveService = new DriveStorageService();
     if (!this.storageService) throw new Error("A storage service is required.");
 
     this.allItems = [];
@@ -236,7 +244,6 @@ class FileManager {
   }
 
   _getService(serviceName) {
-    // supa, drive, local, firebase
     const StorageRegistry = {
       drive: DriveStorageService,
       supa: SupabaseStorageService,
@@ -259,12 +266,12 @@ class FileManager {
     });
 
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", {
-     storageService: this.storageService, // <-- Pass this so cards can load thumbs lazily
+     storageService: this.storageService,
      onItemClick: (item, fullPath, isFolder) => {
        if (isFolder) {
          this.breadcrumbManager.navigateToFolder(fullPath, item.name);
        } else {
-         this.openPreview(fullPath, item.name);
+         this.openPreview(fullPath, item.name, item);
        }
      },
      onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
@@ -317,7 +324,20 @@ class FileManager {
       });
       if (error) throw error;
 
-      this.allItems = (data || []).filter(item => item.name !== ".emptyFolderPlaceholder");
+      // Wrap raw items into FileRecord instances
+      this.allItems = (data || [])
+        .filter(item => item.name !== ".emptyFolderPlaceholder")
+        .map(raw => new FileRecord({
+          id: raw.id || null,
+          name: raw.name,
+          full_path: raw.full_path || (currentPath ? `${currentPath}/${raw.name}` : raw.name),
+          size: raw.size || 0,
+          mimetype: raw.mimetype || null,
+          url: raw.url || null,
+          created_at: raw.created_at || null,
+          updated_at: raw.updated_at || null,
+          isFolder: raw.isFolder || false
+        }));
 
       this.updateConnectionStatus(true, `Connected • Encrypted Vault Active`);
       this.renderView();
@@ -333,16 +353,13 @@ class FileManager {
 
     const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
     this.filteredItems = searchVal
-      ? this.allItems.filter(i => (i.displayName || i.name).toLowerCase().includes(searchVal))
+      ? this.allItems.filter(i => (i.display_name || i.name).toLowerCase().includes(searchVal))
       : [...this.allItems];
 
     this.filteredItems.sort((a, b) => {
-      // Folders first using the clean isFolder property
       if (a.isFolder !== b.isFolder) {
         return a.isFolder ? -1 : 1;
       }
-      
-      // Alphabetical sort using consistent display_name (with underscore)
       return a.display_name.localeCompare(b.display_name);
     });
 
@@ -402,7 +419,6 @@ class FileManager {
           targetPath += file.name;
         }
 
-        // If storage service handles transparent encryption when passphrase is active or via flags
         const { error } = await this.storageService.upload(targetPath, file, { cacheControl: "3600", upsert: true, isEncrypted });
         if (error) throw error;
 
@@ -426,8 +442,8 @@ class FileManager {
     event.target.value = "";
   }
 
-  async openPreview(path, name) {
-    if (this.filePreviewManager) await this.filePreviewManager.openPreview(path, name);
+  async openPreview(path, name, item = null) {
+    if (this.filePreviewManager) await this.filePreviewManager.openPreview(path, name, item);
   }
 
   cancelEditText() {
@@ -492,10 +508,6 @@ class FileManager {
     }
   }
 
-  isEncryptedFile(name) { return String(name || "").endsWith(".enc"); }
-  getOriginalFilename(name) { return this.isEncryptedFile(name) ? name.slice(0, -4) : name; }
-  isImage(name) { return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(this.getOriginalFilename(name)); }
-  isVideo(name) { return /\.(mp4|webm|ogg|mov)$/i.test(this.getOriginalFilename(name)); }
   showToast(msg, type, duration) { if (typeof showToast === "function") showToast(msg, type, duration); }
   updateConnectionStatus(status, msg) { if (typeof updateConnectionStatus === "function") updateConnectionStatus(status, msg); }
   closeModals() {
