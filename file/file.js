@@ -307,20 +307,9 @@ class FileManager {
       },
       onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
     });
-    this.bindGlobalEvents();
     this.initializeServiceConnection();
   }
-
-  bindGlobalEvents() {
-    document.addEventListener("click", (e) => {
-      const menu = document.getElementById("actionsMenu");
-      if (!menu) return;
-      if (!menu.contains(e.target) && !e.target.closest("button")?.getAttribute("onclick")?.includes("toggleActionsMenu")) {
-        menu.classList.add("hidden");
-      }
-    });
-  }
-
+  
   initializeServiceConnection() {
     try {
       if (typeof this.storageService.init === "function") {
@@ -350,9 +339,7 @@ class FileManager {
     this.updateConnectionStatus(null, "Loading...");
     try {
       const currentPath = this.activePath;
-      const { data, error } = await this.storageService.list(currentPath, {
-        limit: 500, offset: 0, sortBy: { column: "name", order: "asc" }
-      });
+      const { data, error } = await FileRecord.all();
       if (error) throw error;
 
       this.allItems = data;
@@ -534,6 +521,14 @@ class FileManager {
     if (typeof closeModals === "function") closeModals();
   }
 }
+
+document.addEventListener("click", (e) => {
+  const menu = document.getElementById("actionsMenu");
+  if (!menu) return;
+  if (!menu.contains(e.target) && !e.target.closest("button")?.getAttribute("onclick")?.includes("toggleActionsMenu")) {
+    menu.classList.add("hidden");
+  }
+});
 
 fileManager = new FileManager({ storageService: 'drive' });
 fileManager.init();
