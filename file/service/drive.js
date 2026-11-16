@@ -242,7 +242,7 @@ class DriveStorageService {
           isFolder: isFolder
         });
       });
-
+      console.log(fileRecords);
       return { data: fileRecords, error: null };
     } catch (err) {
       return { data: null, error: err };
