@@ -339,7 +339,7 @@ class FileManager {
     this.updateConnectionStatus(null, "Loading...");
     try {
       const currentPath = this.activePath;
-      const { data, error } = await FileRecord.all();
+      const { data, error } = await FileRecord.all(currentPath);
       if (error) throw error;
 
       this.allItems = data;
