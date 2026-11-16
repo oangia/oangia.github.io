@@ -1,9 +1,3 @@
-const formatBytes = (bytes, decimals = 1) => {
-    if (!bytes) return "0 B";
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${parseFloat((bytes / Math.pow(1024, i)).toFixed(decimals))} ${["B", "KB", "MB", "GB"][i]}`;
-};
-
 // Escape HTML entities to prevent XSS attacks
 const escapeHtml = str => String(str || "").replace(/[&<>'"]/g, char => ({
     "&": "&amp;",
@@ -12,24 +6,6 @@ const escapeHtml = str => String(str || "").replace(/[&<>'"]/g, char => ({
     "'": "&#039;",
     '"': "&quot;"
 }[char] || char));
-
-// File extension & type helpers
-const getExtension = filename => filename.includes(".") ? filename.split(".").pop().toLowerCase() : "file";
-const isType = (filename, types) => types.includes(getExtension(filename));
-
-const isImage = filename => isType(filename, ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"]);
-const isVideo = filename => isType(filename, ["mp4", "webm", "mov", "avi", "mkv", "ogg"]);
-const isAudio = filename => isType(filename, ["mp3", "wav", "ogg", "m4a", "flac", "aac"]);
-const isText  = filename => isType(filename, ["txt", "md", "json", "js", "ts", "html", "css", "xml", "csv", "log", "py", "sql", "yml", "yaml"]);
-const isHtml  = filename => /\.(html|htm)$/i.test(filename);
-
-// Compute SHA-256 hash for a string or binary data
-async function computeSha256(data) {
-    const encoder = typeof data === "string" ? new TextEncoder().encode(data) : data;
-    const hashBuffer = await crypto.subtle.digest("SHA-256", encoder);
-    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
 // Show toast notification banner with inline direct HTML/classes (no Theme dependency)
 function showToast(message, type = "info", duration = 4000) {
     let container = document.getElementById("toastContainer");
@@ -81,6 +57,17 @@ function updateConnectionStatus(isConnected, statusText) {
     }
 }
 
+function set_bg() {
+    if (window.self === window.top) {
+      document.body.style.backgroundImage = "linear-gradient(rgba(5, 8, 17, 0.45), rgba(5, 8, 17, 0.7)), url('https://images.unsplash.com/photo-1772511988871-a010197b94ae?auto=format&fit=crop&w=1920&q=80')";
+      document.body.style.backgroundSize = "cover";
+      document.body.style.backgroundPosition = "center";
+      document.body.style.backgroundRepeat = "no-repeat";
+      document.body.style.backgroundAttachment = "fixed";
+      document.body.style.backgroundColor = "#050811";
+    }
+}
+
 // Close all open modal windows and reset text editors if active
 function closeModals() {
     document.querySelectorAll(".fixed").forEach(modal => {
@@ -95,15 +82,4 @@ function closeModals() {
 
     document.getElementById("previewSaveBtn")?.classList.add("hidden");
     document.getElementById("previewCancelEditBtn")?.classList.add("hidden");
-}
-
-function set_bg() {
-    if (window.self === window.top) {
-      document.body.style.backgroundImage = "linear-gradient(rgba(5, 8, 17, 0.45), rgba(5, 8, 17, 0.7)), url('https://images.unsplash.com/photo-1772511988871-a010197b94ae?auto=format&fit=crop&w=1920&q=80')";
-      document.body.style.backgroundSize = "cover";
-      document.body.style.backgroundPosition = "center";
-      document.body.style.backgroundRepeat = "no-repeat";
-      document.body.style.backgroundAttachment = "fixed";
-      document.body.style.backgroundColor = "#050811";
-    }
 }
