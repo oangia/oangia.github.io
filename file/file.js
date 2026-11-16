@@ -29,10 +29,10 @@ class ItemsGridRenderer {
       const encrypted = !isFolder && this.isEncryptedFile(item.name);
       const displayName = isFolder ? item.name : this.getOriginalFilename(item.name);
       const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
-      const sizeStr = isFolder ? "" : formatBytes(item.metadata?.size || 0);
+      const sizeStr = isFolder ? "" : formatBytes(item.metadata?.size || 0) + encrypted ? "<span class=\"text-emerald-400\">Encrypted</span>" : "";
       
       const card = document.createElement("div");
-      card.className = "group relative border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden";
+      card.className = Theme.getGridCardClasses(); // "group relative border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden";
       card.onclick = () => this.onItemClick(item, fullPath, isFolder);
       
       const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
@@ -42,8 +42,9 @@ class ItemsGridRenderer {
         : `<div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110  transition-colors">
              <i class="fa-solid ${encrypted ? 'fa-file-shield text-emerald-400 text-3xl' : 'fa-file-lines text-slate-400 text-3xl'}"></i>
            </div>`;
-
-      card.innerHTML = `
+      
+      card.innerHTML = Theme.getGridCardHTML(mediaHTML, displayName, sizeStr, isFolder);
+      /*card.innerHTML = `
         ${mediaHTML}
         <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
           <span class="w-full text-xs font-bold text-slate-700 truncate" title="${displayName}">${displayName}</span>
@@ -52,7 +53,7 @@ class ItemsGridRenderer {
         <button class="delete-btn absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500 p-1">
           <i class="fa-solid fa-trash text-xs"></i>
         </button>
-      `;
+      `;*/
 
       const deleteBtn = card.querySelector(".delete-btn");
       if (deleteBtn) {
