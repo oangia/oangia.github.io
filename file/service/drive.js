@@ -227,12 +227,12 @@ class DriveStorageService {
       const files = (await res.json()).files || [];
       const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, '') : '';
 
-      // Map raw Google Drive items to FileRecord instances
+      // Map Google Drive API response to generic FileRecord instances
       const fileRecords = await Promise.all(files.map(async (f) => {
         const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
         const fullPath = cleanBasePath ? `${cleanBasePath}/${f.name}` : f.name;
 
-        // Instantiate FileRecord
+        // Instantiate the generic FileRecord
         const record = new FileRecord({
           id: isFolder ? null : f.id,
           name: f.name,
@@ -243,13 +243,8 @@ class DriveStorageService {
           updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null
         });
 
-        // Ensure async hash calculation completes before returning
+        // Ensure async hash calculation finishes
         await record._calculateHash();
-        
-        // Manually override isFolder since FileRecord defaults to false
-        if (isFolder) {
-          Object.defineProperty(record, 'isFolder', { value: true, writable: false });
-        }
 
         return record;
       }));
