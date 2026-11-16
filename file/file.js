@@ -23,57 +23,46 @@ class ItemsGridRenderer {
 
     const thumbnailTasks = [];
 
-    // 1. Render all cards instantly without awaiting network calls in the loop
+    // Render cards directly using FRecord properties
     for (const item of items) {
-      const isFolder = !item.id;
-      const encrypted = !isFolder && this.isEncryptedFile(item.name);
-      const displayName = isFolder ? item.name : this.getOriginalFilename(item.name);
-      const fullPath = item.fullPath || (currentPath ? `${currentPath}/${item.name}` : item.name);
-      const sizeStr = isFolder ? "" : formatBytes(item.metadata?.size || 0) + encrypted ? "<span class=\"text-emerald-400\">Encrypted</span>" : "";
+      const fullPath = item.full_path || (currentPath ? `${currentPath}/${item.name}` : item.name);
+      const sizeStr = item.isFolder 
+        ? "" 
+        : formatBytes(item.size || 0) + (item.isEncrypted ? '<span class="text-emerald-400">Encrypted</span>' : '');
       
       const card = document.createElement("div");
-      card.className = Theme.getGridCardClasses(); // "group relative border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden";
-      card.onclick = () => this.onItemClick(item, fullPath, isFolder);
+      card.className = Theme.getGridCardClasses();
+      card.onclick = () => this.onItemClick(item, fullPath, item.isFolder);
       
       const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
       
-      const mediaHTML = isFolder 
+      const mediaHTML = item.isFolder 
         ? `<div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-folder text-5xl"></i></div>`
-        : `<div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110  transition-colors">
-             <i class="fa-solid ${encrypted ? 'fa-file-shield text-emerald-400 text-3xl' : 'fa-file-lines text-slate-400 text-3xl'}"></i>
+        : `<div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors">
+             <i class="fa-solid ${item.isEncrypted ? 'fa-file-shield text-emerald-400 text-3xl' : 'fa-file-lines text-slate-400 text-3xl'}"></i>
            </div>`;
       
-      card.innerHTML = Theme.getGridCardHTML(mediaHTML, displayName, sizeStr, isFolder);
-      /*card.innerHTML = `
-        ${mediaHTML}
-        <div class="w-full pt-2 border-t border-slate-100 flex flex-col">
-          <span class="w-full text-xs font-bold text-slate-700 truncate" title="${displayName}">${displayName}</span>
-          <span class="text-[9px] text-slate-400 font-mono mt-0.5">${sizeStr}</span>
-        </div>
-        <button class="delete-btn absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500 p-1">
-          <i class="fa-solid fa-trash text-xs"></i>
-        </button>
-      `;*/
+      card.innerHTML = Theme.getGridCardHTML(mediaHTML, item.display_name, sizeStr, item.isFolder);
 
       const deleteBtn = card.querySelector(".delete-btn");
       if (deleteBtn) {
         deleteBtn.onclick = (e) => {
           e.stopPropagation();
-          this.onDeleteClick(fullPath, isFolder);
+          this.onDeleteClick(fullPath, item.isFolder);
         };
       }
 
       this.container.appendChild(card);
 
-      // 2. Queue image thumbnail fetching tasks for background execution
-      if (!isFolder && this.storageService && this.isImage(item.name)) {
+      // Queue background thumbnail tasks using direct properties
+      if (!item.isFolder && this.storageService && this.isImage(item.name)) {
         thumbnailTasks.push(async () => {
           try {
             const { data, error } = await this.storageService.getFileUrl(fullPath, 60);
             if (!error && data?.signedUrl) {
               const thumbEl = document.getElementById(previewContainerId);
               if (thumbEl) {
-                thumbEl.innerHTML = `<img src="${data.signedUrl}" alt="${displayName}" class="w-full h-full object-cover rounded-lg" />`;
+                thumbEl.innerHTML = `<img src="${data.signedUrl}" alt="${item.display_name}" class="w-full h-full object-cover rounded-lg" />`;
               }
             }
           } catch (e) {}
@@ -81,7 +70,6 @@ class ItemsGridRenderer {
       }
     }
 
-    // 3. Fire all thumbnail requests concurrently in the background without blocking the grid
     if (thumbnailTasks.length > 0) {
       Promise.all(thumbnailTasks.map(task => task())).catch(() => {});
     }
