@@ -10,30 +10,114 @@ class FileRecord {
     updated_at = null,
     isFolder = false
   } = {}) {
-    this.id = id;
-    this.name = name;
-    this.full_path = full_path;
-    this.isFolder = isFolder;
-    this.size = size;
+    this._id = id;
+    this._name = name;
+    this._full_path = full_path;
+    this._isFolder = isFolder;
+    this._size = size;
     
-    if (this.isFolder) {
-      this.mimetype = "application/vnd.google-apps.folder";
+    if (this._isFolder) {
+      this._mimetype = "application/vnd.google-apps.folder";
     } else {
-      this.mimetype = mimetype || this._guessMimeType(name);
+      this._mimetype = mimetype || this._guessMimeType(name);
     }
     
-    this.url = url;
-    this.isEncrypted = name.endsWith(".enc");
-    this.display_name = this.isEncrypted ? name.replace(/\.enc$/, "") : name;
+    this._url = url;
+    this._created_at = created_at || Date.now();
+    this._updated_at = updated_at || Date.now();
 
     this.hash_filename = null;
     this.hash_content = null;
     this.hash_file = null;
 
-    this.created_at = created_at || Date.now();
-    this.updated_at = updated_at || Date.now();
-    
     this.hashFullpath();
+  }
+
+  // --- Encapsulated Getters (No direct attribute access) ---
+
+  getId() { return this._id; }
+  getName() { return this._name; }
+  getFullPath() { return this._full_path; }
+  getSize() { return this._size; }
+  getMimeType() { return this._mimetype; }
+  getUrl() { return this._url; }
+  getCreatedAt() { return this._created_at; }
+  getUpdatedAt() { return this._updated_at; }
+
+  isFolderNode() {
+    return this._isFolder;
+  }
+
+  isEncryptedFile() {
+    return this._name.endsWith(".enc");
+  }
+
+  getDisplayName() {
+    return this.isEncryptedFile() ? this._name.replace(/\.enc$/, "") : this._name;
+  }
+
+  getExtension() {
+    const lastDot = this._name.lastIndexOf(".");
+    return lastDot !== -1 ? this._name.substring(lastDot + 1).toLowerCase() : "";
+  }
+
+  getFormattedSize() {
+    if (this.isFolderNode()) return "";
+    const bytes = this._size || 0;
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  }
+
+  getSubtext() {
+    if (this.isFolderNode()) return "Folder";
+    let text = this.getFormattedSize();
+    if (this.isEncryptedFile()) {
+      text += ' <span class="text-emerald-400">Encrypted</span>';
+    }
+    return text;
+  }
+
+  isImage() {
+    return !this.isFolderNode() && (
+      this.getMimeType()?.startsWith("image/") ||
+      ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"].includes(this.getExtension())
+    );
+  }
+
+  isVideo() {
+    return !this.isFolderNode() && (
+      this.getMimeType()?.startsWith("video/") ||
+      ["mp4", "webm", "mov", "avi", "mkv"].includes(this.getExtension())
+    );
+  }
+
+  isAudio() {
+    return !this.isFolderNode() && (
+      this.getMimeType()?.startsWith("audio/") ||
+      ["mp3", "wav", "ogg"].includes(this.getExtension())
+    );
+  }
+
+  isHtml() {
+    return !this.isFolderNode() && ["html", "htm"].includes(this.getExtension());
+  }
+
+  getFileIconClass() {
+    if (this.isFolderNode()) return "fa-solid fa-folder text-amber-500";
+    if (this.isEncryptedFile()) return "fa-solid fa-file-shield text-emerald-400";
+    
+    const ext = this.getExtension();
+    if (["txt", "md", "log"].includes(ext)) return "fa-solid fa-file-lines";
+    if (["json", "js", "ts", "html", "css", "py", "java", "sql", "yml", "yaml"].includes(ext)) return "fa-solid fa-file-code";
+    if (this.isImage()) return "fa-solid fa-file-image";
+    if (this.isAudio()) return "fa-solid fa-file-audio";
+    if (this.isVideo()) return "fa-solid fa-file-video";
+    if (ext === "pdf") return "fa-solid fa-file-pdf";
+    if (["zip", "rar", "7z"].includes(ext)) return "fa-solid fa-file-zipper";
+    return "fa-solid fa-file";
   }
 
   _guessMimeType(filename) {
@@ -47,63 +131,6 @@ class FileRecord {
     return mimeMap[ext] || "application/octet-stream";
   }
 
-  // --- Encapsulated Getters & Type Checkers ---
-
-  get extension() {
-    const lastDot = this.name.lastIndexOf(".");
-    return lastDot !== -1 ? this.name.substring(lastDot + 1).toLowerCase() : "";
-  }
-
-  get formattedSize() {
-    if (this.isFolder) return "";
-    const bytes = this.size || 0;
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  }
-
-  isImage() {
-    return !this.isFolder && (
-      this.mimetype?.startsWith("image/") ||
-      ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"].includes(this.extension)
-    );
-  }
-
-  isVideo() {
-    return !this.isFolder && (
-      this.mimetype?.startsWith("video/") ||
-      ["mp4", "webm", "mov", "avi", "mkv"].includes(this.extension)
-    );
-  }
-
-  isAudio() {
-    return !this.isFolder && (
-      this.mimetype?.startsWith("audio/") ||
-      ["mp3", "wav", "ogg"].includes(this.extension)
-    );
-  }
-
-  isHtml() {
-    return !this.isFolder && ["html", "htm"].includes(this.extension);
-  }
-
-  getFileIconClass() {
-    if (this.isFolder) return "fa-solid fa-folder text-amber-500";
-    if (this.isEncrypted) return "fa-solid fa-file-shield text-emerald-400";
-    
-    const ext = this.extension;
-    if (["txt", "md", "log"].includes(ext)) return "fa-solid fa-file-lines";
-    if (["json", "js", "ts", "html", "css", "py", "java", "sql", "yml", "yaml"].includes(ext)) return "fa-solid fa-file-code";
-    if (this.isImage()) return "fa-solid fa-file-image";
-    if (this.isAudio()) return "fa-solid fa-file-audio";
-    if (this.isVideo()) return "fa-solid fa-file-video";
-    if (ext === "pdf") return "fa-solid fa-file-pdf";
-    if (["zip", "rar", "7z"].includes(ext)) return "fa-solid fa-file-zipper";
-    return "fa-solid fa-file";
-  }
-
   // --- Hashing Methods ---
 
   static async computeSha256(input) {
@@ -115,16 +142,17 @@ class FileRecord {
   }
 
   async hashFullpath() {
-    const targetString = this.full_path || this.name;
+    const targetString = this.getFullPath() || this.getName();
     if (!targetString) return null;
     this.hash_filename = await FileRecord.computeSha256(targetString);
   }
 
-  async hashContent() {
+  async hashContent(overrideUrl = null) {
     try {
-      if (!this.url) throw new Error("No URL provided for this file record.");
+      const targetUrl = overrideUrl || this.getUrl();
+      if (!targetUrl) throw new Error("No URL provided for this file record.");
 
-      const response = await fetch(this.url);
+      const response = await fetch(targetUrl);
       if (!response.ok) throw new Error(`Failed to fetch file from URL: ${response.statusText}`);
       
       const blob = await response.blob();
