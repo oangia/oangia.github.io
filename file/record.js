@@ -7,16 +7,24 @@ class FileRecord {
     mimetype = null,
     url = null,
     created_at = null,
-    updated_at = null
+    updated_at = null,
+    isFolder = false // Allow passing isFolder universally
   } = {}) {
     this.id = id;
     this.name = name;
     this.full_path = full_path;
-    this.isFolder = false;
+    this.isFolder = isFolder; // Set dynamically
     this.size = size;
-    this.mimetype = mimetype || this._guessMimeType(name);
-    this.url = url;
     
+    // Assign proper mimetype for folders vs files
+    if (this.isFolder) {
+      this.mimetype = "application/vnd.google-apps.folder"; // or keep generic
+    } else {
+      this.mimetype = mimetype || this._guessMimeType(name);
+    }
+    
+    this.url = url;
+      
     this.isEncrypted = name.endsWith(".enc");
     this.hash_filename = null;
     this.hash_content = null;
