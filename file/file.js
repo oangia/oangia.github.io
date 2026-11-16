@@ -20,17 +20,16 @@ class ItemsGridRenderer {
     const thumbnailTasks = [];
 
     for (const file of items) {
-      console.log(file);
       const sizeStr = file.getSubtext();
       
       const card = document.createElement("div");
-      card.className = Theme.getGridCardClasses();
+      card.className = this.getGridCardClasses();
       card.onclick = () => this.onItemClick(file, file.getFullPath(), file.isFolderNode());
       
       const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
       
-      const mediaHTML = Theme.getGridCardMediaHTML(previewContainerId, file);     
-      card.innerHTML = Theme.getGridCardHTML(mediaHTML, file.getDisplayName(), sizeStr, file.isFolderNode());
+      const mediaHTML = this.getGridCardMediaHTML(previewContainerId, file);     
+      card.innerHTML = this.getGridCardHTML(mediaHTML, file.getDisplayName(), sizeStr, file.isFolderNode());
 
       const deleteBtn = card.querySelector(".delete-btn");
       if (deleteBtn) {
@@ -60,6 +59,47 @@ class ItemsGridRenderer {
     if (thumbnailTasks.length > 0) {
       Promise.all(thumbnailTasks.map(task => task())).catch(() => {});
     }
+  }
+
+  /* ---------- Grid Card Templates & Styles ---------- */
+  getGridCardClasses() {
+    return `
+      group relative bg-transparent border border-white/20 hover:border-indigo-400 
+      rounded-xl p-3 flex flex-col items-center justify-between text-center 
+      cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 
+      aspect-square overflow-hidden
+    `;
+  }
+
+  getGridCardMediaHTML(previewContainerId, file) {
+    return file.isFolderNode() 
+        ? `<div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-folder text-5xl"></i></div>`
+        : `<div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors">
+             <i class="${file.getFileIconClass()} text-3xl"></i>
+           </div>`;
+  }
+
+  getGridCardHTML(mediaHTML, name, sizeStr, isFolder) {
+    return `
+      <button 
+        class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 
+               w-6 h-6 flex items-center justify-center rounded-full 
+               bg-black/50 hover:bg-red-500 text-white transition"
+        title="Delete">
+        <i class="fa-solid fa-xmark text-[10px]"></i>
+      </button>
+
+      ${mediaHTML}
+
+      <div class="w-full pt-2 border-t border-white/20 flex flex-col">
+        <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(name)}">
+          ${escapeHtml(name)}
+        </span>
+        <span class="text-[9px] text-slate-300 font-mono mt-0.5">
+          ${isFolder ? (sizeStr || 'Folder') : sizeStr}
+        </span>
+      </div>
+    `;
   }
 }
 
