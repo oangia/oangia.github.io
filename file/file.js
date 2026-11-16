@@ -84,6 +84,12 @@ class FilePreviewManager {
     const body = document.getElementById("previewBody");
     const modal = document.getElementById("modalPreview");
     
+    // Sidebar elements (make sure these IDs exist in your HTML sidebar)
+    const sidebarSize = document.getElementById("sidebarFileSize");
+    const sidebarType = document.getElementById("sidebarFileType");
+    const sidebarDimensions = document.getElementById("sidebarFileDimensions");
+    const sidebarStatus = document.getElementById("sidebarEncryptionStatus");
+    
     const origName = this.getOriginalFilename(name);
     const encrypted = this.isEncryptedFile(name);
 
@@ -91,21 +97,47 @@ class FilePreviewManager {
     if (body) body.innerHTML = `<div class="text-center py-10 text-slate-400">Decrypting and loading...</div>`;
     if (modal) modal.classList.remove("hidden");
 
+    // Reset sidebar text while loading
+    if (sidebarSize) sidebarSize.textContent = "Calculating...";
+    if (sidebarType) sidebarType.textContent = origName.split('.').pop().toUpperCase();
+    if (sidebarStatus) sidebarStatus.textContent = encrypted ? "Encrypted (.enc)" : "Standard";
+
     try {
-      // This calls storageService.getFileUrl(), which transparently decrypts .enc files on-demand!
       const { data, error } = await this.service.getFileUrl(path, 60);
       if (error) throw error;
       const url = data.signedUrl;
 
+      // Optional: Fetch file blob to calculate exact size or process details if needed
+      const res = await fetch(url);
+      const blob = await res.blob();
+      
+      if (sidebarSize) {
+        sidebarSize.textContent = formatBytes(blob.size); // Assumes formatBytes is globally available
+      }
+
       if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(origName)) {
-        body.innerHTML = `<div class="flex items-center justify-center h-full"><img src="${url}" class="max-h-[70vh] object-contain rounded" /></div>`;
+        body.innerHTML = `<div class="flex items-center justify-center h-full"><img id="previewImg" src="${url}" class="max-h-[70vh] object-contain rounded" /></div>`;
+        
+        // Calculate image dimensions for sidebar
+        const img = document.getElementById("previewImg");
+        img.onload = () => {
+          if (sidebarDimensions) {
+            sidebarDimensions.textContent = `${img.naturalWidth} x ${img.naturalHeight} px`;
+          }
+        };
       } else if (/\.(mp4|webm|ogg|mov)$/i.test(origName)) {
-        body.innerHTML = `<div class="flex items-center justify-center h-full"><video src="${url}" controls class="max-h-[70vh] rounded"></video></div>`;
+        body.innerHTML = `<div class="flex items-center justify-center h-full"><video id="previewVideo" src="${url}" controls class="max-h-[70vh] rounded"></video></div>`;
+        
+        const video = document.getElementById("previewVideo");
+        video.onloadedmetadata = () => {
+          if (sidebarDimensions) {
+            sidebarDimensions.textContent = `${video.videoWidth} x ${video.videoHeight} (${Math.round(video.duration)}s)`;
+          }
+        };
       } else {
-        // Fallback for text or general files
-        const res = await fetch(url);
-        const text = await res.text();
+        const text = await blob.text();
         body.innerHTML = `<textarea class="w-full h-96 bg-slate-950 text-slate-100 p-3 rounded font-mono text-xs" readonly>${text}</textarea>`;
+        if (sidebarDimensions) sidebarDimensions.textContent = `${text.length} characters`;
       }
     } catch (err) {
       console.error(err);
