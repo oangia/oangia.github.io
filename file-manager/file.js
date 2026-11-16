@@ -32,7 +32,7 @@ class ItemsGridRenderer {
       const sizeStr = isFolder ? "" : formatBytes(item.metadata?.size || 0);
       
       const card = document.createElement("div");
-      card.className = "group relative bg-white border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden";
+      card.className = "group relative border border-slate-200 hover:border-blue-500 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden";
       card.onclick = () => this.onItemClick(item, fullPath, isFolder);
       
       const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
