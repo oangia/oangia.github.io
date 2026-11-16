@@ -296,9 +296,8 @@ class FileManager {
   initializeServiceConnection() {
     try {
       const headerUrl = document.getElementById("headerUrl");
-      const bucketName = FileRecord.getBucketName();
-      if (headerUrl && bucketName) {
-        headerUrl.innerHTML = `Storage Active<br />Container: ${bucketName}`;
+      if (headerUrl) {
+        headerUrl.innerHTML = `Storage Active<br />`;
       }
 
       this.breadcrumbManager?.reset();
