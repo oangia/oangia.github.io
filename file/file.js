@@ -19,40 +19,40 @@ class ItemsGridRenderer {
 
     const thumbnailTasks = [];
 
-    // Render cards using FileRecord instances
-    for (const item of items) {
-      const sizeStr = item.isFolder 
+    // Render cards using FileRecord instances stored as 'file'
+    for (const file of items) {
+      const sizeStr = file.isFolder 
         ? "" 
-        : formatBytes(item.size || 0) + (item.isEncrypted ? ' <span class="text-emerald-400">Encrypted</span>' : '');
+        : formatBytes(file.size || 0) + (file.isEncrypted ? ' <span class="text-emerald-400">Encrypted</span>' : '');
       
       const card = document.createElement("div");
       card.className = Theme.getGridCardClasses();
-      card.onclick = () => this.onItemClick(item, item.full_path, item.isFolder);
+      card.onclick = () => this.onItemClick(file, file.full_path, file.isFolder);
       
       const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
       
-      const mediaHTML = Theme.getGridCardMediaHTML(previewContainerId, item);     
-      card.innerHTML = Theme.getGridCardHTML(mediaHTML, item.display_name, sizeStr, item.isFolder);
+      const mediaHTML = Theme.getGridCardMediaHTML(previewContainerId, file);     
+      card.innerHTML = Theme.getGridCardHTML(mediaHTML, file.display_name, sizeStr, file.isFolder);
 
       const deleteBtn = card.querySelector(".delete-btn");
       if (deleteBtn) {
         deleteBtn.onclick = (e) => {
           e.stopPropagation();
-          this.onDeleteClick(item.full_path, item.isFolder);
+          this.onDeleteClick(file.full_path, file.isFolder);
         };
       }
 
       this.container.appendChild(card);
 
       // Queue background thumbnail tasks using FileRecord isImage() method
-      if (!item.isFolder && this.storageService && item.isImage()) {
+      if (!file.isFolder && this.storageService && file.isImage()) {
         thumbnailTasks.push(async () => {
           try {
-            const { data, error } = await this.storageService.getFileUrl(item.full_path, 60);
+            const { data, error } = await this.storageService.getFileUrl(file.full_path, 60);
             if (!error && data?.signedUrl) {
               const thumbEl = document.getElementById(previewContainerId);
               if (thumbEl) {
-                thumbEl.innerHTML = `<img src="${data.signedUrl}" alt="${item.display_name}" class="w-full h-full object-cover rounded-lg" />`;
+                thumbEl.innerHTML = `<img src="${data.signedUrl}" alt="${file.display_name}" class="w-full h-full object-cover rounded-lg" />`;
               }
             }
           } catch (e) {}
@@ -77,7 +77,7 @@ class FilePreviewManager {
 
   setService(service) { this.service = service; }
 
-  async openPreview(path, name, item = null) {
+  async openPreview(path, name, file = null) {
     this.currentPreviewPath = path;
     this.currentPreviewName = name;
 
@@ -86,8 +86,8 @@ class FilePreviewManager {
     const sidebar = document.getElementById("previewSidebarDetails");
     const modal = document.getElementById("modalPreview");
     
-    const encrypted = item ? item.isEncrypted : String(name || "").endsWith(".enc");
-    const origName = item && item.display_name ? item.display_name : (encrypted ? name.slice(0, -4) : name);
+    const encrypted = file ? file.isEncrypted : String(name || "").endsWith(".enc");
+    const origName = file && file.display_name ? file.display_name : (encrypted ? name.slice(0, -4) : name);
 
     if (title) title.textContent = origName + (encrypted ? " (Decrypted securely)" : "");
     if (body) body.innerHTML = Theme.getPreviewLoadingHTML();
@@ -103,19 +103,19 @@ class FilePreviewManager {
       const blob = await res.blob();
       const fileSize = blob.size;
 
-      // Use FileRecord's built-in hashing methods if item is provided
-      let pathHash = item ? item.hash_filename : null;
-      if (item && !pathHash) {
-        await item.hashFullpath();
-        pathHash = item.hash_filename;
+      // Use FileRecord's built-in hashing methods if file is provided
+      let pathHash = file ? file.hash_filename : null;
+      if (file && !pathHash) {
+        await file.hashFullpath();
+        pathHash = file.hash_filename;
       } else if (!pathHash) {
         pathHash = await FileRecord.computeSha256(path);
       }
 
       // Compute content & combined hash using FileRecord if available
-      if (item) {
-        item.url = url;
-        await item.hashContent(url);
+      if (file) {
+        file.url = url;
+        await file.hashContent(url);
       }
 
       if (sidebar) {
@@ -125,7 +125,7 @@ class FilePreviewManager {
           url: url,
           path: path,
           pathHash: pathHash,
-          fileHash: item ? item.hash_file : null
+          fileHash: file ? file.hash_file : null
         });
       }
 
@@ -266,16 +266,16 @@ class FileManager {
     });
 
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", {
-     storageService: this.storageService,
-     onItemClick: (item, fullPath, isFolder) => {
-       if (isFolder) {
-         this.breadcrumbManager.navigateToFolder(fullPath, item.name);
-       } else {
-         this.openPreview(fullPath, item.name, item);
-       }
-     },
-     onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
-   });
+      storageService: this.storageService,
+      onItemClick: (file, fullPath, isFolder) => {
+        if (isFolder) {
+          this.breadcrumbManager.navigateToFolder(fullPath, file.name);
+        } else {
+          this.openPreview(fullPath, file.name, file);
+        }
+      },
+      onDeleteClick: (fullPath, isFolder) => this.deleteItem(fullPath, isFolder)
+    });
     this.bindGlobalEvents();
     this.initializeServiceConnection();
   }
@@ -324,9 +324,9 @@ class FileManager {
       });
       if (error) throw error;
 
-      // Wrap raw items into FileRecord instances
+      // Wrap raw items into FileRecord instances using 'file' variable
       this.allItems = (data || [])
-        .filter(item => item.name !== ".emptyFolderPlaceholder")
+        .filter(file => file.name !== ".emptyFolderPlaceholder")
         .map(raw => new FileRecord({
           id: raw.id || null,
           name: raw.name,
@@ -353,7 +353,7 @@ class FileManager {
 
     const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
     this.filteredItems = searchVal
-      ? this.allItems.filter(i => (i.display_name || i.name).toLowerCase().includes(searchVal))
+      ? this.allItems.filter(file => (file.display_name || file.name).toLowerCase().includes(searchVal))
       : [...this.allItems];
 
     this.filteredItems.sort((a, b) => {
@@ -442,8 +442,8 @@ class FileManager {
     event.target.value = "";
   }
 
-  async openPreview(path, name, item = null) {
-    if (this.filePreviewManager) await this.filePreviewManager.openPreview(path, name, item);
+  async openPreview(path, name, file = null) {
+    if (this.filePreviewManager) await this.filePreviewManager.openPreview(path, name, file);
   }
 
   cancelEditText() {
