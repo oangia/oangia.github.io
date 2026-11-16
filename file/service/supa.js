@@ -29,7 +29,9 @@ class SupabaseStorageService {
 
   async list(path, options) {
     if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this._bucket).list(path, options);
+    const data = await this.client.storage.from(this._bucket).list(path, options);
+    console.log(data);
+    return data;
   }
 
   async getFileUrl(path, expiresIn) {
