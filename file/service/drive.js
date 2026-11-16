@@ -243,7 +243,7 @@ class DriveStorageService {
           updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null,
           isFolder: isFolder
         });
-
+        console.log(record);
         // Ensure async hash calculation finishes
 
         return record;
