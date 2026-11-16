@@ -229,25 +229,18 @@
     </div>
   </div>
   
-  <script src="./widget.js"></script>
-  <script src="./backup.js?id=openTrackerBtn"></script>
-  <script src="./file-manager/theme.js"></script>
-  <script src="./file-manager/file.js"></script>
+  <script src="./widget.js?id=openTrackerBtn"></script>
+  <script src="./file/utils.js"></script>
+  <script src="./file/theme.js"></script>
+  <script src="./file/service/drive.js"></script>
+  <script src="./file/file.js"></script>
   <script type="module">
     import { FirebaseService } from './firebase.js';
     const fbService = new FirebaseService();
     const uploader = new FirebaseUploaderWidget(fbService, "uploaded_files");
     uploader.init("openFirebaseWidgetBtn");
     new FolderManagerPanel("#openFolderManagerBtn");
-
-    if (window.self === window.top) {
-      document.body.style.backgroundImage = "linear-gradient(rgba(5, 8, 17, 0.45), rgba(5, 8, 17, 0.7)), url('https://images.unsplash.com/photo-1772511988871-a010197b94ae?auto=format&fit=crop&w=1920&q=80')";
-      document.body.style.backgroundSize = "cover";
-      document.body.style.backgroundPosition = "center";
-      document.body.style.backgroundRepeat = "no-repeat";
-      document.body.style.backgroundAttachment = "fixed";
-      document.body.style.backgroundColor = "#050811";
-    }
+    set_bg();
   </script>
 </body>
 </html>
