@@ -57,6 +57,13 @@ class FileRecord {
     return mimeMap[ext] || "application/octet-stream";
   }
 
+  get isImage() {
+    return !this.isFolder && (
+      this.mimetype?.startsWith("image/") ||
+      /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(this.name)
+    );
+  }
+
   async _calculateHash() {
     if (!this.full_path) return this;
 
