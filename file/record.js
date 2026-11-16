@@ -31,6 +31,32 @@ class FileRecord {
     this.hash_file = null;
 
     this.hashFullpath();
+    this.storageService = new DriveStorageService();
+  }
+
+  static async function all(path) {
+    const { data } = await = this.storageService.list(path, {
+      limit: 500, offset: 0, sortBy: { column: "name", order: "asc" }
+    });
+    const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, '') : '';
+
+      const fileRecords = data.map((f) => {
+        const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
+        const fullPath = cleanBasePath ? `${cleanBasePath}/${f.name}` : f.name;
+
+        return new FileRecord({
+          id: isFolder ? null : f.id,
+          name: f.name,
+          full_path: fullPath,
+          size: Number(f.size || 0),
+          mimetype: f.mimeType,
+          url: f.webContentLink || null,
+          updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null,
+          isFolder: isFolder
+        });
+      });
+      console.log(fileRecords);
+      return { data: fileRecords, error: null };
   }
 
   // --- Encapsulated Getters ---
