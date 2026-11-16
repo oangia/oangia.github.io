@@ -33,7 +33,6 @@ class FileRecord {
     this.created_at = created_at || Date.now();
     this.updated_at = updated_at || Date.now();
     this._calculateHash();
-    Object.freeze(this);
   }
 
   _guessMimeType(filename) {
