@@ -325,10 +325,9 @@ class FileManager {
   constructor(config = {}) {
     this.allItems = [];
     this.filteredItems = [];
-
-    this.filePreview = new FilePreviewManager({
-      onToast: (msg, type, duration) => this.showToast(msg, type, duration),
-      onSaveSuccess: () => this.listFiles()
+    
+    this.breadcrumb = new BreadcrumbManager("breadcrumbNav", {
+      onNavigate: () => this.listFiles()
     });
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", {
       onItemClick: (file, fullPath, isFolder) => {
@@ -340,43 +339,28 @@ class FileManager {
       },
       onDeleteClick: (file) => this.deleteItem(file)
     });
-    this.breadcrumb = new BreadcrumbManager("breadcrumbNav", {
-      onNavigate: () => this.listFiles()
+    this.filePreview = new FilePreviewManager({
+      onToast: (msg, type, duration) => showToast(msg, type, duration),
+      onSaveSuccess: () => this.listFiles()
     });
-    try {
-      const headerUrl = document.getElementById("headerUrl");
-      if (headerUrl) {
-        headerUrl.innerHTML = `Storage Active<br />`;
-      }
 
-      this.breadcrumb.reset();
-      this.listFiles();
-    } catch (err) {
-      console.error(err);
-      this.updateConnectionStatus(false, err.message || "Failed to initialize storage service");
-      this.showToast("Failed to initialize storage service", "error");
-    }
+    this.listFiles();
   }
   
   async listFiles() {
-    this.updateConnectionStatus(null, "Loading...");
     try {
       const { data, error } = await FileRecord.all(this.breadcrumb.path);
       if (error) throw error;
-
       this.allItems = data;
-
-      this.updateConnectionStatus(true, `Connected • Encrypted Vault Active`);
       this.renderView();
     } catch (err) {
       console.error(err);
-      this.updateConnectionStatus(false, err.message || "Failed to list files");
-      this.showToast(err.message || "Failed to list files", "error");
+      showToast(err.message || "Failed to list files", "error");
     }
   }
 
   renderView() {
-    this.breadcrumb?.render();
+    this.breadcrumb.render();
 
     const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
     this.filteredItems = searchVal
@@ -417,10 +401,10 @@ class FileManager {
       if (error) throw error;
 
       this.closeModals();
-      this.showToast(`Folder "${name}" created`, "success");
+      showToast(`Folder "${name}" created`, "success");
       this.listFiles();
     } catch (err) {
-      this.showToast(err.message || "Failed to create folder", "error");
+      showToast(err.message || "Failed to create folder", "error");
     }
   }
 
@@ -432,7 +416,7 @@ class FileManager {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    this.showToast(`Uploading ${files.length} item(s) (${isEncrypted ? 'Encrypted' : 'Normal'})...`, "info", 2500);
+    showToast(`Uploading ${files.length} item(s) (${isEncrypted ? 'Encrypted' : 'Normal'})...`, "info", 2500);
     let success = 0, failed = 0;
     const currentPath = this.breadcrumb.path;
 
@@ -451,20 +435,20 @@ class FileManager {
 
         success++;
         if ((i + 1) % 5 === 0 || i === files.length - 1) {
-          this.showToast(`Uploaded ${i + 1} / ${files.length}`, "info", 1200);
+          showToast(`Uploaded ${i + 1} / ${files.length}`, "info", 1200);
         }
       } catch (err) {
         console.error(err);
         failed++;
-        this.showToast(`Failed: ${file.name}`, "error", 2500);
+        showToast(`Failed: ${file.name}`, "error", 2500);
       }
     }
 
     await this.listFiles();
     if (failed === 0) {
-      this.showToast(`Successfully uploaded ${success} item(s)`, "success");
+      showToast(`Successfully uploaded ${success} item(s)`, "success");
     } else {
-      this.showToast(`Uploaded ${success}, failed ${failed}`, "warning");
+      showToast(`Uploaded ${success}, failed ${failed}`, "warning");
     }
     event.target.value = "";
   }
@@ -485,7 +469,7 @@ class FileManager {
     try {
       await FileRecord.download(path, name);
     } catch (err) {
-      this.showToast(err.message || "Download failed", "error");
+      showToast(err.message || "Download failed", "error");
     }
   }
 
@@ -532,11 +516,11 @@ class FileManager {
         if (error) throw error;
       }
 
-      this.showToast("Deleted successfully", "success");
+      showToast("Deleted successfully", "success");
       this.listFiles();
     } catch (err) {
       console.error(err);
-      this.showToast(err.message || "Delete failed", "error");
+      showToast(err.message || "Delete failed", "error");
     }
   }
 
