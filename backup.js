@@ -1107,10 +1107,3 @@ class DriveStorageService {
     URL.revokeObjectURL(a.href);
   }
 }
-
-new Config("navSettingsTab");
-//const sbManager = new SupabaseStorageService();
-const driveService = new DriveStorageService();
-
-fileManager = new FileManager({ storageService: driveService });
-fileManager.init();
