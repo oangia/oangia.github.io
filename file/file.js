@@ -210,7 +210,7 @@ class FileManager {
       local: LocalFileService
     };
     const ServiceClass = StorageRegistry[serviceName.toLowerCase()];
-    return new ServiceClass(config);
+    return new ServiceClass();
   }
 
   init() {
