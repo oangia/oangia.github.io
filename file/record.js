@@ -1,4 +1,4 @@
-class FRecord {
+class FileRecord {
   constructor({
     id = null,
     name = "",
@@ -8,17 +8,17 @@ class FRecord {
     url = null,
     created_at = null,
     updated_at = null,
-    isFolder = false // Allow passing isFolder universally
+    isFolder = false
   } = {}) {
     this.id = id;
     this.name = name;
     this.full_path = full_path;
-    this.isFolder = isFolder; // Set dynamically
+    this.isFolder = isFolder;
     this.size = size;
     
     // Assign proper mimetype for folders vs files
     if (this.isFolder) {
-      this.mimetype = "application/vnd.google-apps.folder"; // or keep generic
+      this.mimetype = "application/vnd.google-apps.folder";
     } else {
       this.mimetype = mimetype || this._guessMimeType(name);
     }
@@ -26,6 +26,9 @@ class FRecord {
     this.url = url;
       
     this.isEncrypted = name.endsWith(".enc");
+    // Automatically strip .enc for display_name if encrypted
+    this.display_name = this.isEncrypted ? name.replace(/\.enc$/, "") : name;
+
     this.hash_filename = null;
     this.hash_content = null;
     this.hash_file = null;
