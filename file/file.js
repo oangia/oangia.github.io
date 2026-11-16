@@ -20,6 +20,7 @@ class ItemsGridRenderer {
     const thumbnailTasks = [];
 
     for (const file of items) {
+      console.log(file);
       const sizeStr = file.getSubtext();
       
       const card = document.createElement("div");
