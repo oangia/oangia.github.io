@@ -183,7 +183,7 @@ class FilePreviewManager {
             <div class="space-y-3" id="hashesComputeContainer">
               <div>
                 <span class="text-[10px] wire-subtext block mb-1">Content & Combined Hashes are uncalculated</span>
-                <button onclick="filePreviewManager.computeContentAndCombinedHashes()" class="w-full py-2.5 bg-transparent hover:border-indigo-300 wire-border text-indigo-300 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5">
+                <button class="content-hash w-full py-2.5 bg-transparent hover:border-indigo-300 wire-border text-indigo-300 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5">
                   <i class="fa-solid fa-fingerprint"></i> Calculate Content & Combined Hashes
                 </button>
               </div>
@@ -208,8 +208,8 @@ class FilePreviewManager {
           <div class="flex flex-col h-full w-full">
             <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 px-1">
               <div class="flex items-center gap-1 bg-black/40 p-1 rounded wire-border text-xs">
-                <button type="button" onclick="filePreviewManager.switchHtmlView('preview')" id="htmlPreviewTab" class="px-3 py-1 rounded bg-indigo-600 text-white font-medium transition">Preview</button>
-                <button type="button" onclick="filePreviewManager.switchHtmlView('editor')" id="htmlEditorTab" class="px-3 py-1 rounded wire-subtext hover:text-white transition">Code Editor</button>
+                <button type="button" id="htmlPreviewTab" class="px-3 py-1 rounded bg-indigo-600 text-white font-medium transition">Preview</button>
+                <button type="button" id="htmlEditorTab" class="px-3 py-1 rounded wire-subtext hover:text-white transition">Code Editor</button>
               </div>
               <span class="text-[11px] wire-subtext italic">HTML Interactive File</span>
             </div>
@@ -326,44 +326,30 @@ class FileManager {
     this.allItems = [];
     this.filteredItems = [];
 
-    this.filePreviewManager = null;
-    this.gridRenderer = null;
-    this.breadcrumbManager = null;
-    this.configManager = null;
-  }
-
-  init() {
-    this.breadcrumbManager = new BreadcrumbManager("breadcrumbNav", {
-      onNavigate: () => this.listFiles()
-    });
-
-    this.filePreviewManager = new FilePreviewManager({
+    this.filePreview = new FilePreviewManager({
       onToast: (msg, type, duration) => this.showToast(msg, type, duration),
       onSaveSuccess: () => this.listFiles()
     });
-
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", {
       onItemClick: (file, fullPath, isFolder) => {
         if (isFolder) {
-          this.breadcrumbManager.navigateToFolder(fullPath, file.getName());
+          this.breadcrumb.navigateToFolder(fullPath, file.getName());
         } else {
           this.openPreview(fullPath, file.getName(), file);
         }
       },
       onDeleteClick: (file) => this.deleteItem(file)
     });
-
-    this.initializeServiceConnection();
-  }
-  
-  initializeServiceConnection() {
+    this.breadcrumb = new BreadcrumbManager("breadcrumbNav", {
+      onNavigate: () => this.listFiles()
+    });
     try {
       const headerUrl = document.getElementById("headerUrl");
       if (headerUrl) {
         headerUrl.innerHTML = `Storage Active<br />`;
       }
 
-      this.breadcrumbManager?.reset();
+      this.breadcrumb.reset();
       this.listFiles();
     } catch (err) {
       console.error(err);
@@ -371,15 +357,11 @@ class FileManager {
       this.showToast("Failed to initialize storage service", "error");
     }
   }
-
-  get activePath() {
-    return this.breadcrumbManager ? this.breadcrumbManager.path : "";
-  }
-
+  
   async listFiles() {
     this.updateConnectionStatus(null, "Loading...");
     try {
-      const { data, error } = await FileRecord.all(this.activePath);
+      const { data, error } = await FileRecord.all(this.breadcrumb.path);
       if (error) throw error;
 
       this.allItems = data;
@@ -394,7 +376,7 @@ class FileManager {
   }
 
   renderView() {
-    this.breadcrumbManager?.render();
+    this.breadcrumb?.render();
 
     const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
     this.filteredItems = searchVal
@@ -411,7 +393,7 @@ class FileManager {
     const label = document.getElementById("itemCountLabel");
     if (label) label.textContent = `${this.filteredItems.length} item${this.filteredItems.length !== 1 ? "s" : ""}`;
 
-    this.gridRenderer?.render(this.filteredItems, this.activePath);
+    this.gridRenderer?.render(this.filteredItems, this.breadcrumb.path);
   }
 
   openCreateFolderModal() {
@@ -425,7 +407,7 @@ class FileManager {
     const name = document.getElementById("folderNameInput")?.value.trim();
     if (!name) return;
 
-    const currentPath = this.activePath;
+    const currentPath = this.breadcrumb.path;
     const folderPath = currentPath
       ? `${currentPath}/${name}/.emptyFolderPlaceholder`
       : `${name}/.emptyFolderPlaceholder`;
@@ -452,7 +434,7 @@ class FileManager {
 
     this.showToast(`Uploading ${files.length} item(s) (${isEncrypted ? 'Encrypted' : 'Normal'})...`, "info", 2500);
     let success = 0, failed = 0;
-    const currentPath = this.activePath;
+    const currentPath = this.breadcrumb.path;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -488,15 +470,15 @@ class FileManager {
   }
 
   async openPreview(path, name, file = null) {
-    if (this.filePreviewManager) await this.filePreviewManager.openPreview(path, name, file);
+    await this.filePreview.openPreview(path, name, file);
   }
 
   cancelEditText() {
-    this.filePreviewManager?.cancelEditText();
+    this.filePreview.cancelEditText();
   }
 
   async saveEditedText() {
-    await this.filePreviewManager?.saveEditedText();
+    await this.filePreview.saveEditedText();
   }
 
   async downloadFile(path, name) {
