@@ -285,15 +285,6 @@ class FileManager {
 
       this.allItems = (data || []).filter(item => item.name !== ".emptyFolderPlaceholder");
 
-      // FIX: Just assign paths and names instantly. No network downloads or decryption here!
-      this.allItems.forEach(item => {
-        const isFolder = !item.id;
-        const fullPath = currentPath ? `${currentPath}/${item.name}` : item.name;
-        item.fullPath = fullPath;
-        item.isEncrypted = this.isEncryptedFile(item.name);
-        item.displayName = item.isEncrypted ? this.getOriginalFilename(item.name) : item.name;
-      });
-
       this.updateConnectionStatus(true, `Connected • Encrypted Vault Active`);
       this.renderView();
     } catch (err) {
@@ -312,10 +303,13 @@ class FileManager {
       : [...this.allItems];
 
     this.filteredItems.sort((a, b) => {
-      const aFolder = !a.id;
-      const bFolder = !b.id;
-      if (aFolder !== bFolder) return aFolder ? -1 : 1;
-      return (a.displayName || a.name).localeCompare(b.displayName || b.name);
+      // Folders first using the clean isFolder property
+      if (a.isFolder !== b.isFolder) {
+        return a.isFolder ? -1 : 1;
+      }
+      
+      // Alphabetical sort using consistent display_name (with underscore)
+      return a.display_name.localeCompare(b.display_name);
     });
 
     const label = document.getElementById("itemCountLabel");
