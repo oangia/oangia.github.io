@@ -477,5 +477,5 @@ class FileManager {
   }
 }
 
-fileManager = new FileManager({ storageService: 'supa' });
+fileManager = new FileManager({ storageService: 'drive' });
 fileManager.init();
