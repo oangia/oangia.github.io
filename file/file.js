@@ -12,7 +12,11 @@ class ItemsGridRenderer {
     this.container.innerHTML = "";
     
     if (!items || items.length === 0) {
-      this.container.innerHTML = `<div class="col-span-full text-center py-10 opacity-60">No items found</div>`;
+      this.container.innerHTML = `
+        <div class="col-span-full py-16 text-center text-slate-400 text-sm">
+          <i class="fa-regular fa-folder-open text-3xl mb-3 block opacity-90 hover:opacity-100"></i>
+          No items found
+        </div>`;
       return;
     }
 
@@ -20,15 +24,46 @@ class ItemsGridRenderer {
 
     for (const file of items) {
       const sizeStr = file.getSubtext();
+      const isFolder = file.isFolderNode();
+      const name = file.getDisplayName();
       
       const card = document.createElement("div");
-      card.className = this.getGridCardClasses();
-      card.onclick = () => this.onItemClick(file, file.getFullPath(), file.isFolderNode());
+      card.className = `
+        group relative bg-transparent border border-white/20 hover:border-indigo-400 
+        rounded-xl p-3 flex flex-col items-center justify-between text-center 
+        cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 
+        aspect-square overflow-hidden
+      `;
+      card.onclick = () => this.onItemClick(file, file.getFullPath(), isFolder);
       
       const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
       
-      const mediaHTML = this.getGridCardMediaHTML(previewContainerId, file);     
-      card.innerHTML = this.getGridCardHTML(mediaHTML, file.getDisplayName(), sizeStr, file.isFolderNode());
+      const mediaHTML = isFolder
+        ? `<div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-folder text-5xl"></i></div>`
+        : `<div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors">
+             <i class="${file.getFileIconClass()} text-3xl"></i>
+           </div>`;
+      
+      card.innerHTML = `
+        <button 
+          class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 
+                 w-6 h-6 flex items-center justify-center rounded-full 
+                 bg-black/50 hover:bg-red-500 text-white transition"
+          title="Delete">
+          <i class="fa-solid fa-xmark text-[10px]"></i>
+        </button>
+
+        ${mediaHTML}
+
+        <div class="w-full pt-2 border-t border-white/20 flex flex-col">
+          <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(name)}">
+            ${escapeHtml(name)}
+          </span>
+          <span class="text-[9px] text-slate-300 font-mono mt-0.5">
+            ${isFolder ? (sizeStr || 'Folder') : sizeStr}
+          </span>
+        </div>
+      `;
 
       const deleteBtn = card.querySelector(".delete-btn");
       if (deleteBtn) {
@@ -43,12 +78,11 @@ class ItemsGridRenderer {
       if (file.isImage()) {
         thumbnailTasks.push(async () => {
           try {
-            // Uses FileRecord instance method directly
             const { data, error } = await file.fetchSignedUrl(60);
             if (!error && data?.signedUrl) {
               const thumbEl = document.getElementById(previewContainerId);
               if (thumbEl) {
-                thumbEl.innerHTML = `<img src="${data.signedUrl}" alt="${file.getDisplayName()}" class="w-full h-full object-cover rounded-lg" />`;
+                thumbEl.innerHTML = `<img src="${data.signedUrl}" alt="${escapeHtml(name)}" class="w-full h-full object-cover rounded-lg" />`;
               }
             }
           } catch (e) {}
@@ -59,47 +93,6 @@ class ItemsGridRenderer {
     if (thumbnailTasks.length > 0) {
       Promise.all(thumbnailTasks.map(task => task())).catch(() => {});
     }
-  }
-
-  /* ---------- Grid Card Templates & Styles ---------- */
-  getGridCardClasses() {
-    return `
-      group relative bg-transparent border border-white/20 hover:border-indigo-400 
-      rounded-xl p-3 flex flex-col items-center justify-between text-center 
-      cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 
-      aspect-square overflow-hidden
-    `;
-  }
-
-  getGridCardMediaHTML(previewContainerId, file) {
-    return file.isFolderNode() 
-        ? `<div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-folder text-5xl"></i></div>`
-        : `<div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors">
-             <i class="${file.getFileIconClass()} text-3xl"></i>
-           </div>`;
-  }
-
-  getGridCardHTML(mediaHTML, name, sizeStr, isFolder) {
-    return `
-      <button 
-        class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 
-               w-6 h-6 flex items-center justify-center rounded-full 
-               bg-black/50 hover:bg-red-500 text-white transition"
-        title="Delete">
-        <i class="fa-solid fa-xmark text-[10px]"></i>
-      </button>
-
-      ${mediaHTML}
-
-      <div class="w-full pt-2 border-t border-white/20 flex flex-col">
-        <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(name)}">
-          ${escapeHtml(name)}
-        </span>
-        <span class="text-[9px] text-slate-300 font-mono mt-0.5">
-          ${isFolder ? (sizeStr || 'Folder') : sizeStr}
-        </span>
-      </div>
-    `;
   }
 }
 
@@ -120,12 +113,20 @@ class FilePreviewManager {
     const modal = document.getElementById("modalPreview");
 
     if (title) title.textContent = fileRecord.getDisplayName() + (fileRecord.isEncryptedFile() ? " (Decrypted securely)" : "");
-    if (body) body.innerHTML = Theme.getPreviewLoadingHTML();
-    if (sidebar) sidebar.innerHTML = Theme.getPreviewSidebarLoadingHTML();
+    if (body) {
+      body.innerHTML = '<div class="wire-subtext py-12 flex justify-center"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>';
+    }
+    if (sidebar) {
+      sidebar.innerHTML = `
+        <div class="text-center py-10 space-y-2 wire-subtext">
+          <i class="fa-solid fa-spinner fa-spin text-xl text-indigo-400"></i>
+          <p class="text-xs">Loading info...</p>
+        </div>
+      `;
+    }
     if (modal) modal.classList.remove("hidden");
 
     try {
-      // Uses FileRecord instance method
       const { data, error } = await fileRecord.fetchSignedUrl(60);
       if (error) throw error;
       const url = data.signedUrl;
@@ -143,37 +144,100 @@ class FilePreviewManager {
       fileRecord._url = url;
       await fileRecord.hashContent(url);
 
+      const displayName = fileRecord.getDisplayName();
+      const fullPath = fileRecord.getFullPath();
+      const formattedBytes = fileSize ? new FileRecord({ size: fileSize }).getFormattedSize() : "Unknown";
+
       if (sidebar) {
-        sidebar.innerHTML = Theme.getPreviewSidebarHTML({
-          name: fileRecord.getDisplayName(),
-          fileSize: fileSize,
-          url: url,
-          path: fileRecord.getFullPath(),
-          pathHash: pathHash,
-          fileHash: fileRecord.hash_file
-        });
+        sidebar.innerHTML = `
+          <div class="space-y-4 text-xs wire-subtext">
+            <div>
+              <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Name</span>
+              <p class="wire-text font-medium break-all">${escapeHtml(displayName)}</p>
+            </div>
+            <div>
+              <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Size</span>
+              <p class="wire-text font-mono text-xs">${fileSize ? formattedBytes + ` (${fileSize} bytes)` : "Unknown"}</p>
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">Signed URL</span>
+                <div class="space-x-2">
+                  <button onclick="navigator.clipboard.writeText('${escapeHtml(url)}'); showToast('URL copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy</button>
+                  <a href="${escapeHtml(url)}" download="${escapeHtml(displayName)}" class="text-[11px] text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-download"></i> Download</a>
+                </div>
+              </div>
+              <div class="font-mono text-[9px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all max-h-16 overflow-y-auto">${escapeHtml(url)}</div>
+            </div>
+            <hr class="border-white/20">
+            <div class="space-y-1.5">
+              <div class="flex justify-between items-center">
+                <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">1. Path Hash</span>
+                <button onclick="navigator.clipboard.writeText('${pathHash}'); showToast('Path hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
+              </div>
+              <div>
+                <span class="text-[10px] wire-subtext block mb-0.5">Exact string hashed: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">${escapeHtml(fullPath)}</code></span>
+                <div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${pathHash}</div>
+              </div>
+            </div>
+            <div class="space-y-3" id="hashesComputeContainer">
+              <div>
+                <span class="text-[10px] wire-subtext block mb-1">Content & Combined Hashes are uncalculated</span>
+                <button onclick="filePreviewManager.computeContentAndCombinedHashes()" class="w-full py-2.5 bg-transparent hover:border-indigo-300 wire-border text-indigo-300 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5">
+                  <i class="fa-solid fa-fingerprint"></i> Calculate Content & Combined Hashes
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
       }
 
       if (fileRecord.isImage()) {
-        body.innerHTML = Theme.getPreviewImageHTML(url, fileRecord.getDisplayName());
+        body.innerHTML = `<img src="${url}" alt="${escapeHtml(displayName)}" class="max-w-full h-full shadow-md object-contain">`;
       } else if (fileRecord.isVideo()) {
-        body.innerHTML = Theme.getPreviewVideoHTML(url);
+        body.innerHTML = `<video controls class="max-w-full max-h-[70vh] rounded-lg shadow-md wire-border" src="${url}"></video>`;
       } else if (fileRecord.isAudio()) {
-        body.innerHTML = Theme.getPreviewAudioHTML(url, fileRecord.getDisplayName());
+        body.innerHTML = `
+          <div class="w-full max-w-lg text-center">
+            <audio controls class="w-full mb-3" src="${url}"></audio>
+            <p class="text-xs wire-text">${escapeHtml(displayName)}</p>
+          </div>`;
       } else if (fileRecord.isHtml()) {
         const text = await blob.text();
-        body.innerHTML = Theme.getPreviewHtmlEditorHTML(text);
+        body.innerHTML = `
+          <div class="flex flex-col h-full w-full">
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 px-1">
+              <div class="flex items-center gap-1 bg-black/40 p-1 rounded wire-border text-xs">
+                <button type="button" onclick="filePreviewManager.switchHtmlView('preview')" id="htmlPreviewTab" class="px-3 py-1 rounded bg-indigo-600 text-white font-medium transition">Preview</button>
+                <button type="button" onclick="filePreviewManager.switchHtmlView('editor')" id="htmlEditorTab" class="px-3 py-1 rounded wire-subtext hover:text-white transition">Code Editor</button>
+              </div>
+              <span class="text-[11px] wire-subtext italic">HTML Interactive File</span>
+            </div>
+            <div id="htmlPreviewContainer" class="w-full h-[70vh] bg-white rounded-lg overflow-hidden wire-border">
+              <iframe id="htmlPreviewFrame" class="w-full h-full border-0" sandbox="allow-scripts allow-modals"></iframe>
+            </div>
+            <div id="htmlEditorContainer" class="w-full h-[70vh] hidden">
+              <textarea id="editTextarea" class="w-full h-full font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${escapeHtml(text)}</textarea>
+            </div>
+          </div>
+        `;
         setTimeout(() => {
           const iframe = document.getElementById("htmlPreviewFrame");
           if (iframe) iframe.srcdoc = text;
         }, 50);
       } else {
         const text = await blob.text();
-        body.innerHTML = Theme.getPreviewTextEditorHTML(text);
+        body.innerHTML = `<textarea id="editTextarea" class="w-full h-[75vh] font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${escapeHtml(text)}</textarea>`;
       }
     } catch (err) {
       console.error(err);
-      if (body) body.innerHTML = Theme.getPreviewUnsupportedHTML();
+      if (body) {
+        body.innerHTML = `
+          <div class="text-center space-y-4 py-12 wire-subtext">
+            <i class="fa-solid fa-file text-5xl"></i>
+            <p class="text-sm">Preview not available for this file type.</p>
+          </div>`;
+      }
       if (sidebar) sidebar.innerHTML = `<p class="text-xs text-rose-400 p-2">Failed to load file details.</p>`;
     }
   }
@@ -196,7 +260,6 @@ class FilePreviewManager {
       const updatedContent = textarea.value;
       const blob = new Blob([updatedContent], { type: 'text/plain;charset=utf-8' });
       
-      // Uses FileRecord instance .save() method
       await this.currentFileRecord.save(blob);
 
       this.onToast("Changes saved successfully", "success", 2000);
@@ -242,7 +305,7 @@ class BreadcrumbManager {
       const btn = document.createElement("button");
       btn.className = (isLast ? "font-bold text-indigo-300 wire-text" : "wire-subtext hover:wire-text") + " inline-flex items-center";
       if (crumb.name.toLowerCase() === "root") {
-        btn.innerHTML = Theme.getBreadcrumbRootHTML(crumb.name);
+        btn.innerHTML = `<i class="fa-solid fa-house mr-1 text-xs"></i><span>${escapeHtml(crumb.name)}</span>`;
       } else {
         btn.textContent = crumb.name;
       }
@@ -401,7 +464,6 @@ class FileManager {
           targetPath += file.name;
         }
 
-        // Uses FileRecord.update (upsert: true)
         const { error } = await FileRecord.update(targetPath, file, { cacheControl: "3600", isEncrypted });
         if (error) throw error;
 
@@ -449,19 +511,18 @@ class FileManager {
     const btn = document.getElementById("backupBtn");
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = Theme.getBackupLoadingHTML();
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Backing up...</span>';
     }
     
     await FileRecord.backup();
 
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = Theme.getBackupIdleHTML();
+      btn.innerHTML = '<i class="fa-solid fa-box-archive"></i> <span>Backup</span>';
     }
   }
 
   async deleteItem(fileOrPath, isFolderFlag = false) {
-    // Supports either a FileRecord instance or raw (path, isFolder) arguments
     const isRecord = fileOrPath instanceof FileRecord;
     const path = isRecord ? fileOrPath.getFullPath() : fileOrPath;
     const isFolder = isRecord ? fileOrPath.isFolderNode() : isFolderFlag;
@@ -473,7 +534,6 @@ class FileManager {
 
     try {
       if (isFolder) {
-        // List contents via FileRecord.all() and bulk destroy
         const { data: children, error: listError } = await FileRecord.all(path, { limit: 1000 });
         if (listError) throw listError;
 
@@ -483,7 +543,6 @@ class FileManager {
         const { error } = await FileRecord.destroy(pathsToDelete);
         if (error) throw error;
       } else if (isRecord) {
-        // Delete directly on the entity instance
         const { error } = await fileOrPath.delete();
         if (error) throw error;
       } else {
