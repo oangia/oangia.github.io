@@ -5,11 +5,7 @@ class ItemsGridRenderer {
     this.onDeleteClick = options.onDeleteClick || (() => {});
     this.storageService = options.storageService;
   }
-
-  isEncryptedFile(name) { return String(name || "").endsWith(".enc"); }
-  getOriginalFilename(name) { return this.isEncryptedFile(name) ? name.slice(0, -4) : name; }
-  isImage(name) { return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(this.getOriginalFilename(name)); }
-
+  
   async render(items, currentPath) {
     if (!this.container) return;
     
@@ -25,14 +21,13 @@ class ItemsGridRenderer {
 
     // Render cards directly using FRecord properties
     for (const item of items) {
-      const fullPath = item.full_path || (currentPath ? `${currentPath}/${item.name}` : item.name);
       const sizeStr = item.isFolder 
         ? "" 
-        : formatBytes(item.size || 0) + (item.isEncrypted ? '<span class="text-emerald-400">Encrypted</span>' : '');
+        : formatBytes(item.size || 0) + (item.isEncrypted ? ' <span class="text-emerald-400">Encrypted</span>' : '');
       
       const card = document.createElement("div");
       card.className = Theme.getGridCardClasses();
-      card.onclick = () => this.onItemClick(item, fullPath, item.isFolder);
+      card.onclick = () => this.onItemClick(item, item.full_path, item.isFolder);
       
       const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
       
@@ -43,17 +38,17 @@ class ItemsGridRenderer {
       if (deleteBtn) {
         deleteBtn.onclick = (e) => {
           e.stopPropagation();
-          this.onDeleteClick(fullPath, item.isFolder);
+          this.onDeleteClick(item.full_path, item.isFolder);
         };
       }
 
       this.container.appendChild(card);
 
       // Queue background thumbnail tasks using direct properties
-      if (!item.isFolder && this.storageService && this.isImage(item.name)) {
+      if (!item.isFolder && this.storageService && item.isImage()) {
         thumbnailTasks.push(async () => {
           try {
-            const { data, error } = await this.storageService.getFileUrl(fullPath, 60);
+            const { data, error } = await this.storageService.getFileUrl(item.full_path, 60);
             if (!error && data?.signedUrl) {
               const thumbEl = document.getElementById(previewContainerId);
               if (thumbEl) {
