@@ -233,7 +233,7 @@ class DriveStorageService {
         const fullPath = cleanBasePath ? `${cleanBasePath}/${f.name}` : f.name;
 
         // Instantiate the generic FileRecord
-        const record = new FileRecord({
+        const record = new FRecord({
           id: isFolder ? null : f.id,
           name: f.name,
           full_path: fullPath,
