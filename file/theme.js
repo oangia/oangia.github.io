@@ -1,15 +1,12 @@
 class Theme {
   /* ---------- File Icons ---------- */
-  static getFileIcon(filename) {
-    const ext = getExtension(filename).toLowerCase();
-    if (["txt", "md", "log"].includes(ext)) return '<i class="fa-solid fa-file-lines text-5xl opacity-80 hover:opacity-100"></i>';
-    if (["json", "js", "ts", "html", "css", "py", "java", "sql", "yml", "yaml"].includes(ext)) return '<i class="fa-solid fa-file-code text-5xl opacity-80 hover:opacity-100"></i>';
-    if (["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"].includes(ext)) return '<i class="fa-solid fa-file-image text-5xl opacity-80 hover:opacity-100"></i>';
-    if (["mp3", "wav", "ogg"].includes(ext)) return '<i class="fa-solid fa-file-audio text-5xl opacity-80 hover:opacity-100"></i>';
-    if (["mp4", "webm", "mov", "avi", "mkv"].includes(ext)) return '<i class="fa-solid fa-file-video text-5xl opacity-80 hover:opacity-100"></i>';
-    if (["pdf"].includes(ext)) return '<i class="fa-solid fa-file-pdf text-5xl opacity-80 hover:opacity-100"></i>';
-    if (["zip", "rar", "7z"].includes(ext)) return '<i class="fa-solid fa-file-zipper text-5xl opacity-80 hover:opacity-100"></i>';
-    return '<i class="fa-solid fa-file opacity-90 hover:opacity-100"></i>';
+  static getFileIcon(fileOrFilename) {
+    if (fileOrFilename && typeof fileOrFilename.getFileIconClass === "function") {
+      return `<i class="${fileOrFilename.getFileIconClass()} text-5xl opacity-80 hover:opacity-100"></i>`;
+    }
+    const name = typeof fileOrFilename === "string" ? fileOrFilename : "";
+    const record = new FileRecord({ name });
+    return `<i class="${record.getFileIconClass()} text-5xl opacity-80 hover:opacity-100"></i>`;
   }
 
   /* ---------- Connection Status ---------- */
@@ -108,10 +105,10 @@ class Theme {
   }
 
   static getGridCardMediaHTML(previewContainerId, file) {
-    return file.isFolder 
+    return file.isFolderNode() 
         ? `<div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-folder text-5xl"></i></div>`
         : `<div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors">
-             <i class="fa-solid ${file.isEncrypted ? 'fa-file-shield text-emerald-400 text-3xl' : 'fa-file-lines text-slate-400 text-3xl'}"></i>
+             <i class="${file.getFileIconClass()} text-3xl"></i>
            </div>`;
   }
 
@@ -161,10 +158,10 @@ class Theme {
   }
 
   static getGenericFilePreviewHTML(filename) {
-    const ext = (getExtension(filename) || 'FILE').toUpperCase();
+    const record = new FileRecord({ name: filename });
     return `
       <div class="widget-preview-area flex-1 w-full flex flex-col items-center justify-center overflow-hidden rounded-lg bg-transparent relative transition-colors gap-1">
-        <div class="text-3xl text-slate-200">${this.getFileIcon(filename)}</div>
+        <div class="text-3xl text-slate-200"><i class="${record.getFileIconClass()}"></i></div>
       </div>`;
   }
 
@@ -174,6 +171,8 @@ class Theme {
   }
 
   static getPreviewSidebarHTML({ name, fileSize, url, path, pathHash }) {
+    const formattedBytes = fileSize ? new FileRecord({ size: fileSize }).getFormattedSize() : "Unknown";
+
     return `
       <div class="space-y-4 text-xs wire-subtext">
         <div>
@@ -182,7 +181,7 @@ class Theme {
         </div>
         <div>
           <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Size</span>
-          <p class="wire-text font-mono text-xs">${fileSize ? formatBytes(fileSize) + ` (${fileSize} bytes)` : "Unknown"}</p>
+          <p class="wire-text font-mono text-xs">${fileSize ? formattedBytes + ` (${fileSize} bytes)` : "Unknown"}</p>
         </div>
         <div>
           <div class="flex justify-between items-center mb-1">
