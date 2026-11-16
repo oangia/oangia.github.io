@@ -1,4 +1,26 @@
 class FileRecord {
+  // Shared static storage driver across all static & instance calls
+  static _storageService = null;
+
+  /**
+   * Initialize or retrieve the StorageService instance
+   */
+  static getStorage() {
+    if (!this._storageService) {
+      this._storageService = new DriveStorageService();
+    }
+    return this._storageService;
+  }
+
+  /**
+   * Optional: Allow swapping/initializing storage config from main app
+   */
+  static init(config = {}) {
+    const storage = this.getStorage();
+    storage.init(config);
+    return storage;
+  }
+
   constructor({
     id = null,
     name = "",
@@ -15,13 +37,13 @@ class FileRecord {
     this._full_path = full_path;
     this._isFolder = isFolder;
     this._size = size;
-    
+
     if (this._isFolder) {
       this._mimetype = "application/vnd.google-apps.folder";
     } else {
       this._mimetype = mimetype || this._guessMimeType(name);
     }
-    
+
     this._url = url;
     this._created_at = created_at || Date.now();
     this._updated_at = updated_at || Date.now();
@@ -31,35 +53,151 @@ class FileRecord {
     this.hash_file = null;
 
     this.hashFullpath();
-    this.storageService = new DriveStorageService();
   }
 
-  static async all(path = "") {
-    const { data } = await = this.storageService.list(path, {
-      limit: 500, offset: 0, sortBy: { column: "name", order: "asc" }
+  // =========================================================================
+  // LARAVEL-STYLE STATIC QUERY & MUTATION METHODS
+  // =========================================================================
+
+  /**
+   * Retrieve all files/folders in a directory
+   * Usage: const { data, error } = await FileRecord.all("documents/2026");
+   */
+  static async all(path = "", options = {}) {
+    const storage = this.getStorage();
+    const { data, error } = await storage.list(path, {
+      limit: 500,
+      offset: 0,
+      sortBy: { column: "name", order: "asc" },
+      ...options
     });
-    const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, '') : '';
 
-      const fileRecords = data.map((f) => {
-        const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
-        const fullPath = cleanBasePath ? `${cleanBasePath}/${f.name}` : f.name;
+    if (error || !data) {
+      return { data: [], error };
+    }
 
-        return new FileRecord({
-          id: isFolder ? null : f.id,
-          name: f.name,
-          full_path: fullPath,
-          size: Number(f.size || 0),
-          mimetype: f.mimeType,
-          url: f.webContentLink || null,
-          updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null,
-          isFolder: isFolder
-        });
+    const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, "") : "";
+
+    const fileRecords = data.map((f) => {
+      const isFolder = f.mimeType === "application/vnd.google-apps.folder";
+      const fullPath = cleanBasePath ? `${cleanBasePath}/${f.name}` : f.name;
+
+      return new FileRecord({
+        id: isFolder ? null : f.id,
+        name: f.name,
+        full_path: fullPath,
+        size: Number(f.size || 0),
+        mimetype: f.mimeType,
+        url: f.webContentLink || null,
+        updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null,
+        isFolder: isFolder
       });
-      console.log(fileRecords);
-      return { data: fileRecords, error: null };
+    });
+
+    return { data: fileRecords, error: null };
   }
 
-  // --- Encapsulated Getters ---
+  /**
+   * Find a single file or folder by path (alias: get)
+   * Usage: const { data: file, error } = await FileRecord.find("docs/report.pdf");
+   */
+  static async find(path) {
+    return await this.getStorage().get(path);
+  }
+
+  static async get(path) {
+    return await this.find(path);
+  }
+
+  /**
+   * Create/Upload a new file (or folder placeholder)
+   * Usage: const { data: record, error } = await FileRecord.create("docs/report.pdf", fileObj);
+   */
+  static async create(path, file, options = { upsert: false }) {
+    return await this.getStorage().upload(path, file, options);
+  }
+
+  /**
+   * Update/Overwrite an existing file at path
+   * Usage: const { data: record, error } = await FileRecord.update("docs/report.pdf", newFileObj);
+   */
+  static async update(path, file, options = {}) {
+    return await this.getStorage().upload(path, file, { ...options, upsert: true });
+  }
+
+  /**
+   * Delete one or multiple paths
+   * Usage: await FileRecord.destroy("docs/report.pdf");
+   * Usage: await FileRecord.destroy(["docs/a.pdf", "docs/b.pdf"]);
+   */
+  static async destroy(paths) {
+    const pathArray = Array.isArray(paths) ? paths : [paths];
+    return await this.getStorage().remove(pathArray);
+  }
+
+  /**
+   * Get a decrypted/signed blob URL for a file path
+   * Usage: const { data, error } = await FileRecord.getFileUrl("docs/photo.png.enc");
+   */
+  static async getFileUrl(path, expiresIn = 60) {
+    return await this.getStorage().getFileUrl(path, expiresIn);
+  }
+
+  /**
+   * Trigger a browser download directly by path
+   * Usage: await FileRecord.download("docs/report.pdf.enc", "report.pdf");
+   */
+  static async download(path, downloadName = null) {
+    const fileName = downloadName || path.split("/").pop().replace(/\.enc$/, "");
+    return await this.getStorage().downloadFile(path, fileName);
+  }
+
+  // =========================================================================
+  // INSTANCE ACTIVE-RECORD METHODS (e.g., record.delete(), record.save())
+  // =========================================================================
+
+  /**
+   * Save/Update this specific FileRecord instance with new File content
+   */
+  async save(newFileBlob) {
+    if (!this._full_path) throw new Error("Cannot save FileRecord without full_path.");
+    const { data, error } = await FileRecord.update(this._full_path, newFileBlob);
+    if (error) throw error;
+
+    // Sync current instance state with updated metadata
+    this._id = data.getId();
+    this._name = data.getName();
+    this._size = data.getSize();
+    this._updated_at = data.getUpdatedAt();
+    this._url = data.getUrl();
+    return this;
+  }
+
+  /**
+   * Delete this specific FileRecord instance from storage
+   */
+  async delete() {
+    if (!this._full_path) throw new Error("Cannot delete FileRecord without full_path.");
+    return await FileRecord.destroy(this._full_path);
+  }
+
+  /**
+   * Get the signed/decrypted URL for this specific FileRecord instance
+   */
+  async fetchSignedUrl(expiresIn = 60) {
+    return await FileRecord.getFileUrl(this._full_path, expiresIn);
+  }
+
+  /**
+   * Trigger download for this specific FileRecord instance
+   */
+  async download() {
+    return await FileRecord.download(this._full_path, this.getDisplayName());
+  }
+
+  // =========================================================================
+  // ENCAPSULATED GETTERS & HELPERS
+  // =========================================================================
   getId() { return this._id; }
   getName() { return this._name; }
   getFullPath() { return this._full_path; }
@@ -82,7 +220,7 @@ class FileRecord {
   }
 
   getExtension() {
-    const realName = this.getDisplayName(); // Strips ".enc" if present
+    const realName = this.getDisplayName();
     const lastDot = realName.lastIndexOf(".");
     return lastDot !== -1 ? realName.substring(lastDot + 1).toLowerCase() : "";
   }
@@ -107,7 +245,7 @@ class FileRecord {
   }
 
   isImage() {
-    const ext = this.getExtension(); // Now uses getDisplayName() under the hood
+    const ext = this.getExtension();
     return !this.isFolderNode() && (
       this.getMimeType()?.startsWith("image/") ||
       ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"].includes(ext)
@@ -134,11 +272,11 @@ class FileRecord {
     const ext = this.getExtension();
     return !this.isFolderNode() && ["html", "htm"].includes(ext);
   }
-  
+
   getFileIconClass() {
     if (this.isFolderNode()) return "fa-solid fa-folder text-amber-500";
     if (this.isEncryptedFile()) return "fa-solid fa-file-shield text-emerald-400";
-    
+
     const ext = this.getExtension();
     if (["txt", "md", "log"].includes(ext)) return "fa-solid fa-file-lines";
     if (["json", "js", "ts", "html", "css", "py", "java", "sql", "yml", "yaml"].includes(ext)) return "fa-solid fa-file-code";
@@ -151,7 +289,7 @@ class FileRecord {
   }
 
   _guessMimeType(filename) {
-    const ext = filename.toLowerCase().split('.').pop();
+    const ext = filename.toLowerCase().split(".").pop();
     const mimeMap = {
       txt: "text/plain", html: "text/html", css: "text/css",
       js: "application/javascript", json: "application/json",
@@ -163,10 +301,10 @@ class FileRecord {
 
   static async computeSha256(input) {
     const buffer = input instanceof ArrayBuffer ? input : new TextEncoder().encode(input);
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
+    const hashBuffer = await window.crypto.subtle.digest("SHA-256", buffer);
     return Array.from(new Uint8Array(hashBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
   }
 
   async hashFullpath() {
@@ -182,10 +320,10 @@ class FileRecord {
 
       const response = await fetch(targetUrl);
       if (!response.ok) throw new Error(`Failed to fetch file from URL: ${response.statusText}`);
-      
+
       const blob = await response.blob();
       const buffer = await blob.arrayBuffer();
-      
+
       this.hash_content = await FileRecord.computeSha256(buffer);
 
       const combinedHashes = this.hash_filename + this.hash_content;
@@ -196,3 +334,5 @@ class FileRecord {
     }
   }
 }
+
+FileRecord.init();
