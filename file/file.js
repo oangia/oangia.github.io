@@ -354,19 +354,7 @@ class FileManager {
       });
       if (error) throw error;
 
-      this.allItems = (data || [])
-        .filter(file => file.getName() !== ".emptyFolderPlaceholder")
-        .map(raw => new FileRecord({
-          id: raw.id || null,
-          name: raw.name,
-          full_path: raw.full_path || (currentPath ? `${currentPath}/${raw.name}` : raw.name),
-          size: raw.size || 0,
-          mimetype: raw.mimetype || null,
-          url: raw.url || null,
-          created_at: raw.created_at || null,
-          updated_at: raw.updated_at || null,
-          isFolder: raw.isFolder || false
-        }));
+      this.allItems = data;
 
       this.updateConnectionStatus(true, `Connected • Encrypted Vault Active`);
       this.renderView();
