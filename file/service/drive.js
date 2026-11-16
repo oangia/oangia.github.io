@@ -250,6 +250,7 @@ class DriveStorageService {
       }));
 
       console.log(fileRecords);
+      console.log(JSON.stringify(fileRecords[10]))
       return { data: fileRecords, error: null };
     } catch (err) {
       return { data: null, error: err };
