@@ -34,7 +34,7 @@ class FileRecord {
     this.storageService = new DriveStorageService();
   }
 
-  static async function all(path) {
+  static async all(path = "") {
     const { data } = await = this.storageService.list(path, {
       limit: 500, offset: 0, sortBy: { column: "name", order: "asc" }
     });
