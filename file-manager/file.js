@@ -462,8 +462,6 @@ class FileManager {
     if (typeof closeModals === "function") closeModals();
   }
 }
-
-new Config("navSettingsTab");
 //const sbManager = new SupabaseStorageService();
 const driveService = new DriveStorageService();
 
