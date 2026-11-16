@@ -480,6 +480,22 @@ class Tracker {
   }
 }
 
+(function () {
+  "use strict";
+  const scriptTag = document.currentScript;
+  if (scriptTag) {
+    const src = scriptTag.getAttribute("src");
+    try {
+      const url = new URL(src, window.location.origin);
+      const btnId = url.searchParams.get("id");
+      if (btnId) window.currentTrackerInstance = new Tracker(btnId);
+    } catch (e) {
+      const match = src && src.match(/[?&]id=([^&]+)/);
+      if (match) window.currentTrackerInstance = new Tracker(match[1]);
+    }
+  }
+})();
+
 class Config {
   constructor(btnId) {
     this.btnId = btnId;
