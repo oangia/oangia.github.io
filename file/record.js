@@ -1,4 +1,4 @@
-class FileRecord {
+class FRecord {
   constructor({
     id = null,
     name = "",
