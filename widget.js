@@ -557,3 +557,5 @@ class Config {
     location.reload();
   }
 }
+
+new Config("navSettingsTab");
