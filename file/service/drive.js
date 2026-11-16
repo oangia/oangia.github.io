@@ -224,26 +224,8 @@ class DriveStorageService {
       const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
       if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list items');
       
-      const files = (await res.json()).files || [];
-      const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, '') : '';
-
-      const fileRecords = files.map((f) => {
-        const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
-        const fullPath = cleanBasePath ? `${cleanBasePath}/${f.name}` : f.name;
-
-        return new FileRecord({
-          id: isFolder ? null : f.id,
-          name: f.name,
-          full_path: fullPath,
-          size: Number(f.size || 0),
-          mimetype: f.mimeType,
-          url: f.webContentLink || null,
-          updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null,
-          isFolder: isFolder
-        });
-      });
-      console.log(fileRecords);
-      return { data: fileRecords, error: null };
+      const files = (await res.json()).files;
+      return { data: files }
     } catch (err) {
       return { data: null, error: err };
     }
