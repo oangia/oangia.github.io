@@ -188,7 +188,8 @@ class BreadcrumbManager {
 
 class FileManager {
   constructor(config = {}) {
-    this.storageService = config.storageService;
+    this.storageService = this._getService(config.storageService);
+    //const driveService = new DriveStorageService();
     if (!this.storageService) throw new Error("A storage service is required.");
 
     this.allItems = [];
@@ -198,6 +199,18 @@ class FileManager {
     this.gridRenderer = null;
     this.breadcrumbManager = null;
     this.configManager = null;
+  }
+
+  _getService(serviceName) {
+    // supa, drive, local, firebase
+    const StorageRegistry = {
+      drive: DriveStorageService,
+      supa: SupabaseStorageService,
+      supabase: SupabaseStorageService,
+      local: LocalFileService
+    };
+    const ServiceClass = StorageRegistry[serviceName.toLowerCase()];
+    return new ServiceClass(config);
   }
 
   init() {
@@ -463,8 +476,6 @@ class FileManager {
     if (typeof closeModals === "function") closeModals();
   }
 }
-const sbManager = new SupabaseStorageService();
-//const driveService = new DriveStorageService();
 
-fileManager = new FileManager({ storageService: driveService });
+fileManager = new FileManager({ storageService: 'supa' });
 fileManager.init();
