@@ -240,11 +240,11 @@ class DriveStorageService {
           size: Number(f.size || 0),
           mimetype: f.mimeType,
           url: f.webContentLink || null,
-          updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null
+          updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null,
+          isFolder: isFolder
         });
 
         // Ensure async hash calculation finishes
-        await record._calculateHash();
 
         return record;
       }));
