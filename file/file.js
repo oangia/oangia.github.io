@@ -41,7 +41,7 @@ class ItemsGridRenderer {
 
       this.container.appendChild(card);
 
-      if (!file.isFolderNode() && this.storageService && file.isImage()) {
+      if (file.isImage()) {
         thumbnailTasks.push(async () => {
           try {
             const { data, error } = await this.storageService.getFileUrl(file.getFullPath(), 60);
