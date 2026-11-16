@@ -45,6 +45,7 @@ class ItemsGridRenderer {
         thumbnailTasks.push(async () => {
           try {
             const { data, error } = await this.storageService.getFileUrl(file.getFullPath(), 60);
+            console.log(data);
             if (!error && data?.signedUrl) {
               const thumbEl = document.getElementById(previewContainerId);
               if (thumbEl) {
