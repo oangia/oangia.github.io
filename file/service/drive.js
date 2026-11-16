@@ -223,7 +223,7 @@ class DriveStorageService {
       });
       const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
       if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list items');
-      
+      console.log(res);
       const files = (await res.json()).files || [];
       const mapped = files.map(f => {
         const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
@@ -234,6 +234,7 @@ class DriveStorageService {
           ...(isFolder ? { id: null } : { id: f.id })
         };
       });
+      console.log(mapped);
       return { data: mapped, error: null };
     } catch (err) {
       return { data: null, error: err };
