@@ -36,12 +36,7 @@ class ItemsGridRenderer {
       
       const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
       
-      const mediaHTML = item.isFolder 
-        ? `<div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-folder text-5xl"></i></div>`
-        : `<div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors">
-             <i class="fa-solid ${item.isEncrypted ? 'fa-file-shield text-emerald-400 text-3xl' : 'fa-file-lines text-slate-400 text-3xl'}"></i>
-           </div>`;
-      
+      const mediaHTML = Theme.getGridCardMediaHTML(previewContainerId, item);      
       card.innerHTML = Theme.getGridCardHTML(mediaHTML, item.display_name, sizeStr, item.isFolder);
 
       const deleteBtn = card.querySelector(".delete-btn");
