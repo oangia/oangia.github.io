@@ -217,24 +217,45 @@ class DriveStorageService {
       const folderId = await this._resolveFolderId(path);
       const params = new URLSearchParams({
         q: `'${folderId}' in parents and trashed = false`,
-        fields: 'files(id, name, mimeType, size, modifiedTime)',
+        fields: 'files(id, name, mimeType, size, modifiedTime, webContentLink)',
         orderBy: 'folder,name',
         pageSize: String(options.limit || 100)
       });
       const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
       if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list items');
+      
       const files = (await res.json()).files || [];
-      const mapped = files.map(f => {
+      const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, '') : '';
+
+      // Map raw Google Drive items to FileRecord instances
+      const fileRecords = await Promise.all(files.map(async (f) => {
         const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
-        return {
+        const fullPath = cleanBasePath ? `${cleanBasePath}/${f.name}` : f.name;
+
+        // Instantiate FileRecord
+        const record = new FileRecord({
+          id: isFolder ? null : f.id,
           name: f.name,
-          updated_at: f.modifiedTime,
-          metadata: { size: Number(f.size || 0) },
-          ...(isFolder ? { id: null } : { id: f.id })
-        };
-      });
-      console.log(mapped);
-      return { data: mapped, error: null };
+          full_path: fullPath,
+          size: Number(f.size || 0),
+          mimetype: f.mimeType,
+          url: f.webContentLink || null,
+          updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null
+        });
+
+        // Ensure async hash calculation completes before returning
+        await record._calculateHash();
+        
+        // Manually override isFolder since FileRecord defaults to false
+        if (isFolder) {
+          Object.defineProperty(record, 'isFolder', { value: true, writable: false });
+        }
+
+        return record;
+      }));
+
+      console.log(fileRecords);
+      return { data: fileRecords, error: null };
     } catch (err) {
       return { data: null, error: err };
     }
