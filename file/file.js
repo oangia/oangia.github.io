@@ -65,8 +65,54 @@ class ItemsGridRenderer {
     }
   }
 }
+class FilePreviewManager {
+  constructor(options = {}) {
+    this.service = options.service;
+    this.currentPreviewPath = null;
+    this.currentPreviewName = null;
+    this.onToast = options.onToast || ((msg, type) => console.log(msg));
+    this.onSaveSuccess = options.onSaveSuccess || (() => {});
+  }
 
-sidebar.innerHTML = Theme.getPreviewSidebarHTML({
+  setService(service) { this.service = service; }
+
+  async computeSha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async openPreview(path, name, item = null) {
+    this.currentPreviewPath = path;
+    this.currentPreviewName = name;
+
+    const title = document.getElementById("previewTitle");
+    const body = document.getElementById("previewBody");
+    const sidebar = document.getElementById("previewSidebarDetails");
+    const modal = document.getElementById("modalPreview");
+    
+    // Use item properties directly if available, otherwise fallback to name checks
+    const encrypted = item ? item.isEncrypted : String(name || "").endsWith(".enc");
+    const origName = item && item.display_name ? item.display_name : (encrypted ? name.slice(0, -4) : name);
+
+    if (title) title.textContent = origName + (encrypted ? " (Decrypted securely)" : "");
+    if (body) body.innerHTML = Theme.getPreviewLoadingHTML();
+    if (sidebar) sidebar.innerHTML = Theme.getPreviewSidebarLoadingHTML();
+    if (modal) modal.classList.remove("hidden");
+
+    try {
+      const { data, error } = await this.service.getFileUrl(path, 60);
+      if (error) throw error;
+      const url = data.signedUrl;
+
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const fileSize = blob.size;
+      const pathHash = await this.computeSha256(path);
+
+      if (sidebar) {
+        sidebar.innerHTML = Theme.getPreviewSidebarHTML({
           name: origName,
           fileSize: fileSize,
           url: url,
@@ -124,7 +170,6 @@ sidebar.innerHTML = Theme.getPreviewSidebarHTML({
     }
   }
 }
-
 class BreadcrumbManager {
   constructor(containerId, options = {}) {
     this.container = document.getElementById(containerId);
