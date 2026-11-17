@@ -191,6 +191,21 @@ class FilePreviewManager {
     this.currentFileRecord = null;
     this.onToast = options.onToast || ((msg, type) => console.log(msg));
     this.onSaveSuccess = options.onSaveSuccess || (() => {});
+    
+    // Initialize global modal event listeners once on instantiation
+    this._initModalListeners();
+  }
+
+  _initModalListeners() {
+    const closeModal = () => {
+      const modal = document.getElementById("modalPreview");
+      if (modal) modal.classList.add("hidden");
+    };
+
+    document.getElementById("closePreviewModalBtn")?.addEventListener("click", closeModal);
+    document.getElementById("closePreviewModalBtnAlt")?.addEventListener("click", closeModal);
+    document.getElementById("previewCancelEditBtn")?.addEventListener("click", () => this.cancelEditText());
+    document.getElementById("previewSaveBtn")?.addEventListener("click", () => this.saveEditedText());
   }
 
   async openPreview(path, name, file = null) {
@@ -201,11 +216,17 @@ class FilePreviewManager {
     const body = document.getElementById("previewBody");
     const sidebar = document.getElementById("previewSidebarDetails");
     const modal = document.getElementById("modalPreview");
+    const saveBtn = document.getElementById("previewSaveBtn");
+    const cancelBtn = document.getElementById("previewCancelEditBtn");
 
     if (title) title.textContent = fileRecord.getDisplayName() + (fileRecord.isEncryptedFile() ? " (Decrypted securely)" : "");
     if (body) body.innerHTML = FilePreviewManager._TEMPLATES.loadingSpinner;
     if (sidebar) sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarLoading;
     if (modal) modal.classList.remove("hidden");
+
+    // Hide save/cancel buttons by default until an editable view is verified
+    if (saveBtn) saveBtn.classList.add("hidden");
+    if (cancelBtn) cancelBtn.classList.add("hidden");
 
     try {
       const { data, error } = await fileRecord.fetchSignedUrl(60);
@@ -245,6 +266,7 @@ class FilePreviewManager {
         }
       }
 
+      // Render correct body type & show Save/Cancel buttons for editable file formats (Text / HTML)
       if (fileRecord.isImage()) {
         body.innerHTML = FilePreviewManager._TEMPLATES.imageBody(url, displayName);
       } else if (fileRecord.isVideo()) {
@@ -264,9 +286,24 @@ class FilePreviewManager {
           const iframe = document.getElementById("htmlPreviewFrame");
           if (iframe) iframe.srcdoc = text;
         }, 50);
+
+        // Show save options for HTML editing
+        if (saveBtn) saveBtn.classList.remove("hidden");
+        if (cancelBtn) cancelBtn.classList.remove("hidden");
       } else {
         const text = await blob.text();
         body.innerHTML = FilePreviewManager._TEMPLATES.textBody(text);
+
+        // Show save options for Text editing
+        if (saveBtn) saveBtn.classList.remove("hidden");
+        if (cancelBtn) cancelBtn.classList.remove("hidden");
+      }
+
+      // Update download link
+      const downloadBtn = document.getElementById("previewDownloadBtn");
+      if (downloadBtn) {
+        downloadBtn.href = url;
+        downloadBtn.setAttribute("download", displayName);
       }
     } catch (err) {
       console.error(err);
