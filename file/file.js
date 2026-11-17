@@ -608,6 +608,23 @@ document.addEventListener("click", (e) => {
   if (!menu.contains(e.target) && !e.target.closest("button")?.getAttribute("onclick")?.includes("toggleActionsMenu")) {
     menu.classList.add("hidden");
   }
+  const actionsMenuBtn = document.getElementById('actionsMenu');
+  const actionsMenuDropdown = document.getElementById('actionsMenuToggleBtn');
+
+  if (actionsMenuBtn && actionsMenuDropdown) {
+    // Toggle dropdown visibility on click
+    actionsMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      actionsMenuDropdown.classList.toggle('hidden');
+    });
+
+    // Close the dropdown when clicking anywhere outside of it
+    document.addEventListener('click', (e) => {
+      if (!actionsMenuBtn.contains(e.target) && !actionsMenuDropdown.contains(e.target)) {
+        actionsMenuDropdown.classList.add('hidden');
+      }
+    });
+  }
 });
 
 const fileManager = new FileManager();
