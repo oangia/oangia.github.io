@@ -93,41 +93,9 @@ class ItemsGridRenderer {
 }
 
 class FilePreviewManager {
-  static getHashesResultHTML({ contentHash, combinedHash, rawCombinedString, byteLength }) {
-    return `
-      <div class="space-y-4">
-        <div class="space-y-1.5">
-          <div class="flex justify-between items-center">
-            <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">2. Content Hash</span>
-            <button onclick="navigator.clipboard.writeText('${contentHash}'); showToast('Content hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
-          </div>
-          <div>
-            <span class="text-[10px] wire-subtext block mb-0.5">Hashed input: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">ArrayBuffer (${byteLength} bytes)</code></span>
-            <div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${contentHash}</div>
-          </div>
-        </div>
-        <div class="space-y-1.5">
-          <div class="flex justify-between items-center">
-            <span class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">3. Combined Hash</span>
-            <button onclick="navigator.clipboard.writeText('${combinedHash}'); showToast('Combined hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
-          </div>
-          <div>
-            <span class="text-[10px] wire-subtext block mb-0.5">Exact concatenated string hashed:</span>
-            <div class="font-mono text-[9px] bg-black/40 wire-subtext p-1.5 rounded wire-border break-all select-all max-h-14 overflow-y-auto mb-1">${escapeHtml(rawCombinedString)}</div>
-            <div class="font-mono text-[10px] bg-slate-950/90 text-emerald-400 p-2 rounded wire-border break-all select-all">${combinedHash}</div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-  
-  static getHashesErrorHTML(message) {
-    return `<div class="text-xs text-rose-400 p-2 bg-rose-950/60 wire-border rounded">Failed to compute hashes: ${escapeHtml(message)}</div>`;
-  }
-  // --- UI & HTML Templates ---
+  // --- UI & HTML Templates (Pure HTML / String Literals only — NO logic) ---
   static get _TEMPLATES() {
     return {
-      // The complete preview modal markup you provided
       modalHtml: `
         <div id="modalPreview" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-0 m-0">
           <div class="w-screen h-screen flex flex-col overflow-hidden m-0 p-0 text-slate-100">
@@ -166,36 +134,33 @@ class FilePreviewManager {
         </div>`,
 
       loadingSpinner: `<div class="wire-subtext py-12 flex justify-center"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>`,
+      
       sidebarLoading: `
         <div class="text-center py-10 space-y-2 wire-subtext">
           <i class="fa-solid fa-spinner fa-spin text-xl text-indigo-400"></i>
           <p class="text-xs">Loading info...</p>
         </div>`,
-      sidebarContent: ({ fileRecord, fileSize }) => {
-        const displayName = fileRecord.getDisplayName();
-        const url = fileRecord.getUrl();
-        const pathHash = fileRecord.hash_filename;
-        const fullPath = fileRecord.getFullPath();
-        const formattedBytes = fileSize ? new FileRecord({ size: fileSize }).getFormattedSize() : "Unknown";
-        return `
+
+      // Pure template receiving pre-computed strings
+      sidebarContent: ({ displayName, url, pathHash, fullPath, sizeDisplay }) => `
         <div class="space-y-4 text-xs wire-subtext">
           <div>
             <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Name</span>
-            <p class="wire-text font-medium break-all">${escapeHtml(displayName)}</p>
+            <p class="wire-text font-medium break-all">${displayName}</p>
           </div>
           <div>
             <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Size</span>
-            <p class="wire-text font-mono text-xs">${fileSize ? formattedBytes + ` (${fileSize} bytes)` : "Unknown"}</p>
+            <p class="wire-text font-mono text-xs">${sizeDisplay}</p>
           </div>
           <div>
             <div class="flex justify-between items-center mb-1">
               <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">Signed URL</span>
               <div class="space-x-2">
-                <button onclick="navigator.clipboard.writeText('${escapeHtml(url)}'); showToast('URL copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy</button>
-                <a href="${escapeHtml(url)}" download="${escapeHtml(displayName)}" class="text-[11px] text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-download"></i> Download</a>
+                <button onclick="navigator.clipboard.writeText('${url}'); showToast('URL copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy</button>
+                <a href="${url}" download="${displayName}" class="text-[11px] text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-download"></i> Download</a>
               </div>
             </div>
-            <div class="font-mono text-[9px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all max-h-16 overflow-y-auto">${escapeHtml(url)}</div>
+            <div class="font-mono text-[9px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all max-h-16 overflow-y-auto">${url}</div>
           </div>
           <hr class="border-white/20">
           <div class="space-y-1.5">
@@ -204,7 +169,7 @@ class FilePreviewManager {
               <button onclick="navigator.clipboard.writeText('${pathHash}'); showToast('Path hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
             </div>
             <div>
-              <span class="text-[10px] wire-subtext block mb-0.5">Exact string hashed: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">${escapeHtml(fullPath)}</code></span>
+              <span class="text-[10px] wire-subtext block mb-0.5">Exact string hashed: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">${fullPath}</code></span>
               <div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${pathHash}</div>
             </div>
           </div>
@@ -216,14 +181,44 @@ class FilePreviewManager {
               </button>
             </div>
           </div>
-        </div>`;
-      },
-      imageBody: (fileRecord) => `<img src="${fileRecord.getUrl()}" alt="${escapeHtml(fileRecord.getDisplayName())}" class="max-w-full h-full shadow-md object-contain">`,
-      videoBody: (fileRecord) => `<video controls class="max-w-full max-h-[70vh] rounded-lg shadow-md wire-border" src="${fileRecord.getUrl()}"></video>`,
-      audioBody: (fileRecord) => `
+        </div>`,
+
+      hashesResult: ({ contentHash, combinedHash, rawCombinedString, byteLength }) => `
+        <div class="space-y-4">
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">2. Content Hash</span>
+              <button onclick="navigator.clipboard.writeText('${contentHash}'); showToast('Content hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
+            </div>
+            <div>
+              <span class="text-[10px] wire-subtext block mb-0.5">Hashed input: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">ArrayBuffer (${byteLength} bytes)</code></span>
+              <div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${contentHash}</div>
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">3. Combined Hash</span>
+              <button onclick="navigator.clipboard.writeText('${combinedHash}'); showToast('Combined hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
+            </div>
+            <div>
+              <span class="text-[10px] wire-subtext block mb-0.5">Exact concatenated string hashed:</span>
+              <div class="font-mono text-[9px] bg-black/40 wire-subtext p-1.5 rounded wire-border break-all select-all max-h-14 overflow-y-auto mb-1">${rawCombinedString}</div>
+              <div class="font-mono text-[10px] bg-slate-950/90 text-emerald-400 p-2 rounded wire-border break-all select-all">${combinedHash}</div>
+            </div>
+          </div>
+        </div>
+      `,
+
+      hashesError: (message) => `
+        <div class="text-xs text-rose-400 p-2 bg-rose-950/60 wire-border rounded">Failed to compute hashes: ${message}</div>
+      `,
+
+      imageBody: (url, altText) => `<img src="${url}" alt="${altText}" class="max-w-full h-full shadow-md object-contain">`,
+      videoBody: (url) => `<video controls class="max-w-full max-h-[70vh] rounded-lg shadow-md wire-border" src="${url}"></video>`,
+      audioBody: (url, displayName) => `
         <div class="w-full max-w-lg text-center">
-          <audio controls class="w-full mb-3" src="${fileRecord.getUrl()}"></audio>
-          <p class="text-xs wire-text">${escapeHtml(fileRecord.getDisplayName())}</p>
+          <audio controls class="w-full mb-3" src="${url}"></audio>
+          <p class="text-xs wire-text">${displayName}</p>
         </div>`,
       htmlBody: (text) => `
         <div class="flex flex-col h-full w-full">
@@ -238,10 +233,10 @@ class FilePreviewManager {
             <iframe id="htmlPreviewFrame" class="w-full h-full border-0" sandbox="allow-scripts allow-modals"></iframe>
           </div>
           <div id="htmlEditorContainer" class="w-full h-[70vh] hidden">
-            <textarea id="editTextarea" class="w-full h-full font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${escapeHtml(text)}</textarea>
+            <textarea id="editTextarea" class="w-full h-full font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${text}</textarea>
           </div>
         </div>`,
-      textBody: (text) => `<textarea id="editTextarea" class="w-full h-[75vh] font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${escapeHtml(text)}</textarea>`,
+      textBody: (text) => `<textarea id="editTextarea" class="w-full h-[75vh] font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${text}</textarea>`,
       errorBody: `
         <div class="text-center space-y-4 py-12 wire-subtext">
           <i class="fa-solid fa-file text-5xl"></i>
@@ -258,9 +253,7 @@ class FilePreviewManager {
     this.onToast = options.onToast || ((msg, type) => console.log(msg));
     this.onSaveSuccess = options.onSaveSuccess || (() => {});
     
-    // Ensure the modal HTML is present in the DOM
     this._ensureModalInDOM();
-    // Initialize modal listeners
     this._initModalListeners();
   }
 
@@ -294,12 +287,13 @@ class FilePreviewManager {
     const saveBtn = document.getElementById("previewSaveBtn");
     const cancelBtn = document.getElementById("previewCancelEditBtn");
 
-    if (title) title.textContent = fileRecord.getDisplayName() + (fileRecord.isEncryptedFile() ? " (Decrypted securely)" : "");
+    const encryptedSuffix = fileRecord.isEncryptedFile() ? " (Decrypted securely)" : "";
+    if (title) title.textContent = fileRecord.getDisplayName() + encryptedSuffix;
+    
     if (body) body.innerHTML = FilePreviewManager._TEMPLATES.loadingSpinner;
     if (sidebar) sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarLoading;
     if (modal) modal.classList.remove("hidden");
 
-    // Hide save/cancel buttons by default until an editable view is verified
     if (saveBtn) saveBtn.classList.add("hidden");
     if (cancelBtn) cancelBtn.classList.add("hidden");
 
@@ -311,38 +305,49 @@ class FilePreviewManager {
       const res = await fetch(url);
       const blob = await res.blob();
       const fileSize = blob.size;
+      fileRecord._byteLength = fileSize;
 
       if (!fileRecord.hash_filename) {
         await fileRecord.hashFullpath();
       }
 
       fileRecord._url = url;
-      await fileRecord.hashContent(url);
-
-      const displayName = fileRecord.getDisplayName();
+      
+      // Perform all data processing and formatting cleanly OUTSIDE the template
+      const displayName = escapeHtml(fileRecord.getDisplayName());
+      const escapedUrl = escapeHtml(url);
+      const pathHash = fileRecord.hash_filename;
+      const fullPath = escapeHtml(fileRecord.getFullPath());
+      
+      const formattedBytes = fileSize ? new FileRecord({ size: fileSize }).getFormattedSize() : "Unknown";
+      const sizeDisplay = fileSize ? `${formattedBytes} (${fileSize} bytes)` : "Unknown";
 
       if (sidebar) {
         sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarContent({
-          fileRecord,
-          fileSize
+          displayName,
+          url: escapedUrl,
+          pathHash,
+          fullPath,
+          sizeDisplay
         });
 
         const hashBtn = sidebar.querySelector(".content-hash");
         if (hashBtn) {
-          hashBtn.addEventListener("click", () => this.computeContentAndCombinedHashes());
+          hashBtn.addEventListener("click", () => {
+            this.computeContentAndCombinedHashes();
+          });
         }
       }
 
-      // Render correct body type & show Save/Cancel buttons for editable file formats (Text / HTML)
       if (fileRecord.isImage()) {
-        body.innerHTML = FilePreviewManager._TEMPLATES.imageBody(fileRecord);
+        body.innerHTML = FilePreviewManager._TEMPLATES.imageBody(escapedUrl, displayName);
       } else if (fileRecord.isVideo()) {
-        body.innerHTML = FilePreviewManager._TEMPLATES.videoBody(fileRecord);
+        body.innerHTML = FilePreviewManager._TEMPLATES.videoBody(escapedUrl);
       } else if (fileRecord.isAudio()) {
-        body.innerHTML = FilePreviewManager._TEMPLATES.audioBody(fileRecord);
+        body.innerHTML = FilePreviewManager._TEMPLATES.audioBody(escapedUrl, displayName);
       } else if (fileRecord.isHtml()) {
         const text = await blob.text();
-        body.innerHTML = FilePreviewManager._TEMPLATES.htmlBody(text);
+        body.innerHTML = FilePreviewManager._TEMPLATES.htmlBody(escapeHtml(text));
 
         const previewTab = document.getElementById("htmlPreviewTab");
         const editorTab = document.getElementById("htmlEditorTab");
@@ -354,28 +359,65 @@ class FilePreviewManager {
           if (iframe) iframe.srcdoc = text;
         }, 50);
 
-        // Show save options for HTML editing
         if (saveBtn) saveBtn.classList.remove("hidden");
-        if (cancelBtn) cancelBtn.classList.remove("hidden");
+        if (cancelBtn) cancelBtn.classList.add("hidden"); // Wait, keep logic clean
+        cancelBtn?.classList.remove("hidden");
       } else {
         const text = await blob.text();
-        body.innerHTML = FilePreviewManager._TEMPLATES.textBody(text);
+        body.innerHTML = FilePreviewManager._TEMPLATES.textBody(escapeHtml(text));
 
-        // Show save options for Text editing
         if (saveBtn) saveBtn.classList.remove("hidden");
         if (cancelBtn) cancelBtn.classList.remove("hidden");
       }
 
-      // Update download link
       const downloadBtn = document.getElementById("previewDownloadBtn");
       if (downloadBtn) {
         downloadBtn.href = url;
-        downloadBtn.setAttribute("download", displayName);
+        downloadBtn.setAttribute("download", fileRecord.getDisplayName());
       }
     } catch (err) {
       console.error(err);
       if (body) body.innerHTML = FilePreviewManager._TEMPLATES.errorBody;
       if (sidebar) sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarError;
+    }
+  }
+
+  async computeContentAndCombinedHashes() {
+    const container = document.getElementById("hashesComputeContainer");
+    if (!container || !this.currentFileRecord) return;
+
+    container.innerHTML = `
+      <div class="text-center py-4 space-y-2 wire-subtext">
+        <i class="fa-solid fa-spinner fa-spin text-indigo-400"></i>
+        <p class="text-[10px]">Computing cryptographic hashes...</p>
+      </div>
+    `;
+
+    try {
+      await this.currentFileRecord.hashContent();
+
+      const contentHash = this.currentFileRecord.hash_content;
+      const combinedHash = this.currentFileRecord.hash_file;
+      const pathHash = this.currentFileRecord.hash_filename;
+
+      if (!contentHash || !combinedHash) {
+        throw new Error("Hash computation returned empty results.");
+      }
+
+      // Compute and escape outside the template
+      const rawCombinedString = escapeHtml(pathHash + contentHash);
+      const byteLength = this.currentFileRecord._byteLength || "Unknown";
+
+      container.innerHTML = FilePreviewManager._TEMPLATES.hashesResult({
+        contentHash,
+        combinedHash,
+        rawCombinedString,
+        byteLength
+      });
+
+    } catch (err) {
+      console.error(err);
+      container.innerHTML = FilePreviewManager._TEMPLATES.hashesError(escapeHtml(err.message || "Unknown error"));
     }
   }
 
