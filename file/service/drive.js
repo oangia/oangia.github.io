@@ -167,6 +167,7 @@ class DriveStorageService {
       if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list items');
       
       const files = (await res.json()).files;
+      console.log(files);
       return { data: files, error: null };
     } catch (err) {
       return { data: null, error: err };
