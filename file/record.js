@@ -187,8 +187,9 @@ class FileRecord {
       uploadFile = new File([encryptedCipher], originalName + ".enc", { type: "application/octet-stream" });
       finalPath = path + ".enc";
     }
-
-    return await this.getStorage().upload(finalPath, uploadFile, options);
+    const res = await this.getStorage().upload(finalPath, uploadFile, options);
+    console.log(res);
+    return res;
   }
 
   /**
