@@ -55,10 +55,63 @@ class FileRecord {
     this.hashFullpath();
   }
 
-  // =========================================================================
-  // LARAVEL-STYLE STATIC QUERY & MUTATION METHODS
-  // =========================================================================
+  static getEncryptionPassphrase() {
+    return localStorage.getItem("gdrive_encryption_password") || null;
+  }
 
+  // =========================================================================
+  // CRYPTO HELPERS (AES-GCM)
+  // =========================================================================
+  static async _getCryptoKey(passphrase) {
+    const enc = new TextEncoder();
+    const keyMaterial = await window.crypto.subtle.importKey(
+      "raw",
+      enc.encode(passphrase),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"]
+    );
+    const salt = enc.encode("DriveManagerSecureSalt123");
+    return window.crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  static async _encryptData(inputData, passphrase) {
+    const key = await this._getCryptoKey(passphrase);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const encoded = inputData instanceof ArrayBuffer ? inputData : new TextEncoder().encode(inputData);
+    const ciphertext = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+
+    const combined = new Uint8Array(iv.byteLength + ciphertext.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(ciphertext), iv.byteLength);
+
+    let binary = "";
+    for (let i = 0; i < combined.byteLength; i++) {
+      binary += String.fromCharCode(combined[i]);
+    }
+    return btoa(binary);
+  }
+
+  static async _decryptData(base64Cipher, passphrase) {
+    const key = await this._getCryptoKey(passphrase);
+    const binary = atob(base64Cipher);
+    const combined = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      combined[i] = binary.charCodeAt(i);
+    }
+
+    const iv = combined.slice(0, 12);
+    const ciphertext = combined.slice(12);
+
+    const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+    return decrypted;
+  }
   /**
    * Retrieve all files/folders in a directory
    * Usage: const { data, error } = await FileRecord.all("documents/2026");
@@ -113,8 +166,29 @@ class FileRecord {
    * Create/Upload a new file (or folder placeholder)
    * Usage: const { data: record, error } = await FileRecord.create("docs/report.pdf", fileObj);
    */
-  static async create(path, file, options = { upsert: false }) {
-    return await this.getStorage().upload(path, file, options);
+  static async create(path, file, options = { upsert: false, encrypt: false }) {
+    
+    let uploadFile = file;
+    let finalPath = path;
+
+    // If encryption is requested and active, encrypt payload and append .enc for cloud storage
+    if (options.encrypt) {
+      const passphrase = this.getEncryptionPassphrase();
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const encryptedCipher = await this._encryptData(base64Data, passphrase);
+      const originalName = file.name || path.split("/").pop();
+      
+      uploadFile = new File([encryptedCipher], originalName + ".enc", { type: "application/octet-stream" });
+      finalPath = path + ".enc";
+    }
+
+    return await this.getStorage().upload(finalPath, uploadFile, options);
   }
 
   /**
