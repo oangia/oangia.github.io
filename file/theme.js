@@ -1,14 +1,4 @@
 class Theme {
-  /* ---------- File Icons ---------- */
-  static getFileIcon(fileOrFilename) {
-    if (fileOrFilename && typeof fileOrFilename.getFileIconClass === "function") {
-      return `<i class="${fileOrFilename.getFileIconClass()} text-5xl opacity-80 hover:opacity-100"></i>`;
-    }
-    const name = typeof fileOrFilename === "string" ? fileOrFilename : "";
-    const record = new FileRecord({ name });
-    return `<i class="${record.getFileIconClass()} text-5xl opacity-80 hover:opacity-100"></i>`;
-  }
-
   /* ---------- Connection Status ---------- */
   static getStatusDotClasses(status) {
     if (status === true) return "w-2 h-2 rounded-full bg-emerald-500";
@@ -16,46 +6,6 @@ class Theme {
     return "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
   }
 
-  /* ---------- Items Grid ---------- */
-  static getFolderPreviewHTML() {
-    return `
-      <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
-        <i class="fa-solid fa-folder text-5xl opacity-90 hover:opacity-100"></i>
-      </div>`;
-  }
-
-  static getImagePreviewHTML(thumbUrl) {
-    return `
-      <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors opacity-90 hover:opacity-100">
-        <img src="${thumbUrl}" alt="" class="w-full h-full object-cover rounded-lg" loading="lazy" onerror="this.style.display='none'">
-      </div>`;
-  }
-
-  static getVideoPreviewHTML(thumbUrl) {
-    return `
-      <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 relative group-hover:bg-slate-100 transition-colors opacity-90 hover:opacity-100">
-        <video src="${thumbUrl}#t=0.5" class="w-full h-full object-cover rounded-lg pointer-events-none" muted playsinline preload="metadata"></video>
-        <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1 rounded font-mono">VIDEO</div>
-      </div>`;
-  }
-
-  static getGenericFilePreviewHTML(filename) {
-    const record = new FileRecord({ name: filename });
-    return `
-      <div class="widget-preview-area flex-1 w-full flex flex-col items-center justify-center overflow-hidden rounded-lg bg-transparent relative transition-colors gap-1">
-        <div class="text-3xl text-slate-200"><i class="${record.getFileIconClass()}"></i></div>
-      </div>`;
-  }
-
-  /* ---------- Hash Computation ---------- */
-  static getHashesLoadingHTML() {
-    return `
-      <div class="flex items-center justify-center py-4 wire-subtext text-xs gap-2">
-        <i class="fa-solid fa-spinner fa-spin text-indigo-400 text-base"></i> Fetching file & computing hashes...
-      </div>
-    `;
-  }
-  
   static getHashesResultHTML({ contentHash, combinedHash, rawCombinedString, byteLength }) {
     return `
       <div class="space-y-4">
