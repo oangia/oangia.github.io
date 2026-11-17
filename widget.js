@@ -78,7 +78,7 @@ class Tracker {
       { name: "Practice singing", type: "daily", priority: 1, timeline: 1, section: "Music", objective: "useful" },
       { name: "Reading", type: "daily", desc: "Try to understand how girls, social, the world work", priority: 2, timeline: 2, section: "Foundation", objective: "useful" },
       { name: "Social", type: "daily", desc: "Be less annoying", priority: 4, timeline: 3, section: "Foundation", objective: "useful", alwaysChecked: true },
-      { name: "Exercise", type: "daily", priority: 4, timeline: 0, section: "Foundation", objective: "healthy" }
+      { name: "Exercise", type: "daily", priority: 4, timeline: 0, section: "Foundation", objective: "healthy", disable: true }
     ];
     this.options = {
       defaultSort: options.defaultSort || "timeline",
