@@ -107,20 +107,20 @@
             <label class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white cursor-pointer transition">
               <i class="fa-solid fa-file mr-2.5 text-indigo-400 w-4"></i>
               <span>Upload File(s)</span>
-              <input type="file" id="localFileUpload" multiple class="hidden">
+              <input type="file" id="fileUpload" multiple class="hidden">
             </label>
 
             <!-- Added: Encrypted File Upload -->
             <label class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white cursor-pointer transition">
               <i class="fa-solid fa-file-shield mr-2.5 text-purple-400 w-4"></i>
               <span>Upload File (Encrypt)</span>
-              <input type="file" id="localEncryptedFileUpload" multiple class="hidden">
+              <input type="file" id="encryptedFileUpload" multiple class="hidden">
             </label>
 
             <label class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white cursor-pointer transition">
               <i class="fa-solid fa-folder-open mr-2.5 text-amber-400 w-4"></i>
               <span>Upload Folder</span>
-              <input type="file" id="localFolderUpload" webkitdirectory directory multiple class="hidden">
+              <input type="file" id="folderUpload" webkitdirectory directory multiple class="hidden">
             </label>
 
             <div class="border-t border-white/10 my-1"></div>
@@ -135,7 +135,7 @@
               <span>Firebase</span>
             </button>
 
-            <button id="openFolderManagerBtn" class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white transition">
+            <button id="openLocalFolderBtn" class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white transition">
               <i class="fa-solid fa-folder text-emerald-400 mr-2.5 w-4"></i>
               <span>Folder</span>
             </button>
