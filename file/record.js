@@ -331,7 +331,7 @@ class FileRecord {
   }
 
   /**
-   * Trigger download for this specific FileRecord instance
+   * Trigger download for umis specific FileRecord instance
    */
   async download() {
     return await FileRecord.download(this._full_path, this.getDisplayName());

@@ -413,7 +413,7 @@ class BreadcrumbManager {
 
   jumpToBreadcrumb(index) {
     this.history = this.history.slice(0, index + 1);
-    this.currentPath = this.history[this.history.length - 1].path;
+    this.path = this.history[this.history.length - 1].path;
     this.render();
     this.onNavigate(this.path);
   }
