@@ -1,8 +1,6 @@
 class DriveStorageService {
   constructor(config = {}) {
     this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
-    this.passphrase = localStorage.getItem("gdrive_encryption_password") || config.gdrive_encryption_password;
-
     this.token = localStorage.getItem("gdrive_access_token") || null;
     this.tokenExpiry = localStorage.getItem("gdrive_token_expiry") || null;
     
@@ -193,69 +191,7 @@ class DriveStorageService {
       const json = await res.json();
       if (!json.files || json.files.length === 0) throw new Error('File not found');
 
-      const f = json.files[0];
-      const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
-      const cleanPath = path.replace(/^\/+|\/+$/g, '');
-
-      const record = new FileRecord({
-        id: isFolder ? null : f.id,
-        name: f.name,
-        full_path: cleanPath,
-        size: Number(f.size || 0),
-        mimetype: f.mimeType,
-        url: f.webContentLink || null,
-        updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null,
-        isFolder: isFolder
-      });
-
-      return { data: record, error: null };
-    } catch (err) {
-      return { data: null, error: err };
-    }
-  }
-
-  async getFileUrl(path, expiresIn) {
-    try {
-      const lastSlashIdx = path.lastIndexOf("/");
-      const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
-      const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
-      const folderId = await this._resolveFolderId(dirPath);
-
-      const params = new URLSearchParams({
-        q: `'${folderId}' in parents and name = '${fileName}' and trashed = false`,
-        fields: 'files(id, name)'
-      });
-      const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
-      const json = await res.json();
-      if (!json.files || json.files.length === 0) throw new Error('File not found');
-      const fileId = json.files[0].id;
-
-      const mediaRes = await fetch(`${this.apiBase}/${fileId}?alt=media`, { headers: this._headers() });
-      if (!mediaRes.ok) throw new Error('Failed to fetch file content');
-      const blob = await mediaRes.blob();
-      
-      let finalBlob = blob;
-      const currentPassphrase = localStorage.getItem("gdrive_encryption_password") || this.passphrase;
-
-      if (fileName.endsWith(".enc") && currentPassphrase) {
-        try {
-          const ciphertext = await blob.text();
-          const decryptedText = await this._decryptText(ciphertext, currentPassphrase);
-          
-          const match = decryptedText.match(/^data:(.*?);base64,(.*)$/s);
-          if (match) {
-            const resData = await fetch(`data:${match[1]};base64,${match[2]}`);
-            finalBlob = await resData.blob();
-          } else {
-            finalBlob = new Blob([decryptedText]);
-          }
-        } catch (e) {
-          console.warn("Could not decrypt thumbnail/file payload:", e);
-        }
-      }
-
-      const signedUrl = URL.createObjectURL(finalBlob);
-      return { data: { signedUrl }, error: null };
+      return { data: json.files[0], error: null };
     } catch (err) {
       return { data: null, error: err };
     }
@@ -328,21 +264,5 @@ class DriveStorageService {
     } catch (err) {
       return { data: null, error: err };
     }
-  }
-
-  async downloadFile(path, name) {
-    const { data, error } = await this.getFileUrl(path, 60);
-    if (error) throw error;
-    const res = await fetch(data.signedUrl);
-    const blob = await res.blob();
-    this._triggerDownload(blob, name);
-  }
-
-  _triggerDownload(blob, filename) {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(a.href);
   }
 }
