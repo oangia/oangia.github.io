@@ -361,10 +361,10 @@ class FileRecord {
     if (!data?.signedUrl) throw new Error(`No signed URL available for ${this.getFullPath()}.`);
 
     const image = document.createElement("img");
+    image.loading = "lazy";
     image.src = data.signedUrl;
     image.alt = this.getDisplayName();
-    image.loading = "lazy";
-    image.className = "w-full h-full object-cover rounded-lg";
+    //image.className = "w-full h-full object-cover rounded-lg";
     element.replaceChildren(image);
   }
 
@@ -378,6 +378,7 @@ class FileRecord {
     const link = document.createElement("a");
     link.href = data.signedUrl;
     link.download = this.getDisplayName();
+
     link.click();
     setTimeout(() => URL.revokeObjectURL(data.signedUrl), 1000);
   }
