@@ -626,5 +626,34 @@ document.addEventListener("click", (e) => {
     });
   }
 });
+document.addEventListener("DOMContentLoaded", () => {
+  const fileInput = document.getElementById("fileUpload");
+  const encryptedInput = document.getElementById("encryptedFileUpload");
+  const folderInput = document.getElementById("folderUpload");
 
+  // 1. Normal File Upload
+  fileInput.addEventListener("change", (e) => fileManager.handleFileUpload(e, false, false));
+
+  // 2. Encrypted File Upload
+  if (encryptedInput && typeof fileManager !== "undefined") {
+    encryptedInput.addEventListener("change", (e) => {
+      const passphrase = FileRecord.getEncryptionPassphrase();
+      if (!passphrase) {
+        if (typeof showToast === "function") {
+          showToast("Please set an encryption passphrase in settings first!", "error");
+        } else {
+          alert("Please set an encryption passphrase in settings first!");
+        }
+        encryptedInput.value = "";
+        return;
+      }
+      fileManager.handleFileUpload(e, false, true);
+    });
+  }
+
+  // 3. Folder Upload
+  if (folderInput && typeof fileManager !== "undefined") {
+    folderInput.addEventListener("change", (e) => fileManager.handleFileUpload(e, true, false));
+  }
+});
 const fileManager = new FileManager();
