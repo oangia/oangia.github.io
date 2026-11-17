@@ -42,21 +42,6 @@ function showToast(message, type = "info", duration = 4000) {
     }
 }
 
-// Update connection indicator dot and text status directly via inline HTML/classes
-function updateConnectionStatus(isConnected, statusText) {
-    const statusDot = document.getElementById("statusDot");
-    const statusLabel = document.getElementById("statusText");
-
-    if (statusLabel && statusDot) {
-        statusLabel.textContent = statusText;
-        statusDot.className = isConnected === true 
-            ? "w-2 h-2 rounded-full bg-emerald-500" 
-            : isConnected === false 
-            ? "w-2 h-2 rounded-full bg-rose-500" 
-            : "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
-    }
-}
-
 function set_bg() {
     if (window.self === window.top) {
       document.body.style.backgroundImage = "linear-gradient(rgba(5, 8, 17, 0.45), rgba(5, 8, 17, 0.7)), url('https://images.unsplash.com/photo-1772511988871-a010197b94ae?auto=format&fit=crop&w=1920&q=80')";
