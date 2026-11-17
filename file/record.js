@@ -317,6 +317,19 @@ class FileRecord {
     return await FileRecord.getFileUrl(this._full_path, expiresIn);
   }
 
+  async loadThumbnail(element, expiresIn = 60) {
+    const { data, error } = await this.fetchSignedUrl(expiresIn);
+    if (error) throw error;
+    if (!data?.signedUrl) throw new Error(`No signed URL available for ${this.getFullPath()}.`);
+
+    const image = document.createElement("img");
+    image.src = data.signedUrl;
+    image.alt = this.getDisplayName();
+    image.loading = "lazy";
+    image.className = "w-full h-full object-cover rounded-lg";
+    element.replaceChildren(image);
+  }
+
   /**
    * Trigger download for this specific FileRecord instance
    */

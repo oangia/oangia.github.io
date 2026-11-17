@@ -18,8 +18,8 @@ class ItemsGridRenderer {
         <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
           <i class="fa-solid fa-folder text-5xl"></i>
         </div>`,
-      fileIcon: (previewContainerId, iconClass) => `
-        <div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors">
+      fileIcon: (iconClass) => `
+        <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors">
           <i class="${iconClass} text-3xl"></i>
         </div>`,
       card: (mediaHTML, name, subtext, isFolder) => `
@@ -31,8 +31,6 @@ class ItemsGridRenderer {
           <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
           <span class="text-[9px] text-slate-300 font-mono mt-0.5">${isFolder ? (subtext || 'Folder') : subtext}</span>
         </div>`,
-      thumbnail: (signedUrl, name) => `
-        <img src="${signedUrl}" alt="${escapeHtml(name)}" class="w-full h-full object-cover rounded-lg" />`
     };
   }
 
@@ -42,7 +40,7 @@ class ItemsGridRenderer {
     this.onDeleteClick = options.onDeleteClick || (() => {});
   }
   
-  async render(items, currentPath) {
+  async render(items) {
     if (!this.container) return;
     
     this.container.className = ItemsGridRenderer._TEMPLATES.containerClass;
@@ -53,21 +51,18 @@ class ItemsGridRenderer {
       return;
     }
 
-    const thumbnailTasks = [];
-
     for (const file of items) {
       const sizeStr = file.getSubtext();
       const isFolder = file.isFolderNode();
       const name = file.getDisplayName();
-      const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
       
       const card = document.createElement("div");
       card.className = ItemsGridRenderer._TEMPLATES.cardClass;
-      card.onclick = () => this.onItemClick(file, file.getFullPath(), isFolder);
+      card.onclick = () => this.onItemClick(file);
       
       const mediaHTML = isFolder 
         ? ItemsGridRenderer._TEMPLATES.folderIcon 
-        : ItemsGridRenderer._TEMPLATES.fileIcon(previewContainerId, file.getFileIconClass());
+        : ItemsGridRenderer._TEMPLATES.fileIcon(file.getFileIconClass());
 
       card.innerHTML = ItemsGridRenderer._TEMPLATES.card(mediaHTML, name, sizeStr, isFolder);
 
@@ -81,23 +76,12 @@ class ItemsGridRenderer {
 
       this.container.appendChild(card);
 
-      if (file.isImage()) {
-        thumbnailTasks.push(async () => {
-          try {
-            const { data, error } = await file.fetchSignedUrl(60);
-            if (!error && data?.signedUrl) {
-              const thumbEl = document.getElementById(previewContainerId);
-              if (thumbEl) {
-                thumbEl.innerHTML = ItemsGridRenderer._TEMPLATES.thumbnail(data.signedUrl, name);
-              }
-            }
-          } catch (e) {}
+      const previewEl = card.querySelector(".widget-preview-area");
+      if (file.isImage() && previewEl) {
+        file.loadThumbnail(previewEl).catch(error => {
+          console.error("Failed to load file thumbnail:", error);
         });
       }
-    }
-
-    if (thumbnailTasks.length > 0) {
-      Promise.all(thumbnailTasks.map(task => task())).catch(() => {});
     }
   }
 }
@@ -256,8 +240,7 @@ class FilePreviewManager {
     document.getElementById("previewSaveBtn")?.addEventListener("click", () => this.saveEditedText());
   }
 
-  async openPreview(path, name, file = null) {
-    const fileRecord = file || new FileRecord({ name: name, full_path: path });
+  async openPreview(fileRecord) {
     this.currentFileRecord = fileRecord;
 
     const title = document.getElementById("previewTitle");
@@ -384,11 +367,7 @@ class FilePreviewManager {
 
   async cancelEditText() {
     if (this.currentFileRecord) {
-      this.openPreview(
-        this.currentFileRecord.getFullPath(),
-        this.currentFileRecord.getName(),
-        this.currentFileRecord
-      );
+      this.openPreview(this.currentFileRecord);
     }
   }
 
@@ -481,11 +460,11 @@ class FileManager {
       onNavigate: () => this.listFiles()
     });
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", {
-      onItemClick: (file, fullPath, isFolder) => {
-        if (isFolder) {
-          this.breadcrumb.navigateToFolder(fullPath, file.getName());
+      onItemClick: (file) => {
+        if (file.isFolderNode()) {
+          this.breadcrumb.navigateToFolder(file.getFullPath(), file.getName());
         } else {
-          this.openPreview(fullPath, file.getName(), file);
+          this.openPreview(file);
         }
       },
       onDeleteClick: (file) => this.deleteItem(file)
@@ -528,7 +507,7 @@ class FileManager {
     const label = document.getElementById("itemCountLabel");
     if (label) label.textContent = `${this.filteredItems.length} item${this.filteredItems.length !== 1 ? "s" : ""}`;
 
-    this.gridRenderer?.render(this.filteredItems, this.breadcrumb.path);
+    this.gridRenderer?.render(this.filteredItems);
   }
 
   openCreateFolderModal() {
@@ -604,8 +583,8 @@ class FileManager {
     event.target.value = "";
   }
 
-  async openPreview(path, name, file = null) {
-    await this.filePreview.openPreview(path, name, file);
+  async openPreview(file) {
+    await this.filePreview.openPreview(file);
   }
 
   cancelEditText() {
@@ -639,10 +618,9 @@ class FileManager {
     }
   }
 
-  async deleteItem(fileOrPath, isFolderFlag = false) {
-    const isRecord = fileOrPath instanceof FileRecord;
-    const path = isRecord ? fileOrPath.getFullPath() : fileOrPath;
-    const isFolder = isRecord ? fileOrPath.isFolderNode() : isFolderFlag;
+  async deleteItem(file) {
+    const path = file.getFullPath();
+    const isFolder = file.isFolderNode();
 
     const confirmMsg = isFolder
       ? `Delete folder "${path}" and all its contents?`
@@ -659,11 +637,8 @@ class FileManager {
 
         const { error } = await FileRecord.destroy(pathsToDelete);
         if (error) throw error;
-      } else if (isRecord) {
-        const { error } = await fileOrPath.delete();
-        if (error) throw error;
       } else {
-        const { error } = await FileRecord.destroy(path);
+        const { error } = await file.delete();
         if (error) throw error;
       }
 
