@@ -426,28 +426,26 @@ class BreadcrumbManager {
     this.container = document.getElementById(containerId);
     this.onNavigate = options.onNavigate || (() => {});
     this.history = [{ path: "", name: "root" }];
-    this.currentPath = "";
+    this.path = "";
   }
-  
-  get path() { return this.currentPath; }
 
   navigateToFolder(path, name) {
-    if (this.currentPath === path) return;
-    this.currentPath = path;
+    if (this.path === path) return;
+    this.path = path;
     this.history.push({ path, name });
     this.render();
-    this.onNavigate(this.currentPath);
+    this.onNavigate(this.path);
   }
 
   jumpToBreadcrumb(index) {
     this.history = this.history.slice(0, index + 1);
     this.currentPath = this.history[this.history.length - 1].path;
     this.render();
-    this.onNavigate(this.currentPath);
+    this.onNavigate(this.path);
   }
 
   reset() {
-    this.currentPath = "";
+    this.path = "";
     this.history = [{ path: "", name: "root" }];
     this.render();
   }
