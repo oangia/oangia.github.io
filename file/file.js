@@ -652,8 +652,8 @@ document.addEventListener("click", (e) => {
   if (!menu.contains(e.target) && !e.target.closest("button")?.getAttribute("onclick")?.includes("toggleActionsMenu")) {
     menu.classList.add("hidden");
   }
-  const actionsMenuBtn = document.getElementById('actionsMenu');
-  const actionsMenuDropdown = document.getElementById('actionsMenuToggleBtn');
+  const actionsMenuDropdown = document.getElementById('actionsMenu');
+  const actionsMenuBtn = document.getElementById('actionsMenuToggleBtn');
 
   if (actionsMenuBtn && actionsMenuDropdown) {
     // Toggle dropdown visibility on click
@@ -671,9 +671,6 @@ document.addEventListener("click", (e) => {
   }
 });
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("closePreviewModalBtn").click(() => {
-    document.getElementById("modalPreview").classList.toggle("hidden");
-  });
   const fileInput = document.getElementById("fileUpload");
   const encryptedInput = document.getElementById("encryptedFileUpload");
   const folderInput = document.getElementById("folderUpload");
