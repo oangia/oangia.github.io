@@ -131,23 +131,26 @@ class FileRecord {
 
     const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, "") : "";
 
-    const fileRecords = data.map((f) => {
-      const isFolder = f.mimeType === "application/vnd.google-apps.folder";
-      const fullPath = cleanBasePath ? `${cleanBasePath}/${f.name}` : f.name;
-
-      return new FileRecord({
-        id: isFolder ? null : f.id,
-        name: f.name,
-        full_path: fullPath,
-        size: Number(f.size || 0),
-        mimetype: f.mimeType,
-        url: f.webContentLink || null,
-        updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : null,
-        isFolder: isFolder
-      });
-    });
+    const fileRecords = data.map((file) => this._fromDriveMetadata(
+      file,
+      cleanBasePath ? `${cleanBasePath}/${file.name}` : file.name
+    ));
 
     return { data: fileRecords, error: null };
+  }
+
+  static _fromDriveMetadata(file, path) {
+    const isFolder = file.mimeType === "application/vnd.google-apps.folder";
+    return new FileRecord({
+      id: isFolder ? null : file.id,
+      name: file.name,
+      full_path: path,
+      size: Number(file.size || 0),
+      mimetype: file.mimeType,
+      url: file.webContentLink || null,
+      updated_at: file.modifiedTime ? new Date(file.modifiedTime).getTime() : null,
+      isFolder
+    });
   }
 
   /**
@@ -155,7 +158,11 @@ class FileRecord {
    * Usage: const { data: file, error } = await FileRecord.find("docs/report.pdf");
    */
   static async find(path) {
-    return await this.getStorage().get(path);
+    const { data, error } = await this.getStorage().get(path);
+    if (error || !data) return { data: null, error };
+
+    const cleanPath = path.replace(/^\/+|\/+$/g, "");
+    return { data: this._fromDriveMetadata(data, cleanPath), error: null };
   }
 
   static async get(path) {
@@ -167,8 +174,7 @@ class FileRecord {
    * Usage: const { data: record, error } = await FileRecord.create("docs/report.pdf", fileObj);
    */
   static async create(path, file, options = { upsert: false, encrypt: false }) {
-    
-    let uploadFile = file;
+    let uploadFile = this._namedUploadFile(path, file);
     let finalPath = path;
 
     // If encryption is requested and active, encrypt payload and append .enc for cloud storage
@@ -178,12 +184,11 @@ class FileRecord {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
         reader.onerror = reject;
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(uploadFile);
       });
 
       const encryptedCipher = await this._encryptData(base64Data, passphrase);
-      const originalName = file.name || path.split("/").pop();
-      
+      const originalName = uploadFile.name;
       uploadFile = new File([encryptedCipher], originalName + ".enc", { type: "application/octet-stream" });
       finalPath = path + ".enc";
     }
@@ -192,12 +197,22 @@ class FileRecord {
     return res;
   }
 
+  static _namedUploadFile(path, file) {
+    const name = path.split("/").pop();
+    if (file instanceof File && file.name === name) return file;
+    return new File([file], name, { type: file.type || "application/octet-stream" });
+  }
+
   /**
    * Update/Overwrite an existing file at path
    * Usage: const { data: record, error } = await FileRecord.update("docs/report.pdf", newFileObj);
    */
   static async update(path, file, options = {}) {
-    return await this.getStorage().upload(path, file, { ...options, upsert: true });
+    return await this.getStorage().upload(
+      path,
+      this._namedUploadFile(path, file),
+      { ...options, upsert: true }
+    );
   }
 
   /**
@@ -215,7 +230,36 @@ class FileRecord {
    * Usage: const { data, error } = await FileRecord.getFileUrl("docs/photo.png.enc");
    */
   static async getFileUrl(path, expiresIn = 60) {
-    return await this.getStorage().getFileUrl(path, expiresIn);
+    try {
+      const storage = this.getStorage();
+      const { data: file, error } = await storage.get(path);
+      if (error) throw error;
+      if (!file?.id) throw new Error("File not found");
+
+      const response = await fetch(`${storage.apiBase}/${encodeURIComponent(file.id)}?alt=media`, {
+        headers: storage._headers()
+      });
+      if (!response.ok) {
+        throw new Error((await response.json()).error?.message || "Failed to fetch file content");
+      }
+
+      let blob = await response.blob();
+      const passphrase = this.getEncryptionPassphrase();
+      if (path.endsWith(".enc") && passphrase) {
+        const decrypted = await this._decryptData(await blob.text(), passphrase);
+        const decryptedText = new TextDecoder().decode(decrypted);
+        const dataUrlMatch = decryptedText.match(/^data:(.*?);base64,(.*)$/s);
+        if (dataUrlMatch) {
+          blob = await (await fetch(decryptedText)).blob();
+        } else {
+          blob = new Blob([decryptedText]);
+        }
+      }
+
+      return { data: { signedUrl: URL.createObjectURL(blob) }, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
   }
 
   /**
@@ -224,7 +268,14 @@ class FileRecord {
    */
   static async download(path, downloadName = null) {
     const fileName = downloadName || path.split("/").pop().replace(/\.enc$/, "");
-    return await this.getStorage().downloadFile(path, fileName);
+    const { data, error } = await this.getFileUrl(path);
+    if (error) throw error;
+
+    const link = document.createElement("a");
+    link.href = data.signedUrl;
+    link.download = fileName;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(data.signedUrl), 1000);
   }
 
   // =========================================================================
@@ -240,11 +291,14 @@ class FileRecord {
     if (error) throw error;
 
     // Sync current instance state with updated metadata
-    this._id = data.getId();
-    this._name = data.getName();
-    this._size = data.getSize();
-    this._updated_at = data.getUpdatedAt();
-    this._url = data.getUrl();
+    if (data) {
+      this._id = data.id || this._id;
+      this._name = data.name || this._name;
+      this._size = Number(data.size || 0);
+      this._mimetype = data.mimeType || this._mimetype;
+      this._updated_at = data.modifiedTime ? new Date(data.modifiedTime).getTime() : Date.now();
+      this._url = data.webContentLink || null;
+    }
     return this;
   }
 
