@@ -355,21 +355,78 @@ class FileRecord {
       : await FileRecord.getFileUrl(this._full_path, expiresIn);
   }
 
+  static _createPreviewDataUrl(source, sourceWidth, sourceHeight) {
+    if (!sourceWidth || !sourceHeight) {
+      throw new Error("Cannot create a preview from media with no dimensions.");
+    }
+
+    const maxDimension = 320;
+    const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Could not create a canvas context for the media preview.");
+
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/webp", 0.8);
+  }
+
   async loadPreviewMedia(element, expiresIn = 60) {
+    const isImage = element instanceof HTMLImageElement;
+    const isVideo = element instanceof HTMLVideoElement;
+    if (!isImage && !isVideo) {
+      throw new TypeError("Preview media element must be an image or video.");
+    }
+
     const { data, error } = await this.fetchSignedUrl(expiresIn);
     if (error) throw error;
     if (!data?.signedUrl) throw new Error(`No signed URL available for ${this.getFullPath()}.`);
 
-    if (element instanceof HTMLImageElement) {
-      element.loading = "lazy";
-      element.alt = this.getDisplayName();
-    } else if (element instanceof HTMLVideoElement) {
-      element.preload = "metadata";
-    } else {
-      throw new TypeError("Preview media element must be an image or video.");
-    }
+    let previewVideo = null;
+    try {
+      if (isImage) {
+        const response = await fetch(data.signedUrl);
+        if (!response.ok) throw new Error("Failed to read fetched image for preview.");
 
-    element.src = data.signedUrl;
+        const bitmap = await createImageBitmap(await response.blob());
+        try {
+          element.loading = "lazy";
+          element.alt = this.getDisplayName();
+          element.src = FileRecord._createPreviewDataUrl(bitmap, bitmap.width, bitmap.height);
+        } finally {
+          bitmap.close();
+        }
+        return;
+      }
+
+      previewVideo = document.createElement("video");
+      previewVideo.muted = true;
+      previewVideo.preload = "auto";
+      await new Promise((resolve, reject) => {
+        previewVideo.addEventListener("loadeddata", resolve, { once: true });
+        previewVideo.addEventListener("error", () => {
+          reject(previewVideo.error || new Error("Failed to decode video preview."));
+        }, { once: true });
+        previewVideo.src = data.signedUrl;
+        previewVideo.load();
+      });
+
+      element.preload = "none";
+      element.poster = FileRecord._createPreviewDataUrl(
+        previewVideo,
+        previewVideo.videoWidth,
+        previewVideo.videoHeight
+      );
+    } finally {
+      if (previewVideo) {
+        previewVideo.pause();
+        previewVideo.removeAttribute("src");
+        previewVideo.load();
+      }
+      if (data.signedUrl.startsWith("blob:")) URL.revokeObjectURL(data.signedUrl);
+    }
   }
 
   /**
