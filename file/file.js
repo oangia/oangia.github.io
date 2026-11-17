@@ -469,7 +469,7 @@ class FileManager {
       const { error } = await FileRecord.create(folderPath, new Blob([""]), { upsert: false });
       if (error) throw error;
 
-      this.closeModals();
+      closeModals();
       showToast(`Folder "${name}" created`, "success");
       this.listFiles();
     } catch (err) {
@@ -591,14 +591,6 @@ class FileManager {
       console.error(err);
       showToast(err.message || "Delete failed", "error");
     }
-  }
-
-  showToast(msg, type, duration) { if (typeof showToast === "function") showToast(msg, type, duration); }
-  updateConnectionStatus(status, msg) { if (typeof updateConnectionStatus === "function") updateConnectionStatus(status, msg); }
-  closeModals() {
-    document.getElementById("modalCreateFolder")?.classList.add("hidden");
-    document.getElementById("modalPreview")?.classList.add("hidden");
-    if (typeof closeModals === "function") closeModals();
   }
 }
 
