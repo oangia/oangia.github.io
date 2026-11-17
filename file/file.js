@@ -611,4 +611,3 @@ document.addEventListener("click", (e) => {
 });
 
 const fileManager = new FileManager();
-fileManager.init();
