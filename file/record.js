@@ -142,7 +142,7 @@ class FileRecord {
   static _fromDriveMetadata(file, path) {
     const isFolder = file.mimeType === "application/vnd.google-apps.folder";
     return new FileRecord({
-      id: isFolder ? null : file.id,
+      id: file.id || null,
       name: file.name,
       full_path: path,
       size: Number(file.size || 0),
@@ -158,11 +158,18 @@ class FileRecord {
    * Usage: const { data: file, error } = await FileRecord.find("docs/report.pdf");
    */
   static async find(path) {
-    const { data, error } = await this.getStorage().get(path);
+    const { data, error } = await this.getStorage().getByPath(path);
     if (error || !data) return { data: null, error };
 
     const cleanPath = path.replace(/^\/+|\/+$/g, "");
     return { data: this._fromDriveMetadata(data, cleanPath), error: null };
+  }
+
+  static async findById(id) {
+    const { data, error } = await this.getStorage().getById(id);
+    if (error || !data) return { data: null, error };
+
+    return { data: this._fromDriveMetadata(data, ""), error: null };
   }
 
   static async get(path) {
@@ -215,6 +222,10 @@ class FileRecord {
     );
   }
 
+  static async updateById(id, file) {
+    return await this.getStorage().uploadById(id, file);
+  }
+
   /**
    * Delete one or multiple paths
    * Usage: await FileRecord.destroy("docs/report.pdf");
@@ -225,6 +236,11 @@ class FileRecord {
     return await this.getStorage().remove(pathArray);
   }
 
+  static async destroyById(ids) {
+    const idArray = Array.isArray(ids) ? ids : [ids];
+    return await this.getStorage().removeById(idArray);
+  }
+
   /**
    * Get a decrypted/signed blob URL for a file path
    * Usage: const { data, error } = await FileRecord.getFileUrl("docs/photo.png.enc");
@@ -232,11 +248,26 @@ class FileRecord {
   static async getFileUrl(path, expiresIn = 60) {
     try {
       const storage = this.getStorage();
-      const { data: file, error } = await storage.get(path);
+      const { data: file, error } = await storage.getByPath(path);
       if (error) throw error;
       if (!file?.id) throw new Error("File not found");
 
-      const response = await fetch(`${storage.apiBase}/${encodeURIComponent(file.id)}?alt=media`, {
+      return await this.getFileUrlById(file.id, path, expiresIn);
+    } catch (error) {
+      return { data: null, error };
+    }
+  }
+
+  static async getFileUrlById(id, filename = "", expiresIn = 60) {
+    try {
+      const storage = this.getStorage();
+      if (!filename) {
+        const { data: file, error } = await storage.getById(id);
+        if (error) throw error;
+        filename = file?.name || "";
+      }
+
+      const response = await fetch(`${storage.apiBase}/${encodeURIComponent(id)}?alt=media`, {
         headers: storage._headers()
       });
       if (!response.ok) {
@@ -245,7 +276,7 @@ class FileRecord {
 
       let blob = await response.blob();
       const passphrase = this.getEncryptionPassphrase();
-      if (path.endsWith(".enc") && passphrase) {
+      if (filename.endsWith(".enc") && passphrase) {
         const decrypted = await this._decryptData(await blob.text(), passphrase);
         const decryptedText = new TextDecoder().decode(decrypted);
         const dataUrlMatch = decryptedText.match(/^data:(.*?);base64,(.*)$/s);
@@ -286,8 +317,11 @@ class FileRecord {
    * Save/Update this specific FileRecord instance with new File content
    */
   async save(newFileBlob) {
-    if (!this._full_path) throw new Error("Cannot save FileRecord without full_path.");
-    const { data, error } = await FileRecord.update(this._full_path, newFileBlob);
+    if (!this._full_path && !this._id) throw new Error("Cannot save FileRecord without an ID or full_path.");
+    const namedFile = FileRecord._namedUploadFile(this._full_path || this._name, newFileBlob);
+    const { data, error } = this._id
+      ? await FileRecord.updateById(this._id, namedFile)
+      : await FileRecord.update(this._full_path, namedFile);
     if (error) throw error;
 
     // Sync current instance state with updated metadata
@@ -306,15 +340,19 @@ class FileRecord {
    * Delete this specific FileRecord instance from storage
    */
   async delete() {
-    if (!this._full_path) throw new Error("Cannot delete FileRecord without full_path.");
-    return await FileRecord.destroy(this._full_path);
+    if (!this._full_path && !this._id) throw new Error("Cannot delete FileRecord without an ID or full_path.");
+    return this._id
+      ? await FileRecord.destroyById(this._id)
+      : await FileRecord.destroy(this._full_path);
   }
 
   /**
    * Get the signed/decrypted URL for this specific FileRecord instance
    */
   async fetchSignedUrl(expiresIn = 60) {
-    return await FileRecord.getFileUrl(this._full_path, expiresIn);
+    return this._id
+      ? await FileRecord.getFileUrlById(this._id, this._name, expiresIn)
+      : await FileRecord.getFileUrl(this._full_path, expiresIn);
   }
 
   async loadThumbnail(element, expiresIn = 60) {
@@ -334,7 +372,14 @@ class FileRecord {
    * Trigger download for umis specific FileRecord instance
    */
   async download() {
-    return await FileRecord.download(this._full_path, this.getDisplayName());
+    const { data, error } = await this.fetchSignedUrl();
+    if (error) throw error;
+
+    const link = document.createElement("a");
+    link.href = data.signedUrl;
+    link.download = this.getDisplayName();
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(data.signedUrl), 1000);
   }
 
   // =========================================================================

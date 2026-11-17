@@ -173,7 +173,7 @@ class DriveStorageService {
     }
   }
 
-  async get(path) {
+  async getByPath(path) {
     if (!this.token) return { data: null, error: new Error("Not authenticated") };
     try {
       const lastSlashIdx = path.lastIndexOf("/");
@@ -190,8 +190,24 @@ class DriveStorageService {
       
       const json = await res.json();
       if (!json.files || json.files.length === 0) throw new Error('File not found');
+      if (json.files.length > 1) throw new Error(`Multiple files match path: ${path}`);
 
       return { data: json.files[0], error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async getById(id) {
+    if (!this.token) return { data: null, error: new Error("Not authenticated") };
+    try {
+      const fields = 'id, name, mimeType, size, modifiedTime, webContentLink';
+      const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?fields=${fields}`, {
+        headers: this._headers()
+      });
+      if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to fetch file metadata');
+
+      return { data: await res.json(), error: null };
     } catch (err) {
       return { data: null, error: err };
     }
@@ -209,10 +225,17 @@ class DriveStorageService {
         fields: 'files(id)'
       });
       const searchRes = await fetch(`${this.apiBase}?${query}`, { headers: this._headers() });
+      if (!searchRes.ok) throw new Error((await searchRes.json()).error?.message || 'Failed to check for existing file');
       const searchJson = await searchRes.json();
       
       if (searchJson.files && searchJson.files.length > 0 && options.upsert === false) {
         return { data: null, error: new Error("File already exists and upsert is disabled") };
+      }
+      if (searchJson.files?.length > 1) {
+        return { data: null, error: new Error(`Multiple files match path: ${path}`) };
+      }
+      if (searchJson.files?.length === 1) {
+        return this.uploadById(searchJson.files[0].id, file);
       }
 
       let uploadFile = file;
@@ -240,6 +263,33 @@ class DriveStorageService {
     }
   }
 
+  async uploadById(id, file) {
+    try {
+      const metadata = {
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream'
+      };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', file);
+
+      const fields = 'id,name,mimeType,size,modifiedTime,webContentLink';
+      const res = await fetch(
+        `${this.uploadBase}/${encodeURIComponent(id)}?uploadType=multipart&fields=${fields}`,
+        {
+          method: 'PATCH',
+          headers: this._headers(),
+          body: form
+        }
+      );
+      if (!res.ok) throw new Error((await res.json()).error?.message || 'Upload failed');
+
+      return { data: await res.json(), error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
   async remove(paths) {
     try {
       for (const path of paths) {
@@ -253,12 +303,30 @@ class DriveStorageService {
           fields: 'files(id)'
         });
         const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
+        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to find file to delete');
         const json = await res.json();
-        if (json.files) {
-          for (const f of json.files) {
-            await fetch(`${this.apiBase}/${f.id}`, { method: 'DELETE', headers: this._headers() });
-          }
+        if (json.files?.length > 1) {
+          throw new Error(`Multiple files match path: ${path}; delete by ID instead`);
         }
+        if (json.files?.length === 1) {
+          const result = await this.removeById([json.files[0].id]);
+          if (result.error) throw result.error;
+        }
+      }
+      return { data: {}, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async removeById(ids) {
+    try {
+      for (const id of ids) {
+        const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: this._headers()
+        });
+        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to delete file');
       }
       return { data: {}, error: null };
     } catch (err) {
