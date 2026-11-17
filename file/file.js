@@ -619,6 +619,9 @@ document.addEventListener("click", (e) => {
   }
 });
 document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("closePreviewModalBtn").click(() => {
+    document.getElementById("modalPreview").classList.toggle("hidden");
+  });
   const fileInput = document.getElementById("fileUpload");
   const encryptedInput = document.getElementById("encryptedFileUpload");
   const folderInput = document.getElementById("folderUpload");
