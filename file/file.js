@@ -106,6 +106,44 @@ class FilePreviewManager {
   // --- UI & HTML Templates ---
   static get _TEMPLATES() {
     return {
+      // The complete preview modal markup you provided
+      modalHtml: `
+        <div id="modalPreview" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-0 m-0">
+          <div class="w-screen h-screen flex flex-col overflow-hidden m-0 p-0 text-slate-100">
+            <div class="flex items-center justify-between px-6 py-3.5 border-b border-white/15 bg-black/40 shrink-0">
+              <h3 id="previewTitle" class="font-bold text-sm text-white truncate"></h3>
+              <button id="closePreviewModalBtn" class="text-slate-400 hover:text-white p-1 text-lg transition">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+      
+            <div class="flex-1 flex overflow-hidden bg-transparent">
+              <div id="previewBody" class="flex-1 overflow-auto flex items-center justify-center"></div>
+      
+              <div class="w-80 border-l border-white/15 bg-zinc-950/60 flex flex-col overflow-y-auto p-4 shrink-0">
+                <div class="flex items-center gap-2 pb-3 mb-3 border-b border-white/15">
+                  <i class="fa-solid fa-fingerprint text-indigo-400 text-sm"></i>
+                  <h4 class="font-bold text-xs uppercase tracking-wider text-slate-200">File Details & Hashes</h4>
+                </div>
+                <div id="previewSidebarDetails" class="space-y-4 text-xs text-slate-300"></div>
+              </div>
+            </div>
+      
+            <div class="px-6 py-3.5 border-t border-white/15 bg-black/40 flex justify-end gap-2 flex-wrap shrink-0">
+              <button id="previewSaveBtn" class="hidden px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg transition">
+                <i class="fa-solid fa-floppy-disk mr-1 text-emerald-400"></i> Save
+              </button>
+              <button id="previewCancelEditBtn" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">
+                Cancel
+              </button>
+              <a id="previewDownloadBtn" href="#" download class="px-4 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg transition">
+                <i class="fa-solid fa-download mr-1 text-indigo-400"></i> Download
+              </a>
+              <button id="closePreviewModalBtnAlt" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Close</button>
+            </div>
+          </div>
+        </div>`,
+
       loadingSpinner: `<div class="wire-subtext py-12 flex justify-center"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>`,
       sidebarLoading: `
         <div class="text-center py-10 space-y-2 wire-subtext">
@@ -192,8 +230,18 @@ class FilePreviewManager {
     this.onToast = options.onToast || ((msg, type) => console.log(msg));
     this.onSaveSuccess = options.onSaveSuccess || (() => {});
     
-    // Initialize global modal event listeners once on instantiation
+    // Ensure the modal HTML is present in the DOM
+    this._ensureModalInDOM();
+    // Initialize modal listeners
     this._initModalListeners();
+  }
+
+  _ensureModalInDOM() {
+    if (!document.getElementById("modalPreview")) {
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = FilePreviewManager._TEMPLATES.modalHtml.trim();
+      document.body.appendChild(tempDiv.firstChild);
+    }
   }
 
   _initModalListeners() {
@@ -362,7 +410,6 @@ class FilePreviewManager {
     }
   }
 }
-
 class BreadcrumbManager {
   // --- UI & HTML Templates ---
   static get _TEMPLATES() {
