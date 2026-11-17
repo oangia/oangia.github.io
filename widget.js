@@ -1,238 +1,73 @@
-/* ============================================================
-   Classes – Self-contained with direct inline HTML/CSS
-   ============================================================ */
-
-class FirebaseUploaderWidget {
-  constructor(fbService, collectionName = "uploaded_files") {
-    this.collectionName = collectionName;
-    this.fbService = fbService;
-    this.isRendered = false;
-  }
-
-  init(triggerBtnId) {
-    const triggerBtn = document.getElementById(triggerBtnId);
-    if (!triggerBtn) {
-      console.error(`Trigger button with ID "${triggerBtnId}" not found.`);
-      return;
-    }
-    triggerBtn.addEventListener("click", () => {
-      if (this.isRendered) {
-        const overlay = document.getElementById("fb-modal-overlay");
-        if (overlay) {
-          overlay.classList.remove("hidden");
-          this._checkAndConnect();
-        }
-        return;
-      }
-      this._renderPanel();
-      this._bindEvents();
-      this._checkAndConnect();
-      this.isRendered = true;
-    });
-  }
-
-  _getStyles() {
-    return `
-      #fb-modal-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem; }
-      #fb-modal-overlay.hidden { display: none !important; }
-      .fb-widget-container { font-family: ui-sans-serif, system-ui, sans-serif; width: 100%; max-width: 650px; max-height: 85vh; background: #18181b; color: #f4f4f5; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); display: flex; flex-direction: column; overflow: hidden; }
-      .fb-widget-header { padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; background: #09090b; }
-      .fb-widget-header h2 { font-size: 1rem; font-weight: bold; color: #fff; margin: 0; }
-      .fb-widget-actions { display: flex; align-items: center; gap: 0.75rem; }
-      .fb-widget-close { background: transparent; border: none; color: #a1a1aa; font-size: 1.2rem; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.375rem; }
-      .fb-widget-close:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
-      .fb-widget-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
-      .fb-widget-container .card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); padding: 1.25rem; border-radius: 0.75rem; margin-bottom: 1rem; }
-      .fb-widget-container h3 { font-size: 0.875rem; font-weight: 600; color: #e4e4e7; margin-top: 0; margin-bottom: 0.75rem; }
-      #fb-status { font-size: 0.75rem; font-weight: 500; color: #38bdf8; margin-top: 0.5rem; }
-      .fb-widget-container ul { padding-left: 0; list-style: none; margin: 0; }
-      .fb-widget-container li { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.75rem; margin-bottom: 0.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
-      .fb-widget-container .btn-group { display: flex; gap: 0.375rem; }
-      .fb-widget-container li button { width: auto; margin: 0; padding: 0.25rem 0.5rem; font-size: 0.7rem; border-radius: 0.375rem; border: none; font-weight: 600; cursor: pointer; color: white; }
-      .fb-widget-container .btn-download { background: #16a34a; }
-      .fb-widget-container .btn-download:hover { background: #15803d; }
-      .fb-widget-container .btn-delete { background: #dc2626; }
-      .fb-widget-container .btn-delete:hover { background: #b91c1c; }
-      .fb-widget-container .file-info span { display: block; font-size: 0.75rem; font-weight: 500; color: #f4f4f5; }
-      .fb-widget-container .file-info small { color: #a1a1aa; font-size: 0.7rem; }
-    `;
-  }
-
-  _getHTML() {
-    return `
-      <div class="fb-widget-container">
-        <div class="fb-widget-header">
-          <h2>Firebase Storage</h2>
-          <div class="fb-widget-actions">
-            <label class="px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg cursor-pointer transition flex items-center gap-1.5">
-              <i class="fa-solid fa-upload"></i>
-              <span id="fb-uploadBtnText">Upload File</span>
-              <input type="file" id="fb-fileInput" class="hidden">
-            </label>
-            <button class="fb-widget-close" id="fb-closeModalBtn"><i class="fa-solid fa-xmark"></i></button>
-          </div>
-        </div>
-        <div class="fb-widget-body">
-          <div id="fb-status" style="margin-bottom: 1rem;"></div>
-          <div class="card" style="margin-bottom: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-              <h3 style="margin: 0;">Uploaded Files</h3>
-              <button id="fb-refreshBtn" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.7rem; margin: 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.375rem; color: #fff; cursor: pointer;">Refresh</button>
-            </div>
-            <ul id="fb-fileList"></ul>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  _renderPanel() {
-    const style = document.createElement("style");
-    style.innerHTML = this._getStyles();
-    document.head.appendChild(style);
-
-    const overlay = document.createElement("div");
-    overlay.id = "fb-modal-overlay";
-    overlay.innerHTML = this._getHTML();
-    document.body.appendChild(overlay);
-  }
-
-  _checkAndConnect() {
-    const fileList = document.getElementById("fb-fileList");
-    const statusDiv = document.getElementById("fb-status");
-    const apiKey = localStorage.getItem("fb_apikey") || localStorage.getItem("firebase_api_key");
-    const projectId = localStorage.getItem("fb_projectid") || "freedata-4c235";
-    const appId = localStorage.getItem("fb_appid") || "1:906764667278:web:aa229456f8de0740923cdf";
-
-    if (!apiKey) {
-      fileList.innerHTML = "<li style='justify-content:center; color:#f87171;'>Firebase API Key missing! Please configure it in Settings.</li>";
-      return;
-    }
-    try {
-      this.fbService.init({ apiKey, projectId, appId });
-      this._loadFiles(fileList, statusDiv);
-    } catch (err) {
-      console.error(err);
-      fileList.innerHTML = `<li style='justify-content:center; color:#f87171;'>Connection error: ${err.message}</li>`;
-    }
-  }
-
-  _bindEvents() {
-    const overlay = document.getElementById("fb-modal-overlay");
-    const closeBtn = document.getElementById("fb-closeModalBtn");
-    const fileInput = document.getElementById("fb-fileInput");
-    const uploadBtnText = document.getElementById("fb-uploadBtnText");
-    const statusDiv = document.getElementById("fb-status");
-    const refreshBtn = document.getElementById("fb-refreshBtn");
-    const fileList = document.getElementById("fb-fileList");
-
-    closeBtn.addEventListener("click", () => overlay.classList.add("hidden"));
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) overlay.classList.add("hidden");
-    });
-
-    fileInput.addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      uploadBtnText.textContent = "Uploading...";
-      try {
-        await this.fbService.uploadFile(this.collectionName, file, (msg) => {
-          statusDiv.textContent = msg;
-        });
-        fileInput.value = "";
-        statusDiv.textContent = "";
-        this._loadFiles(fileList, statusDiv);
-      } catch (err) {
-        console.error(err);
-        statusDiv.textContent = "Error: " + err.message;
-      } finally {
-        uploadBtnText.textContent = "Upload File";
-      }
-    });
-
-    refreshBtn.addEventListener("click", () => this._loadFiles(fileList, statusDiv));
-  }
-
-  async _loadFiles(fileListEl, statusDiv) {
-    fileListEl.innerHTML = "<li style='justify-content:center; color:#a1a1aa;'>Loading files...</li>";
-    try {
-      const files = await this.fbService.getAllFilenames(this.collectionName);
-      fileListEl.innerHTML = "";
-      if (files.length === 0) {
-        fileListEl.innerHTML = "<li style='justify-content:center; color:#a1a1aa;'>No files found in collection.</li>";
-        return;
-      }
-      files.forEach(f => {
-        const li = document.createElement("li");
-        const infoDiv = document.createElement("div");
-        infoDiv.className = "file-info";
-        infoDiv.innerHTML = `<span><strong>${escapeHtml(f.filename)}</strong></span><small>${escapeHtml(f.type)} (${f.totalParts} chunks)</small>`;
-
-        const btnGroup = document.createElement("div");
-        btnGroup.className = "btn-group";
-
-        const downloadBtn = document.createElement("button");
-        downloadBtn.textContent = "Download";
-        downloadBtn.className = "btn-download";
-        downloadBtn.onclick = async () => {
-          downloadBtn.disabled = true;
-          downloadBtn.textContent = "Downloading...";
-          try {
-            const fileRecord = await this.fbService.getFileByFilename(this.collectionName, f.filename, (msg) => {
-              statusDiv.textContent = msg;
-            });
-            if (fileRecord) {
-              const a = document.createElement("a");
-              a.href = fileRecord.dataUrl;
-              a.download = fileRecord.filename;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              statusDiv.textContent = `Successfully downloaded ${f.filename}!`;
-            }
-          } catch (err) {
-            console.error(err);
-            statusDiv.textContent = "Download failed: " + err.message;
-          } finally {
-            downloadBtn.disabled = false;
-            downloadBtn.textContent = "Download";
-          }
-        };
-
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "Delete";
-        deleteBtn.className = "btn-delete";
-        deleteBtn.onclick = async () => {
-          if (!confirm(`Are you sure you want to delete ${f.filename}?`)) return;
-          deleteBtn.disabled = true;
-          deleteBtn.textContent = "Deleting...";
-          try {
-            await this.fbService.deleteFileByFilename(this.collectionName, f.filename, (msg) => {
-              statusDiv.textContent = msg;
-            });
-            this._loadFiles(fileListEl, statusDiv);
-          } catch (err) {
-            console.error(err);
-            statusDiv.textContent = "Deletion failed: " + err.message;
-            deleteBtn.disabled = false;
-            deleteBtn.textContent = "Delete";
-          }
-        };
-
-        btnGroup.appendChild(downloadBtn);
-        btnGroup.appendChild(deleteBtn);
-        li.appendChild(infoDiv);
-        li.appendChild(btnGroup);
-        fileListEl.appendChild(li);
-      });
-    } catch (err) {
-      console.error(err);
-      fileListEl.innerHTML = "<li style='justify-content:center; color:#f87171;'>Failed to load files.</li>";
-    }
-  }
-}
-
 class Tracker {
+  // --- UI & HTML Templates ---
+  static get _TEMPLATES() {
+    return {
+      wrapperId: (id) => `tracker-wrapper-${id}`,
+      mainCardId: (id) => `main-card-${id}`,
+      backdropClass: "fixed inset-0 bg-slate-900/40 backdrop-blur-[1px] z-40 hidden opacity-0 transition-opacity duration-300",
+      panelClass: "fixed top-0 right-0 h-full w-full max-w-md bg-slate-50 shadow-2xl z-50 flex flex-col transform translate-x-full transition-transform duration-300 ease-out border-l border-slate-200",
+      headerClass: "w-full bg-slate-900 text-white px-4 py-2.5 flex flex-wrap justify-between items-center gap-2 shadow-sm sticky top-0 z-10",
+      mainClass: "w-full flex-grow overflow-y-auto px-3 py-4",
+      mainCardClass: "w-full bg-white rounded-lg border border-slate-200 shadow-sm p-3.5 space-y-4",
+      sectionHeaderClass: "flex items-center justify-between pb-1.5 mb-2",
+      sectionTitleClass: "text-[10px] font-bold uppercase tracking-wider text-slate-400",
+      sectionCountClass: "text-[10px] font-medium text-slate-400",
+      listClass: "space-y-1.5",
+      listItemClass: (isDisabled) => `flex items-start justify-between p-2 rounded-md border transition ${
+        isDisabled ? "opacity-50 bg-slate-50 border-slate-100 cursor-not-allowed" : "bg-white border-slate-200/80 hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
+      }`,
+      badgeClass: (colorClasses) => `text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors duration-300 ${colorClasses}`,
+      sortOption: (opt, isSelected) => `<option value="${opt.value}" ${isSelected ? "selected" : ""}>Sort: ${opt.label}</option>`,
+      header: (title, todayFormatted, sortOptionsHTML, id) => `
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-md bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <i class="fa-solid fa-list-check text-xs"></i>
+          </div>
+          <div>
+            <h1 class="text-xs font-bold tracking-tight">${escapeHtml(title)}</h1>
+            <p class="text-[10px] text-slate-400">${todayFormatted}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="sort-select-${id}" class="text-[11px] font-medium bg-slate-800 text-slate-200 border border-slate-700 rounded-md px-2 py-1 outline-none cursor-pointer hover:bg-slate-700 transition">
+            ${sortOptionsHTML}
+          </select>
+          <div id="progress-badge-${id}" class="text-[11px] font-medium px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+            0 / 0 Completed
+          </div>
+          <button id="close-panel-${id}" type="button" class="w-7 h-7 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer" title="Close">
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>`,
+      taskItem: (id, taskName, taskType, taskDesc, isDisabled, colors, sectionName, isAlwaysChecked) => `
+        <div class="flex items-start gap-2.5 w-full">
+          <label for="${id}" class="relative flex items-start gap-2.5 w-full ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}">
+            <input type="checkbox" id="${id}" data-task="${escapeHtml(taskName)}" data-type="${taskType}" ${
+              isDisabled ? 'disabled' : ''
+            } ${isAlwaysChecked ? 'checked data-always-checked="true"' : ''} class="sr-only peer">
+
+            <div class="mt-0.5 w-3.5 h-3.5 rounded border ${colors.border} bg-white ${colors.bg} peer-checked:border-transparent flex items-center justify-center transition flex-shrink-0 ${isDisabled ? 'opacity-50' : ''}">
+              <svg class="w-2.5 h-2.5 text-white ${isAlwaysChecked ? 'opacity-100' : 'opacity-0'} transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+
+            <div class="flex flex-col flex-grow min-w-0">
+              <span class="text-xs font-medium select-none flex items-center flex-wrap gap-1 ${
+                isDisabled ? 'text-slate-400 line-through' : 'text-slate-800'
+              }">
+                <span class="break-words">${escapeHtml(taskName)}</span>
+                <span class="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-slate-100 text-slate-600 border border-slate-200">${escapeHtml(sectionName)}</span>
+                ${taskType === 'weekly' ? `<span class="text-[9px] px-1 py-0.2 rounded no-underline font-semibold ${colors.badge}">Weekly</span>` : ''}
+                ${isDisabled ? '<span class="text-[9px] text-slate-500 bg-slate-200 px-1 py-0.2 rounded no-underline font-normal">Disabled</span>' : ''}
+              </span>
+              ${taskDesc ? `<span class="text-[10px] text-slate-400 mt-0.5 break-words leading-tight">${escapeHtml(taskDesc)}</span>` : ''}
+            </div>
+          </label>
+        </div>`
+    };
+  }
+
   constructor(btnId, tasks = null, title = "Tasks Tracker", options = {}) {
     this.btnId = btnId;
     this.id = options.id || Math.random().toString(36).substring(2, 9);
@@ -258,7 +93,8 @@ class Tracker {
     this.currentSort = this.options.defaultSort;
     this.objectiveColors = {
       healthy: { border: "border-emerald-500", bg: "peer-checked:bg-emerald-600", badge: "text-emerald-700 bg-emerald-50 border border-emerald-200" },
-      useful: { border: "border-sky-500", bg: "peer-checked:bg-sky-600", badge: "text-sky-700 bg-sky-50 border border-sky-200" }
+      useful: { border: "border-sky-500", bg: "peer-checked:bg-sky-600", badge: "text-sky-700 bg-sky-50 border border-sky-200" },
+      default: { border: "border-slate-400", bg: "peer-checked:bg-slate-600", badge: "text-slate-700 bg-slate-100 border border-slate-200" }
     };
     this.init();
   }
@@ -297,89 +133,34 @@ class Tracker {
     setTimeout(() => this.backdrop.classList.add("hidden"), 300);
   }
 
-  _getHeaderHTML(title, todayFormatted, sortOptionsHTML, id) {
-    return `
-      <div class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded-md bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-          <i class="fa-solid fa-list-check text-xs"></i>
-        </div>
-        <div>
-          <h1 class="text-xs font-bold tracking-tight">${escapeHtml(title)}</h1>
-          <p class="text-[10px] text-slate-400">${todayFormatted}</p>
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        <select id="sort-select-${id}" class="text-[11px] font-medium bg-slate-800 text-slate-200 border border-slate-700 rounded-md px-2 py-1 outline-none cursor-pointer hover:bg-slate-700 transition">
-          ${sortOptionsHTML}
-        </select>
-        <div id="progress-badge-${id}" class="text-[11px] font-medium px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-          0 / 0 Completed
-        </div>
-        <button id="close-panel-${id}" type="button" class="w-7 h-7 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer" title="Close">
-          <i class="fa-solid fa-xmark text-xs"></i>
-        </button>
-      </div>
-    `;
-  }
-
-  _getTaskItemHTML(id, taskName, taskType, taskDesc, isDisabled, colors, sectionName, isAlwaysChecked) {
-    return `
-      <div class="flex items-start gap-2.5 w-full">
-        <label for="${id}" class="relative flex items-start gap-2.5 w-full ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}">
-          <input type="checkbox" id="${id}" data-task="${escapeHtml(taskName)}" data-type="${taskType}" ${
-            isDisabled ? 'disabled' : ''
-          } ${isAlwaysChecked ? 'checked data-always-checked="true"' : ''} class="sr-only peer">
-
-          <div class="mt-0.5 w-3.5 h-3.5 rounded border ${colors.border} bg-white ${colors.bg} peer-checked:border-transparent flex items-center justify-center transition flex-shrink-0 ${isDisabled ? 'opacity-50' : ''}">
-            <svg class="w-2.5 h-2.5 text-white ${isAlwaysChecked ? 'opacity-100' : 'opacity-0'} transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7"></path>
-            </svg>
-          </div>
-
-          <div class="flex flex-col flex-grow min-w-0">
-            <span class="text-xs font-medium select-none flex items-center flex-wrap gap-1 ${
-              isDisabled ? 'text-slate-400 line-through' : 'text-slate-800'
-            }">
-              <span class="break-words">${escapeHtml(taskName)}</span>
-              <span class="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-slate-100 text-slate-600 border border-slate-200">${escapeHtml(sectionName)}</span>
-              ${taskType === 'weekly' ? `<span class="text-[9px] px-1 py-0.2 rounded no-underline font-semibold ${colors.badge}">Weekly</span>` : ''}
-              ${isDisabled ? '<span class="text-[9px] text-slate-500 bg-slate-200 px-1 py-0.2 rounded no-underline font-normal">Disabled</span>' : ''}
-            </span>
-            ${taskDesc ? `<span class="text-[10px] text-slate-400 mt-0.5 break-words leading-tight">${escapeHtml(taskDesc)}</span>` : ''}
-          </div>
-        </label>
-      </div>
-    `;
-  }
-
   createPanel() {
     if (this.wrapper) this.wrapper.remove();
     this.wrapper = document.createElement("div");
-    this.wrapper.id = `tracker-wrapper-${this.id}`;
+    this.wrapper.id = Tracker._TEMPLATES.wrapperId(this.id);
 
     this.backdrop = document.createElement("div");
-    this.backdrop.className = "fixed inset-0 bg-slate-900/40 backdrop-blur-[1px] z-40 hidden opacity-0 transition-opacity duration-300";
+    this.backdrop.className = Tracker._TEMPLATES.backdropClass;
     this.backdrop.addEventListener("click", () => this.close());
 
     this.panel = document.createElement("div");
-    this.panel.className = "fixed top-0 right-0 h-full w-full max-w-md bg-slate-50 shadow-2xl z-50 flex flex-col transform translate-x-full transition-transform duration-300 ease-out border-l border-slate-200";
+    this.panel.className = Tracker._TEMPLATES.panelClass;
 
     const header = document.createElement("header");
-    header.className = "w-full bg-slate-900 text-white px-4 py-2.5 flex flex-wrap justify-between items-center gap-2 shadow-sm sticky top-0 z-10";
+    header.className = Tracker._TEMPLATES.headerClass;
 
     const todayFormatted = new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
     const sortOptionsHTML = this.options.sortOptions
-      .map(opt => `<option value="${opt.value}" ${this.currentSort === opt.value ? "selected" : ""}>Sort: ${opt.label}</option>`)
+      .map(opt => Tracker._TEMPLATES.sortOption(opt, this.currentSort === opt.value))
       .join("");
 
-    header.innerHTML = this._getHeaderHTML(this.title, todayFormatted, sortOptionsHTML, this.id);
+    header.innerHTML = Tracker._TEMPLATES.header(this.title, todayFormatted, sortOptionsHTML, this.id);
 
     const main = document.createElement("main");
-    main.className = "w-full flex-grow overflow-y-auto px-3 py-4";
+    main.className = Tracker._TEMPLATES.mainClass;
 
     const mainCard = document.createElement("section");
-    mainCard.className = "w-full bg-white rounded-lg border border-slate-200 shadow-sm p-3.5 space-y-4";
-    mainCard.id = `main-card-${this.id}`;
+    mainCard.className = Tracker._TEMPLATES.mainCardClass;
+    mainCard.id = Tracker._TEMPLATES.mainCardId(this.id);
 
     this.renderTaskListContainer(mainCard);
     main.appendChild(mainCard);
@@ -416,14 +197,14 @@ class Tracker {
 
     const sectionWrapper = document.createElement("div");
     const sectionHeader = document.createElement("div");
-    sectionHeader.className = "flex items-center justify-between pb-1.5 mb-2";
+    sectionHeader.className = Tracker._TEMPLATES.sectionHeaderClass;
 
     const sectionTitle = document.createElement("h2");
-    sectionTitle.className = "text-[10px] font-bold uppercase tracking-wider text-slate-400";
+    sectionTitle.className = Tracker._TEMPLATES.sectionTitleClass;
     sectionTitle.textContent = `Sorted by ${this.currentSort}`;
 
     const sectionCount = document.createElement("span");
-    sectionCount.className = "text-[10px] font-medium text-slate-400";
+    sectionCount.className = Tracker._TEMPLATES.sectionCountClass;
     sectionCount.textContent = `${tasksCopy.length} ${tasksCopy.length === 1 ? "task" : "tasks"}`;
 
     sectionHeader.appendChild(sectionTitle);
@@ -431,7 +212,7 @@ class Tracker {
     sectionWrapper.appendChild(sectionHeader);
 
     const ul = document.createElement("ul");
-    ul.className = "space-y-1.5";
+    ul.className = Tracker._TEMPLATES.listClass;
 
     tasksCopy.forEach((taskItem, index) => {
       ul.appendChild(this.createTaskListItem(
@@ -449,10 +230,8 @@ class Tracker {
     const colors = this.objectiveColors[objectiveKey] || this.objectiveColors.default;
     const id = `task-${this.id}-${index}`;
     const li = document.createElement("li");
-    li.className = `flex items-start justify-between p-2 rounded-md border transition ${
-      isDisabled ? "opacity-50 bg-slate-50 border-slate-100 cursor-not-allowed" : "bg-white border-slate-200/80 hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
-    }`;
-    li.innerHTML = this._getTaskItemHTML(id, taskName, taskType, taskDesc, isDisabled, colors, sectionName, isAlwaysChecked);
+    li.className = Tracker._TEMPLATES.listItemClass(isDisabled);
+    li.innerHTML = Tracker._TEMPLATES.taskItem(id, taskName, taskType, taskDesc, isDisabled, colors, sectionName, isAlwaysChecked);
 
     const checkbox = li.querySelector('input[type="checkbox"]');
     const checkIcon = li.querySelector("svg");
@@ -498,7 +277,7 @@ class Tracker {
       else if (ratio >= 0.75) colorClasses = "bg-sky-500/20 text-sky-300 border-sky-500/40";
       else if (ratio >= 0.4) colorClasses = "bg-amber-500/20 text-amber-300 border-amber-500/40";
       else if (completed > 0) colorClasses = "bg-rose-500/20 text-rose-300 border-rose-500/40";
-      badge.className = `text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors duration-300 ${colorClasses}`;
+      badge.className = Tracker._TEMPLATES.badgeClass(colorClasses);
     }
   }
 
@@ -589,23 +368,76 @@ class Tracker {
   }
 }
 
-(function () {
-  "use strict";
-  const scriptTag = document.currentScript;
-  if (scriptTag) {
-    const src = scriptTag.getAttribute("src");
-    try {
-      const url = new URL(src, window.location.origin);
-      const btnId = url.searchParams.get("id");
-      if (btnId) window.currentTrackerInstance = new Tracker(btnId);
-    } catch (e) {
-      const match = src && src.match(/[?&]id=([^&]+)/);
-      if (match) window.currentTrackerInstance = new Tracker(match[1]);
-    }
-  }
-})();
-
 class Config {
+  // --- UI & HTML Templates ---
+  static get _TEMPLATES() {
+    return {
+      overlayClass: "hidden fixed inset-0 z-[60] bg-black/40",
+      panelClass: "hidden fixed inset-0 z-[70] flex items-center justify-center p-6 overflow-y-auto",
+      modalBox: (origin) => `
+        <div class="max-w-3xl w-full bg-zinc-900/0 border border-white/15 backdrop-blur-md rounded-2xl p-6 space-y-6 shadow-2xl relative">
+          <button id="configCloseBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 transition">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+
+          <div class="border-b border-white/10 pb-4">
+            <h2 class="text-lg font-bold text-white mb-1">Configuration</h2>
+            <p class="text-xs text-slate-400">Enter your Google Drive and Supabase credentials.</p>
+          </div>
+
+          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
+            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
+              <i class="fa-solid fa-shield-halved text-indigo-400"></i> Google Drive & Encryption
+            </h3>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Google Client ID</label>
+                <input id="clientIdInput" name="gdrive_oauth_client_id" type="text" placeholder="123456789-abc.apps.googleusercontent.com"
+                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+                <p class="text-[10px] text-slate-400 mt-1">
+                  Current origin: <code id="originLabel" class="text-indigo-300">${origin}</code>
+                </p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Private Encryption Key / Password</label>
+                <input id="secretKeyInput" name="gdrive_encryption_password" type="password" placeholder="Enter a secure encryption passphrase"
+                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+                <p class="text-[10px] text-slate-400 mt-1">Required to encrypt/decrypt secure uploads.</p>
+              </div>
+            </div>
+          </div>
+      
+          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
+            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
+              <i class="fa-solid fa-bolt text-emerald-400"></i> Supabase Credentials
+            </h3>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Project URL</label>
+                <input type="text" name="sb_url" placeholder="https://xxxxx.supabase.co" 
+                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Anon Public Key</label>
+                <input type="text" name="sb_key" placeholder="eyJhbGciOiJIUzI1NiIsIn..." 
+                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+              </div>
+              <div class="lg:col-span-2">
+                <label class="block text-xs font-medium text-slate-300 mb-1">Storage Bucket Name</label>
+                <input type="text" name="sb_bucket" placeholder="files" value="files" data-default="files"
+                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
+              </div>
+            </div>
+          </div>
+      
+          <div class="pt-2 flex justify-end gap-3">
+            <button id="configCancelBtn" class="px-5 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button>
+            <button id="configSaveBtn" class="px-5 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">Save & Connect</button>
+          </div>
+        </div>`
+    };
+  }
+
   constructor(btnId) {
     this.btnId = btnId;
     this.panelId = "configPanel";
@@ -626,104 +458,18 @@ class Config {
     document.getElementById(this.panelId)?.classList.add("hidden");
   }
 
-  _getConfigPanelHTML() {
-    return `
-      <div class="max-w-4xl w-full bg-zinc-900/0 border border-white/15 backdrop-blur-md rounded-2xl p-6 space-y-6 shadow-2xl relative">
-        <button id="configCloseBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 transition">
-          <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
-
-        <div class="border-b border-white/10 pb-4">
-          <h2 class="text-lg font-bold text-white mb-1">Configuration</h2>
-          <p class="text-xs text-slate-400">Enter your Google Drive, Supabase, and Firebase credentials.</p>
-        </div>
-
-        <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
-          <h3 class="font-semibold text-sm text-white flex items-center gap-2">
-            <i class="fa-solid fa-shield-halved text-indigo-400"></i> Google Drive & Encryption
-          </h3>
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Google Client ID</label>
-              <input id="clientIdInput" name="gdrive_oauth_client_id" type="text" placeholder="123456789-abc.apps.googleusercontent.com"
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-              <p class="text-[10px] text-slate-400 mt-1">
-                Current origin: <code id="originLabel" class="text-indigo-300">${window.location.origin}</code>
-              </p>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Private Encryption Key / Password</label>
-              <input id="secretKeyInput" name="gdrive_encryption_password" type="password" placeholder="Enter a secure encryption passphrase"
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-              <p class="text-[10px] text-slate-400 mt-1">Required to encrypt/decrypt secure uploads.</p>
-            </div>
-          </div>
-        </div>
-    
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
-            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
-              <i class="fa-solid fa-bolt text-emerald-400"></i> Supabase Credentials
-            </h3>
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Project URL</label>
-              <input type="text" name="sb_url" placeholder="https://xxxxx.supabase.co" 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Anon Public Key</label>
-              <input type="text" name="sb_key" placeholder="eyJhbGciOiJIUzI1NiIsIn..." 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Storage Bucket Name</label>
-              <input type="text" name="sb_bucket" placeholder="files" value="files" data-default="files"
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-          </div>
-    
-          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">
-            <h3 class="font-semibold text-sm text-white flex items-center gap-2">
-              <i class="fa-solid fa-fire text-amber-400"></i> Firebase Credentials
-            </h3>
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Firebase API Key (<code class="text-[11px] text-indigo-300">apiKey</code>)</label>
-              <input type="text" name="fb_apikey" placeholder="AIzaSy..." 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Project ID (<code class="text-[11px] text-indigo-300">projectId</code>)</label>
-              <input type="text" name="fb_projectid" placeholder="my-firebase-project" 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">App ID (<code class="text-[11px] text-indigo-300">appId</code>)</label>
-              <input type="text" name="fb_appid" placeholder="1:123456789:web:abc123" 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">
-            </div>
-          </div>
-        </div>
-    
-        <div class="pt-2 flex justify-end gap-3">
-          <button id="configCancelBtn" class="px-5 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button>
-          <button id="configSaveBtn" class="px-5 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">Save & Connect</button>
-        </div>
-      </div>
-    `;
-  }
-
   #createPanel() {
     document.getElementById(this.overlayId)?.remove();
     document.getElementById(this.panelId)?.remove();
 
     const overlay = document.createElement("div");
     overlay.id = this.overlayId;
-    overlay.className = "hidden fixed inset-0 z-[60] bg-black/40";
+    overlay.className = Config._TEMPLATES.overlayClass;
 
     const panel = document.createElement("div");
     panel.id = this.panelId;
-    panel.className = "hidden fixed inset-0 z-[70] flex items-center justify-center p-6 overflow-y-auto";
-    panel.innerHTML = this._getConfigPanelHTML();
+    panel.className = Config._TEMPLATES.panelClass;
+    panel.innerHTML = Config._TEMPLATES.modalBox(window.location.origin);
 
     document.body.appendChild(overlay);
     document.body.appendChild(panel);
@@ -769,4 +515,19 @@ class Config {
   }
 }
 
+(function () {
+  "use strict";
+  const scriptTag = document.currentScript;
+  if (scriptTag) {
+    const src = scriptTag.getAttribute("src");
+    try {
+      const url = new URL(src, window.location.origin);
+      const btnId = url.searchParams.get("id");
+      if (btnId) window.currentTrackerInstance = new Tracker(btnId);
+    } catch (e) {
+      const match = src && src.match(/[?&]id=([^&]+)/);
+      if (match) window.currentTrackerInstance = new Tracker(match[1]);
+    }
+  }
+})();
 new Config("navSettingsTab");
