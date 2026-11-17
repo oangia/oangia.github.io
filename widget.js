@@ -239,10 +239,11 @@ class Tracker {
     this.title = title;
     this.storageKey = options.storageKey || "daily_tasks_status";
     this.tasks = tasks || [
-      { name: "Learn songs", type: "daily", desc: "Learn as much as possible", priority: 0, timeline: 2, section: "Music", objective: "useful" },
-      { name: "Exercise", type: "daily", priority: 1, timeline: 0, section: "Foundation", objective: "healthy" },
-      { name: "Reading", type: "daily", desc: "Try to understand how girls, social, the world work", priority: 2, timeline: 1, section: "Foundation", objective: "useful" },
-      { name: "Fun", type: "daily", desc: "Having fun is the extension, practice singing, social/girls", priority: 3, timeline: 3, section: "Fun", objective: "fun", alwaysChecked: true }
+      { name: "Learn songs", type: "daily", desc: "Learn as much as possible", priority: 0, timeline: 3, section: "Music", objective: "useful" },
+      { name: "Practice singing", type: "daily", priority: 1, timeline: 1, section: "Music", objective: "useful" },
+      { name: "Reading", type: "daily", desc: "Try to understand how girls, social, the world work", priority: 2, timeline: 2, section: "Foundation", objective: "useful" },
+      { name: "Social", type: "daily", desc: "Be less annoying", priority: 4, timeline: 3, section: "Foundation", objective: "useful", alwaysChecked: true },
+      { name: "Exercise", type: "daily", priority: 4, timeline: 0, section: "Foundation", objective: "healthy" }
     ];
     this.options = {
       defaultSort: options.defaultSort || "timeline",
@@ -257,9 +258,7 @@ class Tracker {
     this.currentSort = this.options.defaultSort;
     this.objectiveColors = {
       healthy: { border: "border-emerald-500", bg: "peer-checked:bg-emerald-600", badge: "text-emerald-700 bg-emerald-50 border border-emerald-200" },
-      useful: { border: "border-sky-500", bg: "peer-checked:bg-sky-600", badge: "text-sky-700 bg-sky-50 border border-sky-200" },
-      fun: { border: "border-amber-400", bg: "peer-checked:bg-amber-500", badge: "text-amber-700 bg-amber-50 border border-amber-200" },
-      default: { border: "border-slate-300", bg: "peer-checked:bg-slate-600", badge: "text-slate-700 bg-slate-50 border border-slate-200" }
+      useful: { border: "border-sky-500", bg: "peer-checked:bg-sky-600", badge: "text-sky-700 bg-sky-50 border border-sky-200" }
     };
     this.init();
   }
