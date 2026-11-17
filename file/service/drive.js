@@ -2,8 +2,7 @@ class DriveStorageService {
   constructor(config = {}) {
     this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     this.passphrase = localStorage.getItem("gdrive_encryption_password") || config.gdrive_encryption_password;
-    
-    this._bucket = localStorage.getItem("sb_bucket") || config.bucket || "Google Drive Vault";
+
     this.token = localStorage.getItem("gdrive_access_token") || null;
     this.tokenExpiry = localStorage.getItem("gdrive_token_expiry") || null;
     
@@ -14,11 +13,7 @@ class DriveStorageService {
     this.tokenClient = null;
     this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
   }
-
-  get bucket() {
-    return this._bucket;
-  }
-
+  
   init(config = {}) {
     const savedClientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     if (savedClientId) this.clientId = savedClientId;
@@ -110,57 +105,6 @@ class DriveStorageService {
   _headers(extra = {}) {
     if (!this.token) throw new Error("Not authenticated. Please click 'Connect Drive'.");
     return { Authorization: `Bearer ${this.token}`, ...extra };
-  }
-
-  async _getCryptoKey(passphrase) {
-    const enc = new TextEncoder();
-    const keyMaterial = await window.crypto.subtle.importKey(
-      "raw",
-      enc.encode(passphrase),
-      { name: "PBKDF2" },
-      false,
-      ["deriveKey"]
-    );
-    const salt = enc.encode("DriveManagerSecureSalt123");
-    return window.crypto.subtle.deriveKey(
-      { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
-      keyMaterial,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt", "decrypt"]
-    );
-  }
-
-  async _encryptText(text, passphrase) {
-    const key = await this._getCryptoKey(passphrase);
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const encoded = new TextEncoder().encode(text);
-    const ciphertext = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, encoded);
-    
-    const combined = new Uint8Array(iv.byteLength + ciphertext.byteLength);
-    combined.set(iv, 0);
-    combined.set(new Uint8Array(ciphertext), iv.byteLength);
-    
-    let binary = '';
-    for (let i = 0; i < combined.byteLength; i++) {
-      binary += String.fromCharCode(combined[i]);
-    }
-    return btoa(binary);
-  }
-
-  async _decryptText(base64Cipher, passphrase) {
-    const key = await this._getCryptoKey(passphrase);
-    const binary = atob(base64Cipher);
-    const combined = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      combined[i] = binary.charCodeAt(i);
-    }
-    
-    const iv = combined.slice(0, 12);
-    const ciphertext = combined.slice(12);
-    
-    const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, ciphertext);
-    return new TextDecoder().decode(decrypted);
   }
 
   async _resolveFolderId(pathString) {
