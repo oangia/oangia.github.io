@@ -85,7 +85,7 @@ class ItemsGridRenderer {
       if ((file.isImage() && previewEl instanceof HTMLImageElement)
         || (file.isVideo() && previewEl instanceof HTMLVideoElement)) {
         file.loadPreviewMedia(previewEl).catch(error => {
-          console.error("Failed to load file thumbnail:", error);
+          console.error("Failed to load file preview:", error);
         });
       }
     }
