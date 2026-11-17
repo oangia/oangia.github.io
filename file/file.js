@@ -18,18 +18,18 @@ class ItemsGridRenderer {
         <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
           <i class="fa-solid fa-folder text-5xl"></i>
         </div>`,
-      fileIcon: (iconClass) => `
+      fileIcon: (file) => `
         <div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors">
-          <i class="${iconClass} text-3xl"></i>
+          <i class="${file.getFileIconClass()} text-3xl"></i>
         </div>`,
-      card: (mediaHTML, name, subtext, isFolder) => `
+      card: (file, mediaHTML) => `
         <button class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full bg-black/50 hover:bg-red-500 text-white transition" title="Delete">
           <i class="fa-solid fa-xmark text-[10px]"></i>
         </button>
         ${mediaHTML}
         <div class="w-full pt-2 border-t border-white/20 flex flex-col">
-          <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
-          <span class="text-[9px] text-slate-300 font-mono mt-0.5">${isFolder ? (subtext || 'Folder') : subtext}</span>
+          <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(file.getDisplayName())}">${escapeHtml(file.getDisplayName())}</span>
+          <span class="text-[9px] text-slate-300 font-mono mt-0.5">${file.isFolderNode() ? (file.getSubtext() || 'Folder') : file.getSubtext()}</span>
         </div>`,
     };
   }
@@ -52,19 +52,15 @@ class ItemsGridRenderer {
     }
 
     for (const file of items) {
-      const sizeStr = file.getSubtext();
-      const isFolder = file.isFolderNode();
-      const name = file.getDisplayName();
-      
       const card = document.createElement("div");
       card.className = ItemsGridRenderer._TEMPLATES.cardClass;
       card.onclick = () => this.onItemClick(file);
       
-      const mediaHTML = isFolder 
+      const mediaHTML = file.isFolderNode()
         ? ItemsGridRenderer._TEMPLATES.folderIcon 
-        : ItemsGridRenderer._TEMPLATES.fileIcon(file.getFileIconClass());
+        : ItemsGridRenderer._TEMPLATES.fileIcon(file);
 
-      card.innerHTML = ItemsGridRenderer._TEMPLATES.card(mediaHTML, name, sizeStr, isFolder);
+      card.innerHTML = ItemsGridRenderer._TEMPLATES.card(file, mediaHTML);
 
       const deleteBtn = card.querySelector(".delete-btn");
       if (deleteBtn) {
@@ -134,7 +130,13 @@ class FilePreviewManager {
           <i class="fa-solid fa-spinner fa-spin text-xl text-indigo-400"></i>
           <p class="text-xs">Loading info...</p>
         </div>`,
-      sidebarContent: ({ displayName, fileSize, formattedBytes, url, pathHash, fullPath }) => `
+      sidebarContent: ({ fileRecord, fileSize }) => {
+        const displayName = fileRecord.getDisplayName();
+        const url = fileRecord.getUrl();
+        const pathHash = fileRecord.hash_filename;
+        const fullPath = fileRecord.getFullPath();
+        const formattedBytes = fileSize ? new FileRecord({ size: fileSize }).getFormattedSize() : "Unknown";
+        return `
         <div class="space-y-4 text-xs wire-subtext">
           <div>
             <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Name</span>
@@ -173,13 +175,14 @@ class FilePreviewManager {
               </button>
             </div>
           </div>
-        </div>`,
-      imageBody: (url, displayName) => `<img src="${url}" alt="${escapeHtml(displayName)}" class="max-w-full h-full shadow-md object-contain">`,
-      videoBody: (url) => `<video controls class="max-w-full max-h-[70vh] rounded-lg shadow-md wire-border" src="${url}"></video>`,
-      audioBody: (url, displayName) => `
+        </div>`;
+      },
+      imageBody: (fileRecord) => `<img src="${fileRecord.getUrl()}" alt="${escapeHtml(fileRecord.getDisplayName())}" class="max-w-full h-full shadow-md object-contain">`,
+      videoBody: (fileRecord) => `<video controls class="max-w-full max-h-[70vh] rounded-lg shadow-md wire-border" src="${fileRecord.getUrl()}"></video>`,
+      audioBody: (fileRecord) => `
         <div class="w-full max-w-lg text-center">
-          <audio controls class="w-full mb-3" src="${url}"></audio>
-          <p class="text-xs wire-text">${escapeHtml(displayName)}</p>
+          <audio controls class="w-full mb-3" src="${fileRecord.getUrl()}"></audio>
+          <p class="text-xs wire-text">${escapeHtml(fileRecord.getDisplayName())}</p>
         </div>`,
       htmlBody: (text) => `
         <div class="flex flex-col h-full w-full">
@@ -268,27 +271,19 @@ class FilePreviewManager {
       const blob = await res.blob();
       const fileSize = blob.size;
 
-      let pathHash = fileRecord.hash_filename;
-      if (!pathHash) {
+      if (!fileRecord.hash_filename) {
         await fileRecord.hashFullpath();
-        pathHash = fileRecord.hash_filename;
       }
 
       fileRecord._url = url;
       await fileRecord.hashContent(url);
 
       const displayName = fileRecord.getDisplayName();
-      const fullPath = fileRecord.getFullPath();
-      const formattedBytes = fileSize ? new FileRecord({ size: fileSize }).getFormattedSize() : "Unknown";
 
       if (sidebar) {
         sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarContent({
-          displayName,
-          fileSize,
-          formattedBytes,
-          url,
-          pathHash,
-          fullPath
+          fileRecord,
+          fileSize
         });
 
         const hashBtn = sidebar.querySelector(".content-hash");
@@ -299,11 +294,11 @@ class FilePreviewManager {
 
       // Render correct body type & show Save/Cancel buttons for editable file formats (Text / HTML)
       if (fileRecord.isImage()) {
-        body.innerHTML = FilePreviewManager._TEMPLATES.imageBody(url, displayName);
+        body.innerHTML = FilePreviewManager._TEMPLATES.imageBody(fileRecord);
       } else if (fileRecord.isVideo()) {
-        body.innerHTML = FilePreviewManager._TEMPLATES.videoBody(url);
+        body.innerHTML = FilePreviewManager._TEMPLATES.videoBody(fileRecord);
       } else if (fileRecord.isAudio()) {
-        body.innerHTML = FilePreviewManager._TEMPLATES.audioBody(url, displayName);
+        body.innerHTML = FilePreviewManager._TEMPLATES.audioBody(fileRecord);
       } else if (fileRecord.isHtml()) {
         const text = await blob.text();
         body.innerHTML = FilePreviewManager._TEMPLATES.htmlBody(text);
