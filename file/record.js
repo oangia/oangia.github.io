@@ -355,16 +355,21 @@ class FileRecord {
       : await FileRecord.getFileUrl(this._full_path, expiresIn);
   }
 
-  async loadThumbnail(element, expiresIn = 60) {
+  async loadPreviewMedia(element, expiresIn = 60) {
     const { data, error } = await this.fetchSignedUrl(expiresIn);
     if (error) throw error;
     if (!data?.signedUrl) throw new Error(`No signed URL available for ${this.getFullPath()}.`);
 
-    element.loading = "lazy";
-    element.src = data.signedUrl;
-    element.alt = this.getDisplayName();
-    //image.className = "w-full h-full object-cover rounded-lg";
+    if (element instanceof HTMLImageElement) {
+      element.loading = "lazy";
+      element.alt = this.getDisplayName();
+    } else if (element instanceof HTMLVideoElement) {
+      element.preload = "metadata";
+    } else {
+      throw new TypeError("Preview media element must be an image or video.");
+    }
 
+    element.src = data.signedUrl;
   }
 
   /**
