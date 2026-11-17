@@ -1,4 +1,41 @@
 class ItemsGridRenderer {
+  // --- UI & HTML Templates ---
+  static get _TEMPLATES() {
+    return {
+      containerClass: "grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 p-4",
+      cardClass: `
+        group relative bg-transparent border border-white/20 hover:border-indigo-400 
+        rounded-xl p-3 flex flex-col items-center justify-between text-center 
+        cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 
+        aspect-square overflow-hidden
+      `,
+      emptyState: `
+        <div class="col-span-full py-16 text-center text-slate-400 text-sm">
+          <i class="fa-regular fa-folder-open text-3xl mb-3 block opacity-90 hover:opacity-100"></i>
+          No items found
+        </div>`,
+      folderIcon: `
+        <div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-folder text-5xl"></i>
+        </div>`,
+      fileIcon: (previewContainerId, iconClass) => `
+        <div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors">
+          <i class="${iconClass} text-3xl"></i>
+        </div>`,
+      card: (mediaHTML, name, subtext, isFolder) => `
+        <button class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full bg-black/50 hover:bg-red-500 text-white transition" title="Delete">
+          <i class="fa-solid fa-xmark text-[10px]"></i>
+        </button>
+        ${mediaHTML}
+        <div class="w-full pt-2 border-t border-white/20 flex flex-col">
+          <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+          <span class="text-[9px] text-slate-300 font-mono mt-0.5">${isFolder ? (subtext || 'Folder') : subtext}</span>
+        </div>`,
+      thumbnail: (signedUrl, name) => `
+        <img src="${signedUrl}" alt="${escapeHtml(name)}" class="w-full h-full object-cover rounded-lg" />`
+    };
+  }
+
   constructor(containerId, options = {}) {
     this.container = document.getElementById(containerId);
     this.onItemClick = options.onItemClick || (() => {});
@@ -8,15 +45,11 @@ class ItemsGridRenderer {
   async render(items, currentPath) {
     if (!this.container) return;
     
-    this.container.className = "grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 p-4";
+    this.container.className = ItemsGridRenderer._TEMPLATES.containerClass;
     this.container.innerHTML = "";
     
     if (!items || items.length === 0) {
-      this.container.innerHTML = `
-        <div class="col-span-full py-16 text-center text-slate-400 text-sm">
-          <i class="fa-regular fa-folder-open text-3xl mb-3 block opacity-90 hover:opacity-100"></i>
-          No items found
-        </div>`;
+      this.container.innerHTML = ItemsGridRenderer._TEMPLATES.emptyState;
       return;
     }
 
@@ -26,44 +59,17 @@ class ItemsGridRenderer {
       const sizeStr = file.getSubtext();
       const isFolder = file.isFolderNode();
       const name = file.getDisplayName();
-      
-      const card = document.createElement("div");
-      card.className = `
-        group relative bg-transparent border border-white/20 hover:border-indigo-400 
-        rounded-xl p-3 flex flex-col items-center justify-between text-center 
-        cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 
-        aspect-square overflow-hidden
-      `;
-      card.onclick = () => this.onItemClick(file, file.getFullPath(), isFolder);
-      
       const previewContainerId = `thumb-${Math.random().toString(36).substring(2, 9)}`;
       
-      const mediaHTML = isFolder
-        ? `<div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-folder text-5xl"></i></div>`
-        : `<div id="${previewContainerId}" class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors">
-             <i class="${file.getFileIconClass()} text-3xl"></i>
-           </div>`;
+      const card = document.createElement("div");
+      card.className = ItemsGridRenderer._TEMPLATES.cardClass;
+      card.onclick = () => this.onItemClick(file, file.getFullPath(), isFolder);
       
-      card.innerHTML = `
-        <button 
-          class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 
-                 w-6 h-6 flex items-center justify-center rounded-full 
-                 bg-black/50 hover:bg-red-500 text-white transition"
-          title="Delete">
-          <i class="fa-solid fa-xmark text-[10px]"></i>
-        </button>
+      const mediaHTML = isFolder 
+        ? ItemsGridRenderer._TEMPLATES.folderIcon 
+        : ItemsGridRenderer._TEMPLATES.fileIcon(previewContainerId, file.getFileIconClass());
 
-        ${mediaHTML}
-
-        <div class="w-full pt-2 border-t border-white/20 flex flex-col">
-          <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(name)}">
-            ${escapeHtml(name)}
-          </span>
-          <span class="text-[9px] text-slate-300 font-mono mt-0.5">
-            ${isFolder ? (sizeStr || 'Folder') : sizeStr}
-          </span>
-        </div>
-      `;
+      card.innerHTML = ItemsGridRenderer._TEMPLATES.card(mediaHTML, name, sizeStr, isFolder);
 
       const deleteBtn = card.querySelector(".delete-btn");
       if (deleteBtn) {
@@ -82,7 +88,7 @@ class ItemsGridRenderer {
             if (!error && data?.signedUrl) {
               const thumbEl = document.getElementById(previewContainerId);
               if (thumbEl) {
-                thumbEl.innerHTML = `<img src="${data.signedUrl}" alt="${escapeHtml(name)}" class="w-full h-full object-cover rounded-lg" />`;
+                thumbEl.innerHTML = ItemsGridRenderer._TEMPLATES.thumbnail(data.signedUrl, name);
               }
             }
           } catch (e) {}
@@ -97,6 +103,90 @@ class ItemsGridRenderer {
 }
 
 class FilePreviewManager {
+  // --- UI & HTML Templates ---
+  static get _TEMPLATES() {
+    return {
+      loadingSpinner: `<div class="wire-subtext py-12 flex justify-center"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>`,
+      sidebarLoading: `
+        <div class="text-center py-10 space-y-2 wire-subtext">
+          <i class="fa-solid fa-spinner fa-spin text-xl text-indigo-400"></i>
+          <p class="text-xs">Loading info...</p>
+        </div>`,
+      sidebarContent: ({ displayName, fileSize, formattedBytes, url, pathHash, fullPath }) => `
+        <div class="space-y-4 text-xs wire-subtext">
+          <div>
+            <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Name</span>
+            <p class="wire-text font-medium break-all">${escapeHtml(displayName)}</p>
+          </div>
+          <div>
+            <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Size</span>
+            <p class="wire-text font-mono text-xs">${fileSize ? formattedBytes + ` (${fileSize} bytes)` : "Unknown"}</p>
+          </div>
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">Signed URL</span>
+              <div class="space-x-2">
+                <button onclick="navigator.clipboard.writeText('${escapeHtml(url)}'); showToast('URL copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy</button>
+                <a href="${escapeHtml(url)}" download="${escapeHtml(displayName)}" class="text-[11px] text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-download"></i> Download</a>
+              </div>
+            </div>
+            <div class="font-mono text-[9px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all max-h-16 overflow-y-auto">${escapeHtml(url)}</div>
+          </div>
+          <hr class="border-white/20">
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">1. Path Hash</span>
+              <button onclick="navigator.clipboard.writeText('${pathHash}'); showToast('Path hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
+            </div>
+            <div>
+              <span class="text-[10px] wire-subtext block mb-0.5">Exact string hashed: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">${escapeHtml(fullPath)}</code></span>
+              <div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${pathHash}</div>
+            </div>
+          </div>
+          <div class="space-y-3" id="hashesComputeContainer">
+            <div>
+              <span class="text-[10px] wire-subtext block mb-1">Content & Combined Hashes are uncalculated</span>
+              <button class="content-hash w-full py-2.5 bg-transparent hover:border-indigo-300 wire-border text-indigo-300 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-fingerprint"></i> Calculate Content & Combined Hashes
+              </button>
+            </div>
+          </div>
+        </div>`,
+      imageBody: (url, displayName) => `<img src="${url}" alt="${escapeHtml(displayName)}" class="max-w-full h-full shadow-md object-contain">`,
+      videoBody: (url) => `<video controls class="max-w-full max-h-[70vh] rounded-lg shadow-md wire-border" src="${url}"></video>`,
+      audioBody: (url, displayName) => `
+        <div class="w-full max-w-lg text-center">
+          <audio controls class="w-full mb-3" src="${url}"></audio>
+          <p class="text-xs wire-text">${escapeHtml(displayName)}</p>
+        </div>`,
+      htmlBody: (text) => `
+        <div class="flex flex-col h-full w-full">
+          <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 px-1">
+            <div class="flex items-center gap-1 bg-black/40 p-1 rounded wire-border text-xs">
+              <button type="button" id="htmlPreviewTab" class="px-3 py-1 rounded bg-indigo-600 text-white font-medium transition">Preview</button>
+              <button type="button" id="htmlEditorTab" class="px-3 py-1 rounded wire-subtext hover:text-white transition">Code Editor</button>
+            </div>
+            <span class="text-[11px] wire-subtext italic">HTML Interactive File</span>
+          </div>
+          <div id="htmlPreviewContainer" class="w-full h-[70vh] bg-white rounded-lg overflow-hidden wire-border">
+            <iframe id="htmlPreviewFrame" class="w-full h-full border-0" sandbox="allow-scripts allow-modals"></iframe>
+          </div>
+          <div id="htmlEditorContainer" class="w-full h-[70vh] hidden">
+            <textarea id="editTextarea" class="w-full h-full font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${escapeHtml(text)}</textarea>
+          </div>
+        </div>`,
+      textBody: (text) => `<textarea id="editTextarea" class="w-full h-[75vh] font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${escapeHtml(text)}</textarea>`,
+      errorBody: `
+        <div class="text-center space-y-4 py-12 wire-subtext">
+          <i class="fa-solid fa-file text-5xl"></i>
+          <p class="text-sm">Preview not available for this file type.</p>
+        </div>`,
+      sidebarError: `<p class="text-xs text-rose-400 p-2">Failed to load file details.</p>`,
+      activeTabClass: "px-3 py-1 rounded bg-indigo-600 text-white font-medium transition",
+      inactiveTabClass: "px-3 py-1 rounded wire-subtext hover:text-white transition"
+    };
+  }
+
   constructor(options = {}) {
     this.currentFileRecord = null;
     this.onToast = options.onToast || ((msg, type) => console.log(msg));
@@ -113,17 +203,8 @@ class FilePreviewManager {
     const modal = document.getElementById("modalPreview");
 
     if (title) title.textContent = fileRecord.getDisplayName() + (fileRecord.isEncryptedFile() ? " (Decrypted securely)" : "");
-    if (body) {
-      body.innerHTML = '<div class="wire-subtext py-12 flex justify-center"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>';
-    }
-    if (sidebar) {
-      sidebar.innerHTML = `
-        <div class="text-center py-10 space-y-2 wire-subtext">
-          <i class="fa-solid fa-spinner fa-spin text-xl text-indigo-400"></i>
-          <p class="text-xs">Loading info...</p>
-        </div>
-      `;
-    }
+    if (body) body.innerHTML = FilePreviewManager._TEMPLATES.loadingSpinner;
+    if (sidebar) sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarLoading;
     if (modal) modal.classList.remove("hidden");
 
     try {
@@ -149,47 +230,14 @@ class FilePreviewManager {
       const formattedBytes = fileSize ? new FileRecord({ size: fileSize }).getFormattedSize() : "Unknown";
 
       if (sidebar) {
-        sidebar.innerHTML = `
-          <div class="space-y-4 text-xs wire-subtext">
-            <div>
-              <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Name</span>
-              <p class="wire-text font-medium break-all">${escapeHtml(displayName)}</p>
-            </div>
-            <div>
-              <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Size</span>
-              <p class="wire-text font-mono text-xs">${fileSize ? formattedBytes + ` (${fileSize} bytes)` : "Unknown"}</p>
-            </div>
-            <div>
-              <div class="flex justify-between items-center mb-1">
-                <span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">Signed URL</span>
-                <div class="space-x-2">
-                  <button onclick="navigator.clipboard.writeText('${escapeHtml(url)}'); showToast('URL copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy</button>
-                  <a href="${escapeHtml(url)}" download="${escapeHtml(displayName)}" class="text-[11px] text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-download"></i> Download</a>
-                </div>
-              </div>
-              <div class="font-mono text-[9px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all max-h-16 overflow-y-auto">${escapeHtml(url)}</div>
-            </div>
-            <hr class="border-white/20">
-            <div class="space-y-1.5">
-              <div class="flex justify-between items-center">
-                <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">1. Path Hash</span>
-                <button onclick="navigator.clipboard.writeText('${pathHash}'); showToast('Path hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button>
-              </div>
-              <div>
-                <span class="text-[10px] wire-subtext block mb-0.5">Exact string hashed: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">${escapeHtml(fullPath)}</code></span>
-                <div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${pathHash}</div>
-              </div>
-            </div>
-            <div class="space-y-3" id="hashesComputeContainer">
-              <div>
-                <span class="text-[10px] wire-subtext block mb-1">Content & Combined Hashes are uncalculated</span>
-                <button class="content-hash w-full py-2.5 bg-transparent hover:border-indigo-300 wire-border text-indigo-300 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5">
-                  <i class="fa-solid fa-fingerprint"></i> Calculate Content & Combined Hashes
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
+        sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarContent({
+          displayName,
+          fileSize,
+          formattedBytes,
+          url,
+          pathHash,
+          fullPath
+        });
 
         const hashBtn = sidebar.querySelector(".content-hash");
         if (hashBtn) {
@@ -198,34 +246,14 @@ class FilePreviewManager {
       }
 
       if (fileRecord.isImage()) {
-        body.innerHTML = `<img src="${url}" alt="${escapeHtml(displayName)}" class="max-w-full h-full shadow-md object-contain">`;
+        body.innerHTML = FilePreviewManager._TEMPLATES.imageBody(url, displayName);
       } else if (fileRecord.isVideo()) {
-        body.innerHTML = `<video controls class="max-w-full max-h-[70vh] rounded-lg shadow-md wire-border" src="${url}"></video>`;
+        body.innerHTML = FilePreviewManager._TEMPLATES.videoBody(url);
       } else if (fileRecord.isAudio()) {
-        body.innerHTML = `
-          <div class="w-full max-w-lg text-center">
-            <audio controls class="w-full mb-3" src="${url}"></audio>
-            <p class="text-xs wire-text">${escapeHtml(displayName)}</p>
-          </div>`;
+        body.innerHTML = FilePreviewManager._TEMPLATES.audioBody(url, displayName);
       } else if (fileRecord.isHtml()) {
         const text = await blob.text();
-        body.innerHTML = `
-          <div class="flex flex-col h-full w-full">
-            <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 px-1">
-              <div class="flex items-center gap-1 bg-black/40 p-1 rounded wire-border text-xs">
-                <button type="button" id="htmlPreviewTab" class="px-3 py-1 rounded bg-indigo-600 text-white font-medium transition">Preview</button>
-                <button type="button" id="htmlEditorTab" class="px-3 py-1 rounded wire-subtext hover:text-white transition">Code Editor</button>
-              </div>
-              <span class="text-[11px] wire-subtext italic">HTML Interactive File</span>
-            </div>
-            <div id="htmlPreviewContainer" class="w-full h-[70vh] bg-white rounded-lg overflow-hidden wire-border">
-              <iframe id="htmlPreviewFrame" class="w-full h-full border-0" sandbox="allow-scripts allow-modals"></iframe>
-            </div>
-            <div id="htmlEditorContainer" class="w-full h-[70vh] hidden">
-              <textarea id="editTextarea" class="w-full h-full font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${escapeHtml(text)}</textarea>
-            </div>
-          </div>
-        `;
+        body.innerHTML = FilePreviewManager._TEMPLATES.htmlBody(text);
 
         const previewTab = document.getElementById("htmlPreviewTab");
         const editorTab = document.getElementById("htmlEditorTab");
@@ -238,18 +266,12 @@ class FilePreviewManager {
         }, 50);
       } else {
         const text = await blob.text();
-        body.innerHTML = `<textarea id="editTextarea" class="w-full h-[75vh] font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${escapeHtml(text)}</textarea>`;
+        body.innerHTML = FilePreviewManager._TEMPLATES.textBody(text);
       }
     } catch (err) {
       console.error(err);
-      if (body) {
-        body.innerHTML = `
-          <div class="text-center space-y-4 py-12 wire-subtext">
-            <i class="fa-solid fa-file text-5xl"></i>
-            <p class="text-sm">Preview not available for this file type.</p>
-          </div>`;
-      }
-      if (sidebar) sidebar.innerHTML = `<p class="text-xs text-rose-400 p-2">Failed to load file details.</p>`;
+      if (body) body.innerHTML = FilePreviewManager._TEMPLATES.errorBody;
+      if (sidebar) sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarError;
     }
   }
 
@@ -265,13 +287,13 @@ class FilePreviewManager {
       if (iframe && textarea) iframe.srcdoc = textarea.value;
       previewContainer?.classList.remove("hidden");
       editorContainer?.classList.add("hidden");
-      if (previewTab) previewTab.className = "px-3 py-1 rounded bg-indigo-600 text-white font-medium transition";
-      if (editorTab) editorTab.className = "px-3 py-1 rounded wire-subtext hover:text-white transition";
+      if (previewTab) previewTab.className = FilePreviewManager._TEMPLATES.activeTabClass;
+      if (editorTab) editorTab.className = FilePreviewManager._TEMPLATES.inactiveTabClass;
     } else {
       previewContainer?.classList.add("hidden");
       editorContainer?.classList.remove("hidden");
-      if (editorTab) editorTab.className = "px-3 py-1 rounded bg-indigo-600 text-white font-medium transition";
-      if (previewTab) previewTab.className = "px-3 py-1 rounded wire-subtext hover:text-white transition";
+      if (editorTab) editorTab.className = FilePreviewManager._TEMPLATES.activeTabClass;
+      if (previewTab) previewTab.className = FilePreviewManager._TEMPLATES.inactiveTabClass;
     }
   }
 
@@ -305,13 +327,26 @@ class FilePreviewManager {
 }
 
 class BreadcrumbManager {
+  // --- UI & HTML Templates ---
+  static get _TEMPLATES() {
+    return {
+      crumb: (name, isRoot) => isRoot 
+        ? `<i class="fa-solid fa-house mr-1 text-xs"></i><span>${escapeHtml(name)}</span>`
+        : `<span>${escapeHtml(name)}</span>`,
+      separatorClass: "opacity-50 mx-1",
+      crumbClass: (isLast) => (isLast ? "font-bold text-indigo-300 wire-text" : "wire-subtext hover:wire-text") + " inline-flex items-center"
+    };
+  }
+
   constructor(containerId, options = {}) {
     this.container = document.getElementById(containerId);
     this.onNavigate = options.onNavigate || (() => {});
     this.history = [{ path: "", name: "root" }];
     this.currentPath = "";
   }
+  
   get path() { return this.currentPath; }
+
   navigateToFolder(path, name) {
     if (this.currentPath === path) return;
     this.currentPath = path;
@@ -319,41 +354,42 @@ class BreadcrumbManager {
     this.render();
     this.onNavigate(this.currentPath);
   }
+
   jumpToBreadcrumb(index) {
     this.history = this.history.slice(0, index + 1);
     this.currentPath = this.history[this.history.length - 1].path;
     this.render();
     this.onNavigate(this.currentPath);
   }
+
   reset() {
     this.currentPath = "";
     this.history = [{ path: "", name: "root" }];
     this.render();
   }
+
   render() {
     if (!this.container) return;
     this.container.innerHTML = "";
     this.history.forEach((crumb, idx) => {
       const isLast = idx === this.history.length - 1;
       const btn = document.createElement("button");
-      btn.className = (isLast ? "font-bold text-indigo-300 wire-text" : "wire-subtext hover:wire-text") + " inline-flex items-center";
-      if (crumb.name.toLowerCase() === "root") {
-        btn.innerHTML = `<i class="fa-solid fa-house mr-1 text-xs"></i><span>${escapeHtml(crumb.name)}</span>`;
-      } else {
-        btn.textContent = crumb.name;
-      }
+      btn.className = BreadcrumbManager._TEMPLATES.crumbClass(isLast);
+      
+      const isRoot = crumb.name.toLowerCase() === "root";
+      btn.innerHTML = BreadcrumbManager._TEMPLATES.crumb(crumb.name, isRoot);
       btn.onclick = () => this.jumpToBreadcrumb(idx);
       this.container.appendChild(btn);
+
       if (!isLast) {
         const sep = document.createElement("span");
-        sep.className = "opacity-50 mx-1";
+        sep.className = BreadcrumbManager._TEMPLATES.separatorClass;
         sep.textContent = "/";
         this.container.appendChild(sep);
       }
     });
   }
 }
-
 class FileManager {
   constructor(config = {}) {
     this.allItems = [];
