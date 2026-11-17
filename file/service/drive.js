@@ -338,26 +338,6 @@ class DriveStorageService {
       }
 
       let uploadFile = file;
-      const currentPassphrase = localStorage.getItem("gdrive_encryption_password") || this.passphrase;
-      
-      if (currentPassphrase && fileName !== ".emptyFolderPlaceholder" && !fileName.endsWith(".enc")) {
-        const base64Data = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        const encryptedCipher = await this._encryptText(base64Data, currentPassphrase);
-        uploadFile = new File([encryptedCipher], fileName + ".enc", { type: "application/octet-stream" });
-      } else if (fileName === ".emptyFolderPlaceholder") {
-        uploadFile = new File([file], ".emptyFolderPlaceholder", { type: "text/plain" });
-      }
-
-      if (searchJson.files && searchJson.files.length > 0) {
-        for (const existing of searchJson.files) {
-          await fetch(`${this.apiBase}/${existing.id}`, { method: 'DELETE', headers: this._headers() });
-        }
-      }
 
       const metadata = { 
         name: uploadFile.name, 
@@ -376,21 +356,7 @@ class DriveStorageService {
       if (!res.ok) throw new Error((await res.json()).error?.message || 'Upload failed');
       
       const f = await res.json();
-      const cleanPath = path.replace(/^\/+|\/+$/g, '');
-
-      // Wrap upload response into a uniform FileRecord
-      const record = new FileRecord({
-        id: f.id,
-        name: f.name,
-        full_path: cleanPath,
-        size: Number(f.size || uploadFile.size || 0),
-        mimetype: f.mimeType,
-        url: f.webContentLink || null,
-        updated_at: f.modifiedTime ? new Date(f.modifiedTime).getTime() : Date.now(),
-        isFolder: false
-      });
-
-      return { data: record, error: null };
+      return { data: f, error: null };
     } catch (err) {
       return { data: null, error: err };
     }
