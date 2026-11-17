@@ -360,12 +360,11 @@ class FileRecord {
     if (error) throw error;
     if (!data?.signedUrl) throw new Error(`No signed URL available for ${this.getFullPath()}.`);
 
-    const image = document.createElement("img");
-    image.loading = "lazy";
-    image.src = data.signedUrl;
-    image.alt = this.getDisplayName();
+    element.loading = "lazy";
+    element.src = data.signedUrl;
+    element.alt = this.getDisplayName();
     //image.className = "w-full h-full object-cover rounded-lg";
-    element.replaceChildren(image);
+
   }
 
   /**
