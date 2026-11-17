@@ -80,7 +80,7 @@
         <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
           <i class="fa-solid fa-magnifying-glass text-xs"></i>
         </span>
-        <input type="text" id="searchInput" oninput="fileManager.renderView()" placeholder="Search files..." 
+        <input type="text" id="searchInput" placeholder="Search files..." 
                class="w-full pl-9 pr-4 py-1.5 bg-white/5 border border-white/20 text-white rounded-lg text-xs focus:outline-none focus:border-indigo-400 focus:bg-white/10 transition">
       </div>
     </div>
@@ -97,28 +97,35 @@
         </button>
 
         <div class="relative">
-          <button onclick="fileManager.toggleActionsMenu()" class="px-3 py-1.5 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400/60 hover:border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
+          <button id="actionsMenuToggleBtn" class="px-3 py-1.5 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400/60 hover:border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition">
             <i class="fa-solid fa-plus text-indigo-400"></i>
             <span>Actions</span>
             <i class="fa-solid fa-chevron-down text-[10px] ml-1 text-indigo-300"></i>
           </button>
           
-          <div id="actionsMenu" class="hidden absolute right-0 mt-1.5 w-52 bg-zinc-900/95 border border-white/20 shadow-xl shadow-black/80 backdrop-blur-md rounded-xl py-1 z-30 text-slate-200">
+          <div id="actionsMenu" class="hidden absolute right-0 mt-1.5 w-56 bg-zinc-900/95 border border-white/20 shadow-xl shadow-black/80 backdrop-blur-md rounded-xl py-1 z-30 text-slate-200">
             <label class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white cursor-pointer transition">
               <i class="fa-solid fa-file mr-2.5 text-indigo-400 w-4"></i>
               <span>Upload File(s)</span>
-              <input type="file" id="localFileUpload" multiple onchange="fileManager.handleFileUpload(event, false); fileManager.toggleActionsMenu();" class="hidden">
+              <input type="file" id="localFileUpload" multiple class="hidden">
+            </label>
+
+            <!-- Added: Encrypted File Upload -->
+            <label class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white cursor-pointer transition">
+              <i class="fa-solid fa-file-shield mr-2.5 text-purple-400 w-4"></i>
+              <span>Upload File (Encrypt)</span>
+              <input type="file" id="localEncryptedFileUpload" multiple class="hidden">
             </label>
 
             <label class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white cursor-pointer transition">
               <i class="fa-solid fa-folder-open mr-2.5 text-amber-400 w-4"></i>
               <span>Upload Folder</span>
-              <input type="file" id="localFolderUpload" webkitdirectory directory multiple onchange="fileManager.handleFileUpload(event, true); fileManager.toggleActionsMenu();" class="hidden">
+              <input type="file" id="localFolderUpload" webkitdirectory directory multiple class="hidden">
             </label>
 
             <div class="border-t border-white/10 my-1"></div>
 
-            <button onclick="fileManager.openCreateFolderModal(); fileManager.toggleActionsMenu();" class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white transition">
+            <button id="openCreateFolderModalBtn" class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white transition">
               <i class="fa-solid fa-folder-plus mr-2.5 text-amber-400 w-4"></i>
               <span>New Folder</span>
             </button>
@@ -129,11 +136,11 @@
             </button>
 
             <button id="openFolderManagerBtn" class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white transition">
-              <i class="fa-solid fa-folder text-emerald-400"></i>
+              <i class="fa-solid fa-folder text-emerald-400 mr-2.5 w-4"></i>
               <span>Folder</span>
             </button>
 
-            <button onclick="fileManager.createBackup(); fileManager.toggleActionsMenu();" id="backupBtn" class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white transition">
+            <button id="backupBtn" class="w-full text-left flex items-center px-4 py-2 text-xs hover:bg-white/10 hover:text-white transition">
               <i class="fa-solid fa-box-archive mr-2.5 text-emerald-400 w-4"></i>
               <span>Backup</span>
             </button>
@@ -186,8 +193,8 @@
                class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs focus:outline-none focus:border-indigo-400">
       </div>
       <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="fileManager.closeModals()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button>
-        <button onclick="fileManager.submitCreateFolder()" class="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">Create Folder</button>
+        <button id="closeCreateFolderModalBtn" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button>
+        <button id="submitCreateFolderBtn" class="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">Create Folder</button>
       </div>
     </div>
   </div>
@@ -197,7 +204,7 @@
     <div class="w-screen h-screen flex flex-col overflow-hidden m-0 p-0 text-slate-100">
       <div class="flex items-center justify-between px-6 py-3.5 border-b border-white/15 bg-black/40 shrink-0">
         <h3 id="previewTitle" class="font-bold text-sm text-white truncate"></h3>
-        <button onclick="fileManager.closeModals()" class="text-slate-400 hover:text-white p-1 text-lg transition">
+        <button id="closePreviewModalBtn" class="text-slate-400 hover:text-white p-1 text-lg transition">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -215,16 +222,16 @@
       </div>
   
       <div class="px-6 py-3.5 border-t border-white/15 bg-black/40 flex justify-end gap-2 flex-wrap shrink-0">
-        <button id="previewSaveBtn" onclick="fileManager.saveEditedText()" class="hidden px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg transition">
+        <button id="previewSaveBtn" class="hidden px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg transition">
           <i class="fa-solid fa-floppy-disk mr-1 text-emerald-400"></i> Save
         </button>
-        <button id="previewCancelEditBtn" onclick="fileManager.cancelEditText()" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">
+        <button id="previewCancelEditBtn" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">
           Cancel
         </button>
         <a id="previewDownloadBtn" href="#" download class="px-4 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg transition">
           <i class="fa-solid fa-download mr-1 text-indigo-400"></i> Download
         </a>
-        <button onclick="fileManager.closeModals()" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Close</button>
+        <button id="closePreviewModalBtnAlt" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Close</button>
       </div>
     </div>
   </div>
