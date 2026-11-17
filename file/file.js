@@ -649,11 +649,9 @@ class FileManager {
 document.addEventListener("click", (e) => {
   const menu = document.getElementById("actionsMenu");
   if (!menu) return;
-  if (!menu.contains(e.target) && !e.target.closest("button")?.getAttribute("onclick")?.includes("toggleActionsMenu")) {
-    menu.classList.add("hidden");
-  }
-  const actionsMenuDropdown = document.getElementById('actionsMenu');
-  const actionsMenuBtn = document.getElementById('actionsMenuToggleBtn');
+
+  const actionsMenuBtn = document.getElementById('actionsMenu');
+  const actionsMenuDropdown = document.getElementById('actionsMenuToggleBtn');
 
   if (actionsMenuBtn && actionsMenuDropdown) {
     // Toggle dropdown visibility on click
