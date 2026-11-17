@@ -499,7 +499,7 @@ class FileManager {
           targetPath += file.name;
         }
 
-        const { error } = await FileRecord.update(targetPath, file, { cacheControl: "3600", isEncrypted });
+        const { error } = await FileRecord.create(targetPath, file, { encrypt: isEncrypted });
         if (error) throw error;
 
         success++;
