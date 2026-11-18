@@ -43,10 +43,9 @@ class ItemsGridRenderer {
     };
   }
 
-  constructor(containerId, options = {}) {
+  constructor(containerId, fileManagerInstance) {
     this.container = document.getElementById(containerId);
-    this.onItemClick = options.onItemClick || (() => {});
-    this.onRefresh = options.onRefresh || (() => {});
+    this.fileManager = fileManagerInstance;
   }
   
   async render(items) {
@@ -63,7 +62,13 @@ class ItemsGridRenderer {
     for (const file of items) {
       const card = document.createElement("div");
       card.className = ItemsGridRenderer._TEMPLATES.cardClass;
-      card.onclick = () => this.onItemClick(file);
+      card.onclick = () => {
+        if (file.isFolderNode()) {
+          this.fileManager.breadcrumb.navigateToFolder(file.getFullPath(), file.getName());
+        } else {
+          this.fileManager.openPreview(file);
+        }
+      };
       
       const mediaHTML = file.isFolderNode()
         ? ItemsGridRenderer._TEMPLATES.folderIcon 
@@ -85,6 +90,7 @@ class ItemsGridRenderer {
       if ((file.isImage() && previewEl instanceof HTMLImageElement)
         || (file.isVideo() && previewEl instanceof HTMLVideoElement)) {
         file.loadPreviewMedia(previewEl).catch(error => {
+          if (error.name === "AbortError") return;
           console.error("Failed to load file preview:", error);
         });
       }
@@ -118,7 +124,7 @@ class ItemsGridRenderer {
       if (typeof showToast === "function") {
         showToast("Deleted successfully", "success");
       }
-      this.onRefresh();
+      this.fileManager.listFiles();
     } catch (err) {
       console.error(err);
       if (typeof showToast === "function") {
@@ -129,7 +135,6 @@ class ItemsGridRenderer {
 }
 
 class FilePreviewManager {
-  // --- UI & HTML Templates (Pure HTML / String Literals only — NO logic) ---
   static get _TEMPLATES() {
     return {
       modalHtml: `
@@ -177,7 +182,6 @@ class FilePreviewManager {
           <p class="text-xs">Loading info...</p>
         </div>`,
 
-      // Pure template receiving pre-computed strings
       sidebarContent: ({ displayName, url, pathHash, fullPath, sizeDisplay }) => `
         <div class="space-y-4 text-xs wire-subtext">
           <div>
@@ -284,10 +288,10 @@ class FilePreviewManager {
     };
   }
 
-  constructor(options = {}) {
+  constructor(fileManagerInstance) {
+    this.fileManager = fileManagerInstance;
     this.currentFileRecord = null;
-    this.onToast = options.onToast || ((msg, type) => console.log(msg));
-    this.onSaveSuccess = options.onSaveSuccess || (() => {});
+    this._currentBlobUrl = null;
     
     this._ensureModalInDOM();
     this._initModalListeners();
@@ -316,7 +320,6 @@ class FilePreviewManager {
   async openPreview(fileRecord) {
     this.currentFileRecord = fileRecord;
 
-    // Prevent memory leaks from previous blob URLs
     if (this._currentBlobUrl) {
       URL.revokeObjectURL(this._currentBlobUrl);
       this._currentBlobUrl = null;
@@ -346,7 +349,6 @@ class FilePreviewManager {
       const displayName = escapeHtml(fileRecord.getDisplayName());
       const escapedUrl = escapeHtml(this._currentBlobUrl);
 
-      // 1. Populate Sidebar
       if (sidebar) {
         sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarContent({
           displayName,
@@ -359,7 +361,6 @@ class FilePreviewManager {
         sidebar.querySelector(".content-hash")?.addEventListener("click", () => this.computeContentAndCombinedHashes(escapedUrl));
       }
 
-      // 2. Render Body
       if (fileRecord.isImage()) {
         body.innerHTML = FilePreviewManager._TEMPLATES.imageBody(escapedUrl, displayName);
       } else if (fileRecord.isVideo()) {
@@ -385,7 +386,6 @@ class FilePreviewManager {
         }
       }
 
-      // 3. Download Button
       const downloadBtn = document.getElementById("previewDownloadBtn");
       if (downloadBtn) {
         downloadBtn.href = escapedUrl;
@@ -420,7 +420,6 @@ class FilePreviewManager {
         throw new Error("Hash computation returned empty results.");
       }
 
-      // Compute and escape outside the template
       const rawCombinedString = escapeHtml(pathHash + contentHash);
       const byteLength = this.currentFileRecord._byteLength || "Unknown";
 
@@ -459,7 +458,7 @@ class FilePreviewManager {
     }
   }
 
-  async cancelEditText() {
+  cancelEditText() {
     if (this.currentFileRecord) {
       this.openPreview(this.currentFileRecord);
     }
@@ -475,16 +474,20 @@ class FilePreviewManager {
       
       await this.currentFileRecord.save(blob);
 
-      this.onToast("Changes saved successfully", "success", 2000);
-      this.onSaveSuccess();
+      if (typeof showToast === "function") {
+        showToast("Changes saved successfully", "success", 2000);
+      }
+      this.fileManager.listFiles();
     } catch (err) {
       console.error(err);
-      this.onToast(err.message || "Failed to save changes", "error", 2500);
+      if (typeof showToast === "function") {
+        showToast(err.message || "Failed to save changes", "error", 2500);
+      }
     }
   }
 }
+
 class BreadcrumbManager {
-  // --- UI & HTML Templates ---
   static get _TEMPLATES() {
     return {
       crumb: (name, isRoot) => isRoot 
@@ -495,9 +498,9 @@ class BreadcrumbManager {
     };
   }
 
-  constructor(containerId, options = {}) {
+  constructor(containerId, fileManagerInstance) {
     this.container = document.getElementById(containerId);
-    this.onNavigate = options.onNavigate || (() => {});
+    this.fileManager = fileManagerInstance;
     this.history = [{ path: "", name: "root" }];
     this.path = "";
   }
@@ -507,14 +510,14 @@ class BreadcrumbManager {
     this.path = path;
     this.history.push({ path, name });
     this.render();
-    this.onNavigate(this.path);
+    this.fileManager.listFiles();
   }
 
   jumpToBreadcrumb(index) {
     this.history = this.history.slice(0, index + 1);
     this.path = this.history[this.history.length - 1].path;
     this.render();
-    this.onNavigate(this.path);
+    this.fileManager.listFiles();
   }
 
   reset() {
@@ -546,30 +549,101 @@ class BreadcrumbManager {
   }
 }
 
+class CreateFolderModal {
+  constructor(fileManagerInstance) {
+    this.fileManager = fileManagerInstance;
+    this.injectHTML();
+    this.initListeners();
+  }
+
+  injectHTML() {
+    if (document.getElementById("modalCreateFolder")) return;
+
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `
+      <div id="modalCreateFolder" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4">
+        <div class="bg-zinc-900/80 border border-white/20 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+          <h3 class="font-bold text-base text-white">Create New Folder</h3>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Folder Name</label>
+            <input type="text" id="folderNameInput" placeholder="e.g. documents" 
+                   class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs focus:outline-none focus:border-indigo-400">
+          </div>
+          <div class="flex justify-end space-x-2 pt-2">
+            <button id="closeCreateFolderModalBtn" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button>
+            <button id="submitCreateFolderBtn" class="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">Create Folder</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrapper.firstElementChild);
+  }
+
+  initListeners() {
+    const openModalBtn = document.getElementById("openCreateFolderModalBtn");
+    const closeModalBtn = document.getElementById("closeCreateFolderModalBtn");
+    const submitModalBtn = document.getElementById("submitCreateFolderBtn");
+    const folderNameInput = document.getElementById("folderNameInput");
+
+    if (openModalBtn) openModalBtn.addEventListener("click", () => this.open());
+    if (closeModalBtn) closeModalBtn.addEventListener("click", () => this.close());
+    if (submitModalBtn) submitModalBtn.addEventListener("click", () => this.submit());
+
+    if (folderNameInput) {
+      folderNameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          this.submit();
+        }
+      });
+    }
+  }
+
+  open() {
+    const input = document.getElementById("folderNameInput");
+    const modal = document.getElementById("modalCreateFolder");
+    if (input) input.value = "";
+    if (modal) modal.classList.remove("hidden");
+    
+    document.getElementById("actionsMenuToggleBtn")?.classList.add("hidden");
+    if (input) setTimeout(() => input.focus(), 50);
+  }
+
+  close() {
+    const modal = document.getElementById("modalCreateFolder");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  async submit() {
+    const name = document.getElementById("folderNameInput")?.value.trim();
+    if (!name) return;
+
+    const currentPath = this.fileManager.breadcrumb.path;
+    const folderPath = currentPath
+      ? `${currentPath}/${name}/.emptyFolderPlaceholder`
+      : `${name}/.emptyFolderPlaceholder`;
+
+    try {
+      const { error } = await FileRecord.create(folderPath, new Blob([""]), { upsert: false });
+      if (error) throw error;
+
+      this.close();
+      if (typeof showToast === "function") showToast(`Folder "${name}" created`, "success");
+      this.fileManager.listFiles();
+    } catch (err) {
+      if (typeof showToast === "function") showToast(err.message || "Failed to create folder", "error");
+    }
+  }
+}
+
 class FileManager {
   constructor(config = {}) {
     this.allItems = [];
     this.filteredItems = [];
     
-    this.breadcrumb = new BreadcrumbManager("breadcrumbNav", {
-      onNavigate: () => this.listFiles()
-    });
-    this.gridRenderer = new ItemsGridRenderer("itemsGrid", {
-      onItemClick: (file) => {
-        if (file.isFolderNode()) {
-          this.breadcrumb.navigateToFolder(file.getFullPath(), file.getName());
-        } else {
-          this.openPreview(file);
-        }
-      },
-      onRefresh: () => this.listFiles()
-    });
-    this.filePreview = new FilePreviewManager({
-      onToast: (msg, type, duration) => showToast(msg, type, duration),
-      onSaveSuccess: () => this.listFiles()
-    });
-
-    // Initialize the self-contained folder modal module
+    this.breadcrumb = new BreadcrumbManager("breadcrumbNav", this);
+    this.gridRenderer = new ItemsGridRenderer("itemsGrid", this);
+    this.filePreview = new FilePreviewManager(this);
     this.createFolderModal = new CreateFolderModal(this);
 
     this.listFiles();
@@ -655,14 +729,6 @@ class FileManager {
 
   async openPreview(file) {
     await this.filePreview.openPreview(file);
-  }
-
-  cancelEditText() {
-    this.filePreview.cancelEditText();
-  }
-
-  async saveEditedText() {
-    await this.filePreview.saveEditedText();
   }
 
   async downloadFile(path, name) {
