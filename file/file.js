@@ -64,7 +64,7 @@ class ItemsGridRenderer {
       card.className = ItemsGridRenderer._TEMPLATES.cardClass;
       card.onclick = () => {
         if (file.isFolderNode()) {
-          this.fileManager.nagivate(file);
+          this.fileManager.navigate(file);
           //this.fileManager.breadcrumb.navigateToFolder(file.getFullPath(), file.getName());
         } else {
           this.fileManager.openPreview(file);
