@@ -338,16 +338,6 @@ class FileRecord extends FileEntity {
     return await this.getStorage().uploadById(id, file);
   }
 
-  static async destroy(paths) {
-    const pathArray = Array.isArray(paths) ? paths : [paths];
-    return await this.getStorage().remove(pathArray);
-  }
-
-  static async destroyById(ids) {
-    const idArray = Array.isArray(ids) ? ids : [ids];
-    return await this.getStorage().removeById(idArray);
-  }
-
   static async download(path, downloadName = null) {
     const fileName = downloadName || path.split("/").pop().replace(/\.enc$/, "");
     const url = await this.getUrl();
