@@ -280,95 +280,83 @@ class FilePreviewManager {
   async openPreview(fileRecord) {
     this.currentFileRecord = fileRecord;
 
+    // Prevent memory leaks from previous blob URLs
+    if (this._currentBlobUrl) {
+      URL.revokeObjectURL(this._currentBlobUrl);
+      this._currentBlobUrl = null;
+    }
+
     const title = document.getElementById("previewTitle");
     const body = document.getElementById("previewBody");
     const sidebar = document.getElementById("previewSidebarDetails");
-    const modal = document.getElementById("modalPreview");
     const saveBtn = document.getElementById("previewSaveBtn");
     const cancelBtn = document.getElementById("previewCancelEditBtn");
 
-    const encryptedSuffix = fileRecord.isEncryptedFile() ? " (Decrypted securely)" : "";
-    if (title) title.textContent = fileRecord.getDisplayName() + encryptedSuffix;
-    
+    if (title) title.textContent = fileRecord.getDisplayName() + (fileRecord.isEncryptedFile() ? " (Decrypted securely)" : "");
     if (body) body.innerHTML = FilePreviewManager._TEMPLATES.loadingSpinner;
     if (sidebar) sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarLoading;
-    if (modal) modal.classList.remove("hidden");
+    document.getElementById("modalPreview")?.classList.remove("hidden");
 
-    if (saveBtn) saveBtn.classList.add("hidden");
-    if (cancelBtn) cancelBtn.classList.add("hidden");
+    saveBtn?.classList.add("hidden");
+    cancelBtn?.classList.add("hidden");
 
     try {
       const response = await fileRecord.fetchContent(60);
-      
-      // 2. Extract the blob and compute the byte length
       const blob = await response.blob();
+      
       fileRecord._byteLength = blob.size;
-      
-      const url = URL.createObjectURL(blob);
-      // Perform all data processing and formatting cleanly OUTSIDE the template
-      const displayName = escapeHtml(fileRecord.getDisplayName());
-      const escapedUrl = escapeHtml(url);
-      const pathHash = fileRecord.hash_filename;
-      const fullPath = escapeHtml(fileRecord.getFullPath());
-      
-      const formattedBytes = fileSize ? new FileRecord({ size: fileSize }).getFormattedSize() : "Unknown";
-      const sizeDisplay = fileSize ? `${formattedBytes} (${fileSize} bytes)` : "Unknown";
+      this._currentBlobUrl = URL.createObjectURL(blob);
 
+      const displayName = escapeHtml(fileRecord.getDisplayName());
+      const escapedUrl = escapeHtml(this._currentBlobUrl);
+
+      // 1. Populate Sidebar
       if (sidebar) {
         sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarContent({
           displayName,
           url: escapedUrl,
-          pathHash,
-          fullPath,
-          sizeDisplay
+          pathHash: fileRecord.hash_filename || "",
+          fullPath: escapeHtml(fileRecord.getFullPath()),
+          sizeDisplay: fileRecord.getFormattedSize()
         });
 
-        const hashBtn = sidebar.querySelector(".content-hash");
-        if (hashBtn) {
-          hashBtn.addEventListener("click", () => {
-            this.computeContentAndCombinedHashes();
-          });
-        }
+        sidebar.querySelector(".content-hash")?.addEventListener("click", () => this.computeContentAndCombinedHashes());
       }
 
+      // 2. Render Body
       if (fileRecord.isImage()) {
         body.innerHTML = FilePreviewManager._TEMPLATES.imageBody(escapedUrl, displayName);
       } else if (fileRecord.isVideo()) {
         body.innerHTML = FilePreviewManager._TEMPLATES.videoBody(escapedUrl);
       } else if (fileRecord.isAudio()) {
         body.innerHTML = FilePreviewManager._TEMPLATES.audioBody(escapedUrl, displayName);
-      } else if (fileRecord.isHtml()) {
-        const text = await blob.text();
-        body.innerHTML = FilePreviewManager._TEMPLATES.htmlBody(escapeHtml(text));
-
-        const previewTab = document.getElementById("htmlPreviewTab");
-        const editorTab = document.getElementById("htmlEditorTab");
-        if (previewTab) previewTab.addEventListener("click", () => this.switchHtmlView("preview"));
-        if (editorTab) editorTab.addEventListener("click", () => this.switchHtmlView("editor"));
-
-        setTimeout(() => {
-          const iframe = document.getElementById("htmlPreviewFrame");
-          if (iframe) iframe.srcdoc = text;
-        }, 50);
-
-        if (saveBtn) saveBtn.classList.remove("hidden");
-        if (cancelBtn) cancelBtn.classList.add("hidden"); // Wait, keep logic clean
-        cancelBtn?.classList.remove("hidden");
       } else {
         const text = await blob.text();
-        body.innerHTML = FilePreviewManager._TEMPLATES.textBody(escapeHtml(text));
+        const escapedText = escapeHtml(text);
 
-        if (saveBtn) saveBtn.classList.remove("hidden");
-        if (cancelBtn) cancelBtn.classList.remove("hidden");
+        if (fileRecord.isHtml()) {
+          body.innerHTML = FilePreviewManager._TEMPLATES.htmlBody(escapedText);
+          document.getElementById("htmlPreviewTab")?.addEventListener("click", () => this.switchHtmlView("preview"));
+          document.getElementById("htmlEditorTab")?.addEventListener("click", () => this.switchHtmlView("editor"));
+          setTimeout(() => {
+            const iframe = document.getElementById("htmlPreviewFrame");
+            if (iframe) iframe.srcdoc = text;
+          }, 50);
+        } else {
+          body.innerHTML = FilePreviewManager._TEMPLATES.textBody(escapedText);
+          saveBtn?.classList.remove("hidden");
+          cancelBtn?.classList.remove("hidden");
+        }
       }
 
+      // 3. Download Button
       const downloadBtn = document.getElementById("previewDownloadBtn");
       if (downloadBtn) {
-        downloadBtn.href = url;
+        downloadBtn.href = escapedUrl;
         downloadBtn.setAttribute("download", fileRecord.getDisplayName());
       }
     } catch (err) {
-      console.error(err);
+      console.error("Preview failed:", err);
       if (body) body.innerHTML = FilePreviewManager._TEMPLATES.errorBody;
       if (sidebar) sidebar.innerHTML = FilePreviewManager._TEMPLATES.sidebarError;
     }
