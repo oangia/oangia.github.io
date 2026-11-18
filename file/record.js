@@ -40,7 +40,7 @@ class FileEntity {
   getName() { return this._name; }
   getFullPath() { return this._full_path; }
   getSize() { return this._size; }
-  getMimeType() { return this._mimetype; }
+  getMimeType() { return this._mime_type; }
   getUrl() { return this._url; }
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
