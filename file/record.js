@@ -421,9 +421,8 @@ class FileRecord extends FileEntity {
     const blob = await content.blob();
     const objectUrl = URL.createObjectURL(blob);
 
-    let previewVideo = null;
-    try {
-      if (isImage) {
+    if (isImage) {
+      try {
         const bitmap = await createImageBitmap(blob);
         try {
           element.loading = "lazy";
@@ -432,37 +431,17 @@ class FileRecord extends FileEntity {
         } finally {
           bitmap.close();
         }
-        return;
-      }
-
-      previewVideo = document.createElement("video");
-      previewVideo.muted = true;
-      previewVideo.preload = "auto";
-      await new Promise((resolve, reject) => {
-        previewVideo.addEventListener("loadeddata", resolve, { once: true });
-        previewVideo.addEventListener("error", () => {
-          reject(previewVideo.error || new Error("Failed to decode video preview."));
-        }, { once: true });
-        previewVideo.src = objectUrl;
-        previewVideo.load();
-      });
-
-      element.preload = "none";
-      element.poster = FileRecord._createPreviewDataUrl(
-        previewVideo,
-        previewVideo.videoWidth,
-        previewVideo.videoHeight
-      );
-    } finally {
-      if (previewVideo) {
-        previewVideo.pause();
-        previewVideo.removeAttribute("src");
-        previewVideo.load();
-      }
-      if (objectUrl && objectUrl.startsWith("blob:")) {
+      } finally {
+        // Safe to revoke immediately for images since createImageBitmap creates an independent bitmap
         URL.revokeObjectURL(objectUrl);
       }
+      return;
     }
+
+    // For video, assign the blob URL directly. 
+    // (Do not revoke objectUrl immediately so the video element can stream/play it)
+    element.preload = "auto";
+    element.src = objectUrl;
   }
 
   async downloadInstance() {
