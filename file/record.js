@@ -281,12 +281,13 @@ class FileRecord extends FileEntity {
       file,
       cleanBasePath ? `${cleanBasePath}/${file.name}` : file.name
     ));
+    console.log(fileRecords);
 
     return { data: fileRecords, error: null };
   }
 
   static _fromDriveMetadata(file, path) {
-    const isFolder = file.mimeType === "application/vnd.google-apps.folder";
+    const is_folder = file.mimeType === "application/vnd.google-apps.folder";
     return new FileRecord({
       id: file.id || null,
       name: file.name,
