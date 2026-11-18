@@ -298,21 +298,13 @@ class FilePreviewManager {
     if (cancelBtn) cancelBtn.classList.add("hidden");
 
     try {
-      const { data, error } = await fileRecord.fetchSignedUrl(60);
-      if (error) throw error;
-      const url = data.signedUrl;
-
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const fileSize = blob.size;
-      fileRecord._byteLength = fileSize;
-
-      if (!fileRecord.hash_filename) {
-        await fileRecord.hashFullpath();
-      }
-
-      fileRecord._url = url;
+      const response = await fileRecord.fetchContent(60);
       
+      // 2. Extract the blob and compute the byte length
+      const blob = await response.blob();
+      fileRecord._byteLength = blob.size;
+      
+      const url = URL.createObjectURL(blob);
       // Perform all data processing and formatting cleanly OUTSIDE the template
       const displayName = escapeHtml(fileRecord.getDisplayName());
       const escapedUrl = escapeHtml(url);
