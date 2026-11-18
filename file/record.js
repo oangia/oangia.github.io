@@ -1,7 +1,3 @@
-/**
- * FileEntity: Focuses purely on file attributes, metadata, 
- * getters/setters, formatting, and type checks.
- */
 class FileEntity {
   constructor({
     id = null,
