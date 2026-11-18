@@ -395,7 +395,7 @@ class FileRecord extends FileEntity {
       return response;
     }
 
-    // If encrypted, decrypt the content on the fly before returning a Blob/Response
+    // If encrypted, decrypt the content
     const passphrase = FileRecord.getEncryptionPassphrase();
     if (!passphrase) {
       throw new Error("Encryption passphrase missing. Cannot decrypt encrypted file.");
@@ -404,12 +404,34 @@ class FileRecord extends FileEntity {
     const encryptedBase64 = await response.text();
     const decryptedArrayBuffer = await FileRecord._decryptData(encryptedBase64, passphrase);
 
-    // Wrap the decrypted bytes back into a standard Response object 
-    // so `await content.blob()` or `await content.text()` continue to work seamlessly
-    return new Response(decryptedArrayBuffer, {
+    // The decrypted buffer contains the original Data URL string (from readAsDataURL)
+    const dataUrl = new TextDecoder().decode(decryptedArrayBuffer);
+
+    // Reverse the Data URL to extract the original binary blob and mime type
+    const blob = this._dataUrlToBlob(dataUrl);
+
+    // Wrap it back into a standard Response object so the rest of your app works seamlessly
+    return new Response(blob, {
       status: 200,
-      headers: { "Content-Type": this._guessMimeType() }
+      headers: { "Content-Type": blob.type || this._guessMimeType() }
     });
+  }
+
+  // Helper method to reverse readAsDataURL back into a Blob
+  _dataUrlToBlob(dataUrl) {
+    const parts = dataUrl.split(",");
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+    
+    const binaryString = atob(parts[1]);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    return new Blob([bytes], { type: mime });
   }
 
   static _createPreviewDataUrl(source, sourceWidth, sourceHeight) {
