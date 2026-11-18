@@ -152,7 +152,7 @@ class FileRecord extends FileEntity {
 
   static getStorage() {
     if (!this._storageService) {
-      this._storageService = new DriveStorageService();
+      this._storageService = new SupabaseStorageService();
     }
     return this._storageService;
   }
