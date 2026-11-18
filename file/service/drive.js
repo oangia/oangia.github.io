@@ -10,9 +10,7 @@ class DriveStorageService {
     this._folderCache = { "": "root" };
     this.tokenClient = null;
     this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
-  }
-  
-  init(config = {}) {
+
     const savedClientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     if (savedClientId) this.clientId = savedClientId;
 
@@ -32,6 +30,29 @@ class DriveStorageService {
       this._initOAuthClient();
       this._bindAuthButton();
     });
+  }
+
+  async list(path, options = {}) {
+    if (!this.token) {
+      return { data: [], error: null };
+    }
+    try {
+      const folderId = await this._resolveFolderId(path);
+      const params = new URLSearchParams({
+        q: `'${folderId}' in parents and trashed = false`,
+        fields: 'files(id, name, mimeType, size, modifiedTime, webContentLink)',
+        orderBy: 'folder,name',
+        pageSize: String(options.limit || 100)
+      });
+      const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
+      if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list items');
+      
+      const files = (await res.json()).files;
+      console.log(files);
+      return { data: files, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
   }
 
   _initOAuthClient() {
@@ -149,29 +170,6 @@ class DriveStorageService {
       }
     }
     return currentParentId;
-  }
-
-  async list(path, options = {}) {
-    if (!this.token) {
-      return { data: [], error: null };
-    }
-    try {
-      const folderId = await this._resolveFolderId(path);
-      const params = new URLSearchParams({
-        q: `'${folderId}' in parents and trashed = false`,
-        fields: 'files(id, name, mimeType, size, modifiedTime, webContentLink)',
-        orderBy: 'folder,name',
-        pageSize: String(options.limit || 100)
-      });
-      const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
-      if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list items');
-      
-      const files = (await res.json()).files;
-      console.log(files);
-      return { data: files, error: null };
-    } catch (err) {
-      return { data: null, error: err };
-    }
   }
 
   async getByPath(path) {
