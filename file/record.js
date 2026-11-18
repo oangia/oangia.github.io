@@ -317,6 +317,11 @@ class BaseStorageRecord extends FileEntity {
       throw new TypeError("Preview media element must be an image or video.");
     }
 
+    if (this.getUrl().startsWith("blob:")) {
+      element.src = this.getUrl();
+      return;
+    }
+
     const content = await this.fetchContent(expiresIn);
     const blob = await content.blob();
     const objectUrl = URL.createObjectURL(blob);
