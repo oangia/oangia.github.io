@@ -151,6 +151,7 @@ class BaseStorageRecord extends FileEntity {
         onProgress: (msg, type) => {
           console.log(`[LocalFileService] [${type}] ${msg}`);
           showToast(msg, type);
+          fileManager.listFiles();
         }
       });
     }
