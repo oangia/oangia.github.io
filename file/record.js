@@ -378,11 +378,19 @@ class FileRecord extends FileEntity {
     return this;
   }
 
-  async delete() {
-    if (!this._full_path && !this._id) throw new Error("Cannot delete FileRecord without an ID or full_path.");
-    return this._id
-      ? await FileRecord.destroyById(this._id)
-      : await FileRecord.destroy(this._full_path);
+  async delete({ recursive = false } = {}) {
+    const storage = FileRecord.getStorage();
+    const path = this._full_path || this._name;
+
+    if (this.isFolderNode()) {
+      const { data: items } = await FileRecord.all(path);
+      if (items?.length) {
+        if (!recursive) throw new Error(`Folder "${path}" is not empty. Pass { recursive: true }.`);
+        await Promise.all(items.map(item => item.delete({ recursive: true })));
+      }
+    }
+
+    return await storage.remove([path]);
   }
 
   async fetchContent(expiresIn = 60) {
