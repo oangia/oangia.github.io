@@ -277,6 +277,8 @@ class FileRecord extends FileEntity {
       cleanBasePath ? `${cleanBasePath}/${file.name}` : file.name
     ));
 
+    console.log(fileRecords);
+
     return { data: fileRecords, error: null };
   }
 
