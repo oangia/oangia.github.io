@@ -100,30 +100,24 @@ class ItemsGridRenderer {
 
   async deleteItem(file) {
     const path = file.getFullPath();
-    if (!confirm(file.isFolderNode()? `Delete folder "${path}" and all its contents?` : `Delete file "${path}"?`)) return;
+    const isFolder = file.isFolderNode();
+    
+    const message = isFolder 
+      ? `Delete folder "${path}" and all its contents recursively?` 
+      : `Delete file "${path}"?`;
+
+    if (!confirm(message)) return;
 
     try {
-      if (file.isFolderNode()) {
-        const { data: children, error: listError } = await FileRecord.all(path, { limit: 1000 });
-        if (listError) throw listError;
-
-        const pathsToDelete = (children || []).map(child => child.getFullPath());
-        pathsToDelete.push(`${path}/.emptyFolderPlaceholder`);
-
-        const { error } = await FileRecord.destroy(pathsToDelete);
-        if (error) throw error;
-      } else {
-        const { error } = await file.delete();
-        if (error) throw error;
-      }
+      // Delegate deletion directly to the model with recursive option enabled
+      const result = await file.delete({ recursive: true });
+      if (result && result.error) throw result.error;
 
       showToast("Deleted successfully", "success");
       this.fileManager.listFiles();
     } catch (err) {
       console.error(err);
-      if (typeof showToast === "function") {
-        showToast(err.message || "Delete failed", "error");
-      }
+      showToast(err.message || "Delete failed", "error");
     }
   }
 }
