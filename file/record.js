@@ -39,7 +39,7 @@ class FileEntity {
   getFullPath() { return this._full_path; }
   getSize() { return this._size; }
   getMimeType() { return this._mime_type; }
-  getUrl() { return this._url; }
+  getUrl(expiresIn = 60) { return this._url; }
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
 
@@ -365,64 +365,15 @@ class FileRecord extends FileEntity {
     return await this.getStorage().removeById(idArray);
   }
 
-  static async getFileUrl(path, expiresIn = 60) {
-    try {
-      const storage = this.getStorage();
-      const { data: file, error } = await storage.getByPath(path);
-      if (error) throw error;
-      if (!file?.id) throw new Error("File not found");
-
-      return await this.getFileUrlById(file.id, path, expiresIn);
-    } catch (error) {
-      return { data: null, error };
-    }
-  }
-
-  static async getFileUrlById(id, filename = "", expiresIn = 60) {
-    try {
-      const storage = this.getStorage();
-      if (!filename) {
-        const { data: file, error } = await storage.getById(id);
-        if (error) throw error;
-        filename = file?.name || "";
-      }
-
-      const response = await fetch(`${storage.apiBase}/${encodeURIComponent(id)}?alt=media`, {
-        headers: storage._headers()
-      });
-      if (!response.ok) {
-        throw new Error((await response.json()).error?.message || "Failed to fetch file content");
-      }
-
-      let blob = await response.blob();
-      const passphrase = this.getEncryptionPassphrase();
-      if (filename.endsWith(".enc") && passphrase) {
-        const decrypted = await this._decryptData(await blob.text(), passphrase);
-        const decryptedText = new TextDecoder().decode(decrypted);
-        const dataUrlMatch = decryptedText.match(/^data:(.*?);base64,(.*)$/s);
-        if (dataUrlMatch) {
-          blob = await (await fetch(decryptedText)).blob();
-        } else {
-          blob = new Blob([decryptedText]);
-        }
-      }
-
-      return { data: { signedUrl: URL.createObjectURL(blob) }, error: null };
-    } catch (error) {
-      return { data: null, error };
-    }
-  }
-
   static async download(path, downloadName = null) {
     const fileName = downloadName || path.split("/").pop().replace(/\.enc$/, "");
-    const { data, error } = await this.getFileUrl(path);
-    if (error) throw error;
-
+    const url = await this.getUrl();
+    
     const link = document.createElement("a");
-    link.href = data.signedUrl;
+    link.href = url;
     link.download = fileName;
     link.click();
-    setTimeout(() => URL.revokeObjectURL(data.signedUrl), 1000);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   async save(newFileBlob) {
@@ -451,10 +402,11 @@ class FileRecord extends FileEntity {
       : await FileRecord.destroy(this._full_path);
   }
 
-  async fetchSignedUrl(expiresIn = 60) {
-    return this._id
-      ? await FileRecord.getFileUrlById(this._id, this._name, expiresIn)
-      : await FileRecord.getFileUrl(this._full_path, expiresIn);
+  async getUrl(expiresIn = 60) {
+    if (this._url) {return this._url;}
+    const storage = this.getStorage();
+    this._url = await storage.getUrl({ id: this._id, path: this._full_path, expiresIn });
+    return this._url
   }
 
   static _createPreviewDataUrl(source, sourceWidth, sourceHeight) {
@@ -482,14 +434,12 @@ class FileRecord extends FileEntity {
       throw new TypeError("Preview media element must be an image or video.");
     }
 
-    const { data, error } = await this.fetchSignedUrl(expiresIn);
-    if (error) throw error;
-    if (!data?.signedUrl) throw new Error(`No signed URL available for ${this.getFullPath()}.`);
+    const url = await this.getUrl(expiresIn);
 
     let previewVideo = null;
     try {
       if (isImage) {
-        const response = await fetch(data.signedUrl);
+        const response = await fetch(url);
         if (!response.ok) throw new Error("Failed to read fetched image for preview.");
 
         const bitmap = await createImageBitmap(await response.blob());
@@ -511,7 +461,7 @@ class FileRecord extends FileEntity {
         previewVideo.addEventListener("error", () => {
           reject(previewVideo.error || new Error("Failed to decode video preview."));
         }, { once: true });
-        previewVideo.src = data.signedUrl;
+        previewVideo.src = url;
         previewVideo.load();
       });
 
@@ -527,19 +477,18 @@ class FileRecord extends FileEntity {
         previewVideo.removeAttribute("src");
         previewVideo.load();
       }
-      if (data.signedUrl.startsWith("blob:")) URL.revokeObjectURL(data.signedUrl);
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
     }
   }
 
   async downloadInstance() {
-    const { data, error } = await this.fetchSignedUrl();
-    if (error) throw error;
+    const url = await this.getUrl();
 
     const link = document.createElement("a");
-    link.href = data.signedUrl;
+    link.href = url;
     link.download = this.getDisplayName();
 
     link.click();
-    setTimeout(() => URL.revokeObjectURL(data.signedUrl), 1000);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 }
