@@ -435,11 +435,12 @@ class FileRecord extends FileEntity {
     }
 
     const url = await this.getUrl(expiresIn);
-
+    console.log(url);
     let previewVideo = null;
     try {
       if (isImage) {
         const response = await fetch(url);
+        console.log(response);
         if (!response.ok) throw new Error("Failed to read fetched image for preview.");
 
         const bitmap = await createImageBitmap(await response.blob());
