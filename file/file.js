@@ -64,7 +64,8 @@ class ItemsGridRenderer {
       card.className = ItemsGridRenderer._TEMPLATES.cardClass;
       card.onclick = () => {
         if (file.isFolderNode()) {
-          this.fileManager.breadcrumb.navigateToFolder(file.getFullPath(), file.getName());
+          this.fileManager.nagivate(file);
+          //this.fileManager.breadcrumb.navigateToFolder(file.getFullPath(), file.getName());
         } else {
           this.fileManager.openPreview(file);
         }
@@ -99,15 +100,10 @@ class ItemsGridRenderer {
 
   async deleteItem(file) {
     const path = file.getFullPath();
-    const isFolder = file.isFolderNode();
-
-    const confirmMsg = isFolder
-      ? `Delete folder "${path}" and all its contents?`
-      : `Delete file "${path}"?`;
-    if (!confirm(confirmMsg)) return;
+    if (!confirm(file.isFolderNode()? `Delete folder "${path}" and all its contents?` : `Delete file "${path}"?`)) return;
 
     try {
-      if (isFolder) {
+      if (file.isFolderNode()) {
         const { data: children, error: listError } = await FileRecord.all(path, { limit: 1000 });
         if (listError) throw listError;
 
@@ -121,9 +117,7 @@ class ItemsGridRenderer {
         if (error) throw error;
       }
 
-      if (typeof showToast === "function") {
-        showToast("Deleted successfully", "success");
-      }
+      showToast("Deleted successfully", "success");
       this.fileManager.listFiles();
     } catch (err) {
       console.error(err);
@@ -725,6 +719,10 @@ class FileManager {
       showToast(`Uploaded ${success}, failed ${failed}`, "warning");
     }
     event.target.value = "";
+  }
+
+  navigate(file) {
+    this.breadcrumb.navigateToFolder(file.getFullPath(), file.getName());
   }
 
   async openPreview(file) {
