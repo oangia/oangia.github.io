@@ -8,12 +8,12 @@ class FileEntity {
     url = null,
     created_at = null,
     updated_at = null,
-    isFolder = false
+    is_folder = false
   } = {}) {
     this._id = id;
     this._name = name;
     this._full_path = full_path;
-    this._isFolder = isFolder;
+    this._is_folder = is_folder;
     this._size = size;
 
     if (this._isFolder) {
@@ -46,7 +46,7 @@ class FileEntity {
   getUpdatedAt() { return this._updated_at; }
 
   isFolderNode() {
-    return this._isFolder;
+    return this._is_folder;
   }
 
   isEncryptedFile() {
