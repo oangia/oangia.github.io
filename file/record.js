@@ -402,11 +402,10 @@ class FileRecord extends FileEntity {
       : await FileRecord.destroy(this._full_path);
   }
 
-  async getUrl(expiresIn = 60) {
-    if (this._url) {return this._url;}
+  async fetchContent(expiresIn = 60) {
     const storage = this.getStorage();
-    this._url = await storage.getUrl({ id: this._id, path: this._full_path, expiresIn });
-    return this._url
+    this.content = await storage.fetchContent({ id: this._id, path: this._full_path, expiresIn });
+    return this.content
   }
 
   static _createPreviewDataUrl(source, sourceWidth, sourceHeight) {
@@ -434,16 +433,12 @@ class FileRecord extends FileEntity {
       throw new TypeError("Preview media element must be an image or video.");
     }
 
-    const url = await this.getUrl(expiresIn);
-    console.log(url);
+    const content = await this.fetchContent(expiresIn);
+    console.log(content);
     let previewVideo = null;
     try {
       if (isImage) {
-        const response = await fetch(url);
-        console.log(response);
-        if (!response.ok) throw new Error("Failed to read fetched image for preview.");
-
-        const bitmap = await createImageBitmap(await response.blob());
+        const bitmap = await createImageBitmap(await content.blob());
         try {
           element.loading = "lazy";
           element.alt = this.getDisplayName();
