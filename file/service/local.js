@@ -1,8 +1,53 @@
 class LocalFileService {
-  constructor() {
+  constructor(config = {}) {
     this.rootNode = { name: "root", children: {}, files: [] };
     this.pathToFile = new Map();
     this.pathToNode = new Map();
+    this.pathToNode.set("", this.rootNode);
+    this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
+
+    // Automatically bind to folder selector button if ID is provided or defaults to "selectFolderBtn"
+    this.folderButtonId = config.folderButtonId || "selectFolderBtn";
+    this._bindFolderButton();
+
+    window.addEventListener("load", () => {
+      this._bindFolderButton();
+    });
+  }
+
+  // Bind an HTML button or input to trigger folder selection natively
+  _bindFolderButton() {
+    const btn = document.getElementById(this.folderButtonId);
+    if (!btn || btn.dataset.localDriveBound) return;
+
+    btn.dataset.localDriveBound = "true";
+    
+    // Create a hidden file input element for directory selection
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.webkitdirectory = true;
+    fileInput.multiple = true;
+    fileInput.style.display = "none";
+    document.body.appendChild(fileInput);
+
+    fileInput.onchange = async (e) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        this.onProgress(`Loading ${files.length} local files...`, "info");
+        await this.loadFiles(files);
+        this.onProgress(`Loaded folder: ${this.rootNode.name}`, "success");
+
+        if (typeof fileManager !== "undefined" && typeof fileManager.initializeServiceConnection === "function") {
+          fileManager.initializeServiceConnection();
+        } else if (typeof window.renderFileList === "function") {
+          window.renderFileList();
+        }
+      }
+    };
+
+    btn.onclick = () => {
+      fileInput.click();
+    };
   }
 
   async loadFiles(fileList) {
@@ -41,39 +86,121 @@ class LocalFileService {
 
       const fullPath = runningPath ? `${runningPath}/${fileName}` : fileName;
       const fileUrl = URL.createObjectURL(file);
+      const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileName);
+      const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(fileName);
+
       const record = {
         id: fullPath,
         name: fileName,
         fullPath,
         fileUrl,
         size: file.size,
+        mimeType: file.type || 'application/octet-stream',
+        modifiedTime: new Date(file.lastModified || Date.now()).toISOString(),
         metadata: { size: file.size },
-        thumbUrl: (isImage(fileName) || isVideo(fileName)) ? fileUrl : null
+        thumbUrl: (isImage || isVideo) ? fileUrl : null
       };
       currentNode.files.push(record);
       this.pathToFile.set(fullPath, record);
     }
   }
 
-  getItemsAtPath(folderPath = "") {
-    const node = this.pathToNode.get(folderPath) || this.rootNode;
-    const folderItems = Object.values(node.children).map(child => ({
-      id: null,
-      name: child.name,
-      fullPath: child.path,
-      metadata: { size: this._calculateFolderSize(child) }
-    }));
-    folderItems.sort((a, b) => a.name.localeCompare(b.name));
-    const fileItems = [...node.files].sort((a, b) => a.name.localeCompare(b.name));
-    return [...folderItems, ...fileItems];
+  // Standardized list method mirroring Drive / Supabase storage services
+  async list(path = "", options = {}) {
+    try {
+      const cleanPath = path ? path.replace(/^\/+/, '').replace(/\/+$/, '') : '';
+      const node = this.pathToNode.get(cleanPath) || (cleanPath === "" ? this.rootNode : null);
+      
+      if (!node) {
+        return { data: null, error: new Error("Folder not found") };
+      }
+
+      const folderItems = Object.values(node.children).map(child => ({
+        id: child.path,
+        name: child.name,
+        mimeType: 'application/vnd.google-apps.folder',
+        size: this._calculateFolderSize(child),
+        modifiedTime: new Date().toISOString(),
+        webContentLink: null
+      }));
+
+      const fileItems = [...node.files].map(f => ({
+        id: f.fullPath,
+        name: f.name,
+        mimeType: f.mimeType,
+        size: f.size,
+        modifiedTime: f.modifiedTime,
+        webContentLink: f.fileUrl
+      }));
+
+      folderItems.sort((a, b) => a.name.localeCompare(b.name));
+      fileItems.sort((a, b) => a.name.localeCompare(b.name));
+
+      const items = [...folderItems, ...fileItems];
+      return { data: items, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
   }
 
-  _calculateFolderSize(node) {
-    let total = node.files.reduce((sum, f) => sum + (f.size || 0), 0);
-    for (const child of Object.values(node.children)) {
-      total += this._calculateFolderSize(child);
+  // Standardized fetchContent method returning a fetch Response object
+  async fetchContent({ id = null, path = null } = {}) {
+    try {
+      const targetPath = id || path;
+      const record = this.pathToFile.get(targetPath);
+      if (!record) throw new Error("File not found");
+
+      const res = await fetch(record.fileUrl);
+      if (!res.ok) throw new Error("Failed to read local file blob");
+
+      return { data: res, error: null };
+    } catch (err) {
+      return { data: null, error: err };
     }
-    return total;
+  }
+
+  async getByPath(path) {
+    try {
+      const cleanPath = path.replace(/^\/+/, '');
+      const record = this.pathToFile.get(cleanPath);
+      if (record) {
+        return {
+          data: {
+            id: record.fullPath,
+            name: record.name,
+            mimeType: record.mimeType,
+            size: record.size,
+            modifiedTime: record.modifiedTime,
+            webContentLink: record.fileUrl
+          },
+          error: null
+        };
+      }
+
+      // Check if it's a folder
+      const node = this.pathToNode.get(cleanPath);
+      if (node) {
+        return {
+          data: {
+            id: cleanPath,
+            name: node.name,
+            mimeType: 'application/vnd.google-apps.folder',
+            size: this._calculateFolderSize(node),
+            modifiedTime: new Date().toISOString(),
+            webContentLink: null
+          },
+          error: null
+        };
+      }
+
+      throw new Error("Path not found");
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async getById(id) {
+    return this.getByPath(id);
   }
 
   async getFileUrl(path) {
@@ -82,14 +209,82 @@ class LocalFileService {
     return { data: { signedUrl: record.fileUrl }, error: null };
   }
 
-  async upload(path, blob) {
-    const record = this.pathToFile.get(path);
-    if (!record) return { error: new Error("File not found") };
-    if (record.fileUrl) URL.revokeObjectURL(record.fileUrl);
-    record.fileUrl = URL.createObjectURL(blob);
-    record.size = blob.size;
-    record.metadata.size = blob.size;
-    return { error: null };
+  async upload(path, blob, options = {}) {
+    try {
+      const cleanPath = path.replace(/^\/+/, '');
+      let record = this.pathToFile.get(cleanPath);
+
+      if (record) {
+        if (record.fileUrl) URL.revokeObjectURL(record.fileUrl);
+        record.fileUrl = URL.createObjectURL(blob);
+        record.size = blob.size;
+        record.metadata.size = blob.size;
+        record.modifiedTime = new Date().toISOString();
+      } else {
+        // Create new virtual file in tree
+        const lastSlashIdx = cleanPath.lastIndexOf("/");
+        const dirPath = lastSlashIdx !== -1 ? cleanPath.substring(0, lastSlashIdx) : "";
+        const fileName = lastSlashIdx !== -1 ? cleanPath.substring(lastSlashIdx + 1) : cleanPath;
+        
+        let parentNode = this.pathToNode.get(dirPath);
+        if (!parentNode) {
+          parentNode = this.rootNode; // fallback
+        }
+
+        const fileUrl = URL.createObjectURL(blob);
+        record = {
+          id: cleanPath,
+          name: fileName,
+          fullPath: cleanPath,
+          fileUrl,
+          size: blob.size,
+          mimeType: blob.type || 'application/octet-stream',
+          modifiedTime: new Date().toISOString(),
+          metadata: { size: blob.size }
+        };
+        parentNode.files.push(record);
+        this.pathToFile.set(cleanPath, record);
+      }
+
+      return {
+        data: {
+          id: record.fullPath,
+          name: record.name,
+          mimeType: record.mimeType,
+          size: record.size,
+          modifiedTime: record.modifiedTime,
+          webContentLink: record.fileUrl
+        },
+        error: null
+      };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async uploadById(id, file) {
+    return this.upload(id, file);
+  }
+
+  async remove(paths) {
+    try {
+      for (const path of paths) {
+        const cleanPath = path.replace(/^\/+/, '');
+        // Check if it's a folder node
+        if (this.pathToNode.has(cleanPath)) {
+          this.deleteLocalPath(cleanPath, true);
+        } else {
+          this.deleteLocalPath(cleanPath, false);
+        }
+      }
+      return { data: {}, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async removeById(ids) {
+    return this.remove(ids);
   }
 
   deleteLocalPath(path, isFolder) {
@@ -116,5 +311,13 @@ class LocalFileService {
       const parentNode = this.pathToNode.get(parentPath);
       if (parentNode) parentNode.files = parentNode.files.filter(f => f.fullPath !== path);
     }
+  }
+
+  _calculateFolderSize(node) {
+    let total = node.files.reduce((sum, f) => sum + (f.size || 0), 0);
+    for (const child of Object.values(node.children)) {
+      total += this._calculateFolderSize(child);
+    }
+    return total;
   }
 }
