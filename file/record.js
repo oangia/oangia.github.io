@@ -178,25 +178,12 @@ class FileRecord extends FileEntity {
     this.hash_filename = await FileRecord.computeSha256(targetString);
   }
 
-  async hashContent(overrideUrl = null) {
-    try {
-      const targetUrl = overrideUrl || this.getUrl();
-      if (!targetUrl) throw new Error("No URL provided for this file record.");
-
-      const response = await fetch(targetUrl);
-      if (!response.ok) throw new Error(`Failed to fetch file from URL: ${response.statusText}`);
-
-      const blob = await response.blob();
-      const buffer = await blob.arrayBuffer();
-
-      this.hash_content = await FileRecord.computeSha256(buffer);
-
-      const combinedHashes = this.hash_filename + this.hash_content;
-      this.hash_file = await FileRecord.computeSha256(combinedHashes);
-    } catch (err) {
-      console.error("Failed to compute hashes from URL:", err);
-      return null;
-    }
+  async hashContent(url) {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const buffer = await blob.arrayBuffer();
+    this.hash_content = await FileRecord.computeSha256(buffer);
+    this.hash_file = await FileRecord.computeSha256(this.hash_filename + this.hash_content);
   }
 
   // =========================================================================
