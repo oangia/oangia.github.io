@@ -320,7 +320,7 @@ class FilePreviewManager {
           sizeDisplay: fileRecord.getFormattedSize()
         });
 
-        sidebar.querySelector(".content-hash")?.addEventListener("click", () => this.computeContentAndCombinedHashes());
+        sidebar.querySelector(".content-hash")?.addEventListener("click", () => this.computeContentAndCombinedHashes(escapedUrl));
       }
 
       // 2. Render Body
@@ -362,7 +362,7 @@ class FilePreviewManager {
     }
   }
 
-  async computeContentAndCombinedHashes() {
+  async computeContentAndCombinedHashes(url) {
     const container = document.getElementById("hashesComputeContainer");
     if (!container || !this.currentFileRecord) return;
 
@@ -374,7 +374,7 @@ class FilePreviewManager {
     `;
 
     try {
-      await this.currentFileRecord.hashContent();
+      await this.currentFileRecord.hashContent(url);
 
       const contentHash = this.currentFileRecord.hash_content;
       const combinedHash = this.currentFileRecord.hash_file;
