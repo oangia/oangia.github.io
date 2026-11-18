@@ -1,6 +1,5 @@
 class SupabaseStorageService {
   constructor(config = {}) {
-    // Service manages its own keys/buckets internally
     const savedUrl = localStorage.getItem("sb_url") || config.url;
     const savedKey = localStorage.getItem("sb_key") || config.key;
     
@@ -27,40 +26,153 @@ class SupabaseStorageService {
     }
   }
 
-  async list(path, options) {
-    if (!this.client) throw new Error("Supabase client not initialized");
-    const data = await this.client.storage.from(this._bucket).list(path, options);
-    console.log(data);
-    return data;
+  async list(path, options = {}) {
+    if (!this.client) return { data: null, error: new Error("Supabase client not initialized") };
+    try {
+      const cleanPath = path ? path.replace(/^\/+/, '').replace(/\/+$/, '') : '';
+      const { data, error } = await this.client.storage.from(this._bucket).list(cleanPath, {
+        limit: options.limit || 100,
+        offset: options.offset || 0,
+        sortBy: options.sortBy || { column: 'name', order: 'asc' }
+      });
+      if (error) throw error;
+
+      // Map Supabase items to match DriveStorageService metadata format
+      const files = (data || []).map(item => {
+        const isFolder = !item.id;
+        const itemPath = cleanPath ? `${cleanPath}/${item.name}` : item.name;
+        return {
+          id: itemPath, // Treat Supabase storage path as unique id
+          name: item.name,
+          mimeType: isFolder ? 'application/vnd.google-apps.folder' : (item.metadata?.mimetype || 'application/octet-stream'),
+          size: item.metadata?.size || 0,
+          modifiedTime: item.updated_at || item.created_at || new Date().toISOString(),
+          webContentLink: null
+        };
+      });
+
+      console.log(files);
+      return { data: files, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
   }
 
-  async getFileUrl(path, expiresIn) {
-    if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this._bucket).getFileUrl(path, expiresIn);
+  async fetchContent({ id = null, path = null } = {}) {
+    try {
+      const targetPath = id || path;
+      if (!targetPath) throw new Error("File ID or path required for fetching content");
+
+      const { data, error } = await this.client.storage.from(this._bucket).createSignedUrl(targetPath, 60);
+      if (error) throw error;
+
+      const res = await fetch(data.signedUrl, { cache: "no-store" });
+      if (!res.ok) {
+        throw new Error(`Failed to fetch file content: ${res.statusText}`);
+      }
+
+      // Returns a fetch Response object just like DriveStorageService
+      return { data: res, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
   }
 
-  async upload(path, file, options) {
-    if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this._bucket).upload(path, file, options);
+  async getByPath(path) {
+    if (!this.client) return { data: null, error: new Error("Supabase client not initialized") };
+    try {
+      const cleanPath = path.replace(/^\/+/, '');
+      const lastSlashIdx = cleanPath.lastIndexOf("/");
+      const dirPath = lastSlashIdx !== -1 ? cleanPath.substring(0, lastSlashIdx) : "";
+      const fileName = lastSlashIdx !== -1 ? cleanPath.substring(lastSlashIdx + 1) : cleanPath;
+
+      const { data, error } = await this.client.storage.from(this._bucket).list(dirPath, {
+        search: fileName
+      });
+      if (error) throw error;
+
+      const match = (data || []).find(f => f.name === fileName);
+      if (!match) throw new Error("File not found");
+
+      const isFolder = !match.id;
+      const fileMeta = {
+        id: cleanPath,
+        name: match.name,
+        mimeType: isFolder ? 'application/vnd.google-apps.folder' : (match.metadata?.mimetype || 'application/octet-stream'),
+        size: match.metadata?.size || 0,
+        modifiedTime: match.updated_at || match.created_at || new Date().toISOString(),
+        webContentLink: null
+      };
+
+      return { data: fileMeta, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async getById(id) {
+    // In Supabase, the path acts as the ID
+    return this.getByPath(id);
+  }
+
+  async upload(path, file, options = {}) {
+    if (!this.client) return { data: null, error: new Error("Supabase client not initialized") };
+    try {
+      const cleanPath = path.replace(/^\/+/, '');
+      const upsert = options.upsert !== undefined ? options.upsert : true;
+
+      const { data, error } = await this.client.storage.from(this._bucket).upload(cleanPath, file, {
+        upsert: upsert,
+        contentType: file.type || 'application/octet-stream'
+      });
+      if (error) throw error;
+
+      const fileMeta = {
+        id: cleanPath,
+        name: cleanPath.split("/").pop(),
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size || 0,
+        modifiedTime: new Date().toISOString(),
+        webContentLink: null
+      };
+
+      return { data: fileMeta, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async uploadById(id, file) {
+    return this.upload(id, file, { upsert: true });
   }
 
   async remove(paths) {
-    if (!this.client) throw new Error("Supabase client not initialized");
-    return await this.client.storage.from(this._bucket).remove(paths);
+    if (!this.client) return { data: null, error: new Error("Supabase client not initialized") };
+    try {
+      const cleanPaths = paths.map(p => p.replace(/^\/+/, ''));
+      const { data, error } = await this.client.storage.from(this._bucket).remove(cleanPaths);
+      if (error) throw error;
+
+      return { data: data || {}, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async removeById(ids) {
+    return this.remove(ids);
   }
 
   async downloadFile(path, name) {
     try {
-      const { data, error } = await this.getFileUrl(path, 60);
+      const { data, error } = await this.fetchContent({ path });
       if (error) throw error;
 
-      const res = await fetch(data.signedUrl, { cache: "no-store" });
-      if (!res.ok) throw new Error("Download failed");
-
-      const blob = await res.blob();
+      const blob = await data.blob();
       this._triggerDownload(blob, name);
+      return { data: {}, error: null };
     } catch (err) {
-      throw new Error(err.message || "Download failed");
+      return { data: null, error: err };
     }
   }
 
@@ -81,11 +193,8 @@ class SupabaseStorageService {
 
       for (const filePath of allFiles) {
         try {
-          const { data: signed, error: signErr } = await this.getFileUrl(filePath, 60);
-          if (signErr) throw signErr;
-          
-          const res = await fetch(signed.signedUrl, { cache: "no-store" });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const { data: res, error: fetchErr } = await this.fetchContent({ path: filePath });
+          if (fetchErr) throw fetchErr;
           
           const arrayBuffer = await res.arrayBuffer();
           zip.file(filePath, arrayBuffer);
@@ -96,7 +205,7 @@ class SupabaseStorageService {
         }
         processed++;
         if (processed % 5 === 0 || processed === allFiles.length) {
-          this.onProgress(`Downloaded ${processed} / ${allFiles.length}`, "info");
+          this.onProgress(`Downloaded ${processed} / ` + allFiles.length, "info");
         }
       }
 
@@ -126,7 +235,8 @@ class SupabaseStorageService {
     for (const item of (data || [])) {
       if (item.name === ".emptyFolderPlaceholder") continue;
       const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
-      if (!item.id) {
+      // In our mapped format, folders have mimeType 'application/vnd.google-apps.folder'
+      if (item.mimeType === 'application/vnd.google-apps.folder') {
         const subFiles = await this._listAllFilesRecursive(fullPath);
         results.push(...subFiles);
       } else {
