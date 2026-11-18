@@ -13,6 +13,15 @@ A backup storage for big files (two different places) (x)
 ### User Interface
 A simple html interface to handle it (v)
 
+List files, folders and recursive 
+
+Open a file
+
+Delete
+
+Upload new file
+
+Create folder 
 ## Script
 ```js
 // ==UserScript==
