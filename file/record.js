@@ -403,9 +403,10 @@ class FileRecord extends FileEntity {
   }
 
   async fetchContent(expiresIn = 60) {
-    const storage = this.getStorage();
-    this.content = await storage.fetchContent({ id: this._id, path: this._full_path, expiresIn });
-    return this.content
+    const storage = FileRecord.getStorage();
+    const { data, error } = await storage.fetchContent({ id: this._id });
+    if (error) throw error;
+    return data; // Returns the fetch Response object directly
   }
 
   static _createPreviewDataUrl(source, sourceWidth, sourceHeight) {
@@ -434,11 +435,13 @@ class FileRecord extends FileEntity {
     }
 
     const content = await this.fetchContent(expiresIn);
-    console.log(content);
+    const blob = await content.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
     let previewVideo = null;
     try {
       if (isImage) {
-        const bitmap = await createImageBitmap(await content.blob());
+        const bitmap = await createImageBitmap(blob);
         try {
           element.loading = "lazy";
           element.alt = this.getDisplayName();
@@ -457,7 +460,7 @@ class FileRecord extends FileEntity {
         previewVideo.addEventListener("error", () => {
           reject(previewVideo.error || new Error("Failed to decode video preview."));
         }, { once: true });
-        previewVideo.src = url;
+        previewVideo.src = objectUrl;
         previewVideo.load();
       });
 
@@ -473,7 +476,9 @@ class FileRecord extends FileEntity {
         previewVideo.removeAttribute("src");
         previewVideo.load();
       }
-      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+      if (objectUrl && objectUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(objectUrl);
+      }
     }
   }
 
