@@ -387,9 +387,29 @@ class FileRecord extends FileEntity {
 
   async fetchContent(expiresIn = 60) {
     const storage = FileRecord.getStorage();
-    const { data, error } = await storage.fetchContent({ id: this._id });
+    const { data: response, error } = await storage.fetchContent({ id: this._id });
     if (error) throw error;
-    return data; // Returns the fetch Response object directly
+
+    // If the file is not encrypted, return the raw fetch Response directly
+    if (!this.isEncryptedFile()) {
+      return response;
+    }
+
+    // If encrypted, decrypt the content on the fly before returning a Blob/Response
+    const passphrase = FileRecord.getEncryptionPassphrase();
+    if (!passphrase) {
+      throw new Error("Encryption passphrase missing. Cannot decrypt encrypted file.");
+    }
+
+    const encryptedBase64 = await response.text();
+    const decryptedArrayBuffer = await FileRecord._decryptData(encryptedBase64, passphrase);
+
+    // Wrap the decrypted bytes back into a standard Response object 
+    // so `await content.blob()` or `await content.text()` continue to work seamlessly
+    return new Response(decryptedArrayBuffer, {
+      status: 200,
+      headers: { "Content-Type": this._guessMimeType() }
+    });
   }
 
   static _createPreviewDataUrl(source, sourceWidth, sourceHeight) {
