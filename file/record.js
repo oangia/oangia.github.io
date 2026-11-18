@@ -1,3 +1,7 @@
+/**
+ * FileEntity: Focuses purely on file attributes, metadata, 
+ * getters/setters, formatting, and type checks.
+ */
 class FileEntity {
   constructor({
     id = null,
@@ -25,12 +29,6 @@ class FileEntity {
     this._url = url;
     this._created_at = created_at || Date.now();
     this._updated_at = updated_at || Date.now();
-
-    this.hash_filename = null;
-    this.hash_content = null;
-    this.hash_file = null;
-
-    this.hashFullpath();
   }
 
   // =========================================================================
@@ -136,7 +134,40 @@ class FileEntity {
     };
     return mimeMap[ext] || "application/octet-stream";
   }
+}
 
+/**
+ * FileRecord: Focuses on processing, storage CRUD operations, 
+ * cryptography, hashing, remote downloads, previews, and active-record instance actions.
+ */
+class FileRecord extends FileEntity {
+  constructor(data = {}) {
+    super(data);
+
+    this.hash_filename = null;
+    this.hash_content = null;
+    this.hash_file = null;
+
+    this.hashFullpath();
+  }
+
+  // Shared static storage driver across all static & instance calls
+  static _storageService = null;
+
+  static getStorage() {
+    if (!this._storageService) {
+      this._storageService = new DriveStorageService();
+    }
+    return this._storageService;
+  }
+
+  static getEncryptionPassphrase() {
+    return localStorage.getItem("gdrive_encryption_password") || null;
+  }
+
+  // =========================================================================
+  // HASHING HELPERS (SHA-256)
+  // =========================================================================
   static async computeSha256(input) {
     const buffer = input instanceof ArrayBuffer ? input : new TextEncoder().encode(input);
     const hashBuffer = await window.crypto.subtle.digest("SHA-256", buffer);
@@ -148,7 +179,7 @@ class FileEntity {
   async hashFullpath() {
     const targetString = this.getFullPath() || this.getName();
     if (!targetString) return null;
-    this.hash_filename = await FileEntity.computeSha256(targetString);
+    this.hash_filename = await FileRecord.computeSha256(targetString);
   }
 
   async hashContent(overrideUrl = null) {
@@ -162,37 +193,14 @@ class FileEntity {
       const blob = await response.blob();
       const buffer = await blob.arrayBuffer();
 
-      this.hash_content = await FileEntity.computeSha256(buffer);
+      this.hash_content = await FileRecord.computeSha256(buffer);
 
       const combinedHashes = this.hash_filename + this.hash_content;
-      this.hash_file = await FileEntity.computeSha256(combinedHashes);
+      this.hash_file = await FileRecord.computeSha256(combinedHashes);
     } catch (err) {
       console.error("Failed to compute hashes from URL:", err);
       return null;
     }
-  }
-}
-
-/**
- * FileRecord: Focuses on processing, storage CRUD operations, 
- * cryptography, remote downloads, previews, and active-record instance actions.
- */
-class FileRecord extends FileEntity {
-  // Shared static storage driver across all static & instance calls
-  static _storageService = null;
-
-  /**
-   * Initialize or retrieve the StorageService instance
-   */
-  static getStorage() {
-    if (!this._storageService) {
-      this._storageService = new DriveStorageService();
-    }
-    return this._storageService;
-  }
-
-  static getEncryptionPassphrase() {
-    return localStorage.getItem("gdrive_encryption_password") || null;
   }
 
   // =========================================================================
@@ -249,10 +257,6 @@ class FileRecord extends FileEntity {
     return decrypted;
   }
 
-  /**
-   * Retrieve all files/folders in a directory
-   * Usage: const { data, error } = await FileRecord.all("documents/2026");
-   */
   static async all(path = "", options = {}) {
     const storage = this.getStorage();
     const { data, error } = await storage.list(path, {
@@ -272,29 +276,24 @@ class FileRecord extends FileEntity {
       file,
       cleanBasePath ? `${cleanBasePath}/${file.name}` : file.name
     ));
-    console.log(fileRecords);
 
     return { data: fileRecords, error: null };
   }
 
   static _fromDriveMetadata(file, path) {
-    const is_folder = file.mimeType === "application/vnd.google-apps.folder";
+    const is_folder = file.mimeType === "application/vnd.google-apps.folder" || file.mimeType === "inode/directory";
     return new FileRecord({
       id: file.id || null,
       name: file.name,
       full_path: path,
       size: Number(file.size || 0),
-      mimetype: file.mimeType,
+      mime_type: file.mimeType,
       url: file.webContentLink || null,
       updated_at: file.modifiedTime ? new Date(file.modifiedTime).getTime() : null,
-      isFolder
+      is_folder
     });
   }
 
-  /**
-   * Find a single file or folder by path (alias: get)
-   * Usage: const { data: file, error } = await FileRecord.find("docs/report.pdf");
-   */
   static async find(path) {
     const { data, error } = await this.getStorage().getByPath(path);
     if (error || !data) return { data: null, error };
@@ -314,10 +313,6 @@ class FileRecord extends FileEntity {
     return await this.find(path);
   }
 
-  /**
-   * Create/Upload a new file (or folder placeholder)
-   * Usage: const { data: record, error } = await FileRecord.create("docs/report.pdf", fileObj);
-   */
   static async create(path, file, options = { upsert: false, encrypt: false }) {
     let uploadFile = this._namedUploadFile(path, file);
     let finalPath = path;
@@ -337,7 +332,6 @@ class FileRecord extends FileEntity {
       finalPath = path + ".enc";
     }
     const res = await this.getStorage().upload(finalPath, uploadFile, options);
-    console.log(res);
     return res;
   }
 
@@ -347,10 +341,6 @@ class FileRecord extends FileEntity {
     return new File([file], name, { type: file.type || "application/octet-stream" });
   }
 
-  /**
-   * Update/Overwrite an existing file at path
-   * Usage: const { data: record, error } = await FileRecord.update("docs/report.pdf", newFileObj);
-   */
   static async update(path, file, options = {}) {
     return await this.getStorage().upload(
       path,
@@ -363,9 +353,6 @@ class FileRecord extends FileEntity {
     return await this.getStorage().uploadById(id, file);
   }
 
-  /**
-   * Delete one or multiple paths
-   */
   static async destroy(paths) {
     const pathArray = Array.isArray(paths) ? paths : [paths];
     return await this.getStorage().remove(pathArray);
@@ -376,9 +363,6 @@ class FileRecord extends FileEntity {
     return await this.getStorage().removeById(idArray);
   }
 
-  /**
-   * Get a decrypted/signed blob URL for a file path
-   */
   static async getFileUrl(path, expiresIn = 60) {
     try {
       const storage = this.getStorage();
@@ -427,9 +411,6 @@ class FileRecord extends FileEntity {
     }
   }
 
-  /**
-   * Trigger a browser download directly by path
-   */
   static async download(path, downloadName = null) {
     const fileName = downloadName || path.split("/").pop().replace(/\.enc$/, "");
     const { data, error } = await this.getFileUrl(path);
@@ -441,10 +422,6 @@ class FileRecord extends FileEntity {
     link.click();
     setTimeout(() => URL.revokeObjectURL(data.signedUrl), 1000);
   }
-
-  // =========================================================================
-  // INSTANCE ACTIVE-RECORD METHODS
-  // =========================================================================
 
   async save(newFileBlob) {
     if (!this._full_path && !this._id) throw new Error("Cannot save FileRecord without an ID or full_path.");
@@ -458,7 +435,7 @@ class FileRecord extends FileEntity {
       this._id = data.id || this._id;
       this._name = data.name || this._name;
       this._size = Number(data.size || 0);
-      this._mimetype = data.mimeType || this._mimetype;
+      this._mime_type = data.mimeType || this._mime_type;
       this._updated_at = data.modifiedTime ? new Date(data.modifiedTime).getTime() : Date.now();
       this._url = data.webContentLink || null;
     }
