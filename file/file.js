@@ -46,7 +46,7 @@ class ItemsGridRenderer {
   constructor(containerId, options = {}) {
     this.container = document.getElementById(containerId);
     this.onItemClick = options.onItemClick || (() => {});
-    this.onDeleteClick = options.onDeleteClick || (() => {});
+    this.onRefresh = options.onRefresh || (() => {});
   }
   
   async render(items) {
@@ -75,7 +75,7 @@ class ItemsGridRenderer {
       if (deleteBtn) {
         deleteBtn.onclick = (e) => {
           e.stopPropagation();
-          this.onDeleteClick(file);
+          this.deleteItem(file);
         };
       }
 
@@ -87,6 +87,42 @@ class ItemsGridRenderer {
         file.loadPreviewMedia(previewEl).catch(error => {
           console.error("Failed to load file preview:", error);
         });
+      }
+    }
+  }
+
+  async deleteItem(file) {
+    const path = file.getFullPath();
+    const isFolder = file.isFolderNode();
+
+    const confirmMsg = isFolder
+      ? `Delete folder "${path}" and all its contents?`
+      : `Delete file "${path}"?`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      if (isFolder) {
+        const { data: children, error: listError } = await FileRecord.all(path, { limit: 1000 });
+        if (listError) throw listError;
+
+        const pathsToDelete = (children || []).map(child => child.getFullPath());
+        pathsToDelete.push(`${path}/.emptyFolderPlaceholder`);
+
+        const { error } = await FileRecord.destroy(pathsToDelete);
+        if (error) throw error;
+      } else {
+        const { error } = await file.delete();
+        if (error) throw error;
+      }
+
+      if (typeof showToast === "function") {
+        showToast("Deleted successfully", "success");
+      }
+      this.onRefresh();
+    } catch (err) {
+      console.error(err);
+      if (typeof showToast === "function") {
+        showToast(err.message || "Delete failed", "error");
       }
     }
   }
@@ -509,6 +545,7 @@ class BreadcrumbManager {
     });
   }
 }
+
 class FileManager {
   constructor(config = {}) {
     this.allItems = [];
@@ -525,7 +562,7 @@ class FileManager {
           this.openPreview(file);
         }
       },
-      onDeleteClick: (file) => this.deleteItem(file)
+      onRefresh: () => this.listFiles()
     });
     this.filePreview = new FilePreviewManager({
       onToast: (msg, type, duration) => showToast(msg, type, duration),
@@ -648,38 +685,6 @@ class FileManager {
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = '<i class="fa-solid fa-box-archive"></i> <span>Backup</span>';
-    }
-  }
-
-  async deleteItem(file) {
-    const path = file.getFullPath();
-    const isFolder = file.isFolderNode();
-
-    const confirmMsg = isFolder
-      ? `Delete folder "${path}" and all its contents?`
-      : `Delete file "${path}"?`;
-    if (!confirm(confirmMsg)) return;
-
-    try {
-      if (isFolder) {
-        const { data: children, error: listError } = await FileRecord.all(path, { limit: 1000 });
-        if (listError) throw listError;
-
-        const pathsToDelete = (children || []).map(child => child.getFullPath());
-        pathsToDelete.push(`${path}/.emptyFolderPlaceholder`);
-
-        const { error } = await FileRecord.destroy(pathsToDelete);
-        if (error) throw error;
-      } else {
-        const { error } = await file.delete();
-        if (error) throw error;
-      }
-
-      showToast("Deleted successfully", "success");
-      this.listFiles();
-    } catch (err) {
-      console.error(err);
-      showToast(err.message || "Delete failed", "error");
     }
   }
 }
