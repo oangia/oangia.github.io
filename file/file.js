@@ -38,7 +38,7 @@ class ItemsGridRenderer {
         ${mediaHTML}
         <div class="w-full pt-2 border-t border-white/20 flex flex-col">
           <span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(file.getDisplayName())}">${escapeHtml(file.getDisplayName())}</span>
-          <span class="text-[9px] text-slate-300 font-mono mt-0.5">${file.isFolderNode() ? (file.getSubtext() || 'Folder') : file.getSubtext()}</span>
+          <span class="text-[9px] text-slate-300 font-mono mt-0.5">${file.getSubtext()}</span>
         </div>`,
     };
   }
