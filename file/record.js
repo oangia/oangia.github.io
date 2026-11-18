@@ -133,18 +133,12 @@ class FileEntity {
 }
 
 /**
- * FileRecord: Focuses on processing, storage CRUD operations, 
- * cryptography, hashing, remote downloads, previews, and active-record instance actions.
+ * BaseStorageRecord: Focuses solely on storage CRUD operations, remote downloads, 
+ * active-record instance actions, and storage driver management.
  */
-class FileRecord extends FileEntity {
+class BaseStorageRecord extends FileEntity {
   constructor(data = {}) {
     super(data);
-
-    this.hash_filename = null;
-    this.hash_content = null;
-    this.hash_file = null;
-
-    this.hashFullpath();
   }
 
   // Shared static storage driver across all static & instance calls
@@ -155,6 +149,214 @@ class FileRecord extends FileEntity {
       this._storageService = new DriveStorageService();
     }
     return this._storageService;
+  }
+
+  static _fromDriveMetadata(file, path) {
+    const is_folder = file.mimeType === "application/vnd.google-apps.folder" || file.mimeType === "inode/directory";
+    return new this({
+      id: file.id || null,
+      name: file.name,
+      full_path: path,
+      size: Number(file.size || 0),
+      mime_type: file.mimeType,
+      url: file.webContentLink || null,
+      updated_at: file.modifiedTime ? new Date(file.modifiedTime).getTime() : null,
+      is_folder
+    });
+  }
+
+  static _namedUploadFile(path, file) {
+    const name = path.split("/").pop();
+    if (file instanceof File && file.name === name) return file;
+    return new File([file], name, { type: file.type || "application/octet-stream" });
+  }
+
+  static async all(path = "", options = {}) {
+    const storage = this.getStorage();
+    const { data, error } = await storage.list(path, {
+      limit: 500,
+      offset: 0,
+      sortBy: { column: "name", order: "asc" },
+      ...options
+    });
+
+    if (error || !data) {
+      return { data: [], error };
+    }
+
+    const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, "") : "";
+    const fileRecords = data.map((file) => this._fromDriveMetadata(
+      file,
+      cleanBasePath ? `${cleanBasePath}/${file.name}` : file.name
+    ));
+
+    return { data: fileRecords, error: null };
+  }
+
+  static async find(path) {
+    const { data, error } = await this.getStorage().getByPath(path);
+    if (error || !data) return { data: null, error };
+
+    const cleanPath = path.replace(/^\/+|\/+$/g, "");
+    return { data: this._fromDriveMetadata(data, cleanPath), error: null };
+  }
+
+  static async findById(id) {
+    const { data, error } = await this.getStorage().getById(id);
+    if (error || !data) return { data: null, error };
+
+    return { data: this._fromDriveMetadata(data, ""), error: null };
+  }
+
+  static async get(path) {
+    return await this.find(path);
+  }
+
+  static async create(path, file, options = { upsert: false }) {
+    let uploadFile = this._namedUploadFile(path, file);
+    return await this.getStorage().upload(path, uploadFile, options);
+  }
+
+  static async update(path, file, options = {}) {
+    return await this.getStorage().upload(
+      path,
+      this._namedUploadFile(path, file),
+      { ...options, upsert: true }
+    );
+  }
+
+  static async updateById(id, file) {
+    return await this.getStorage().uploadById(id, file);
+  }
+
+  static async download(path, downloadName = null) {
+    const fileName = downloadName || path.split("/").pop();
+    const storage = this.getStorage();
+    // Assuming storage has a download method or fallback URL logic
+    const { data } = await storage.getByPath(path);
+    const url = data?.webContentLink;
+    if (!url) return;
+    
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async save(newFileBlob) {
+    if (!this._full_path && !this._id) throw new Error("Cannot save BaseStorageRecord without an ID or full_path.");
+    const namedFile = BaseStorageRecord._namedUploadFile(this._full_path || this._name, newFileBlob);
+    const { data, error } = this._id
+      ? await BaseStorageRecord.updateById(this._id, namedFile)
+      : await BaseStorageRecord.update(this._full_path, namedFile);
+    if (error) throw error;
+
+    if (data) {
+      this._id = data.id || this._id;
+      this._name = data.name || this._name;
+      this._size = Number(data.size || 0);
+      this._mime_type = data.mimeType || this._mime_type;
+      this._updated_at = data.modifiedTime ? new Date(data.modifiedTime).getTime() : Date.now();
+      this._url = data.webContentLink || null;
+    }
+    return this;
+  }
+
+  async delete({ recursive = false } = {}) {
+    const storage = BaseStorageRecord.getStorage();
+    const path = this._full_path || this._name;
+
+    if (this.isFolderNode()) {
+      const { data: items } = await BaseStorageRecord.all(path);
+      if (items?.length) {
+        if (!recursive) throw new Error(`Folder "${path}" is not empty. Pass { recursive: true }.`);
+        await Promise.all(items.map(item => item.delete({ recursive: true })));
+      }
+    }
+
+    return await storage.remove([path]);
+  }
+
+  async fetchContent(expiresIn = 60) {
+    const storage = BaseStorageRecord.getStorage();
+    const { data: response, error } = await storage.fetchContent({ id: this._id });
+    if (error) throw error;
+    return response;
+  }
+
+  static _createPreviewDataUrl(source, sourceWidth, sourceHeight) {
+    if (!sourceWidth || !sourceHeight) {
+      throw new Error("Cannot create a preview from media with no dimensions.");
+    }
+
+    const maxDimension = 320;
+    const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Could not create a canvas context for the media preview.");
+
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/webp", 0.8);
+  }
+
+  async loadPreviewMedia(element, expiresIn = 60) {
+    const isImage = element instanceof HTMLImageElement;
+    const isVideo = element instanceof HTMLVideoElement;
+    if (!isImage && !isVideo) {
+      throw new TypeError("Preview media element must be an image or video.");
+    }
+
+    const content = await this.fetchContent(expiresIn);
+    const blob = await content.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    if (isImage) {
+      try {
+        const bitmap = await createImageBitmap(blob);
+        try {
+          element.loading = "lazy";
+          element.alt = this.getDisplayName();
+          element.src = BaseStorageRecord._createPreviewDataUrl(bitmap, bitmap.width, bitmap.height);
+        } finally {
+          bitmap.close();
+        }
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+      return;
+    }
+
+    element.preload = "auto";
+    element.src = objectUrl;
+  }
+
+  async downloadInstance() {
+    const url = await this.getUrl();
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = this.getDisplayName();
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
+
+/**
+ * FileRecord: Extends BaseStorageRecord to add Cryptography (AES-GCM), 
+ * Hashing (SHA-256), and secure wrappers over storage operations.
+ */
+class FileRecord extends BaseStorageRecord {
+  constructor(data = {}) {
+    super(data);
+
+    this.hash_filename = null;
+    this.hash_content = null;
+    this.hash_file = null;
+
+    this.hashFullpath();
   }
 
   static getEncryptionPassphrase() {
@@ -240,64 +442,9 @@ class FileRecord extends FileEntity {
     return decrypted;
   }
 
-  static async all(path = "", options = {}) {
-    const storage = this.getStorage();
-    const { data, error } = await storage.list(path, {
-      limit: 500,
-      offset: 0,
-      sortBy: { column: "name", order: "asc" },
-      ...options
-    });
-
-    if (error || !data) {
-      return { data: [], error };
-    }
-
-    const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, "") : "";
-
-    const fileRecords = data.map((file) => this._fromDriveMetadata(
-      file,
-      cleanBasePath ? `${cleanBasePath}/${file.name}` : file.name
-    ));
-
-    console.log(fileRecords);
-
-    return { data: fileRecords, error: null };
-  }
-
-  static _fromDriveMetadata(file, path) {
-    const is_folder = file.mimeType === "application/vnd.google-apps.folder" || file.mimeType === "inode/directory";
-    return new FileRecord({
-      id: file.id || null,
-      name: file.name,
-      full_path: path,
-      size: Number(file.size || 0),
-      mime_type: file.mimeType,
-      url: file.webContentLink || null,
-      updated_at: file.modifiedTime ? new Date(file.modifiedTime).getTime() : null,
-      is_folder
-    });
-  }
-
-  static async find(path) {
-    const { data, error } = await this.getStorage().getByPath(path);
-    if (error || !data) return { data: null, error };
-
-    const cleanPath = path.replace(/^\/+|\/+$/g, "");
-    return { data: this._fromDriveMetadata(data, cleanPath), error: null };
-  }
-
-  static async findById(id) {
-    const { data, error } = await this.getStorage().getById(id);
-    if (error || !data) return { data: null, error };
-
-    return { data: this._fromDriveMetadata(data, ""), error: null };
-  }
-
-  static async get(path) {
-    return await this.find(path);
-  }
-
+  // =========================================================================
+  // OVERRIDDEN STORAGE METHODS WITH ENCRYPTION SUPPORT
+  // =========================================================================
   static async create(path, file, options = { upsert: false, encrypt: false }) {
     let uploadFile = this._namedUploadFile(path, file);
     let finalPath = path;
@@ -316,77 +463,12 @@ class FileRecord extends FileEntity {
       uploadFile = new File([encryptedCipher], originalName + ".enc", { type: "application/octet-stream" });
       finalPath = path + ".enc";
     }
-    const res = await this.getStorage().upload(finalPath, uploadFile, options);
-    return res;
-  }
 
-  static _namedUploadFile(path, file) {
-    const name = path.split("/").pop();
-    if (file instanceof File && file.name === name) return file;
-    return new File([file], name, { type: file.type || "application/octet-stream" });
-  }
-
-  static async update(path, file, options = {}) {
-    return await this.getStorage().upload(
-      path,
-      this._namedUploadFile(path, file),
-      { ...options, upsert: true }
-    );
-  }
-
-  static async updateById(id, file) {
-    return await this.getStorage().uploadById(id, file);
-  }
-
-  static async download(path, downloadName = null) {
-    const fileName = downloadName || path.split("/").pop().replace(/\.enc$/, "");
-    const url = await this.getUrl();
-    
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  async save(newFileBlob) {
-    if (!this._full_path && !this._id) throw new Error("Cannot save FileRecord without an ID or full_path.");
-    const namedFile = FileRecord._namedUploadFile(this._full_path || this._name, newFileBlob);
-    const { data, error } = this._id
-      ? await FileRecord.updateById(this._id, namedFile)
-      : await FileRecord.update(this._full_path, namedFile);
-    if (error) throw error;
-
-    if (data) {
-      this._id = data.id || this._id;
-      this._name = data.name || this._name;
-      this._size = Number(data.size || 0);
-      this._mime_type = data.mimeType || this._mime_type;
-      this._updated_at = data.modifiedTime ? new Date(data.modifiedTime).getTime() : Date.now();
-      this._url = data.webContentLink || null;
-    }
-    return this;
-  }
-
-  async delete({ recursive = false } = {}) {
-    const storage = FileRecord.getStorage();
-    const path = this._full_path || this._name;
-
-    if (this.isFolderNode()) {
-      const { data: items } = await FileRecord.all(path);
-      if (items?.length) {
-        if (!recursive) throw new Error(`Folder "${path}" is not empty. Pass { recursive: true }.`);
-        await Promise.all(items.map(item => item.delete({ recursive: true })));
-      }
-    }
-
-    return await storage.remove([path]);
+    return await super.create(finalPath, uploadFile, options);
   }
 
   async fetchContent(expiresIn = 60) {
-    const storage = FileRecord.getStorage();
-    const { data: response, error } = await storage.fetchContent({ id: this._id });
-    if (error) throw error;
+    const response = await super.fetchContent(expiresIn);
 
     // If the file is not encrypted, return the raw fetch Response directly
     if (!this.isEncryptedFile()) {
@@ -402,20 +484,15 @@ class FileRecord extends FileEntity {
     const encryptedBase64 = await response.text();
     const decryptedArrayBuffer = await FileRecord._decryptData(encryptedBase64, passphrase);
 
-    // The decrypted buffer contains the original Data URL string (from readAsDataURL)
     const dataUrl = new TextDecoder().decode(decryptedArrayBuffer);
-
-    // Reverse the Data URL to extract the original binary blob and mime type
     const blob = this._dataUrlToBlob(dataUrl);
 
-    // Wrap it back into a standard Response object so the rest of your app works seamlessly
     return new Response(blob, {
       status: 200,
       headers: { "Content-Type": blob.type || this._guessMimeType() }
     });
   }
 
-  // Helper method to reverse readAsDataURL back into a Blob
   _dataUrlToBlob(dataUrl) {
     const parts = dataUrl.split(",");
     const mimeMatch = parts[0].match(/:(.*?);/);
@@ -430,68 +507,5 @@ class FileRecord extends FileEntity {
     }
     
     return new Blob([bytes], { type: mime });
-  }
-
-  static _createPreviewDataUrl(source, sourceWidth, sourceHeight) {
-    if (!sourceWidth || !sourceHeight) {
-      throw new Error("Cannot create a preview from media with no dimensions.");
-    }
-
-    const maxDimension = 320;
-    const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(sourceWidth * scale));
-    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
-
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Could not create a canvas context for the media preview.");
-
-    context.drawImage(source, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/webp", 0.8);
-  }
-
-  async loadPreviewMedia(element, expiresIn = 60) {
-    const isImage = element instanceof HTMLImageElement;
-    const isVideo = element instanceof HTMLVideoElement;
-    if (!isImage && !isVideo) {
-      throw new TypeError("Preview media element must be an image or video.");
-    }
-
-    const content = await this.fetchContent(expiresIn);
-    const blob = await content.blob();
-    const objectUrl = URL.createObjectURL(blob);
-
-    if (isImage) {
-      try {
-        const bitmap = await createImageBitmap(blob);
-        try {
-          element.loading = "lazy";
-          element.alt = this.getDisplayName();
-          element.src = FileRecord._createPreviewDataUrl(bitmap, bitmap.width, bitmap.height);
-        } finally {
-          bitmap.close();
-        }
-      } finally {
-        // Safe to revoke immediately for images since createImageBitmap creates an independent bitmap
-        URL.revokeObjectURL(objectUrl);
-      }
-      return;
-    }
-
-    // For video, assign the blob URL directly. 
-    // (Do not revoke objectUrl immediately so the video element can stream/play it)
-    element.preload = "auto";
-    element.src = objectUrl;
-  }
-
-  async downloadInstance() {
-    const url = await this.getUrl();
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = this.getDisplayName();
-
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 }
