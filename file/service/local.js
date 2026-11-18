@@ -143,16 +143,9 @@ class LocalFileService {
     }
   }
 
-  // Standardized fetchContent method returning a fetch Response object
-  async fetchContent({ id = null, path = null } = {}) {
+  async fetchContent(file) {
     try {
-      const targetPath = id || path;
-      const record = this.pathToFile.get(targetPath);
-      if (!record) throw new Error("File not found");
-
-      const res = await fetch(record.fileUrl);
-      if (!res.ok) throw new Error("Failed to read local file blob");
-
+      const res = await fetch(file.getUrl());
       return { data: res, error: null };
     } catch (err) {
       return { data: null, error: err };
