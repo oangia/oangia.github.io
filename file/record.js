@@ -16,7 +16,7 @@ class FileEntity {
     this._is_folder = is_folder;
     this._size = size;
 
-    if (this._isFolder) {
+    if (this._is_folder) {
       this._mime_type = "inode/directory";
     } else {
       this._mime_type = mime_type || this._guessMimeType();
