@@ -55,6 +55,23 @@ class DriveStorageService {
     }
   }
 
+  async fetchContent({ id = null } = {}) {
+    try {
+      const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?alt=media`, {
+        headers: this._headers()
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || `Failed to fetch file content: ${res.statusText}`);
+      }
+
+      return { data: res, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
   _initOAuthClient() {
     if (this.tokenClient) return true;
     if (!window.google?.accounts?.oauth2) return false;
