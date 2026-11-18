@@ -640,6 +640,7 @@ class FileManager {
   async listFiles() {
     try {
       const { data, error } = await FileRecord.all(this.breadcrumb.path);
+      console.log(data);
       if (error) throw error;
       this.allItems = data;
       this.renderView();
