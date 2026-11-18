@@ -191,15 +191,6 @@ class FileRecord extends FileEntity {
     return this._storageService;
   }
 
-  /**
-   * Optional: Allow swapping/initializing storage config from main app
-   */
-  static init(config = {}) {
-    const storage = this.getStorage();
-    storage.init(config);
-    return storage;
-  }
-
   static getEncryptionPassphrase() {
     return localStorage.getItem("gdrive_encryption_password") || null;
   }
@@ -573,5 +564,3 @@ class FileRecord extends FileEntity {
     setTimeout(() => URL.revokeObjectURL(data.signedUrl), 1000);
   }
 }
-
-FileRecord.init();
