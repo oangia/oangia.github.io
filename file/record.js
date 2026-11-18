@@ -146,7 +146,13 @@ class BaseStorageRecord extends FileEntity {
 
   static getStorage() {
     if (!this._storageService) {
-      this._storageService = new DriveStorageService();
+      this._storageService = new LocalFileService({
+        folderButtonId: "openLocalFolderBtn",
+        onProgress: (msg, type) => {
+          console.log(`[LocalFileService] [${type}] ${msg}`);
+          showToast(msg, type);
+        }
+      });
     }
     return this._storageService;
   }
