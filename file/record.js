@@ -122,7 +122,7 @@ class BaseStorageRecord extends FileEntity {
     const { data, error } = await storage.list(path, {
       limit: 500,
       offset: 0,
-      sortBy: { column: "namefunction isVideo(){const i=this.getExtension();return!this.isFolderNode()&&(this.getMimeType()?.startsWith("video/")||["mp4","webm","mov","avi","mkv"].includes(i))}", order: "asc" },
+      sortBy: { column: "name", order: "asc" },
       ...options
     });
 
