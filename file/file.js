@@ -21,7 +21,7 @@ class ItemsGridRenderer {
       fileMedia: (file) => {
         const mediaClass = "widget-preview-area flex-1 w-full h-full object-cover overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors";
         if (file.isImage()) {
-          return `<img class="${mediaClass}" alt="${escapeHtml(file.getDisplayName())}">`;
+          return `<img class="${mediaClass}">`;
         }
         if (file.isVideo()) {
           return `<video class="${mediaClass}" muted playsinline preload="metadata" aria-label="${escapeHtml(file.getDisplayName())}"></video>`;
@@ -241,7 +241,7 @@ class FilePreviewManager {
         <div class="text-xs text-rose-400 p-2 bg-rose-950/60 wire-border rounded">Failed to compute hashes: ${message}</div>
       `,
 
-      imageBody: (url, altText) => `<img src="${url}" alt="${altText}" class="max-w-full h-full shadow-md object-contain">`,
+      imageBody: (url, altText) => `<img src="${url}" class="max-w-full h-full shadow-md object-contain">`,
       videoBody: (url) => `<video controls class="max-w-full max-h-[70vh] rounded-lg shadow-md wire-border" src="${url}"></video>`,
       audioBody: (url, displayName) => `
         <div class="w-full max-w-lg text-center">
