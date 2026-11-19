@@ -748,29 +748,22 @@ class FileManager {
   }
 }
 
-document.addEventListener("click", (e) => {
-  const menu = document.getElementById("actionsMenu");
-  if (!menu) return;
-
-  const actionsMenuBtn = document.getElementById('actionsMenu');
-  const actionsMenuDropdown = document.getElementById('actionsMenuToggleBtn');
+document.addEventListener("DOMContentLoaded", () => {
+  const actionsMenuBtn = document.getElementById("actionsMenu");
+  const actionsMenuDropdown = document.getElementById("actionsMenuToggleBtn");
 
   if (actionsMenuBtn && actionsMenuDropdown) {
-    // Toggle dropdown visibility on click
-    actionsMenuBtn.addEventListener('click', (e) => {
+    actionsMenuBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      actionsMenuDropdown.classList.toggle('hidden');
+      actionsMenuDropdown.classList.toggle("hidden");
     });
 
-    // Close the dropdown when clicking anywhere outside of it
-    document.addEventListener('click', (e) => {
+    document.addEventListener("click", (e) => {
       if (!actionsMenuBtn.contains(e.target) && !actionsMenuDropdown.contains(e.target)) {
-        actionsMenuDropdown.classList.add('hidden');
+        actionsMenuDropdown.classList.add("hidden");
       }
     });
   }
-});
-document.addEventListener("DOMContentLoaded", () => {
   const fileInput = document.getElementById("fileUpload");
   const encryptedInput = document.getElementById("encryptedFileUpload");
   const folderInput = document.getElementById("folderUpload");
