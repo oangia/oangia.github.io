@@ -283,7 +283,11 @@ class BaseStorageRecord extends FileEntity {
  * FileRecord: Extends BaseStorageRecord to add Cryptography (AES-GCM), 
  * Hashing (SHA-256), and secure wrappers over storage operations.
  */
+class Crypto{static PBKDF2_ITERATIONS=1e5;static async sha256(e){const t=e instanceof ArrayBuffer?e:(new TextEncoder).encode(e),r=await window.crypto.subtle.digest("SHA-256",t);return Array.from(new Uint8Array(r)).map(e=>e.toString(16).padStart(2,"0")).join("")}static async _deriveKey(e,t){if(!e)throw new Error("Encryption passphrase is required.");if(!t)throw new Error("Salt is required for key derivation.");const r=new TextEncoder,n=await window.crypto.subtle.importKey("raw",r.encode(e),{name:"PBKDF2"},!1,["deriveKey"]);return window.crypto.subtle.deriveKey({name:"PBKDF2",salt:"string"==typeof t?r.encode(t):t,iterations:this.PBKDF2_ITERATIONS,hash:"SHA-256"},n,{name:"AES-GCM",length:256},!1,["encrypt","decrypt"])}static async encrypt(e,t,r){const n=await this._deriveKey(t,r),a=window.crypto.getRandomValues(new Uint8Array(12)),i=e instanceof ArrayBuffer?e:(new TextEncoder).encode(e),o=await window.crypto.subtle.encrypt({name:"AES-GCM",iv:a},n,i),s=new Uint8Array(a.byteLength+o.byteLength);s.set(a,0),s.set(new Uint8Array(o),a.byteLength);let c="";for(let e=0;e<s.byteLength;e++)c+=String.fromCharCode(s[e]);return btoa(c)}static async decrypt(e,t,r){const n=await this._deriveKey(t,r),a=atob(e),i=new Uint8Array(a.length);for(let e=0;e<a.length;e++)i[e]=a.charCodeAt(e);const o=i.slice(0,12),s=i.slice(12);return await window.crypto.subtle.decrypt({name:"AES-GCM",iv:o},n,s)}}
+
 class FileRecord extends BaseStorageRecord {
+  static SALT = "DriveManagerSecureSalt123";
+
   constructor(data = {}) {
     super(data);
 
@@ -298,94 +302,28 @@ class FileRecord extends BaseStorageRecord {
     return localStorage.getItem("gdrive_encryption_password") || null;
   }
 
-  // =========================================================================
-  // HASHING HELPERS (SHA-256)
-  // =========================================================================
-  static async computeSha256(input) {
-    const buffer = input instanceof ArrayBuffer ? input : new TextEncoder().encode(input);
-    const hashBuffer = await window.crypto.subtle.digest("SHA-256", buffer);
-    return Array.from(new Uint8Array(hashBuffer))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
-
   async hashFullpath() {
-    const targetString = this.getFullPath() || this.getName();
-    if (!targetString) return null;
-    this.hash_filename = await FileRecord.computeSha256(targetString);
+    this.hash_filename = await Crypto.sha256(this.getFullPath());
   }
 
   async hashContent(url) {
     const response = await fetch(url);
     const blob = await response.blob();
     const buffer = await blob.arrayBuffer();
-    this.hash_content = await FileRecord.computeSha256(buffer);
-    this.hash_file = await FileRecord.computeSha256(this.hash_filename + this.hash_content);
+    this.hash_content = await Crypto.sha256(buffer);
+    this.hash_file = await Crypto.sha256(this.hash_filename + this.hash_content);
   }
 
-  // =========================================================================
-  // CRYPTO HELPERS (AES-GCM)
-  // =========================================================================
-  static async _getCryptoKey(passphrase) {
-    const enc = new TextEncoder();
-    const keyMaterial = await window.crypto.subtle.importKey(
-      "raw",
-      enc.encode(passphrase),
-      { name: "PBKDF2" },
-      false,
-      ["deriveKey"]
-    );
-    const salt = enc.encode("DriveManagerSecureSalt123");
-    return window.crypto.subtle.deriveKey(
-      { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
-      keyMaterial,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt", "decrypt"]
-    );
-  }
-
-  static async _encryptData(inputData, passphrase) {
-    const key = await this._getCryptoKey(passphrase);
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const encoded = inputData instanceof ArrayBuffer ? inputData : new TextEncoder().encode(inputData);
-    const ciphertext = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
-
-    const combined = new Uint8Array(iv.byteLength + ciphertext.byteLength);
-    combined.set(iv, 0);
-    combined.set(new Uint8Array(ciphertext), iv.byteLength);
-
-    let binary = "";
-    for (let i = 0; i < combined.byteLength; i++) {
-      binary += String.fromCharCode(combined[i]);
-    }
-    return btoa(binary);
-  }
-
-  static async _decryptData(base64Cipher, passphrase) {
-    const key = await this._getCryptoKey(passphrase);
-    const binary = atob(base64Cipher);
-    const combined = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      combined[i] = binary.charCodeAt(i);
-    }
-
-    const iv = combined.slice(0, 12);
-    const ciphertext = combined.slice(12);
-
-    const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
-    return decrypted;
-  }
-
-  // =========================================================================
-  // OVERRIDDEN STORAGE METHODS WITH ENCRYPTION SUPPORT
-  // =========================================================================
   static async create(path, file, options = { upsert: false, encrypt: false }) {
     let uploadFile = this._namedUploadFile(path, file);
     let finalPath = path;
 
     if (options.encrypt) {
       const passphrase = this.getEncryptionPassphrase();
+      if (!passphrase) {
+        throw new Error("Encryption passphrase missing. Cannot encrypt file.");
+      }
+
       const base64Data = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
@@ -393,9 +331,15 @@ class FileRecord extends BaseStorageRecord {
         reader.readAsDataURL(uploadFile);
       });
 
-      const encryptedCipher = await this._encryptData(base64Data, passphrase);
+      const encryptedCipher = await Crypto.encrypt(
+        base64Data,
+        passphrase,
+        this.SALT
+      );
       const originalName = uploadFile.name;
-      uploadFile = new File([encryptedCipher], originalName + ".enc", { type: "application/octet-stream" });
+      uploadFile = new File([encryptedCipher], originalName + ".enc", {
+        type: "application/octet-stream",
+      });
       finalPath = path + ".enc";
     }
 
@@ -405,26 +349,28 @@ class FileRecord extends BaseStorageRecord {
   async fetchContent(expiresIn = 60) {
     const response = await super.fetchContent(expiresIn);
 
-    // If the file is not encrypted, return the raw fetch Response directly
     if (!this.isEncryptedFile()) {
       return response;
     }
 
-    // If encrypted, decrypt the content
     const passphrase = FileRecord.getEncryptionPassphrase();
     if (!passphrase) {
       throw new Error("Encryption passphrase missing. Cannot decrypt encrypted file.");
     }
 
     const encryptedBase64 = await response.text();
-    const decryptedArrayBuffer = await FileRecord._decryptData(encryptedBase64, passphrase);
+    const decryptedArrayBuffer = await Crypto.decrypt(
+      encryptedBase64,
+      passphrase,
+      FileRecord.SALT
+    );
 
     const dataUrl = new TextDecoder().decode(decryptedArrayBuffer);
     const blob = this._dataUrlToBlob(dataUrl);
 
     return new Response(blob, {
       status: 200,
-      headers: { "Content-Type": blob.type || this._guessMimeType() }
+      headers: { "Content-Type": blob.type || this._guessMimeType() },
     });
   }
 
@@ -432,15 +378,15 @@ class FileRecord extends BaseStorageRecord {
     const parts = dataUrl.split(",");
     const mimeMatch = parts[0].match(/:(.*?);/);
     const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
-    
+
     const binaryString = atob(parts[1]);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
-    
+
     for (let i = 0; i < len; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
-    
+
     return new Blob([bytes], { type: mime });
   }
 }
