@@ -786,5 +786,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (folderInput && typeof fileManager !== "undefined") {
     folderInput.addEventListener("change", (e) => fileManager.handleFileUpload(e, true, false));
   }
+  set_bg();
 });
 const fileManager = new FileManager();
