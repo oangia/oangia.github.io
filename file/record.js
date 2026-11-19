@@ -1,35 +1,16 @@
 class FileEntity {
-  constructor({
-    id = null,
-    name = "",
-    full_path = "",
-    size = 0,
-    mime_type = null,
-    url = null,
-    created_at = null,
-    updated_at = null,
-    is_folder = false
-  } = {}) {
+  constructor({id = null, name = "", full_path = "", size = 0, mime_type = null, url = null, is_folder = false, created_at = null, updated_at = null} = {}) {
     this._id = id;
     this._name = name;
     this._full_path = full_path;
     this._is_folder = is_folder;
     this._size = size;
-
-    if (this._is_folder) {
-      this._mime_type = "inode/directory";
-    } else {
-      this._mime_type = mime_type || this._guessMimeType();
-    }
-
+    this._mime_type = this._is_folder? "inode/directory" : (mime_type || this._guessMimeType());
     this._url = url;
-    this._created_at = created_at || Date.now();
-    this._updated_at = updated_at || Date.now();
+    this._created_at = created_at;
+    this._updated_at = updated_at;
   }
-
-  // =========================================================================
-  // ENCAPSULATED GETTERS & HELPERS
-  // =========================================================================
+  
   getId() { return this._id; }
   getName() { return this._name; }
   getFullPath() { return this._full_path; }
@@ -76,34 +57,11 @@ class FileEntity {
     return text;
   }
 
-  isImage() {
-    const ext = this.getExtension();
-    return !this.isFolderNode() && (
-      this.getMimeType()?.startsWith("image/") ||
-      ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"].includes(ext)
-    );
-  }
-
-  isVideo() {
-    const ext = this.getExtension();
-    return !this.isFolderNode() && (
-      this.getMimeType()?.startsWith("video/") ||
-      ["mp4", "webm", "mov", "avi", "mkv"].includes(ext)
-    );
-  }
-
-  isAudio() {
-    const ext = this.getExtension();
-    return !this.isFolderNode() && (
-      this.getMimeType()?.startsWith("audio/") ||
-      ["mp3", "wav", "ogg"].includes(ext)
-    );
-  }
-
-  isHtml() {
-    const ext = this.getExtension();
-    return !this.isFolderNode() && ["html", "htm"].includes(ext);
-  }
+  _checkMineType(exts, prefix) {return exts.includes(this.getExtension()) || this.getMimeType().startsWith(prefix)}
+  isImage() {return this._checkMineType(["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"], "image/")}
+  isVideo() {return this._checkMineType(["mp4","webm","mov","avi","mkv"], "video/")}
+  isAudio() {return this._checkMineType(["mp3", "wav", "ogg"], "audio/")}
+  isHtml() {return this._checkMineType(["html", "htm"], "html/")}
 
   getFileIconClass() {
     if (this.isFolderNode()) return "fa-solid fa-folder text-amber-500";
@@ -137,27 +95,50 @@ class FileEntity {
  * active-record instance actions, and storage driver management.
  */
 class BaseStorageRecord extends FileEntity {
+  static _storageService = null;
+  
   constructor(data = {}) {
     super(data);
   }
 
-  // Shared static storage driver across all static & instance calls
-  static _storageService = null;
-
   static getStorage() {
     if (!this._storageService) {
-      this._storageService = new LocalFileService({
+      /*this._storageService = new LocalFileService({
         folderButtonId: "openLocalFolderBtn",
         onProgress: (msg, type) => {
           console.log(`[LocalFileService] [${type}] ${msg}`);
           showToast(msg, type);
           fileManager.listFiles();
         }
-      });
+      });*/
+      //this._storageService = new SupabaseStorageService();
+      this._storageService = new DriveStorageService();
     }
     return this._storageService;
   }
 
+  static async all(path = "", options = {}) {
+    const storage = this.getStorage();
+    const { data, error } = await storage.list(path, {
+      limit: 500,
+      offset: 0,
+      sortBy: { column: "namefunction isVideo(){const i=this.getExtension();return!this.isFolderNode()&&(this.getMimeType()?.startsWith("video/")||["mp4","webm","mov","avi","mkv"].includes(i))}", order: "asc" },
+      ...options
+    });
+
+    if (error || !data) {
+      return { data: [], error };
+    }
+
+    const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, "") : "";
+    const fileRecords = data.map((file) => this._fromDriveMetadata(
+      file,
+      cleanBasePath ? `${cleanBasePath}/${file.name}` : file.name
+    ));
+
+    return { data: fileRecords, error: null };
+  }
+  
   static _fromDriveMetadata(file, path) {
     const is_folder = file.mimeType === "application/vnd.google-apps.folder" || file.mimeType === "inode/directory";
     return new this({
@@ -178,27 +159,7 @@ class BaseStorageRecord extends FileEntity {
     return new File([file], name, { type: file.type || "application/octet-stream" });
   }
 
-  static async all(path = "", options = {}) {
-    const storage = this.getStorage();
-    const { data, error } = await storage.list(path, {
-      limit: 500,
-      offset: 0,
-      sortBy: { column: "name", order: "asc" },
-      ...options
-    });
-
-    if (error || !data) {
-      return { data: [], error };
-    }
-
-    const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, "") : "";
-    const fileRecords = data.map((file) => this._fromDriveMetadata(
-      file,
-      cleanBasePath ? `${cleanBasePath}/${file.name}` : file.name
-    ));
-
-    return { data: fileRecords, error: null };
-  }
+  
 
   static async find(path) {
     const { data, error } = await this.getStorage().getByPath(path);
@@ -292,32 +253,9 @@ class BaseStorageRecord extends FileEntity {
     return response;
   }
 
-  static _createPreviewDataUrl(source, sourceWidth, sourceHeight) {
-    if (!sourceWidth || !sourceHeight) {
-      throw new Error("Cannot create a preview from media with no dimensions.");
-    }
-
-    const maxDimension = 320;
-    const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(sourceWidth * scale));
-    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
-
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Could not create a canvas context for the media preview.");
-
-    context.drawImage(source, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/webp", 0.8);
-  }
-
   async loadPreviewMedia(element, expiresIn = 60) {
-    const isImage = element instanceof HTMLImageElement;
-    const isVideo = element instanceof HTMLVideoElement;
-    if (!isImage && !isVideo) {
-      throw new TypeError("Preview media element must be an image or video.");
-    }
-
     if (this.getUrl().startsWith("blob:")) {
+      element.loading = "lazy";
       element.src = this.getUrl();
       return;
     }
@@ -326,22 +264,7 @@ class BaseStorageRecord extends FileEntity {
     const blob = await content.blob();
     const objectUrl = URL.createObjectURL(blob);
 
-    if (isImage) {
-      try {
-        const bitmap = await createImageBitmap(blob);
-        try {
-          element.loading = "lazy";
-          element.alt = this.getDisplayName();
-          element.src = BaseStorageRecord._createPreviewDataUrl(bitmap, bitmap.width, bitmap.height);
-        } finally {
-          bitmap.close();
-        }
-      } finally {
-        URL.revokeObjectURL(objectUrl);
-      }
-      return;
-    }
-
+    element.loading = "lazy";
     element.preload = "auto";
     element.src = objectUrl;
   }
