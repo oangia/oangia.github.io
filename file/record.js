@@ -159,8 +159,6 @@ class BaseStorageRecord extends FileEntity {
     return new File([file], name, { type: file.type || "application/octet-stream" });
   }
 
-  
-
   static async find(path) {
     const { data, error } = await this.getStorage().getByPath(path);
     if (error || !data) return { data: null, error };
@@ -174,10 +172,6 @@ class BaseStorageRecord extends FileEntity {
     if (error || !data) return { data: null, error };
 
     return { data: this._fromDriveMetadata(data, ""), error: null };
-  }
-
-  static async get(path) {
-    return await this.find(path);
   }
 
   static async create(path, file, options = { upsert: false }) {
@@ -298,10 +292,6 @@ class FileRecord extends BaseStorageRecord {
     this.hashFullpath();
   }
 
-  static getEncryptionPassphrase() {
-    return localStorage.getItem("gdrive_encryption_password") || null;
-  }
-
   async hashFullpath() {
     this.hash_filename = await Crypto.sha256(this.getFullPath());
   }
@@ -319,7 +309,7 @@ class FileRecord extends BaseStorageRecord {
     let finalPath = path;
 
     if (options.encrypt) {
-      const passphrase = this.getEncryptionPassphrase();
+      const passphrase = localStorage.getItem("gdrive_encryption_password");
       if (!passphrase) {
         throw new Error("Encryption passphrase missing. Cannot encrypt file.");
       }
@@ -353,7 +343,7 @@ class FileRecord extends BaseStorageRecord {
       return response;
     }
 
-    const passphrase = FileRecord.getEncryptionPassphrase();
+    const passphrase = localStorage.getItem("gdrive_encryption_password");
     if (!passphrase) {
       throw new Error("Encryption passphrase missing. Cannot decrypt encrypted file.");
     }
