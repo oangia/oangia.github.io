@@ -242,7 +242,7 @@ class BaseStorageRecord extends FileEntity {
 
   async fetchContent(expiresIn = 60) {
     const storage = BaseStorageRecord.getStorage();
-    const { data: response, error } = await storage.fetchContent(this);
+    const { data: response, error } = await storage.fetchContent({id: this.getId(), path: this.getFullPath()});
     if (error) throw error;
     return response;
   }
