@@ -10,6 +10,7 @@ class DriveStorageService {
     this._authRequestMode = null;
     this._silentAuthAttempted = false;
     this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
+    this.onConnectionChange = config.onConnectionChange || (() => {});
 
     const savedClientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     if (savedClientId) this.clientId = savedClientId;
@@ -110,11 +111,7 @@ class DriveStorageService {
             if (typeof showToast === "function") showToast("Connected to Google Drive successfully", "success");
           }
 
-          if (typeof fileManager !== "undefined" && typeof fileManager.initializeServiceConnection === "function") {
-            fileManager.initializeServiceConnection();
-          } else {
-            window.location.reload();
-          }
+          this.onConnectionChange();
         }
       });
       return true;

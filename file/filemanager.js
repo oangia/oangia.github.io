@@ -31,10 +31,7 @@ class UITemplates {
         const services = group.files.map(file =>
           `<span class="rounded bg-white/10 px-1.5 py-0.5">${escapeHtml(file.getStorageName())}</span>`
         ).join("");
-        const copySelector = group.files.length > 1 && !group.isFolderNode()
-          ? `<select class="service-file-select mt-1 w-full rounded border border-white/15 bg-slate-900 px-1.5 py-1 text-[9px] text-slate-200" aria-label="Choose a service copy to view">${group.files.map((file, index) => `<option value="${index}" ${index === group.selectedIndex ? "selected" : ""}>View from ${escapeHtml(file.getStorageName())}</option>`).join("")}</select>`
-          : "";
-        return `<button class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full bg-black/50 hover:bg-red-500 text-white transition" title="Delete selected service copy"><i class="fa-solid fa-xmark text-[10px]"></i></button>${mediaHTML}<div class="w-full pt-2 border-t border-white/20 flex flex-col"><span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(group.getDisplayName())}">${escapeHtml(group.getDisplayName())}</span><span class="text-[9px] text-slate-300 font-mono mt-0.5">${group.getSubtext()}</span><div class="mt-1 flex flex-wrap gap-1 text-[8px] text-slate-200">${services}</div><span class="mt-1 text-[9px] font-semibold ${statusClass}">${escapeHtml(group.comparisonStatus || "")}</span>${copySelector}</div>`;
+        return `${mediaHTML}<div class="w-full pt-2 border-t border-white/20 flex flex-col"><span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(group.getDisplayName())}">${escapeHtml(group.getDisplayName())}</span><span class="text-[9px] text-slate-300 font-mono mt-0.5">${group.getSubtext()}</span><div class="mt-1 flex flex-wrap gap-1 text-[8px] text-slate-200">${services}</div><span class="mt-1 text-[9px] font-semibold ${statusClass}">${escapeHtml(group.comparisonStatus || "")}</span></div>`;
       },
     };
   }
@@ -42,7 +39,7 @@ class UITemplates {
   // --- Preview Modal Templates ---
   static get preview() {
     return {
-      modalHtml: `<div id="modalPreview" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-0 m-0"><div class="w-screen h-screen flex flex-col overflow-hidden m-0 p-0 text-slate-100"><div class="flex items-center justify-between px-6 py-3.5 border-b border-white/15 bg-black/40 shrink-0"><h3 id="previewTitle" class="font-bold text-sm text-white truncate"></h3><button id="closePreviewModalBtn" class="text-slate-400 hover:text-white p-1 text-lg transition"><i class="fa-solid fa-xmark"></i></button></div><div class="flex-1 flex overflow-hidden bg-transparent"><div id="previewBody" class="flex-1 overflow-auto flex items-center justify-center"></div><div class="w-80 border-l border-white/15 bg-zinc-950/60 flex flex-col overflow-y-auto p-4 shrink-0"><div class="flex items-center gap-2 pb-3 mb-3 border-b border-white/15"><i class="fa-solid fa-fingerprint text-indigo-400 text-sm"></i><h4 class="font-bold text-xs uppercase tracking-wider text-slate-200">File Details & Hashes</h4></div><div id="previewSidebarDetails" class="space-y-4 text-xs text-slate-300"></div></div></div><div class="px-6 py-3.5 border-t border-white/15 bg-black/40 flex justify-end gap-2 flex-wrap shrink-0"><button id="previewSaveBtn" class="hidden px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg transition"><i class="fa-solid fa-floppy-disk mr-1 text-emerald-400"></i> Save</button><button id="previewCancelEditBtn" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button><a id="previewDownloadBtn" href="#" download class="px-4 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg transition"><i class="fa-solid fa-download mr-1 text-indigo-400"></i> Download</a><button id="closePreviewModalBtnAlt" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Close</button></div></div></div>`,
+      modalHtml: `<div id="modalPreview" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-0 m-0"><div class="w-screen h-screen flex flex-col overflow-hidden m-0 p-0 text-slate-100"><div class="flex items-center justify-between px-6 py-3.5 border-b border-white/15 bg-black/40 shrink-0"><h3 id="previewTitle" class="font-bold text-sm text-white truncate"></h3><button id="closePreviewModalBtn" class="text-slate-400 hover:text-white p-1 text-lg transition"><i class="fa-solid fa-xmark"></i></button></div><div class="flex-1 flex overflow-hidden bg-transparent"><div id="previewBody" class="flex-1 overflow-auto flex items-center justify-center"></div><div class="w-80 border-l border-white/15 bg-zinc-950/60 flex flex-col overflow-y-auto p-4 shrink-0"><div class="flex items-center gap-2 pb-3 mb-3 border-b border-white/15"><i class="fa-solid fa-fingerprint text-indigo-400 text-sm"></i><h4 class="font-bold text-xs uppercase tracking-wider text-slate-200">File Details & Hashes</h4></div><div id="previewSidebarDetails" class="space-y-4 text-xs text-slate-300"></div></div></div><div class="px-6 py-3.5 border-t border-white/15 bg-black/40 flex justify-end gap-2 flex-wrap shrink-0"><button id="previewSaveBtn" class="hidden px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg transition"><i class="fa-solid fa-floppy-disk mr-1 text-emerald-400"></i> Save</button><button id="previewCancelEditBtn" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button><button id="previewDownloadBtn" type="button" class="px-4 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg transition"><i class="fa-solid fa-download mr-1 text-indigo-400"></i> Download</button><button id="closePreviewModalBtnAlt" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Close</button></div></div></div>`,
       loadingSpinner: `<div class="wire-subtext py-12 flex justify-center"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>`,
       sidebarLoading: `<div class="text-center py-10 space-y-2 wire-subtext"><i class="fa-solid fa-spinner fa-spin text-xl text-indigo-400"></i><p class="text-xs">Loading info...</p></div>`,
       hashesLoading: `<div class="text-center py-4 space-y-2 wire-subtext"><i class="fa-solid fa-spinner fa-spin text-indigo-400"></i><p class="text-[10px]">Computing cryptographic hashes...</p></div>`,
@@ -99,6 +96,16 @@ class ItemsGridRenderer {
   constructor(containerId, fileManagerInstance) {
     this.container = document.getElementById(containerId);
     this.fileManager = fileManagerInstance;
+    this.contextMenu = document.createElement("div");
+    this.contextMenu.className = "hidden fixed z-[110] max-h-[80vh] min-w-64 overflow-y-auto rounded-xl border border-white/20 bg-zinc-900/95 p-2 text-slate-200 shadow-2xl backdrop-blur-md";
+    document.body.appendChild(this.contextMenu);
+    this.contextMenu.addEventListener("pointerdown", event => event.stopPropagation());
+    document.addEventListener("pointerdown", event => {
+      if (!this.contextMenu.contains(event.target)) this.hideContextMenu();
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") this.hideContextMenu();
+    });
   }
 
   async render(items) {
@@ -117,11 +124,13 @@ class ItemsGridRenderer {
       const file = group.selectedFile;
       const card = document.createElement("div");
       card.className = tpl.cardClass;
+      card.title = "Right-click for service actions";
+      card.addEventListener("contextmenu", event => this.showContextMenu(event, group));
       card.onclick = () => {
         if (file.isFolderNode()) {
-          this.fileManager.navigate(file);
+          this.fileManager.action("navigate", file);
         } else {
-          this.fileManager.openPreview(file);
+          this.fileManager.action("openPreview", file);
         }
       };
 
@@ -131,71 +140,62 @@ class ItemsGridRenderer {
 
       card.innerHTML = tpl.card(group, mediaHTML);
 
-      const copySelector = card.querySelector(".service-file-select");
-      copySelector?.addEventListener("click", event => event.stopPropagation());
-      copySelector?.addEventListener("change", event => {
-        event.stopPropagation();
-        group.select(Number(copySelector.value));
-        this.fileManager.openPreview(group.selectedFile);
-      });
-
-      const deleteBtn = card.querySelector(".delete-btn");
-      if (deleteBtn) {
-        deleteBtn.onclick = (e) => {
-          e.stopPropagation();
-          this.deleteItem(group.selectedFile);
-        };
-      }
-
       this.container.appendChild(card);
 
       const previewEl = card.querySelector(".widget-preview-area");
       if ((file.isImage() && previewEl instanceof HTMLImageElement)
         || (file.isVideo() && previewEl instanceof HTMLVideoElement)) {
-        file.loadPreviewMedia(previewEl).catch(error => {
-          if (error.name === "AbortError") return;
-          console.error("Failed to load file preview:", error);
-        });
+        this.fileManager.action("loadPreviewMedia", file, previewEl);
       }
     }
   }
 
-  async deleteItem(file) {
-    const path = file.getFullPath();
-    const isFolder = file.isFolderNode();
+  showContextMenu(event, group) {
+    event.preventDefault();
+    event.stopPropagation();
+    const actionButton = (action, index, label, style = "") =>
+      `<button type="button" data-action="${action}" data-file-index="${index}" class="rounded px-2 py-1 text-[10px] transition hover:bg-white/10 ${style}">${label}</button>`;
 
-    const message = isFolder
-      ? `Delete folder "${path}" and all its contents recursively?`
-      : `Delete file "${path}"?`;
+    this.contextMenu.innerHTML = group.files.map((file, index) => `
+      <section class="border-b border-white/10 px-2 py-2 last:border-0">
+        <h3 class="mb-1 text-[10px] font-semibold text-indigo-300">${escapeHtml(file.getStorageName())}</h3>
+        <div class="flex gap-1">
+          ${actionButton(file.isFolderNode() ? "navigate" : "openPreview", index, file.isFolderNode() ? "Open" : "View")}
+          ${file.isFolderNode() ? "" : actionButton("downloadRecord", index, "Download")}
+          ${actionButton("deleteRecord", index, "Delete", "text-rose-300 hover:text-rose-200")}
+        </div>
+      </section>
+    `).join("");
+    this.contextMenu.classList.remove("hidden");
 
-    if (!confirm(message)) return;
+    const left = event.clientX || 8;
+    const top = event.clientY || 8;
+    const rect = this.contextMenu.getBoundingClientRect();
+    this.contextMenu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - rect.width - 8))}px`;
+    this.contextMenu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - rect.height - 8))}px`;
 
-    try {
-      const result = await file.delete({ recursive: true });
-      if (result && result.error) throw result.error;
-
-      showToast("Deleted successfully", "success");
-      this.fileManager.listFiles();
-    } catch (err) {
-      console.error(err);
-      showToast(err.message || "Delete failed", "error");
-    }
+    this.contextMenu.querySelectorAll("[data-action]").forEach(button => {
+      button.addEventListener("click", () => {
+        const file = group.files[Number(button.dataset.fileIndex)];
+        this.hideContextMenu();
+        this.fileManager.action(button.dataset.action, file);
+      });
+    });
   }
+
+  hideContextMenu() {
+    this.contextMenu.classList.add("hidden");
+  }
+
 }
 
 class FileGroup {
   constructor(files) {
     this.files = files;
-    this.selectedIndex = 0;
     this.comparisonStatus = "";
   }
 
-  get selectedFile() { return this.files[this.selectedIndex]; }
-  select(index) {
-    if (Number.isInteger(index) && index >= 0 && index < this.files.length) {
-      this.selectedIndex = index;
-    }
-  }
+  get selectedFile() { return this.files[0]; }
   isFolderNode() { return this.selectedFile.isFolderNode(); }
   getName() { return this.selectedFile.getName(); }
   getDisplayName() { return this.selectedFile.getDisplayName(); }
@@ -207,7 +207,6 @@ class FileGroup {
 class FilePreviewManager {
   constructor(fileManagerInstance) {
     this.fileManager = fileManagerInstance;
-    this.currentFileRecord = null;
     this._currentBlobUrl = null;
 
     this._ensureModalInDOM();
@@ -223,20 +222,21 @@ class FilePreviewManager {
   }
 
   _initModalListeners() {
-    const closeModal = () => {
-      const modal = document.getElementById("modalPreview");
-      if (modal) modal.classList.add("hidden");
-    };
+    const closePreview = () => this.fileManager.action("closePreview");
 
-    document.getElementById("closePreviewModalBtn")?.addEventListener("click", closeModal);
-    document.getElementById("closePreviewModalBtnAlt")?.addEventListener("click", closeModal);
-    document.getElementById("previewCancelEditBtn")?.addEventListener("click", () => this.cancelEditText());
-    document.getElementById("previewSaveBtn")?.addEventListener("click", () => this.saveEditedText());
+    document.getElementById("closePreviewModalBtn")?.addEventListener("click", closePreview);
+    document.getElementById("closePreviewModalBtnAlt")?.addEventListener("click", closePreview);
+    document.getElementById("previewCancelEditBtn")?.addEventListener("click", () => this.fileManager.action("cancelEdit"));
+    document.getElementById("previewDownloadBtn")?.addEventListener("click", () => {
+      if (this.fileManager.currentFileRecord) this.fileManager.action("downloadRecord", this.fileManager.currentFileRecord);
+    });
+    document.getElementById("previewSaveBtn")?.addEventListener("click", () => {
+      const textarea = document.getElementById("editTextarea");
+      if (textarea) this.fileManager.action("saveEditedText", textarea.value);
+    });
   }
 
-  async openPreview(fileRecord) {
-    this.currentFileRecord = fileRecord;
-
+  showLoading(fileRecord) {
     if (this._currentBlobUrl) {
       URL.revokeObjectURL(this._currentBlobUrl);
       this._currentBlobUrl = null;
@@ -256,96 +256,83 @@ class FilePreviewManager {
 
     saveBtn?.classList.add("hidden");
     cancelBtn?.classList.add("hidden");
-
-    try {
-      const response = await fileRecord.fetchContent(60);
-      const blob = await response.blob();
-
-      fileRecord._byteLength = blob.size;
-      this._currentBlobUrl = URL.createObjectURL(blob);
-
-      const displayName = escapeHtml(fileRecord.getDisplayName());
-      const escapedUrl = escapeHtml(this._currentBlobUrl);
-
-      if (sidebar) {
-        sidebar.innerHTML = tpl.sidebarContent({
-          displayName,
-          url: escapedUrl,
-          pathHash: fileRecord.hash_filename || "",
-          fullPath: escapeHtml(fileRecord.getFullPath()),
-          sizeDisplay: fileRecord.getFormattedSize()
-        });
-
-        sidebar.querySelector(".content-hash")?.addEventListener("click", () => this.computeContentAndCombinedHashes(escapedUrl));
-      }
-
-      if (fileRecord.isImage()) {
-        body.innerHTML = tpl.imageBody(escapedUrl, displayName);
-      } else if (fileRecord.isVideo()) {
-        body.innerHTML = tpl.videoBody(escapedUrl);
-      } else if (fileRecord.isAudio()) {
-        body.innerHTML = tpl.audioBody(escapedUrl, displayName);
-      } else {
-        const text = await blob.text();
-        const escapedText = escapeHtml(text);
-
-        if (fileRecord.isHtml()) {
-          body.innerHTML = tpl.htmlBody(escapedText);
-          document.getElementById("htmlPreviewTab")?.addEventListener("click", () => this.switchHtmlView("preview"));
-          document.getElementById("htmlEditorTab")?.addEventListener("click", () => this.switchHtmlView("editor"));
-          setTimeout(() => {
-            const iframe = document.getElementById("htmlPreviewFrame");
-            if (iframe) iframe.srcdoc = text;
-          }, 50);
-        } else {
-          body.innerHTML = tpl.textBody(escapedText);
-          saveBtn?.classList.remove("hidden");
-          cancelBtn?.classList.remove("hidden");
-        }
-      }
-
-      const downloadBtn = document.getElementById("previewDownloadBtn");
-      if (downloadBtn) {
-        downloadBtn.href = escapedUrl;
-        downloadBtn.setAttribute("download", fileRecord.getDisplayName());
-      }
-    } catch (err) {
-      console.error("Preview failed:", err);
-      if (body) body.innerHTML = tpl.errorBody;
-      if (sidebar) sidebar.innerHTML = tpl.sidebarError;
-    }
   }
 
-  async computeContentAndCombinedHashes(url) {
-    const container = document.getElementById("hashesComputeContainer");
-    if (!container || !this.currentFileRecord) return;
+  async renderPreview(fileRecord, blob) {
+    const tpl = UITemplates.preview;
+    const body = document.getElementById("previewBody");
+    const sidebar = document.getElementById("previewSidebarDetails");
+    const saveBtn = document.getElementById("previewSaveBtn");
+    const cancelBtn = document.getElementById("previewCancelEditBtn");
+    this._currentBlobUrl = URL.createObjectURL(blob);
 
-    container.innerHTML = UITemplates.preview.hashesLoading;
+    const displayName = escapeHtml(fileRecord.getDisplayName());
+    const escapedUrl = escapeHtml(this._currentBlobUrl);
 
-    try {
-      await this.currentFileRecord.hashContent(url);
-
-      const contentHash = this.currentFileRecord.hash_content;
-      const combinedHash = this.currentFileRecord.hash_file;
-      const pathHash = this.currentFileRecord.hash_filename;
-
-      if (!contentHash || !combinedHash) {
-        throw new Error("Hash computation returned empty results.");
-      }
-
-      const rawCombinedString = escapeHtml(pathHash + contentHash);
-      const byteLength = this.currentFileRecord._byteLength || "Unknown";
-
-      container.innerHTML = UITemplates.preview.hashesResult({
-        contentHash,
-        combinedHash,
-        rawCombinedString,
-        byteLength
+    if (sidebar) {
+      sidebar.innerHTML = tpl.sidebarContent({
+        displayName,
+        url: escapedUrl,
+        pathHash: fileRecord.hash_filename || "",
+        fullPath: escapeHtml(fileRecord.getFullPath()),
+        sizeDisplay: fileRecord.getFormattedSize()
       });
-    } catch (err) {
-      console.error(err);
-      container.innerHTML = UITemplates.preview.hashesError(escapeHtml(err.message || "Unknown error"));
+
+      sidebar.querySelector(".content-hash")?.addEventListener("click", () => this.fileManager.action("computeHashes", escapedUrl));
     }
+
+    if (fileRecord.isImage()) {
+      body.innerHTML = tpl.imageBody(escapedUrl, displayName);
+    } else if (fileRecord.isVideo()) {
+      body.innerHTML = tpl.videoBody(escapedUrl);
+    } else if (fileRecord.isAudio()) {
+      body.innerHTML = tpl.audioBody(escapedUrl, displayName);
+    } else {
+      const text = await blob.text();
+      const escapedText = escapeHtml(text);
+
+      if (fileRecord.isHtml()) {
+        body.innerHTML = tpl.htmlBody(escapedText);
+        document.getElementById("htmlPreviewTab")?.addEventListener("click", () => this.fileManager.action("switchHtmlView", "preview"));
+        document.getElementById("htmlEditorTab")?.addEventListener("click", () => this.fileManager.action("switchHtmlView", "editor"));
+        setTimeout(() => {
+          const iframe = document.getElementById("htmlPreviewFrame");
+          if (iframe) iframe.srcdoc = text;
+        }, 50);
+      } else {
+        body.innerHTML = tpl.textBody(escapedText);
+        saveBtn?.classList.remove("hidden");
+        cancelBtn?.classList.remove("hidden");
+      }
+    }
+
+  }
+
+  showPreviewError() {
+    const tpl = UITemplates.preview;
+    const body = document.getElementById("previewBody");
+    const sidebar = document.getElementById("previewSidebarDetails");
+    if (body) body.innerHTML = tpl.errorBody;
+    if (sidebar) sidebar.innerHTML = tpl.sidebarError;
+  }
+
+  showHashesLoading() {
+    const container = document.getElementById("hashesComputeContainer");
+    if (container) container.innerHTML = UITemplates.preview.hashesLoading;
+  }
+
+  renderHashesResult(result) {
+    const container = document.getElementById("hashesComputeContainer");
+    if (container) container.innerHTML = UITemplates.preview.hashesResult(result);
+  }
+
+  renderHashesError(message) {
+    const container = document.getElementById("hashesComputeContainer");
+    if (container) container.innerHTML = UITemplates.preview.hashesError(escapeHtml(message));
+  }
+
+  close() {
+    document.getElementById("modalPreview")?.classList.add("hidden");
   }
 
   switchHtmlView(view) {
@@ -371,33 +358,6 @@ class FilePreviewManager {
     }
   }
 
-  cancelEditText() {
-    if (this.currentFileRecord) {
-      this.openPreview(this.currentFileRecord);
-    }
-  }
-
-  async saveEditedText() {
-    const textarea = document.getElementById("editTextarea");
-    if (!textarea || !this.currentFileRecord) return;
-
-    try {
-      const updatedContent = textarea.value;
-      const blob = new Blob([updatedContent], { type: 'text/plain;charset=utf-8' });
-
-      await this.currentFileRecord.save(blob);
-
-      if (typeof showToast === "function") {
-        showToast("Changes saved successfully", "success", 2000);
-      }
-      this.fileManager.listFiles();
-    } catch (err) {
-      console.error(err);
-      if (typeof showToast === "function") {
-        showToast(err.message || "Failed to save changes", "error", 2500);
-      }
-    }
-  }
 }
 
 class BreadcrumbManager {
@@ -413,14 +373,14 @@ class BreadcrumbManager {
     this.path = path;
     this.history.push({ path, name });
     this.render();
-    this.fileManager.listFiles();
+    this.fileManager.action("listFiles");
   }
 
   jumpToBreadcrumb(index) {
     this.history = this.history.slice(0, index + 1);
     this.path = this.history[this.history.length - 1].path;
     this.render();
-    this.fileManager.listFiles();
+    this.fileManager.action("listFiles");
   }
 
   reset() {
@@ -441,7 +401,7 @@ class BreadcrumbManager {
 
       const isRoot = crumb.name.toLowerCase() === "root";
       btn.innerHTML = tpl.crumb(crumb.name, isRoot);
-      btn.onclick = () => this.jumpToBreadcrumb(idx);
+      btn.onclick = () => this.fileManager.action("jumpBreadcrumb", idx);
       this.container.appendChild(btn);
 
       if (!isLast) {
@@ -475,8 +435,8 @@ class CreateFolderModal {
     const submitModalBtn = document.getElementById("submitCreateFolderBtn");
     const folderNameInput = document.getElementById("folderNameInput");
 
-    if (openModalBtn) openModalBtn.addEventListener("click", () => this.open());
-    if (closeModalBtn) closeModalBtn.addEventListener("click", () => this.close());
+    if (openModalBtn) openModalBtn.addEventListener("click", () => this.fileManager.action("openFolderModal"));
+    if (closeModalBtn) closeModalBtn.addEventListener("click", () => this.fileManager.action("closeFolderModal"));
     if (submitModalBtn) submitModalBtn.addEventListener("click", () => this.submit());
 
     if (folderNameInput) {
@@ -507,75 +467,63 @@ class CreateFolderModal {
   async submit() {
     const name = document.getElementById("folderNameInput")?.value.trim();
     if (!name) return;
-
-    const currentPath = this.fileManager.breadcrumb.path;
-    const folderPath = currentPath
-      ? `${currentPath}/${name}/.emptyFolderPlaceholder`
-      : `${name}/.emptyFolderPlaceholder`;
-
-    try {
-      const { error } = await FileRecord.create(folderPath, new Blob([""]), { upsert: false });
-      if (error) throw error;
-
-      this.close();
-      if (typeof showToast === "function") showToast(`Folder "${name}" created`, "success");
-      this.fileManager.listFiles();
-    } catch (err) {
-      if (typeof showToast === "function") showToast(err.message || "Failed to create folder", "error");
-    }
+    this.fileManager.action("createFolder", name);
   }
 }
 
 class FileManager {
-  constructor(config = {}) {
+  constructor() {
     this.allItems = [];
     this.filteredItems = [];
     this.listRequestId = 0;
-    const driveStorage = FileRecord.getStorage();
-    const supabaseStorage = new SupabaseStorageService();
-    const localStorage = new LocalFileService({
-      folderButtonId: "openLocalFolderBtn",
-      onProgress: (message, type) => showToast(message, type)
-    });
-    this.storageServices = [
-      { name: "Google Drive", storage: driveStorage, isAvailable: () => Boolean(driveStorage.token) },
-      { name: "Supabase", storage: supabaseStorage, isAvailable: () => Boolean(supabaseStorage.client) },
-      { name: "Local folder", storage: localStorage, isAvailable: () => localStorage.isLoaded }
-    ];
-    this.serviceLists = new Map(this.storageServices.map(service => [service.name, []]));
+    this.currentFileRecord = null;
     
     this.breadcrumb = new BreadcrumbManager("breadcrumbNav", this);
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", this);
     this.filePreview = new FilePreviewManager(this);
     this.createFolderModal = new CreateFolderModal(this);
 
-    this.listFiles();
+    FileRecord.setServiceChangeHandler(() => this.action("refresh"));
+    this.action("refresh");
   }
 
-  initializeServiceConnection() {
-    this.listFiles();
+  action(actionName, ...args) {
+    switch (actionName) {
+      case "refresh": return this.listFiles();
+      case "listFiles": return this.listFiles();
+      case "navigate": return this.navigate(args[0]);
+      case "jumpBreadcrumb": return this.breadcrumb.jumpToBreadcrumb(args[0]);
+      case "openPreview": return this.openPreview(args[0]);
+      case "closePreview": return this.filePreview.close();
+      case "cancelEdit": return this.cancelEdit();
+      case "saveEditedText": return this.saveEditedText(args[0]);
+      case "computeHashes": return this.computeHashes(args[0]);
+      case "switchHtmlView": return this.filePreview.switchHtmlView(args[0]);
+      case "loadPreviewMedia": return this.loadPreviewMedia(args[0], args[1]);
+      case "createFolder": return this.createFolder(args[0]);
+      case "openFolderModal": return this.createFolderModal.open();
+      case "closeFolderModal": return this.createFolderModal.close();
+      case "toggleActionsMenu": return this.toggleActionsMenu();
+      case "closeActionsMenu": return this.closeActionsMenu();
+      case "upload": return this.handleFileUpload(args[0], args[1], args[2]);
+      case "downloadRecord": return this.downloadRecord(args[0]);
+      case "deleteRecord": return this.deleteRecord(args[0]);
+      case "backup": return this.createBackup();
+      default: throw new Error(`Unknown file-manager action: ${actionName}`);
+    }
   }
 
   async listFiles() {
     const requestId = ++this.listRequestId;
     try {
-      const activeServices = this.storageServices.filter(service => service.isAvailable());
-      const results = await Promise.all(activeServices.map(async service => {
-        const { data, error } = await FileRecord.all(this.breadcrumb.path, {}, service.storage, service.name);
-        if (error) {
-          console.error(`Failed to list ${service.name}:`, error);
-          showToast(`${service.name}: ${error.message || "Failed to list files"}`, "error");
-          return [service.name, []];
-        }
-        return [service.name, data];
-      }));
+      const { data, errors } = await FileRecord.allFromServices(this.breadcrumb.path);
       if (requestId !== this.listRequestId) return;
-      const resultLists = new Map(results);
-      this.serviceLists = new Map(this.storageServices.map(service =>
-        [service.name, resultLists.get(service.name) || []]
-      ));
+      errors.forEach(({ service, error }) => {
+        console.error(`Failed to list ${service}:`, error);
+        showToast(`${service}: ${error.message || "Failed to list files"}`, "error");
+      });
       const groupedFiles = new Map();
-      this.storageServices.flatMap(service => this.serviceLists.get(service.name)).forEach(file => {
+      data.forEach(file => {
         const path = file.getFullPath().replace(/^\/+|\/+$/g, "");
         const key = `${file.isFolderNode() ? "folder" : "file"}:${path}`;
         const copies = groupedFiles.get(key) || [];
@@ -602,18 +550,8 @@ class FileManager {
         group.comparisonStatus = `Only in ${group.files[0].getStorageName()}`;
         continue;
       }
-      if (new Set(group.files.map(file => file.getSize())).size > 1) {
-        group.comparisonStatus = "Different size";
-        continue;
-      }
       try {
-        const hashes = await Promise.all(group.files.map(async file => {
-          const response = await file.fetchContent();
-          return Crypto.sha256(await response.arrayBuffer());
-        }));
-        group.comparisonStatus = hashes.every(hash => hash === hashes[0])
-          ? "Same content"
-          : "Different content";
+        group.comparisonStatus = await FileRecord.compareCopies(group.files);
       } catch (error) {
         console.error("Failed to compare matching files:", error);
         group.comparisonStatus = "Could not compare";
@@ -641,8 +579,8 @@ class FileManager {
 
     const serviceLabel = document.getElementById("serviceStatusLabel");
     if (serviceLabel) {
-      serviceLabel.textContent = this.storageServices.map(service =>
-        `${service.name}: ${service.isAvailable() ? "Connected" : "Not connected"}`
+      serviceLabel.textContent = FileRecord.getServiceStatuses().map(service =>
+        `${service.name}: ${service.isAvailable ? "Connected" : "Not connected"}`
       ).join(" · ");
     }
 
@@ -651,6 +589,10 @@ class FileManager {
 
   toggleActionsMenu() {
     document.getElementById("actionsMenuToggleBtn")?.classList.toggle("hidden");
+  }
+
+  closeActionsMenu() {
+    document.getElementById("actionsMenuToggleBtn")?.classList.add("hidden");
   }
 
   async handleFileUpload(event, isFolderUpload = false, isEncrypted = false) {
@@ -685,7 +627,7 @@ class FileManager {
       }
     }
 
-    await this.listFiles();
+    await this.action("refresh");
     if (failed === 0) {
       showToast(`Successfully uploaded ${success} item(s)`, "success");
     } else {
@@ -699,14 +641,117 @@ class FileManager {
   }
 
   async openPreview(file) {
-    await this.filePreview.openPreview(file);
+    this.currentFileRecord = file;
+    this.filePreview.showLoading(file);
+    try {
+      const response = await file.fetchContent(60);
+      const blob = await response.blob();
+      file._byteLength = blob.size;
+      await this.filePreview.renderPreview(file, blob);
+    } catch (error) {
+      console.error("Preview failed:", error);
+      this.filePreview.showPreviewError();
+      showToast(error.message || "Preview failed", "error");
+    }
   }
 
-  async downloadFile(path, name) {
+  closePreview() {
+    this.filePreview.close();
+  }
+
+  cancelEdit() {
+    if (this.currentFileRecord) this.action("openPreview", this.currentFileRecord);
+  }
+
+  async saveEditedText(updatedContent) {
+    if (!this.currentFileRecord) return;
     try {
-      await FileRecord.download(path, name);
+      await this.currentFileRecord.save(new Blob([updatedContent], { type: "text/plain;charset=utf-8" }));
+      showToast("Changes saved successfully", "success", 2000);
+      await this.action("refresh");
     } catch (err) {
-      showToast(err.message || "Download failed", "error");
+      console.error(err);
+      showToast(err.message || "Failed to save changes", "error", 2500);
+    }
+  }
+
+  async computeHashes(url) {
+    const file = this.currentFileRecord;
+    if (!file) return;
+    this.filePreview.showHashesLoading();
+
+    try {
+      await file.hashContent(url);
+      if (!file.hash_content || !file.hash_file) {
+        throw new Error("Hash computation returned empty results.");
+      }
+      this.filePreview.renderHashesResult({
+        contentHash: file.hash_content,
+        combinedHash: file.hash_file,
+        rawCombinedString: escapeHtml(file.hash_filename + file.hash_content),
+        byteLength: file._byteLength || "Unknown"
+      });
+    } catch (error) {
+      console.error(error);
+      this.filePreview.renderHashesError(error.message || "Unknown error");
+    }
+  }
+
+  async loadPreviewMedia(file, element) {
+    try {
+      await file.loadPreviewMedia(element);
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      console.error("Failed to load file preview:", error);
+    }
+  }
+
+  async createFolder(name) {
+    const currentPath = this.breadcrumb.path;
+    const folderPath = currentPath
+      ? `${currentPath}/${name}/.emptyFolderPlaceholder`
+      : `${name}/.emptyFolderPlaceholder`;
+    try {
+      const { error } = await FileRecord.create(folderPath, new Blob([""]), { upsert: false });
+      if (error) throw error;
+      this.createFolderModal.close();
+      showToast(`Folder "${name}" created`, "success");
+      await this.action("refresh");
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || "Failed to create folder", "error");
+    }
+  }
+
+  async downloadRecord(file) {
+    try {
+      const response = await file.fetchContent();
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = file.getDisplayName();
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      console.error("Download failed:", error);
+      showToast(error.message || "Download failed", "error");
+    }
+  }
+
+  async deleteRecord(file) {
+    const path = file.getFullPath();
+    const message = file.isFolderNode()
+      ? `Delete folder "${path}" and all its contents from ${file.getStorageName()}?`
+      : `Delete file "${path}" from ${file.getStorageName()}?`;
+    if (!confirm(message)) return;
+
+    try {
+      await file.delete({ recursive: true });
+      showToast("Deleted successfully", "success");
+      await this.action("refresh");
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || "Delete failed", "error");
     }
   }
 
@@ -733,12 +778,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (actionsMenuBtn && actionsMenuDropdown) {
     actionsMenuBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      actionsMenuDropdown.classList.toggle("hidden");
+      fileManager.action("toggleActionsMenu");
     });
 
     document.addEventListener("click", (e) => {
       if (!actionsMenuBtn.contains(e.target) && !actionsMenuDropdown.contains(e.target)) {
-        actionsMenuDropdown.classList.add("hidden");
+        fileManager.action("closeActionsMenu");
       }
     });
   }
@@ -747,18 +792,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const folderInput = document.getElementById("folderUpload");
 
   // 1. Normal File Upload
-  fileInput.addEventListener("change", (e) => fileManager.handleFileUpload(e, false, false));
+  fileInput?.addEventListener("change", (e) => fileManager.action("upload", e, false, false));
 
   // 2. Encrypted File Upload
   if (encryptedInput && typeof fileManager !== "undefined") {
     encryptedInput.addEventListener("change", (e) => {
-      fileManager.handleFileUpload(e, false, true);
+      fileManager.action("upload", e, false, true);
     });
   }
 
   // 3. Folder Upload
   if (folderInput && typeof fileManager !== "undefined") {
-    folderInput.addEventListener("change", (e) => fileManager.handleFileUpload(e, true, false));
+    folderInput.addEventListener("change", (e) => fileManager.action("upload", e, true, false));
   }
   set_bg();
 });

@@ -96,6 +96,8 @@ class FileEntity {
  */
 class BaseStorageRecord extends FileEntity {
   static _storageService = null;
+  static _storageServices = null;
+  static _serviceChangeHandler = null;
   
   constructor(data = {}) {
     super(data);
@@ -107,18 +109,70 @@ class BaseStorageRecord extends FileEntity {
 
   static getStorage() {
     if (!BaseStorageRecord._storageService) {
-      /*this._storageService = new LocalFileService({
-        folderButtonId: "openLocalFolderBtn",
-        onProgress: (msg, type) => {
-          console.log(`[LocalFileService] [${type}] ${msg}`);
-          showToast(msg, type);
-          fileManager.listFiles();
-        }
-      });*/
-      //this._storageService = new SupabaseStorageService();
-      BaseStorageRecord._storageService = new DriveStorageService();
+      BaseStorageRecord._storageService = new DriveStorageService({
+        onConnectionChange: () => BaseStorageRecord.notifyServicesChanged()
+      });
     }
     return BaseStorageRecord._storageService;
+  }
+
+  static getStorageServices() {
+    if (!BaseStorageRecord._storageServices) {
+      const onConnectionChange = () => BaseStorageRecord.notifyServicesChanged();
+      BaseStorageRecord._storageServices = [
+        {
+          name: "Google Drive",
+          storage: this.getStorage(),
+          isAvailable: storage => Boolean(storage.token)
+        },
+        {
+          name: "Supabase",
+          storage: new SupabaseStorageService(),
+          isAvailable: storage => Boolean(storage.client)
+        },
+        {
+          name: "Local folder",
+          storage: new LocalFileService({
+            folderButtonId: "openLocalFolderBtn",
+            onConnectionChange
+          }),
+          isAvailable: storage => Boolean(storage.isLoaded)
+        }
+      ];
+    }
+    return BaseStorageRecord._storageServices;
+  }
+
+  static getServiceStatuses() {
+    return this.getStorageServices().map(({ name, storage, isAvailable }) => ({
+      name,
+      isAvailable: isAvailable(storage)
+    }));
+  }
+
+  static setServiceChangeHandler(handler) {
+    BaseStorageRecord._serviceChangeHandler = handler;
+    this.getStorageServices();
+  }
+
+  static notifyServicesChanged() {
+    BaseStorageRecord._serviceChangeHandler?.();
+  }
+
+  static async allFromServices(path = "", options = {}) {
+    const services = this.getStorageServices().filter(({ storage, isAvailable }) => isAvailable(storage));
+    const results = await Promise.all(services.map(async ({ name, storage }) => {
+      const { data, error } = await this.all(path, options, storage, name);
+      return { data, error, name };
+    }));
+
+    return {
+      data: results.flatMap(result => result.data),
+      errors: results.filter(result => result.error).map(result => ({
+        service: result.name,
+        error: result.error
+      }))
+    };
   }
 
   static async all(path = "", options = {}, storage = this.getStorage(), storageName = "Google Drive") {
@@ -311,6 +365,17 @@ class FileRecord extends BaseStorageRecord {
     const buffer = await blob.arrayBuffer();
     this.hash_content = await Crypto.sha256(buffer);
     this.hash_file = await Crypto.sha256(this.hash_filename + this.hash_content);
+  }
+
+  static async compareCopies(records) {
+    if (records.length < 2) return "Only one copy";
+    if (new Set(records.map(record => record.getSize())).size > 1) return "Different size";
+
+    const hashes = await Promise.all(records.map(async record => {
+      const response = await record.fetchContent();
+      return Crypto.sha256(await response.arrayBuffer());
+    }));
+    return hashes.every(hash => hash === hashes[0]) ? "Same content" : "Different content";
   }
 
   static async create(path, file, options = { upsert: false, encrypt: false }) {

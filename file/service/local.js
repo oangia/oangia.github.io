@@ -6,6 +6,7 @@ class LocalFileService {
     this.isLoaded = false;
     this.pathToNode.set("", this.rootNode);
     this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
+    this.onConnectionChange = config.onConnectionChange || (() => {});
 
     // Automatically bind to folder selector button if ID is provided or defaults to "selectFolderBtn"
     this.folderButtonId = config.folderButtonId || "selectFolderBtn";
@@ -37,12 +38,7 @@ class LocalFileService {
         this.onProgress(`Loading ${files.length} local files...`, "info");
         await this.loadFiles(files);
         this.onProgress(`Loaded folder: ${this.rootNode.name}`, "success");
-
-        if (typeof fileManager !== "undefined" && typeof fileManager.initializeServiceConnection === "function") {
-          fileManager.initializeServiceConnection();
-        } else if (typeof window.renderFileList === "function") {
-          window.renderFileList();
-        }
+        this.onConnectionChange();
       }
     };
 
