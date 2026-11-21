@@ -1,34 +1,42 @@
 class DriveStorageService {
   constructor(config = {}) {
     this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
-    this.token = localStorage.getItem("gdrive_access_token") || null;
-    this.tokenExpiry = localStorage.getItem("gdrive_token_expiry") || null;
-    
     this.apiBase = "https://www.googleapis.com/drive/v3/files";
     this.uploadBase = "https://www.googleapis.com/upload/drive/v3/files";
     
     this._folderCache = { "": "root" };
     this.tokenClient = null;
+    this._refreshTimer = null;
+    this._authRequestMode = null;
+    this._silentAuthAttempted = false;
     this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
 
     const savedClientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     if (savedClientId) this.clientId = savedClientId;
 
     const savedToken = localStorage.getItem("gdrive_access_token");
-    const savedExpiry = localStorage.getItem("gdrive_token_expiry");
+    const savedExpiry = Number(localStorage.getItem("gdrive_token_expiry"));
 
-    if (savedToken && savedExpiry && Date.now() < Number(savedExpiry)) {
+    if (savedToken && savedExpiry && Date.now() < savedExpiry) {
       this.token = savedToken;
+      this.tokenExpiry = savedExpiry;
     } else {
       this.token = null;
+      this.tokenExpiry = 0;
+      localStorage.removeItem("gdrive_access_token");
+      localStorage.removeItem("gdrive_token_expiry");
     }
 
     this._initOAuthClient();
     this._bindAuthButton();
+    if (this.token) this._scheduleTokenRefresh();
+    else this._requestSilentAccessToken();
 
     window.addEventListener("load", () => {
       this._initOAuthClient();
       this._bindAuthButton();
+      if (this.token) this._scheduleTokenRefresh();
+      else this._requestSilentAccessToken();
     });
   }
 
@@ -74,26 +82,33 @@ class DriveStorageService {
 
   _initOAuthClient() {
     if (this.tokenClient) return true;
-    if (!window.google?.accounts?.oauth2) return false;
+    if (!this.clientId || !window.google?.accounts?.oauth2) return false;
 
     try {
       this.tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: this.clientId,
         scope: "https://www.googleapis.com/auth/drive",
         callback: async (res) => {
+          const requestMode = this._authRequestMode || "interactive";
+          this._authRequestMode = null;
           if (res.error) {
+            if (requestMode === "silent") return;
             this.onProgress(`Auth error: ${res.error}`, "error");
             if (typeof showToast === "function") showToast(`Auth error: ${res.error}`, "error");
             return;
           }
           this.token = res.access_token;
-          const expiresAt = Date.now() + (res.expires_in - 60) * 1000;
+          this.tokenExpiry = Date.now() + Number(res.expires_in) * 1000;
           
           localStorage.setItem("gdrive_access_token", this.token);
-          localStorage.setItem("gdrive_token_expiry", expiresAt);
+          localStorage.setItem("gdrive_token_expiry", this.tokenExpiry);
+          this._silentAuthAttempted = false;
+          this._scheduleTokenRefresh();
 
-          this.onProgress("Connected to Google Drive successfully", "success");
-          if (typeof showToast === "function") showToast("Connected to Google Drive successfully", "success");
+          if (requestMode !== "silent") {
+            this.onProgress("Connected to Google Drive successfully", "success");
+            if (typeof showToast === "function") showToast("Connected to Google Drive successfully", "success");
+          }
 
           if (typeof fileManager !== "undefined" && typeof fileManager.initializeServiceConnection === "function") {
             fileManager.initializeServiceConnection();
@@ -106,6 +121,27 @@ class DriveStorageService {
     } catch (err) {
       console.error("Failed to initialize Google OAuth client:", err);
       return false;
+    }
+  }
+
+  _scheduleTokenRefresh() {
+    clearTimeout(this._refreshTimer);
+    if (!this.tokenExpiry) return;
+
+    const refreshAt = this.tokenExpiry - 5 * 60 * 1000;
+    const delay = Math.max(0, refreshAt - Date.now());
+    this._refreshTimer = setTimeout(() => this._requestSilentAccessToken(), delay);
+  }
+
+  _requestSilentAccessToken() {
+    if (!this.tokenClient || this._silentAuthAttempted) return;
+    this._silentAuthAttempted = true;
+    this._authRequestMode = "silent";
+    try {
+      this.tokenClient.requestAccessToken({ prompt: "none" });
+    } catch (err) {
+      this._authRequestMode = null;
+      console.warn("Silent Google Drive token refresh failed:", err);
     }
   }
 
@@ -134,6 +170,8 @@ class DriveStorageService {
         return;
       }
 
+      this._silentAuthAttempted = false;
+      this._authRequestMode = "interactive";
       this.tokenClient.requestAccessToken({ prompt: "" });
     };
   }
