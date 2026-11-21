@@ -163,6 +163,11 @@ class ItemsGridRenderer {
         label: () => "Download",
       },
       {
+        action: () => "syncFileToSupabase",
+        label: () => "Sync to Supabase",
+        filter: file => !file.isFolderNode() && file.getStorageName() === "Google Drive",
+      },
+      {
         action: () => "deleteRecord",
         label: () => "Delete",
         style: "text-rose-300 hover:text-rose-200",
@@ -173,6 +178,7 @@ class ItemsGridRenderer {
       const choices = group.files
         .map((file, index) => ({ file, index, action: row.action(file), label: row.label(file) }))
         .filter(choice => !(choice.action === "downloadRecord" && choice.file.isFolderNode()))
+        .filter(choice => !row.filter || row.filter(choice.file))
         .sort((a, b) => {
           if (a.file.getStorageName() === "Google Drive") return -1;
           if (b.file.getStorageName() === "Google Drive") return 1;
@@ -588,6 +594,7 @@ class FileManager {
       case "deleteRecord": return this.deleteRecord(args[0]);
       case "backup": return this.createBackup();
       case "syncDriveToSupabase": return this.syncDriveToSupabase();
+      case "syncFileToSupabase": return this.syncFileToSupabase(args[0]);
       default: throw new Error(`Unknown file-manager action: ${actionName}`);
     }
   }
@@ -867,6 +874,43 @@ class FileManager {
     const percent = total > 0 ? Math.min(100, Math.round(completed / total * 100)) : done ? 100 : 0;
     progressBar.style.width = `${percent}%`;
     progressBar.setAttribute("aria-valuenow", String(percent));
+  }
+
+  async syncFileToSupabase(file) {
+    const services = FileRecord.getStorageServices();
+    const drive = services.find(service => service.name === "Google Drive")?.storage;
+    const supabase = services.find(service => service.name === "Supabase")?.storage;
+
+    if (!drive?.token || !supabase?.client) {
+      showToast("Connect Google Drive and configure Supabase before syncing", "warning");
+      return;
+    }
+    if (!file || file.isFolderNode() || file.getStorageName() !== "Google Drive") {
+      showToast("Select a Google Drive file to sync", "warning");
+      return;
+    }
+
+    const path = file.getFullPath();
+    try {
+      this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Downloading from Google Drive");
+      const { data: response, error } = await drive.fetchContent({ id: file.getId() });
+      if (error) throw error;
+
+      const blob = await response.blob();
+      this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Uploading to Supabase");
+      const uploadFile = new File([blob], file.getName(), {
+        type: file.getMimeType() || blob.type || "application/octet-stream"
+      });
+      const { error: uploadError } = await supabase.upload(path, uploadFile, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      this.updateSyncProgress("Sync complete", path, 1, 1, "File copied to Supabase", true);
+      showToast(`${file.getDisplayName()} synced to Supabase`, "success");
+    } catch (error) {
+      console.error(`Failed to sync ${path} to Supabase:`, error);
+      this.updateSyncProgress("Sync failed", path, 0, 1, error.message || "Failed to sync file", true);
+      showToast(`Failed to sync ${file.getDisplayName()}: ${error.message || "Unknown error"}`, "error");
+    }
   }
 
   async syncDriveToSupabase() {

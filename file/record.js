@@ -62,6 +62,13 @@ class FileEntity {
   isVideo() {return this._checkMineType(["mp4","webm","mov","avi","mkv"], "video/")}
   isAudio() {return this._checkMineType(["mp3", "wav", "ogg"], "audio/")}
   isHtml() {return this._checkMineType(["html", "htm"], "html/")}
+  isEditable() {
+    return !this.isImage() && !this.isVideo() && !this.isAudio()
+      && this._checkMineType(
+        ["txt", "md", "log", "html", "htm", "css", "js", "ts", "json", "py", "java", "sql", "yml", "yaml"],
+        "text/"
+      );
+  }
 
   getFileIconClass() {
     if (this.isFolderNode()) return "fa-solid fa-folder text-amber-500";
@@ -371,6 +378,7 @@ class FileRecord extends BaseStorageRecord {
   static async compareCopies(records) {
     if (records.length < 2) return "Only one copy";
     if (new Set(records.map(record => record.getSize())).size > 1) return "Different size";
+    if (!records.every(record => record.isEditable())) return "Not compared";
 
     const hashes = await Promise.all(records.map(async record => {
       try {
