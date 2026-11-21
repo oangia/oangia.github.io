@@ -207,8 +207,7 @@ class ItemsGridRenderer {
         </button>`;
       }
 
-      const [defaultChoice, ...otherChoices] = choices;
-      const services = otherChoices.map(choice =>
+      const services = choices.map(choice =>
         `<button type="button" data-action="${choice.action}" data-file-index="${choice.index}"
           class="w-full text-left px-3 py-2 text-xs whitespace-nowrap hover:bg-white/10 ${row.style || ""}">
           ${escapeHtml(choice.file.getStorageName())}
@@ -216,16 +215,13 @@ class ItemsGridRenderer {
       ).join("");
 
       return `<div class="relative menu-item" data-menu-item>
-        <div class="flex">
-          <button type="button" data-action="${defaultChoice.action}" data-file-index="${defaultChoice.index}"
-            class="flex-1 text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""}">
-            ${escapeHtml(defaultChoice.label)} (${escapeHtml(defaultChoice.file.getStorageName())})
-          </button>
-          <button type="button" data-menu-toggle aria-label="Choose service for ${escapeHtml(defaultChoice.label)} (${escapeHtml(defaultChoice.file.getStorageName())})"
-            class="px-2 text-slate-400 hover:bg-white/10 hover:text-white">
+        <button type="button" data-menu-toggle aria-label="Choose service for ${escapeHtml(choices[0].label)}"
+          class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""} flex items-center justify-between">
+          <span>${escapeHtml(choices[0].label)}</span>
+          <span class="px-1 text-slate-400">
             <i class="fa-solid fa-chevron-right text-[9px]"></i>
-          </button>
-        </div>
+          </span>
+        </button>
         <div class="menu-submenu hidden fixed z-[111] min-w-44 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg">
           ${services}
         </div>
