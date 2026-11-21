@@ -12,6 +12,15 @@ class SupabaseStorageService {
     return this._bucket;
   }
 
+  _getUserMetadata(item) {
+    return item?.user_metadata
+      || item?.userMetadata
+      || item?.metadata?.user_metadata
+      || item?.metadata?.userMetadata
+      || item?.metadata
+      || {};
+  }
+
   // Standardized initialization method
   init(config = {}) {
     const savedUrl = localStorage.getItem("sb_url") || config.url;
@@ -41,13 +50,14 @@ class SupabaseStorageService {
       const files = (data || []).map(item => {
         const isFolder = !item.id;
         const itemPath = cleanPath ? `${cleanPath}/${item.name}` : item.name;
+        const metadata = this._getUserMetadata(item);
         return {
           id: itemPath, // Treat Supabase storage path as unique id
           name: item.name,
           mimeType: isFolder ? 'application/vnd.google-apps.folder' : (item.metadata?.mimetype || 'application/octet-stream'),
           size: item.metadata?.size || 0,
           modifiedTime: item.updated_at || item.created_at || new Date().toISOString(),
-          metadata: { hash_content: item.metadata?.hash_content || null },
+          metadata: { ...metadata, hash_content: metadata.hash_content || null },
           webContentLink: null
         };
       });
@@ -143,13 +153,14 @@ class SupabaseStorageService {
       if (!match) throw new Error("File not found");
 
       const isFolder = !match.id;
+      const metadata = this._getUserMetadata(match);
       const fileMeta = {
         id: cleanPath,
         name: match.name,
         mimeType: isFolder ? 'application/vnd.google-apps.folder' : (match.metadata?.mimetype || 'application/octet-stream'),
         size: match.metadata?.size || 0,
         modifiedTime: match.updated_at || match.created_at || new Date().toISOString(),
-        metadata: { hash_content: match.metadata?.hash_content || null },
+        metadata: { ...metadata, hash_content: metadata.hash_content || null },
         webContentLink: null
       };
 
