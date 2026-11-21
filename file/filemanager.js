@@ -96,6 +96,8 @@ class ItemsGridRenderer {
   constructor(containerId, fileManagerInstance) {
     this.container = document.getElementById(containerId);
     this.fileManager = fileManagerInstance;
+    this.contextMenuActions = document.getElementById("contextMenuActions");
+    this.contextMenuActionsParking = document.getElementById("contextMenuActionsParking");
     this.statusElements = new Map();
     this.contextMenu = document.createElement("div");
     this.contextMenu.className = "hidden fixed z-[110] max-h-[80vh] min-w-56 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg";
@@ -165,6 +167,10 @@ class ItemsGridRenderer {
   showContextMenu(event, group) {
     event.preventDefault();
     event.stopPropagation();
+    this.contextMenuActions?.classList.add("hidden");
+    if (this.contextMenuActions && this.contextMenuActionsParking) {
+      this.contextMenuActionsParking.appendChild(this.contextMenuActions);
+    }
     const actionRows = [
       {
         action: file => file.isFolderNode() ? "navigate" : "openPreview",
@@ -227,24 +233,10 @@ class ItemsGridRenderer {
         </div>
       </div>`;
     }).join("");
-    if (group.isFolderNode()) {
-      this.contextMenu.insertAdjacentHTML("beforeend", `
-        <div class="border-t border-white/10 my-1"></div>
-        <div class="relative menu-item" data-menu-item>
-          <button type="button" data-menu-toggle
-            class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10 flex items-center justify-between">
-            <span>Folder</span>
-            <span class="px-1 text-slate-400"><i class="fa-solid fa-chevron-right text-[9px]"></i></span>
-          </button>
-          <div class="menu-submenu hidden fixed z-[111] min-w-44 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg">
-            <button type="button" data-folder-action="upload"
-              class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10">Upload Folder</button>
-            <button type="button" data-action="openFolderModal" data-file-index="0"
-              class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10">New Folder</button>
-            <button type="button" data-folder-action="local"
-              class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10">Open Local Folder</button>
-          </div>
-        </div>`);
+    if (this.contextMenuActions) {
+      this.contextMenu.insertAdjacentHTML("beforeend", '<div class="border-t border-white/10 my-1"></div>');
+      this.contextMenuActions.classList.remove("hidden");
+      this.contextMenu.appendChild(this.contextMenuActions);
     }
     this.contextMenu.classList.remove("hidden");
 
@@ -284,16 +276,6 @@ class ItemsGridRenderer {
       menuItem.addEventListener("mouseleave", () => submenu.classList.add("hidden"));
     });
 
-    this.contextMenu.querySelectorAll("[data-folder-action]").forEach(button => {
-      button.addEventListener("click", () => {
-        this.hideContextMenu();
-        const targetId = button.dataset.folderAction === "upload"
-          ? "folderUpload"
-          : "openLocalFolderBtn";
-        document.getElementById(targetId)?.click();
-      });
-    });
-
     this.contextMenu.querySelectorAll("[data-action]").forEach(button => {
       button.addEventListener("click", () => {
         const file = group.files[Number(button.dataset.fileIndex)];
@@ -305,6 +287,10 @@ class ItemsGridRenderer {
 
   hideContextMenu() {
     this.contextMenu.classList.add("hidden");
+    this.contextMenuActions?.classList.add("hidden");
+    if (this.contextMenuActions && this.contextMenuActionsParking) {
+      this.contextMenuActionsParking.appendChild(this.contextMenuActions);
+    }
     this.contextMenu.querySelectorAll(".menu-submenu").forEach(submenu => submenu.classList.add("hidden"));
   }
 
