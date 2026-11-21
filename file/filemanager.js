@@ -4,7 +4,7 @@ new Config("navSettingsTab");
 
 class UITemplates {
   static getComparisonStatusClass(status) {
-    if (status === "Same") return "text-emerald-300";
+    if (status === "Synced") return "text-emerald-300";
     if (status === "Different content" || status === "Different size") return "text-amber-300";
     if (status === "Could not compare") return "text-rose-300";
     return "text-slate-300";
