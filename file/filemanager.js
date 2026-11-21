@@ -849,6 +849,26 @@ class FileManager {
     }
   }
 
+  updateSyncProgress(status, current, completed, total, summary, done = false) {
+    const panel = document.getElementById("syncProgressPanel");
+    const statusEl = document.getElementById("syncProgressStatus");
+    const currentEl = document.getElementById("syncProgressCurrent");
+    const countEl = document.getElementById("syncProgressCount");
+    const summaryEl = document.getElementById("syncProgressSummary");
+    const progressBar = document.getElementById("syncProgressBar");
+    if (!panel || !statusEl || !currentEl || !countEl || !summaryEl || !progressBar) return;
+
+    panel.classList.remove("hidden");
+    statusEl.textContent = status;
+    currentEl.textContent = current;
+    currentEl.title = current;
+    countEl.textContent = `${completed} / ${total}`;
+    summaryEl.textContent = summary;
+    const percent = total > 0 ? Math.min(100, Math.round(completed / total * 100)) : done ? 100 : 0;
+    progressBar.style.width = `${percent}%`;
+    progressBar.setAttribute("aria-valuenow", String(percent));
+  }
+
   async syncDriveToSupabase() {
     const services = FileRecord.getStorageServices();
     const drive = services.find(service => service.name === "Google Drive")?.storage;
@@ -869,10 +889,15 @@ class FileManager {
       button.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5 w-4"></i><span>Syncing...</span>';
     }
 
+    let completedWork = 0;
+    let totalWork = 0;
+    this.updateSyncProgress("Preparing sync", "Scanning Google Drive...", 0, 0, "In progress");
+
     try {
       const files = [];
       const emptyFolders = [];
       const collectFiles = async (path = "") => {
+        this.updateSyncProgress("Scanning Google Drive", path || "/", 0, 0, "Building file list");
         const { data, error } = await drive.list(path, { limit: 1000 });
         if (error) throw error;
 
@@ -897,6 +922,7 @@ class FileManager {
 
       const supabasePaths = [];
       const collectSupabaseFiles = async (path = "") => {
+        this.updateSyncProgress("Scanning Supabase", path || "/", 0, 0, "Building file list");
         let offset = 0;
         while (true) {
           const { data, error } = await supabase.list(path, { limit: 1000, offset });
@@ -918,7 +944,8 @@ class FileManager {
       };
       await collectSupabaseFiles();
 
-      const total = files.length + emptyFolders.length;
+      const orphanedPaths = supabasePaths.filter(path => !drivePaths.has(path));
+      totalWork = files.length + emptyFolders.length + orphanedPaths.length;
 
       let synced = 0;
       let failed = 0;
@@ -932,6 +959,8 @@ class FileManager {
       };
 
       for (const { entry, path } of files) {
+        this.updateSyncProgress("Copying Drive file to Supabase", path, completedWork, totalWork, "In progress");
+        let itemFailed = false;
         try {
           const { data: response, error } = await drive.fetchContent({ id: entry.id });
           if (error) throw error;
@@ -940,14 +969,21 @@ class FileManager {
         } catch (error) {
           console.error(`Failed to sync ${path} to Supabase:`, error);
           failed++;
+          itemFailed = true;
         }
-
-        if ((synced + failed) % 5 === 0 || synced + failed === total) {
-          showToast(`Synced ${synced + failed} / ${total} item(s)`, "info", 1200);
-        }
+        completedWork++;
+        this.updateSyncProgress(
+          itemFailed ? "Failed to copy file" : "Copied to Supabase",
+          path,
+          completedWork,
+          totalWork,
+          `${synced} copied · ${failed} failed`
+        );
       }
 
       for (const folderPath of emptyFolders) {
+        this.updateSyncProgress("Creating empty folder in Supabase", folderPath, completedWork, totalWork, "In progress");
+        let itemFailed = false;
         try {
           const placeholderPath = `${folderPath}/.emptyFolderPlaceholder`;
           await syncFile(
@@ -960,18 +996,27 @@ class FileManager {
         } catch (error) {
           console.error(`Failed to sync empty folder ${folderPath} to Supabase:`, error);
           failed++;
+          itemFailed = true;
         }
-
-        if ((synced + failed) % 5 === 0 || synced + failed === total) {
-          showToast(`Synced ${synced + failed} / ${total} item(s)`, "info", 1200);
-        }
+        completedWork++;
+        this.updateSyncProgress(
+          itemFailed ? "Failed to create folder" : "Folder created in Supabase",
+          folderPath,
+          completedWork,
+          totalWork,
+          `${synced} copied · ${failed} failed`
+        );
       }
 
-      const orphanedPaths = supabasePaths.filter(path => !drivePaths.has(path));
       let deleted = 0;
       let deleteFailed = 0;
       for (let index = 0; index < orphanedPaths.length; index += 100) {
         const batch = orphanedPaths.slice(index, index + 100);
+        const current = batch.length === 1
+          ? batch[0]
+          : `${batch[0]} (+${batch.length - 1} more)`;
+        this.updateSyncProgress("Removing Supabase-only files", current, completedWork, totalWork, "In progress");
+        let batchFailed = false;
         try {
           const { error } = await supabase.remove(batch);
           if (error) throw error;
@@ -979,13 +1024,38 @@ class FileManager {
         } catch (error) {
           console.error("Failed to remove Supabase-only files:", error);
           deleteFailed += batch.length;
+          batchFailed = true;
         }
+        completedWork += batch.length;
+        this.updateSyncProgress(
+          batchFailed ? "Failed to remove files" : "Removed Supabase-only files",
+          current,
+          completedWork,
+          totalWork,
+          `${deleted} removed · ${deleteFailed} failed`
+        );
       }
 
       await this.action("refresh");
       if (failed === 0 && deleteFailed === 0) {
+        this.updateSyncProgress(
+          "Sync complete",
+          `Copied ${synced} item(s); removed ${deleted} Supabase-only item(s)`,
+          completedWork,
+          totalWork,
+          "Complete",
+          true
+        );
         showToast(`Synced ${synced} item(s) and removed ${deleted} Supabase-only item(s)`, "success");
       } else {
+        this.updateSyncProgress(
+          "Sync finished with errors",
+          `Copied ${synced}; ${failed} sync failures; removed ${deleted}; ${deleteFailed} removal failures`,
+          completedWork,
+          totalWork,
+          "Finished with errors",
+          true
+        );
         showToast(
           `Synced ${synced}; ${failed} sync failures, ${deleted} removed, ${deleteFailed} removals failed`,
           "warning",
@@ -994,6 +1064,7 @@ class FileManager {
       }
     } catch (error) {
       console.error("Drive to Supabase sync failed:", error);
+      this.updateSyncProgress("Sync stopped", error.message || "Failed to build a complete file list", completedWork, totalWork, "Stopped");
       showToast(error.message || "Drive to Supabase sync failed", "error", 5000);
     } finally {
       if (button) {
@@ -1024,6 +1095,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const encryptedInput = document.getElementById("encryptedFileUpload");
   const folderInput = document.getElementById("folderUpload");
   const syncToSupabaseBtn = document.getElementById("syncToSupabaseBtn");
+
+  document.getElementById("syncProgressCloseBtn")?.addEventListener("click", () => {
+    document.getElementById("syncProgressPanel")?.classList.add("hidden");
+  });
 
   syncToSupabaseBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
