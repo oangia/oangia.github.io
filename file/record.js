@@ -372,8 +372,16 @@ class FileRecord extends BaseStorageRecord {
     if (new Set(records.map(record => record.getSize())).size > 1) return "Different size";
 
     const hashes = await Promise.all(records.map(async record => {
-      const response = await record.fetchContent();
-      return Crypto.sha256(await response.arrayBuffer());
+      try {
+        const response = await record.fetchContent();
+        return Crypto.sha256(await response.arrayBuffer());
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Could not fetch "${record.getFullPath()}" from ${record.getStorageName()}: ${reason}`,
+          { cause: error }
+        );
+      }
     }));
     return hashes.every(hash => hash === hashes[0]) ? "Same content" : "Different content";
   }

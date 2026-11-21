@@ -632,7 +632,7 @@ class FileManager {
       try {
         group.comparisonStatus = await FileRecord.compareCopies(group.files);
       } catch (error) {
-        console.error("Failed to compare matching files:", error);
+        console.error(`Failed to compare matching file "${group.getDisplayName()}":`, error);
         group.comparisonStatus = "Could not compare";
       }
     }
