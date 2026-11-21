@@ -102,6 +102,10 @@ class ItemsGridRenderer {
     this.contextMenu = document.createElement("div");
     this.contextMenu.className = "hidden fixed z-[110] max-h-[80vh] min-w-56 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg";
     document.body.appendChild(this.contextMenu);
+    this.container?.addEventListener("contextmenu", event => {
+      if (event.target instanceof Element && event.target.closest(".group")) return;
+      this.showContextMenu(event, null);
+    });
     this.contextMenu.addEventListener("pointerdown", event => event.stopPropagation());
     document.addEventListener("pointerdown", event => {
       if (!this.contextMenu.contains(event.target)) this.hideContextMenu();
@@ -192,7 +196,7 @@ class ItemsGridRenderer {
       },
     ];
 
-    this.contextMenu.innerHTML = actionRows.map(row => {
+    this.contextMenu.innerHTML = group ? actionRows.map(row => {
       const choices = group.files
         .map((file, index) => ({ file, index, action: row.action(file), label: row.label(file) }))
         .filter(choice => !(choice.action === "downloadRecord" && choice.file.isFolderNode()))
@@ -232,7 +236,7 @@ class ItemsGridRenderer {
           ${services}
         </div>
       </div>`;
-    }).join("");
+    }).join("") : "";
     if (this.contextMenuActions) {
       this.contextMenu.insertAdjacentHTML("beforeend", '<div class="border-t border-white/10 my-1"></div>');
       this.contextMenuActions.classList.remove("hidden");
