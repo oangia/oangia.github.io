@@ -128,6 +128,7 @@ class LocalFileService {
         mimeType: f.mimeType,
         size: f.size,
         modifiedTime: f.modifiedTime,
+        metadata: f.metadata,
         webContentLink: f.fileUrl
       }));
 
@@ -141,13 +142,24 @@ class LocalFileService {
     }
   }
 
-  async fetchContent({ id = null, path = null } = {}) {
+  async fetchContent({ id = null, path = null, metadata = null } = {}) {
     try {
       const file = this.pathToFile.get(id || path);
       if (!file) throw new Error("Local file not found");
       const res = await fetch(file.fileUrl);
       if (!res.ok) throw new Error(`Failed to fetch local file content: ${res.statusText}`);
-      return { data: res, error: null };
+      const fileMetadata = metadata || file.metadata || {};
+      if (fileMetadata.hash_content) return { data: res, error: null };
+
+      const buffer = await res.arrayBuffer();
+      const hash_content = await Crypto.sha256(buffer);
+      const { error } = await this.updateMetadata({ id: file.fullPath }, {
+        ...fileMetadata,
+        hash_content
+      });
+      if (error) throw error;
+      if (metadata) metadata.hash_content = hash_content;
+      return { data: new Response(buffer, { headers: res.headers }), error: null };
     } catch (err) {
       return { data: null, error: err };
     }
@@ -165,6 +177,7 @@ class LocalFileService {
             mimeType: record.mimeType,
             size: record.size,
             modifiedTime: record.modifiedTime,
+            metadata: record.metadata,
             webContentLink: record.fileUrl
           },
           error: null
@@ -197,6 +210,17 @@ class LocalFileService {
     return this.getByPath(id);
   }
 
+  async updateMetadata({ id = null, path = null } = {}, metadata = {}) {
+    try {
+      const record = this.pathToFile.get(id || path);
+      if (!record) throw new Error("Local file not found");
+      record.metadata = { ...record.metadata, ...metadata };
+      return { data: record.metadata, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
   async getFileUrl(path) {
     const record = this.pathToFile.get(path);
     if (!record) return { data: null, error: new Error("File not found") };
@@ -207,12 +231,17 @@ class LocalFileService {
     try {
       const cleanPath = path.replace(/^\/+/, '');
       let record = this.pathToFile.get(cleanPath);
+      const metadata = {
+        ...(options.metadata || {}),
+        size: blob.size,
+        hash_content: await Crypto.sha256(await blob.arrayBuffer())
+      };
 
       if (record) {
         if (record.fileUrl) URL.revokeObjectURL(record.fileUrl);
         record.fileUrl = URL.createObjectURL(blob);
         record.size = blob.size;
-        record.metadata.size = blob.size;
+        record.metadata = metadata;
         record.modifiedTime = new Date().toISOString();
       } else {
         // Create new virtual file in tree
@@ -234,7 +263,7 @@ class LocalFileService {
           size: blob.size,
           mimeType: blob.type || 'application/octet-stream',
           modifiedTime: new Date().toISOString(),
-          metadata: { size: blob.size }
+          metadata
         };
         parentNode.files.push(record);
         this.pathToFile.set(cleanPath, record);
@@ -247,6 +276,7 @@ class LocalFileService {
           mimeType: record.mimeType,
           size: record.size,
           modifiedTime: record.modifiedTime,
+          metadata: record.metadata,
           webContentLink: record.fileUrl
         },
         error: null

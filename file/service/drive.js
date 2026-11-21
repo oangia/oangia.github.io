@@ -53,7 +53,7 @@ class DriveStorageService {
       do {
         const params = new URLSearchParams({
           q: `'${folderId}' in parents and trashed = false`,
-          fields: 'nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink)',
+          fields: 'nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink, appProperties)',
           orderBy: 'folder,name',
           pageSize: String(options.limit || 100)
         });
@@ -73,7 +73,7 @@ class DriveStorageService {
     }
   }
 
-  async fetchContent({ id = null } = {}) {
+  async fetchContent({ id = null, path = null, metadata = null, metadataKnown = false } = {}) {
     try {
       const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?alt=media`, {
         headers: this._headers()
@@ -84,7 +84,55 @@ class DriveStorageService {
         throw new Error(errJson.error?.message || `Failed to fetch file content: ${res.statusText}`);
       }
 
-      return { data: res, error: null };
+      return {
+        data: await this._ensureContentHash(res, { id, path, metadata, metadataKnown }),
+        error: null
+      };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async _ensureContentHash(response, { id, path, metadata, metadataKnown }) {
+    let appProperties = metadata;
+    if (!metadataKnown) {
+      const { data, error } = await this.getById(id);
+      if (error) throw error;
+      appProperties = data.appProperties || {};
+    }
+    if (appProperties?.hash_content) return response;
+
+    const buffer = await response.arrayBuffer();
+    const hash_content = await Crypto.sha256(buffer);
+    appProperties = { ...appProperties, hash_content };
+    const { error } = await this.updateMetadata({ id, path }, appProperties);
+    if (error) throw error;
+    if (metadata) metadata.hash_content = hash_content;
+
+    return new Response(buffer, { headers: response.headers });
+  }
+
+  async updateMetadata({ id = null, path = null } = {}, appProperties = {}) {
+    try {
+      let fileId = id;
+      if (!fileId && path) {
+        const { data, error } = await this.getByPath(path);
+        if (error) throw error;
+        fileId = data.id;
+      }
+      if (!fileId) throw new Error("File ID or path required to update Drive metadata");
+
+      const res = await fetch(`${this.apiBase}/${encodeURIComponent(fileId)}?fields=id,appProperties`, {
+        method: "PATCH",
+        headers: this._headers({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ appProperties })
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || "Failed to update Drive file metadata");
+      }
+
+      return { data: await res.json(), error: null };
     } catch (err) {
       return { data: null, error: err };
     }
@@ -243,7 +291,7 @@ class DriveStorageService {
 
       const params = new URLSearchParams({
         q: `'${folderId}' in parents and name = '${fileName}' and trashed = false`,
-        fields: 'files(id, name, mimeType, size, modifiedTime, webContentLink)'
+        fields: 'files(id, name, mimeType, size, modifiedTime, webContentLink, appProperties)'
       });
       const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
       if (!res.ok) throw new Error('Failed to fetch file metadata');
@@ -261,7 +309,7 @@ class DriveStorageService {
   async getById(id) {
     if (!this.token) return { data: null, error: new Error("Not authenticated") };
     try {
-      const fields = 'id, name, mimeType, size, modifiedTime, webContentLink';
+      const fields = 'id, name, mimeType, size, modifiedTime, webContentLink, appProperties';
       const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?fields=${fields}`, {
         headers: this._headers()
       });
@@ -275,6 +323,10 @@ class DriveStorageService {
 
   async upload(path, file, options = {}) {
     try {
+      const appProperties = {
+        ...(options.appProperties || {}),
+        hash_content: await Crypto.sha256(await file.arrayBuffer())
+      };
       const lastSlashIdx = path.lastIndexOf("/");
       const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
       const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
@@ -295,7 +347,7 @@ class DriveStorageService {
         return { data: null, error: new Error(`Multiple files match path: ${path}`) };
       }
       if (searchJson.files?.length === 1) {
-        return this.uploadById(searchJson.files[0].id, file);
+        return this.uploadById(searchJson.files[0].id, file, { appProperties });
       }
 
       let uploadFile = file;
@@ -303,13 +355,14 @@ class DriveStorageService {
       const metadata = { 
         name: uploadFile.name, 
         mimeType: uploadFile.type || 'application/octet-stream',
-        parents: [parentId]
+        parents: [parentId],
+        appProperties
       };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
       form.append('file', uploadFile);
 
-      const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=id,name,mimeType,size,modifiedTime,webContentLink`, {
+      const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=id,name,mimeType,size,modifiedTime,webContentLink,appProperties`, {
         method: 'POST',
         headers: this._headers(),
         body: form
@@ -323,17 +376,22 @@ class DriveStorageService {
     }
   }
 
-  async uploadById(id, file) {
+  async uploadById(id, file, options = {}) {
     try {
+      const appProperties = {
+        ...(options.appProperties || {}),
+        hash_content: options.appProperties?.hash_content || await Crypto.sha256(await file.arrayBuffer())
+      };
       const metadata = {
         name: file.name,
-        mimeType: file.type || 'application/octet-stream'
+        mimeType: file.type || 'application/octet-stream',
+        appProperties
       };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
       form.append('file', file);
 
-      const fields = 'id,name,mimeType,size,modifiedTime,webContentLink';
+      const fields = 'id,name,mimeType,size,modifiedTime,webContentLink,appProperties';
       const res = await fetch(
         `${this.uploadBase}/${encodeURIComponent(id)}?uploadType=multipart&fields=${fields}`,
         {

@@ -884,31 +884,32 @@ class FileManager {
     progressBar.setAttribute("aria-valuenow", String(percent));
   }
 
-  async compareSyncCopy({ id, size, isEditable }, path, existing, drive, supabase, sourceBlob = null) {
-    if (!existing) return { matches: false, sourceBlob };
+  async compareSyncCopy({ id, size, isEditable, metadata = {} }, path, existing, drive, supabase) {
+    if (!existing) return { matches: false };
     const normalizePath = value => String(value || "").replace(/^\/+|\/+$/g, "");
     if (normalizePath(path) !== normalizePath(existing.id || path)
       || Number(size) !== Number(existing.size)) {
-      return { matches: false, sourceBlob };
+      return { matches: false };
     }
-    if (!isEditable) return { matches: true, sourceBlob };
-
-    if (!sourceBlob) {
-      const { data: sourceResponse, error } = await drive.fetchContent({ id });
-      if (error) throw error;
-      sourceBlob = await sourceResponse.blob();
-    }
+    if (!isEditable) return { matches: true };
 
     try {
-      const { data: existingResponse, error } = await supabase.fetchContent({ path });
-      if (error) throw error;
-      const [sourceHash, existingHash] = await Promise.all([
-        Crypto.sha256(await sourceBlob.arrayBuffer()),
-        Crypto.sha256(await existingResponse.arrayBuffer())
-      ]);
-      return { matches: sourceHash === existingHash, sourceBlob };
+      if (!metadata.hash_content) {
+        const { error } = await drive.fetchContent({ id, metadata, metadataKnown: true });
+        if (error) throw error;
+      }
+      if (!existing.metadata?.hash_content) {
+        existing.metadata ||= {};
+        const { error } = await supabase.fetchContent({
+          path,
+          metadata: existing.metadata,
+          metadataKnown: true
+        });
+        if (error) throw error;
+      }
+      return { matches: metadata.hash_content === existing.metadata?.hash_content };
     } catch (comparisonError) {
-      return { matches: false, sourceBlob, comparisonError };
+      return { matches: false, comparisonError };
     }
   }
 
@@ -933,7 +934,12 @@ class FileManager {
       if (existingError && existingError.message !== "File not found") throw existingError;
 
       const comparison = await this.compareSyncCopy(
-        { id: file.getId(), size: file.getSize(), isEditable: file.isEditable() },
+        {
+          id: file.getId(),
+          size: file.getSize(),
+          isEditable: file.isEditable(),
+          metadata: file.getMetadata()
+        },
         path,
         existing,
         drive,
@@ -949,13 +955,14 @@ class FileManager {
         return;
       }
 
-      let blob = comparison.sourceBlob;
-      if (!blob) {
-        this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Downloading from Google Drive");
-        const { data: response, error } = await drive.fetchContent({ id: file.getId() });
-        if (error) throw error;
-        blob = await response.blob();
-      }
+      this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Downloading from Google Drive");
+      const { data: response, error } = await drive.fetchContent({
+        id: file.getId(),
+        metadata: file.getMetadata(),
+        metadataKnown: true
+      });
+      if (error) throw error;
+      const blob = await response.blob();
 
       this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Uploading to Supabase");
       const uploadFile = new File([blob], file.getName(), {
@@ -1081,7 +1088,12 @@ class FileManager {
             mime_type: entry.mimeType
           });
           const comparison = await this.compareSyncCopy(
-            { id: entry.id, size: entry.size, isEditable: editableFile.isEditable() },
+            {
+              id: entry.id,
+              size: entry.size,
+              isEditable: editableFile.isEditable(),
+              metadata: entry.appProperties || {}
+            },
             path,
             existing,
             drive,
@@ -1095,12 +1107,13 @@ class FileManager {
             skipped++;
             itemStatus = "Already up to date";
           } else {
-            let blob = comparison.sourceBlob;
-            if (!blob) {
-              const { data: response, error } = await drive.fetchContent({ id: entry.id });
-              if (error) throw error;
-              blob = await response.blob();
-            }
+            const { data: response, error } = await drive.fetchContent({
+              id: entry.id,
+              metadata: entry.appProperties || {},
+              metadataKnown: true
+            });
+            if (error) throw error;
+            const blob = await response.blob();
             await uploadFile(path, entry.name, entry.mimeType, blob);
             synced++;
           }

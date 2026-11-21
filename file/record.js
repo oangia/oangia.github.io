@@ -1,5 +1,5 @@
 class FileEntity {
-  constructor({id = null, name = "", full_path = "", size = 0, mime_type = null, url = null, is_folder = false, created_at = null, updated_at = null} = {}) {
+  constructor({id = null, name = "", full_path = "", size = 0, mime_type = null, url = null, is_folder = false, created_at = null, updated_at = null, metadata = {}} = {}) {
     this._id = id;
     this._name = name;
     this._full_path = full_path;
@@ -9,6 +9,7 @@ class FileEntity {
     this._url = url;
     this._created_at = created_at;
     this._updated_at = updated_at;
+    this._metadata = { ...metadata };
   }
   
   getId() { return this._id; }
@@ -19,6 +20,8 @@ class FileEntity {
   getUrl(expiresIn = 60) { return this._url; }
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
+  getMetadata() { return this._metadata; }
+  getHashContent() { return this._metadata.hash_content || null; }
 
   isFolderNode() {
     return this._is_folder;
@@ -217,6 +220,7 @@ class BaseStorageRecord extends FileEntity {
       url: file.webContentLink || null,
       updated_at: file.modifiedTime ? new Date(file.modifiedTime).getTime() : null,
       is_folder,
+      metadata: file.appProperties || file.metadata || {},
       storageService: storage,
       storageName
     });
@@ -291,6 +295,8 @@ class BaseStorageRecord extends FileEntity {
       this._mime_type = data.mimeType || this._mime_type;
       this._updated_at = data.modifiedTime ? new Date(data.modifiedTime).getTime() : Date.now();
       this._url = data.webContentLink || null;
+      this._metadata = data.appProperties || data.metadata || this._metadata;
+      if ("hash_content" in this) this.hash_content = this.getHashContent();
     }
     return this;
   }
@@ -313,8 +319,14 @@ class BaseStorageRecord extends FileEntity {
 
   async fetchContent(expiresIn = 60) {
     const storage = this._storageService || BaseStorageRecord.getStorage();
-    const { data: response, error } = await storage.fetchContent({id: this.getId(), path: this.getFullPath()});
+    const { data: response, error } = await storage.fetchContent({
+      id: this.getId(),
+      path: this.getFullPath(),
+      metadata: this._metadata,
+      metadataKnown: true
+    });
     if (error) throw error;
+    if ("hash_content" in this) this.hash_content = this.getHashContent();
     return response;
   }
 
@@ -357,7 +369,7 @@ class FileRecord extends BaseStorageRecord {
     super(data);
 
     this.hash_filename = null;
-    this.hash_content = null;
+    this.hash_content = this.getHashContent();
     this.hash_file = null;
 
     this.hashFullpath();
@@ -384,8 +396,10 @@ class FileRecord extends BaseStorageRecord {
 
     const hashes = await Promise.all(records.map(async record => {
       try {
-        const response = await record.fetchContent();
-        return Crypto.sha256(await response.arrayBuffer());
+        if (!record.getHashContent()) await record.fetchContent();
+        const hash = record.getHashContent();
+        if (!hash) throw new Error(`Missing content hash for "${record.getFullPath()}"`);
+        return hash;
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         throw new Error(

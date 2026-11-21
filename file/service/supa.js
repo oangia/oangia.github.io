@@ -47,6 +47,7 @@ class SupabaseStorageService {
           mimeType: isFolder ? 'application/vnd.google-apps.folder' : (item.metadata?.mimetype || 'application/octet-stream'),
           size: item.metadata?.size || 0,
           modifiedTime: item.updated_at || item.created_at || new Date().toISOString(),
+          metadata: { hash_content: item.metadata?.hash_content || null },
           webContentLink: null
         };
       });
@@ -58,7 +59,7 @@ class SupabaseStorageService {
     }
   }
 
-  async fetchContent({ id = null, path = null } = {}) {
+  async fetchContent({ id = null, path = null, metadata = null, metadataKnown = false } = {}) {
     try {
       const targetPath = id || path;
       if (!targetPath) throw new Error("File ID or path required for fetching content");
@@ -71,8 +72,55 @@ class SupabaseStorageService {
         throw new Error(`Failed to fetch file content: ${res.statusText}`);
       }
 
-      // Returns a fetch Response object just like DriveStorageService
-      return { data: res, error: null };
+      return {
+        data: await this._ensureContentHash(res, targetPath, metadata, metadataKnown),
+        error: null
+      };
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async _ensureContentHash(response, path, metadata, metadataKnown) {
+    let fileMetadata = metadata;
+    if (!metadataKnown) {
+      const { data, error } = await this.getByPath(path);
+      if (error) throw error;
+      fileMetadata = data.metadata || {};
+    }
+    if (fileMetadata?.hash_content) return response;
+
+    const buffer = await response.arrayBuffer();
+    const hash_content = await Crypto.sha256(buffer);
+    fileMetadata = { ...fileMetadata, hash_content };
+    const content = new Blob([buffer], {
+      type: response.headers.get("Content-Type") || "application/octet-stream"
+    });
+    const { error } = await this.updateMetadata({ path }, fileMetadata, content);
+    if (error) throw error;
+    if (metadata) metadata.hash_content = hash_content;
+
+    return new Response(buffer, { headers: response.headers });
+  }
+
+  async updateMetadata({ id = null, path = null } = {}, metadata = {}, content = null) {
+    if (!this.client) return { data: null, error: new Error("Supabase client not initialized") };
+    try {
+      const targetPath = (id || path || "").replace(/^\/+/, "");
+      if (!targetPath) throw new Error("File ID or path required to update Supabase metadata");
+      if (!content) throw new Error("File content is required to update Supabase metadata");
+
+      const fileName = targetPath.split("/").pop();
+      const file = new File([content], fileName, {
+        type: content.type || "application/octet-stream"
+      });
+      const { data, error } = await this.client.storage.from(this._bucket).update(targetPath, file, {
+        contentType: file.type,
+        metadata
+      });
+      if (error) throw error;
+
+      return { data: { id: targetPath, metadata }, error: null };
     } catch (err) {
       return { data: null, error: err };
     }
@@ -101,6 +149,7 @@ class SupabaseStorageService {
         mimeType: isFolder ? 'application/vnd.google-apps.folder' : (match.metadata?.mimetype || 'application/octet-stream'),
         size: match.metadata?.size || 0,
         modifiedTime: match.updated_at || match.created_at || new Date().toISOString(),
+        metadata: { hash_content: match.metadata?.hash_content || null },
         webContentLink: null
       };
 
@@ -120,10 +169,15 @@ class SupabaseStorageService {
     try {
       const cleanPath = path.replace(/^\/+/, '');
       const upsert = options.upsert !== undefined ? options.upsert : true;
+      const metadata = {
+        ...(options.metadata || {}),
+        hash_content: await Crypto.sha256(await file.arrayBuffer())
+      };
 
       const { data, error } = await this.client.storage.from(this._bucket).upload(cleanPath, file, {
         upsert: upsert,
-        contentType: file.type || 'application/octet-stream'
+        contentType: file.type || 'application/octet-stream',
+        metadata
       });
       if (error) throw error;
 
@@ -133,6 +187,7 @@ class SupabaseStorageService {
         mimeType: file.type || 'application/octet-stream',
         size: file.size || 0,
         modifiedTime: new Date().toISOString(),
+        metadata,
         webContentLink: null
       };
 
