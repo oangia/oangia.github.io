@@ -20,11 +20,21 @@ class UITemplates {
         }
         return `<div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors"><i class="${file.getFileIconClass()} text-3xl"></i></div>`;
       },
-      card: (file, mediaHTML) => {
-        const comparison = file.comparisonStatus
-          ? `<span class="absolute bottom-14 left-2 z-10 rounded bg-black/75 px-1.5 py-1 text-[9px] font-semibold ${file.comparisonStatus === "Same content" ? "text-emerald-300" : file.comparisonStatus === "Different content" || file.comparisonStatus === "Different size" ? "text-amber-300" : "text-rose-300"}">${escapeHtml(file.comparisonStatus)}</span>`
+      card: (group, mediaHTML) => {
+        const statusClass = group.comparisonStatus === "Same content"
+          ? "text-emerald-300"
+          : group.comparisonStatus === "Different content" || group.comparisonStatus === "Different size"
+            ? "text-amber-300"
+            : group.comparisonStatus === "Could not compare"
+              ? "text-rose-300"
+              : "text-slate-300";
+        const services = group.files.map(file =>
+          `<span class="rounded bg-white/10 px-1.5 py-0.5">${escapeHtml(file.getStorageName())}</span>`
+        ).join("");
+        const copySelector = group.files.length > 1 && !group.isFolderNode()
+          ? `<select class="service-file-select mt-1 w-full rounded border border-white/15 bg-slate-900 px-1.5 py-1 text-[9px] text-slate-200" aria-label="Choose a service copy to view">${group.files.map((file, index) => `<option value="${index}" ${index === group.selectedIndex ? "selected" : ""}>View from ${escapeHtml(file.getStorageName())}</option>`).join("")}</select>`
           : "";
-        return `<span class="absolute top-2 left-2 z-10 max-w-[70%] truncate rounded bg-black/75 px-1.5 py-1 text-[9px] text-slate-200" title="${escapeHtml(file.getStorageName())}">${escapeHtml(file.getStorageName())}</span>${comparison}<button class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full bg-black/50 hover:bg-red-500 text-white transition" title="Delete"><i class="fa-solid fa-xmark text-[10px]"></i></button>${mediaHTML}<div class="w-full pt-2 border-t border-white/20 flex flex-col"><span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(file.getDisplayName())}">${escapeHtml(file.getDisplayName())}</span><span class="text-[9px] text-slate-300 font-mono mt-0.5">${file.getSubtext()}</span></div>`;
+        return `<button class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full bg-black/50 hover:bg-red-500 text-white transition" title="Delete selected service copy"><i class="fa-solid fa-xmark text-[10px]"></i></button>${mediaHTML}<div class="w-full pt-2 border-t border-white/20 flex flex-col"><span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(group.getDisplayName())}">${escapeHtml(group.getDisplayName())}</span><span class="text-[9px] text-slate-300 font-mono mt-0.5">${group.getSubtext()}</span><div class="mt-1 flex flex-wrap gap-1 text-[8px] text-slate-200">${services}</div><span class="mt-1 text-[9px] font-semibold ${statusClass}">${escapeHtml(group.comparisonStatus || "")}</span>${copySelector}</div>`;
       },
     };
   }
@@ -103,7 +113,8 @@ class ItemsGridRenderer {
       return;
     }
 
-    for (const file of items) {
+    for (const group of items) {
+      const file = group.selectedFile;
       const card = document.createElement("div");
       card.className = tpl.cardClass;
       card.onclick = () => {
@@ -118,13 +129,21 @@ class ItemsGridRenderer {
         ? tpl.folderIcon
         : tpl.fileMedia(file);
 
-      card.innerHTML = tpl.card(file, mediaHTML);
+      card.innerHTML = tpl.card(group, mediaHTML);
+
+      const copySelector = card.querySelector(".service-file-select");
+      copySelector?.addEventListener("click", event => event.stopPropagation());
+      copySelector?.addEventListener("change", event => {
+        event.stopPropagation();
+        group.select(Number(copySelector.value));
+        this.fileManager.openPreview(group.selectedFile);
+      });
 
       const deleteBtn = card.querySelector(".delete-btn");
       if (deleteBtn) {
         deleteBtn.onclick = (e) => {
           e.stopPropagation();
-          this.deleteItem(file);
+          this.deleteItem(group.selectedFile);
         };
       }
 
@@ -162,6 +181,27 @@ class ItemsGridRenderer {
       showToast(err.message || "Delete failed", "error");
     }
   }
+}
+
+class FileGroup {
+  constructor(files) {
+    this.files = files;
+    this.selectedIndex = 0;
+    this.comparisonStatus = "";
+  }
+
+  get selectedFile() { return this.files[this.selectedIndex]; }
+  select(index) {
+    if (Number.isInteger(index) && index >= 0 && index < this.files.length) {
+      this.selectedIndex = index;
+    }
+  }
+  isFolderNode() { return this.selectedFile.isFolderNode(); }
+  getName() { return this.selectedFile.getName(); }
+  getDisplayName() { return this.selectedFile.getDisplayName(); }
+  getFullPath() { return this.selectedFile.getFullPath(); }
+  getSubtext() { return this.selectedFile.getSubtext(); }
+  getSize() { return this.selectedFile.getSize(); }
 }
 
 class FilePreviewManager {
@@ -209,7 +249,7 @@ class FilePreviewManager {
     const saveBtn = document.getElementById("previewSaveBtn");
     const cancelBtn = document.getElementById("previewCancelEditBtn");
 
-    if (title) title.textContent = fileRecord.getDisplayName() + (fileRecord.isEncryptedFile() ? " (Decrypted securely)" : "");
+    if (title) title.textContent = `${fileRecord.getDisplayName()} — ${fileRecord.getStorageName()}${fileRecord.isEncryptedFile() ? " (Decrypted securely)" : ""}`;
     if (body) body.innerHTML = tpl.loadingSpinner;
     if (sidebar) sidebar.innerHTML = tpl.sidebarLoading;
     document.getElementById("modalPreview")?.classList.remove("hidden");
@@ -534,10 +574,15 @@ class FileManager {
       this.serviceLists = new Map(this.storageServices.map(service =>
         [service.name, resultLists.get(service.name) || []]
       ));
-      this.allItems = this.storageServices.flatMap(service => this.serviceLists.get(service.name));
-      this.allItems.forEach(file => {
-        file.comparisonStatus = null;
+      const groupedFiles = new Map();
+      this.storageServices.flatMap(service => this.serviceLists.get(service.name)).forEach(file => {
+        const path = file.getFullPath().replace(/^\/+|\/+$/g, "");
+        const key = `${file.isFolderNode() ? "folder" : "file"}:${path}`;
+        const copies = groupedFiles.get(key) || [];
+        copies.push(file);
+        groupedFiles.set(key, copies);
       });
+      this.allItems = Array.from(groupedFiles.values(), files => new FileGroup(files));
       this.renderView();
       await this.compareFiles(this.allItems);
       if (requestId === this.listRequestId) this.renderView();
@@ -547,52 +592,33 @@ class FileManager {
     }
   }
 
-  async compareFiles(files) {
-    const candidates = new Map();
-    files.filter(file => !file.isFolderNode()).forEach(file => {
-      const key = `${file.getDisplayName().toLocaleLowerCase()}\0${file.getSize()}`;
-      const group = candidates.get(key) || [];
-      group.push(file);
-      candidates.set(key, group);
-    });
-
-    for (const group of candidates.values()) {
-      if (group.length < 2) continue;
-
-      group.forEach(file => {
-        file.comparisonStatus = "Checking";
-      });
-
+  async compareFiles(groups) {
+    for (const group of groups) {
+      if (group.isFolderNode()) {
+        group.comparisonStatus = "Folder";
+        continue;
+      }
+      if (group.files.length === 1) {
+        group.comparisonStatus = `Only in ${group.files[0].getStorageName()}`;
+        continue;
+      }
+      if (new Set(group.files.map(file => file.getSize())).size > 1) {
+        group.comparisonStatus = "Different size";
+        continue;
+      }
       try {
-        const hashes = await Promise.all(group.map(async file => {
+        const hashes = await Promise.all(group.files.map(async file => {
           const response = await file.fetchContent();
           return Crypto.sha256(await response.arrayBuffer());
         }));
-        const duplicateHashes = new Set(hashes.filter((hash, index) => hashes.indexOf(hash) !== index));
-        group.forEach((file, index) => {
-          file.comparisonStatus = duplicateHashes.has(hashes[index]) ? "Same content" : "Different content";
-        });
+        group.comparisonStatus = hashes.every(hash => hash === hashes[0])
+          ? "Same content"
+          : "Different content";
       } catch (error) {
         console.error("Failed to compare matching files:", error);
-        group.forEach(file => {
-          file.comparisonStatus = "Could not compare";
-        });
+        group.comparisonStatus = "Could not compare";
       }
     }
-
-    const filesByName = new Map();
-    files.filter(file => !file.isFolderNode()).forEach(file => {
-      const key = file.getDisplayName().toLocaleLowerCase();
-      const group = filesByName.get(key) || [];
-      group.push(file);
-      filesByName.set(key, group);
-    });
-    filesByName.forEach(group => {
-      if (group.length < 2) return;
-      group.filter(file => !file.comparisonStatus).forEach(file => {
-        file.comparisonStatus = "Different size";
-      });
-    });
   }
 
   renderView() {
