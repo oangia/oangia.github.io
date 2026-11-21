@@ -20,7 +20,12 @@ class UITemplates {
         }
         return `<div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors"><i class="${file.getFileIconClass()} text-3xl"></i></div>`;
       },
-      card: (file, mediaHTML) => `<button class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full bg-black/50 hover:bg-red-500 text-white transition" title="Delete"><i class="fa-solid fa-xmark text-[10px]"></i></button>${mediaHTML}<div class="w-full pt-2 border-t border-white/20 flex flex-col"><span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(file.getDisplayName())}">${escapeHtml(file.getDisplayName())}</span><span class="text-[9px] text-slate-300 font-mono mt-0.5">${file.getSubtext()}</span></div>`,
+      card: (file, mediaHTML) => {
+        const comparison = file.comparisonStatus
+          ? `<span class="absolute bottom-14 left-2 z-10 rounded bg-black/75 px-1.5 py-1 text-[9px] font-semibold ${file.comparisonStatus === "Same content" ? "text-emerald-300" : file.comparisonStatus === "Different content" || file.comparisonStatus === "Different size" ? "text-amber-300" : "text-rose-300"}">${escapeHtml(file.comparisonStatus)}</span>`
+          : "";
+        return `<span class="absolute top-2 left-2 z-10 max-w-[70%] truncate rounded bg-black/75 px-1.5 py-1 text-[9px] text-slate-200" title="${escapeHtml(file.getStorageName())}">${escapeHtml(file.getStorageName())}</span>${comparison}<button class="delete-btn absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full bg-black/50 hover:bg-red-500 text-white transition" title="Delete"><i class="fa-solid fa-xmark text-[10px]"></i></button>${mediaHTML}<div class="w-full pt-2 border-t border-white/20 flex flex-col"><span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(file.getDisplayName())}">${escapeHtml(file.getDisplayName())}</span><span class="text-[9px] text-slate-300 font-mono mt-0.5">${file.getSubtext()}</span></div>`;
+      },
     };
   }
 
@@ -485,6 +490,19 @@ class FileManager {
   constructor(config = {}) {
     this.allItems = [];
     this.filteredItems = [];
+    this.listRequestId = 0;
+    const driveStorage = FileRecord.getStorage();
+    const supabaseStorage = new SupabaseStorageService();
+    const localStorage = new LocalFileService({
+      folderButtonId: "openLocalFolderBtn",
+      onProgress: (message, type) => showToast(message, type)
+    });
+    this.storageServices = [
+      { name: "Google Drive", storage: driveStorage, isAvailable: () => Boolean(driveStorage.token) },
+      { name: "Supabase", storage: supabaseStorage, isAvailable: () => Boolean(supabaseStorage.client) },
+      { name: "Local folder", storage: localStorage, isAvailable: () => localStorage.isLoaded }
+    ];
+    this.serviceLists = new Map(this.storageServices.map(service => [service.name, []]));
     
     this.breadcrumb = new BreadcrumbManager("breadcrumbNav", this);
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", this);
@@ -494,17 +512,87 @@ class FileManager {
     this.listFiles();
   }
 
+  initializeServiceConnection() {
+    this.listFiles();
+  }
+
   async listFiles() {
+    const requestId = ++this.listRequestId;
     try {
-      const { data, error } = await FileRecord.all(this.breadcrumb.path);
-      console.log(data);
-      if (error) throw error;
-      this.allItems = data;
+      const activeServices = this.storageServices.filter(service => service.isAvailable());
+      const results = await Promise.all(activeServices.map(async service => {
+        const { data, error } = await FileRecord.all(this.breadcrumb.path, {}, service.storage, service.name);
+        if (error) {
+          console.error(`Failed to list ${service.name}:`, error);
+          showToast(`${service.name}: ${error.message || "Failed to list files"}`, "error");
+          return [service.name, []];
+        }
+        return [service.name, data];
+      }));
+      if (requestId !== this.listRequestId) return;
+      const resultLists = new Map(results);
+      this.serviceLists = new Map(this.storageServices.map(service =>
+        [service.name, resultLists.get(service.name) || []]
+      ));
+      this.allItems = this.storageServices.flatMap(service => this.serviceLists.get(service.name));
+      this.allItems.forEach(file => {
+        file.comparisonStatus = null;
+      });
       this.renderView();
+      await this.compareFiles(this.allItems);
+      if (requestId === this.listRequestId) this.renderView();
     } catch (err) {
       console.error(err);
       showToast(err.message || "Failed to list files", "error");
     }
+  }
+
+  async compareFiles(files) {
+    const candidates = new Map();
+    files.filter(file => !file.isFolderNode()).forEach(file => {
+      const key = `${file.getDisplayName().toLocaleLowerCase()}\0${file.getSize()}`;
+      const group = candidates.get(key) || [];
+      group.push(file);
+      candidates.set(key, group);
+    });
+
+    for (const group of candidates.values()) {
+      if (group.length < 2) continue;
+
+      group.forEach(file => {
+        file.comparisonStatus = "Checking";
+      });
+
+      try {
+        const hashes = await Promise.all(group.map(async file => {
+          const response = await file.fetchContent();
+          return Crypto.sha256(await response.arrayBuffer());
+        }));
+        const duplicateHashes = new Set(hashes.filter((hash, index) => hashes.indexOf(hash) !== index));
+        group.forEach((file, index) => {
+          file.comparisonStatus = duplicateHashes.has(hashes[index]) ? "Same content" : "Different content";
+        });
+      } catch (error) {
+        console.error("Failed to compare matching files:", error);
+        group.forEach(file => {
+          file.comparisonStatus = "Could not compare";
+        });
+      }
+    }
+
+    const filesByName = new Map();
+    files.filter(file => !file.isFolderNode()).forEach(file => {
+      const key = file.getDisplayName().toLocaleLowerCase();
+      const group = filesByName.get(key) || [];
+      group.push(file);
+      filesByName.set(key, group);
+    });
+    filesByName.forEach(group => {
+      if (group.length < 2) return;
+      group.filter(file => !file.comparisonStatus).forEach(file => {
+        file.comparisonStatus = "Different size";
+      });
+    });
   }
 
   renderView() {
@@ -524,6 +612,13 @@ class FileManager {
 
     const label = document.getElementById("itemCountLabel");
     if (label) label.textContent = `${this.filteredItems.length} item${this.filteredItems.length !== 1 ? "s" : ""}`;
+
+    const serviceLabel = document.getElementById("serviceStatusLabel");
+    if (serviceLabel) {
+      serviceLabel.textContent = this.storageServices.map(service =>
+        `${service.name}: ${service.isAvailable() ? "Connected" : "Not connected"}`
+      ).join(" · ");
+    }
 
     this.gridRenderer?.render(this.filteredItems);
   }

@@ -3,6 +3,7 @@ class LocalFileService {
     this.rootNode = { name: "root", children: {}, files: [] };
     this.pathToFile = new Map();
     this.pathToNode = new Map();
+    this.isLoaded = false;
     this.pathToNode.set("", this.rootNode);
     this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
 
@@ -59,6 +60,7 @@ class LocalFileService {
     this.pathToFile.clear();
     this.pathToNode.clear();
     this.pathToNode.set("", this.rootNode);
+    this.isLoaded = files.length > 0;
     if (!files.length) return;
 
     const firstPath = files[0].webkitRelativePath || files[0].name;
@@ -143,9 +145,12 @@ class LocalFileService {
     }
   }
 
-  async fetchContent(file) {
+  async fetchContent({ id = null, path = null } = {}) {
     try {
-      const res = await fetch(file.getUrl());
+      const file = this.pathToFile.get(id || path);
+      if (!file) throw new Error("Local file not found");
+      const res = await fetch(file.fileUrl);
+      if (!res.ok) throw new Error(`Failed to fetch local file content: ${res.statusText}`);
       return { data: res, error: null };
     } catch (err) {
       return { data: null, error: err };

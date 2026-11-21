@@ -99,10 +99,14 @@ class BaseStorageRecord extends FileEntity {
   
   constructor(data = {}) {
     super(data);
+    this._storageService = data.storageService || null;
+    this._storageName = data.storageName || "Google Drive";
   }
 
+  getStorageName() { return this._storageName; }
+
   static getStorage() {
-    if (!this._storageService) {
+    if (!BaseStorageRecord._storageService) {
       /*this._storageService = new LocalFileService({
         folderButtonId: "openLocalFolderBtn",
         onProgress: (msg, type) => {
@@ -112,13 +116,12 @@ class BaseStorageRecord extends FileEntity {
         }
       });*/
       //this._storageService = new SupabaseStorageService();
-      this._storageService = new DriveStorageService();
+      BaseStorageRecord._storageService = new DriveStorageService();
     }
-    return this._storageService;
+    return BaseStorageRecord._storageService;
   }
 
-  static async all(path = "", options = {}) {
-    const storage = this.getStorage();
+  static async all(path = "", options = {}, storage = this.getStorage(), storageName = "Google Drive") {
     const { data, error } = await storage.list(path, {
       limit: 500,
       offset: 0,
@@ -133,13 +136,15 @@ class BaseStorageRecord extends FileEntity {
     const cleanBasePath = path ? path.replace(/^\/+|\/+$/g, "") : "";
     const fileRecords = data.map((file) => this._fromDriveMetadata(
       file,
-      cleanBasePath ? `${cleanBasePath}/${file.name}` : file.name
+      cleanBasePath ? `${cleanBasePath}/${file.name}` : file.name,
+      storage,
+      storageName
     ));
 
     return { data: fileRecords, error: null };
   }
   
-  static _fromDriveMetadata(file, path) {
+  static _fromDriveMetadata(file, path, storage = this.getStorage(), storageName = "Google Drive") {
     const is_folder = file.mimeType === "application/vnd.google-apps.folder" || file.mimeType === "inode/directory";
     return new this({
       id: file.id || null,
@@ -149,7 +154,9 @@ class BaseStorageRecord extends FileEntity {
       mime_type: file.mimeType,
       url: file.webContentLink || null,
       updated_at: file.modifiedTime ? new Date(file.modifiedTime).getTime() : null,
-      is_folder
+      is_folder,
+      storageService: storage,
+      storageName
     });
   }
 
@@ -209,9 +216,10 @@ class BaseStorageRecord extends FileEntity {
   async save(newFileBlob) {
     if (!this._full_path && !this._id) throw new Error("Cannot save BaseStorageRecord without an ID or full_path.");
     const namedFile = BaseStorageRecord._namedUploadFile(this._full_path || this._name, newFileBlob);
+    const storage = this._storageService || BaseStorageRecord.getStorage();
     const { data, error } = this._id
-      ? await BaseStorageRecord.updateById(this._id, namedFile)
-      : await BaseStorageRecord.update(this._full_path, namedFile);
+      ? await storage.uploadById(this._id, namedFile)
+      : await storage.upload(this._full_path, namedFile, { upsert: true });
     if (error) throw error;
 
     if (data) {
@@ -226,11 +234,12 @@ class BaseStorageRecord extends FileEntity {
   }
 
   async delete({ recursive = false } = {}) {
-    const storage = BaseStorageRecord.getStorage();
+    const storage = this._storageService || BaseStorageRecord.getStorage();
     const path = this._full_path || this._name;
 
     if (this.isFolderNode()) {
-      const { data: items } = await BaseStorageRecord.all(path);
+      const { data: items, error } = await BaseStorageRecord.all(path, {}, storage, this._storageName);
+      if (error) throw error;
       if (items?.length) {
         if (!recursive) throw new Error(`Folder "${path}" is not empty. Pass { recursive: true }.`);
         await Promise.all(items.map(item => item.delete({ recursive: true })));
@@ -241,14 +250,14 @@ class BaseStorageRecord extends FileEntity {
   }
 
   async fetchContent(expiresIn = 60) {
-    const storage = BaseStorageRecord.getStorage();
+    const storage = this._storageService || BaseStorageRecord.getStorage();
     const { data: response, error } = await storage.fetchContent({id: this.getId(), path: this.getFullPath()});
     if (error) throw error;
     return response;
   }
 
   async loadPreviewMedia(element, expiresIn = 60) {
-    if (this.getUrl().startsWith("blob:")) {
+    if (this.getUrl()?.startsWith("blob:")) {
       element.loading = "lazy";
       element.src = this.getUrl();
       return;
