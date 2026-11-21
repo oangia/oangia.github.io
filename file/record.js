@@ -95,6 +95,7 @@ class FileEntity {
  * active-record instance actions, and storage driver management.
  */
 class BaseStorageRecord extends FileEntity {
+  static SUPABASE_ENABLED = true;
   static _storageService = null;
   static _storageServices = null;
   static _serviceChangeHandler = null;
@@ -127,8 +128,8 @@ class BaseStorageRecord extends FileEntity {
         },
         {
           name: "Supabase",
-          storage: new SupabaseStorageService(),
-          isAvailable: storage => Boolean(storage.client)
+          storage: BaseStorageRecord.SUPABASE_ENABLED ? new SupabaseStorageService() : null,
+          isAvailable: storage => BaseStorageRecord.SUPABASE_ENABLED && Boolean(storage?.client)
         },
         {
           name: "Local folder",
