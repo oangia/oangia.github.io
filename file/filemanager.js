@@ -920,7 +920,7 @@ class FileManager {
         drivePaths.add(`${folderPath}/.emptyFolderPlaceholder`);
       }
 
-      const supabasePaths = [];
+      const supabaseFiles = new Map();
       const collectSupabaseFiles = async (path = "") => {
         this.updateSyncProgress("Scanning Supabase", path || "/", 0, 0, "Building file list");
         let offset = 0;
@@ -934,7 +934,7 @@ class FileManager {
             if (entry.mimeType === "application/vnd.google-apps.folder") {
               await collectSupabaseFiles(entryPath);
             } else {
-              supabasePaths.push(entryPath);
+              supabaseFiles.set(entryPath, entry);
             }
           }
 
@@ -944,13 +944,13 @@ class FileManager {
       };
       await collectSupabaseFiles();
 
-      const orphanedPaths = supabasePaths.filter(path => !drivePaths.has(path));
+      const orphanedPaths = [...supabaseFiles.keys()].filter(path => !drivePaths.has(path));
       totalWork = files.length + emptyFolders.length + orphanedPaths.length;
 
       let synced = 0;
+      let skipped = 0;
       let failed = 0;
-      const syncFile = async (path, name, mimeType, response) => {
-        const blob = await response.blob();
+      const uploadFile = async (path, name, mimeType, blob) => {
         const file = new File([blob], name, {
           type: mimeType || blob.type || "application/octet-stream"
         });
@@ -959,13 +959,43 @@ class FileManager {
       };
 
       for (const { entry, path } of files) {
-        this.updateSyncProgress("Copying Drive file to Supabase", path, completedWork, totalWork, "In progress");
+        const existing = supabaseFiles.get(path);
+        this.updateSyncProgress(
+          existing ? "Checking Supabase copy" : "Copying Drive file to Supabase",
+          path,
+          completedWork,
+          totalWork,
+          "In progress"
+        );
         let itemFailed = false;
+        let itemStatus = "Copied to Supabase";
         try {
           const { data: response, error } = await drive.fetchContent({ id: entry.id });
           if (error) throw error;
-          await syncFile(path, entry.name, entry.mimeType, response);
-          synced++;
+          const blob = await response.blob();
+          let matches = false;
+
+          if (existing && Number(existing.size) === Number(entry.size)) {
+            try {
+              const { data: existingResponse, error: existingError } = await supabase.fetchContent({ path });
+              if (existingError) throw existingError;
+              const [driveHash, supabaseHash] = await Promise.all([
+                Crypto.sha256(await blob.arrayBuffer()),
+                Crypto.sha256(await existingResponse.arrayBuffer())
+              ]);
+              matches = driveHash === supabaseHash;
+            } catch (error) {
+              console.warn(`Could not compare ${path}; replacing the Supabase copy:`, error);
+            }
+          }
+
+          if (matches) {
+            skipped++;
+            itemStatus = "Already up to date";
+          } else {
+            await uploadFile(path, entry.name, entry.mimeType, blob);
+            synced++;
+          }
         } catch (error) {
           console.error(`Failed to sync ${path} to Supabase:`, error);
           failed++;
@@ -973,11 +1003,11 @@ class FileManager {
         }
         completedWork++;
         this.updateSyncProgress(
-          itemFailed ? "Failed to copy file" : "Copied to Supabase",
+          itemFailed ? "Failed to copy file" : itemStatus,
           path,
           completedWork,
           totalWork,
-          `${synced} copied · ${failed} failed`
+          `${synced} copied · ${skipped} unchanged · ${failed} failed`
         );
       }
 
@@ -986,11 +1016,11 @@ class FileManager {
         let itemFailed = false;
         try {
           const placeholderPath = `${folderPath}/.emptyFolderPlaceholder`;
-          await syncFile(
+          await uploadFile(
             placeholderPath,
             ".emptyFolderPlaceholder",
             "application/octet-stream",
-            new Response(new Blob([]))
+            new Blob([])
           );
           synced++;
         } catch (error) {
@@ -1004,7 +1034,7 @@ class FileManager {
           folderPath,
           completedWork,
           totalWork,
-          `${synced} copied · ${failed} failed`
+          `${synced} copied · ${skipped} unchanged · ${failed} failed`
         );
       }
 
@@ -1040,24 +1070,27 @@ class FileManager {
       if (failed === 0 && deleteFailed === 0) {
         this.updateSyncProgress(
           "Sync complete",
-          `Copied ${synced} item(s); removed ${deleted} Supabase-only item(s)`,
+          `Copied ${synced}; skipped ${skipped} unchanged; removed ${deleted} Supabase-only`,
           completedWork,
           totalWork,
           "Complete",
           true
         );
-        showToast(`Synced ${synced} item(s) and removed ${deleted} Supabase-only item(s)`, "success");
+        showToast(
+          `Copied ${synced}, skipped ${skipped} unchanged, removed ${deleted} Supabase-only item(s)`,
+          "success"
+        );
       } else {
         this.updateSyncProgress(
           "Sync finished with errors",
-          `Copied ${synced}; ${failed} sync failures; removed ${deleted}; ${deleteFailed} removal failures`,
+          `Copied ${synced}; skipped ${skipped} unchanged; ${failed} sync failures; removed ${deleted}; ${deleteFailed} removal failures`,
           completedWork,
           totalWork,
           "Finished with errors",
           true
         );
         showToast(
-          `Synced ${synced}; ${failed} sync failures, ${deleted} removed, ${deleteFailed} removals failed`,
+          `Copied ${synced}, skipped ${skipped} unchanged; ${failed} sync failures, ${deleted} removed, ${deleteFailed} removals failed`,
           "warning",
           5000
         );
