@@ -172,7 +172,12 @@ class ItemsGridRenderer {
     this.contextMenu.innerHTML = actionRows.map(row => {
       const choices = group.files
         .map((file, index) => ({ file, index, action: row.action(file), label: row.label(file) }))
-        .filter(choice => !(choice.action === "downloadRecord" && choice.file.isFolderNode()));
+        .filter(choice => !(choice.action === "downloadRecord" && choice.file.isFolderNode()))
+        .sort((a, b) => {
+          if (a.file.getStorageName() === "Google Drive") return -1;
+          if (b.file.getStorageName() === "Google Drive") return 1;
+          return 0;
+        });
 
       if (choices.length === 0) return "";
 
@@ -184,7 +189,8 @@ class ItemsGridRenderer {
         </button>`;
       }
 
-      const services = choices.map(choice =>
+      const [defaultChoice, ...otherChoices] = choices;
+      const services = otherChoices.map(choice =>
         `<button type="button" data-action="${choice.action}" data-file-index="${choice.index}"
           class="w-full text-left px-3 py-2 text-xs whitespace-nowrap hover:bg-white/10 ${row.style || ""}">
           ${escapeHtml(choice.file.getStorageName())}
@@ -192,10 +198,16 @@ class ItemsGridRenderer {
       ).join("");
 
       return `<div class="relative menu-item" data-menu-item>
-        <button type="button" class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""} flex items-center justify-between">
-          <span>${escapeHtml(choices[0].label)}</span>
-          <i class="fa-solid fa-chevron-right text-[9px] text-slate-400"></i>
-        </button>
+        <div class="flex">
+          <button type="button" data-action="${defaultChoice.action}" data-file-index="${defaultChoice.index}"
+            class="flex-1 text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""}">
+            ${escapeHtml(defaultChoice.label)}
+          </button>
+          <button type="button" data-menu-toggle aria-label="Choose service for ${escapeHtml(defaultChoice.label)}"
+            class="px-2 text-slate-400 hover:bg-white/10 hover:text-white">
+            <i class="fa-solid fa-chevron-right text-[9px]"></i>
+          </button>
+        </div>
         <div class="menu-submenu hidden fixed z-[111] min-w-44 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg">
           ${services}
         </div>
@@ -211,7 +223,7 @@ class ItemsGridRenderer {
 
     this.contextMenu.querySelectorAll("[data-menu-item]").forEach(menuItem => {
       const submenu = menuItem.querySelector(".menu-submenu");
-      const toggleButton = menuItem.querySelector(":scope > button");
+      const toggleButton = menuItem.querySelector("[data-menu-toggle]");
       if (!submenu || !toggleButton) return;
 
       const showSubmenu = () => {
@@ -575,6 +587,7 @@ class FileManager {
       case "downloadRecord": return this.downloadRecord(args[0]);
       case "deleteRecord": return this.deleteRecord(args[0]);
       case "backup": return this.createBackup();
+      case "syncDriveToSupabase": return this.syncDriveToSupabase();
       default: throw new Error(`Unknown file-manager action: ${actionName}`);
     }
   }
@@ -835,6 +848,160 @@ class FileManager {
       btn.innerHTML = '<i class="fa-solid fa-box-archive"></i> <span>Backup</span>';
     }
   }
+
+  async syncDriveToSupabase() {
+    const services = FileRecord.getStorageServices();
+    const drive = services.find(service => service.name === "Google Drive")?.storage;
+    const supabase = services.find(service => service.name === "Supabase")?.storage;
+    const button = document.getElementById("syncToSupabaseBtn");
+    const originalButtonContent = button?.innerHTML;
+
+    if (!drive?.token || !supabase?.client) {
+      showToast("Connect Google Drive and configure Supabase before syncing", "warning");
+      return;
+    }
+    if (!confirm("Sync Google Drive to Supabase? Files in Supabase that are not in Drive will be deleted.")) {
+      return;
+    }
+
+    if (button) {
+      button.disabled = true;
+      button.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5 w-4"></i><span>Syncing...</span>';
+    }
+
+    try {
+      const files = [];
+      const emptyFolders = [];
+      const collectFiles = async (path = "") => {
+        const { data, error } = await drive.list(path, { limit: 1000 });
+        if (error) throw error;
+
+        const entries = data || [];
+        if (path && entries.length === 0) emptyFolders.push(path);
+
+        for (const entry of entries) {
+          const entryPath = path ? `${path}/${entry.name}` : entry.name;
+          if (entry.mimeType === "application/vnd.google-apps.folder") {
+            await collectFiles(entryPath);
+          } else {
+            files.push({ entry, path: entryPath });
+          }
+        }
+      };
+
+      await collectFiles();
+      const drivePaths = new Set(files.map(file => file.path));
+      for (const folderPath of emptyFolders) {
+        drivePaths.add(`${folderPath}/.emptyFolderPlaceholder`);
+      }
+
+      const supabasePaths = [];
+      const collectSupabaseFiles = async (path = "") => {
+        let offset = 0;
+        while (true) {
+          const { data, error } = await supabase.list(path, { limit: 1000, offset });
+          if (error) throw error;
+
+          const entries = data || [];
+          for (const entry of entries) {
+            const entryPath = path ? `${path}/${entry.name}` : entry.name;
+            if (entry.mimeType === "application/vnd.google-apps.folder") {
+              await collectSupabaseFiles(entryPath);
+            } else {
+              supabasePaths.push(entryPath);
+            }
+          }
+
+          if (entries.length < 1000) break;
+          offset += entries.length;
+        }
+      };
+      await collectSupabaseFiles();
+
+      const total = files.length + emptyFolders.length;
+
+      let synced = 0;
+      let failed = 0;
+      const syncFile = async (path, name, mimeType, response) => {
+        const blob = await response.blob();
+        const file = new File([blob], name, {
+          type: mimeType || blob.type || "application/octet-stream"
+        });
+        const { error } = await supabase.upload(path, file, { upsert: true });
+        if (error) throw error;
+      };
+
+      for (const { entry, path } of files) {
+        try {
+          const { data: response, error } = await drive.fetchContent({ id: entry.id });
+          if (error) throw error;
+          await syncFile(path, entry.name, entry.mimeType, response);
+          synced++;
+        } catch (error) {
+          console.error(`Failed to sync ${path} to Supabase:`, error);
+          failed++;
+        }
+
+        if ((synced + failed) % 5 === 0 || synced + failed === total) {
+          showToast(`Synced ${synced + failed} / ${total} item(s)`, "info", 1200);
+        }
+      }
+
+      for (const folderPath of emptyFolders) {
+        try {
+          const placeholderPath = `${folderPath}/.emptyFolderPlaceholder`;
+          await syncFile(
+            placeholderPath,
+            ".emptyFolderPlaceholder",
+            "application/octet-stream",
+            new Response(new Blob([]))
+          );
+          synced++;
+        } catch (error) {
+          console.error(`Failed to sync empty folder ${folderPath} to Supabase:`, error);
+          failed++;
+        }
+
+        if ((synced + failed) % 5 === 0 || synced + failed === total) {
+          showToast(`Synced ${synced + failed} / ${total} item(s)`, "info", 1200);
+        }
+      }
+
+      const orphanedPaths = supabasePaths.filter(path => !drivePaths.has(path));
+      let deleted = 0;
+      let deleteFailed = 0;
+      for (let index = 0; index < orphanedPaths.length; index += 100) {
+        const batch = orphanedPaths.slice(index, index + 100);
+        try {
+          const { error } = await supabase.remove(batch);
+          if (error) throw error;
+          deleted += batch.length;
+        } catch (error) {
+          console.error("Failed to remove Supabase-only files:", error);
+          deleteFailed += batch.length;
+        }
+      }
+
+      await this.action("refresh");
+      if (failed === 0 && deleteFailed === 0) {
+        showToast(`Synced ${synced} item(s) and removed ${deleted} Supabase-only item(s)`, "success");
+      } else {
+        showToast(
+          `Synced ${synced}; ${failed} sync failures, ${deleted} removed, ${deleteFailed} removals failed`,
+          "warning",
+          5000
+        );
+      }
+    } catch (error) {
+      console.error("Drive to Supabase sync failed:", error);
+      showToast(error.message || "Drive to Supabase sync failed", "error", 5000);
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = originalButtonContent;
+      }
+    }
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -856,6 +1023,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const fileInput = document.getElementById("fileUpload");
   const encryptedInput = document.getElementById("encryptedFileUpload");
   const folderInput = document.getElementById("folderUpload");
+  const syncToSupabaseBtn = document.getElementById("syncToSupabaseBtn");
+
+  syncToSupabaseBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    fileManager.action("closeActionsMenu");
+    fileManager.action("syncDriveToSupabase");
+  });
 
   // 1. Normal File Upload
   fileInput?.addEventListener("change", (e) => fileManager.action("upload", e, false, false));

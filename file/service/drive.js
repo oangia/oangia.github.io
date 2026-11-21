@@ -47,17 +47,26 @@ class DriveStorageService {
     }
     try {
       const folderId = await this._resolveFolderId(path);
-      const params = new URLSearchParams({
-        q: `'${folderId}' in parents and trashed = false`,
-        fields: 'files(id, name, mimeType, size, modifiedTime, webContentLink)',
-        orderBy: 'folder,name',
-        pageSize: String(options.limit || 100)
-      });
-      const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
-      if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list items');
-      
-      const files = (await res.json()).files;
-      console.log(files);
+      const files = [];
+      let pageToken = options.pageToken || null;
+
+      do {
+        const params = new URLSearchParams({
+          q: `'${folderId}' in parents and trashed = false`,
+          fields: 'nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink)',
+          orderBy: 'folder,name',
+          pageSize: String(options.limit || 100)
+        });
+        if (pageToken) params.set("pageToken", pageToken);
+
+        const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
+        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list items');
+
+        const result = await res.json();
+        files.push(...(result.files || []));
+        pageToken = result.nextPageToken || null;
+      } while (pageToken);
+
       return { data: files, error: null };
     } catch (err) {
       return { data: null, error: err };
