@@ -5,7 +5,7 @@ new Config("navSettingsTab");
 class UITemplates {
   static getComparisonStatusClass(status) {
     if (status === "Synced") return "text-emerald-300";
-    if (status === "Different content" || status === "Different size") return "text-amber-300";
+    if (status === "Different content" || status === "Different size" || status === "Different files") return "text-amber-300";
     if (status === "Could not compare") return "text-rose-300";
     return "text-slate-300";
   }
@@ -227,6 +227,25 @@ class ItemsGridRenderer {
         </div>
       </div>`;
     }).join("");
+    if (group.isFolderNode()) {
+      this.contextMenu.insertAdjacentHTML("beforeend", `
+        <div class="border-t border-white/10 my-1"></div>
+        <div class="relative menu-item" data-menu-item>
+          <button type="button" data-menu-toggle
+            class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10 flex items-center justify-between">
+            <span>Folder</span>
+            <span class="px-1 text-slate-400"><i class="fa-solid fa-chevron-right text-[9px]"></i></span>
+          </button>
+          <div class="menu-submenu hidden fixed z-[111] min-w-44 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg">
+            <button type="button" data-folder-action="upload"
+              class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10">Upload Folder</button>
+            <button type="button" data-action="openFolderModal" data-file-index="0"
+              class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10">New Folder</button>
+            <button type="button" data-folder-action="local"
+              class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10">Open Local Folder</button>
+          </div>
+        </div>`);
+    }
     this.contextMenu.classList.remove("hidden");
 
     const left = event.clientX || 8;
@@ -263,6 +282,16 @@ class ItemsGridRenderer {
       menuItem.addEventListener("mouseenter", showSubmenu);
       toggleButton.addEventListener("click", showSubmenu);
       menuItem.addEventListener("mouseleave", () => submenu.classList.add("hidden"));
+    });
+
+    this.contextMenu.querySelectorAll("[data-folder-action]").forEach(button => {
+      button.addEventListener("click", () => {
+        this.hideContextMenu();
+        const targetId = button.dataset.folderAction === "upload"
+          ? "folderUpload"
+          : "openLocalFolderBtn";
+        document.getElementById(targetId)?.click();
+      });
     });
 
     this.contextMenu.querySelectorAll("[data-action]").forEach(button => {
@@ -636,21 +665,68 @@ class FileManager {
 
   async compareFiles(groups) {
     for (const group of groups) {
-      if (group.isFolderNode()) {
-        group.comparisonStatus = "Folder";
-        continue;
-      }
       if (group.files.length === 1) {
         group.comparisonStatus = `Only in ${group.files[0].getStorageName()}`;
         continue;
       }
       try {
-        group.comparisonStatus = await FileRecord.compareCopies(group.files);
+        group.comparisonStatus = group.isFolderNode()
+          ? await this.compareFolderCopies(group)
+          : await FileRecord.compareCopies(group.files);
       } catch (error) {
-        console.error(`Failed to compare matching file "${group.getDisplayName()}":`, error);
+        const type = group.isFolderNode() ? "folder" : "file";
+        console.error(`Failed to compare matching ${type} "${group.getDisplayName()}":`, error);
         group.comparisonStatus = "Could not compare";
       }
     }
+  }
+
+  async compareFolderCopies(group) {
+    const services = new Map(
+      FileRecord.getStorageServices().map(service => [service.name, service])
+    );
+    const trees = await Promise.all(group.files.map(async folder => {
+      const service = services.get(folder.getStorageName());
+      if (!service) throw new Error(`Storage service not found: ${folder.getStorageName()}`);
+
+      const rootPath = folder.getFullPath().replace(/^\/+|\/+$/g, "");
+      const items = new Map();
+      const visitedFolders = new Set();
+      const collect = async path => {
+        const cleanPath = path.replace(/^\/+|\/+$/g, "");
+        if (visitedFolders.has(cleanPath)) return;
+        visitedFolders.add(cleanPath);
+
+        const { data, error } = await FileRecord.all(cleanPath, {}, service.storage, service.name);
+        if (error) throw error;
+
+        for (const item of data) {
+          const itemPath = item.getFullPath().replace(/^\/+|\/+$/g, "");
+          const relativePath = itemPath.slice(rootPath.length).replace(/^\/+/, "");
+          items.set(relativePath, item);
+          if (item.isFolderNode()) await collect(itemPath);
+        }
+      };
+
+      await collect(rootPath);
+      return items;
+    }));
+
+    const paths = new Set(trees.flatMap(tree => Array.from(tree.keys())));
+    for (const path of paths) {
+      const copies = trees.map(tree => tree.get(path));
+      if (copies.some(copy => !copy)
+        || new Set(copies.map(copy => copy.isFolderNode())).size > 1) {
+        return "Different files";
+      }
+
+      if (!copies[0].isFolderNode()) {
+        const status = await FileRecord.compareCopies(copies);
+        if (status !== "Synced") return status;
+      }
+    }
+
+    return "Synced";
   }
 
   renderView() {
