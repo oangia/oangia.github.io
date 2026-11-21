@@ -237,7 +237,7 @@ class ItemsGridRenderer {
         </div>
       </div>`;
     }).join("") : "";
-    if (this.contextMenuActions) {
+    if (!group && this.contextMenuActions) {
       this.contextMenu.insertAdjacentHTML("beforeend", '<div class="border-t border-white/10 my-1"></div>');
       this.contextMenuActions.classList.remove("hidden");
       this.contextMenu.appendChild(this.contextMenuActions);
