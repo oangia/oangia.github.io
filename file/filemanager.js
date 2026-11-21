@@ -97,7 +97,7 @@ class ItemsGridRenderer {
     this.container = document.getElementById(containerId);
     this.fileManager = fileManagerInstance;
     this.contextMenu = document.createElement("div");
-    this.contextMenu.className = "hidden fixed z-[110] max-h-[80vh] min-w-64 overflow-y-auto rounded-xl border border-white/20 bg-zinc-900/95 p-2 text-slate-200 shadow-2xl backdrop-blur-md";
+    this.contextMenu.className = "hidden fixed z-[110] max-h-[80vh] min-w-56 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg";
     document.body.appendChild(this.contextMenu);
     this.contextMenu.addEventListener("pointerdown", event => event.stopPropagation());
     document.addEventListener("pointerdown", event => {
@@ -153,19 +153,54 @@ class ItemsGridRenderer {
   showContextMenu(event, group) {
     event.preventDefault();
     event.stopPropagation();
-    const actionButton = (action, index, label, style = "") =>
-      `<button type="button" data-action="${action}" data-file-index="${index}" class="rounded px-2 py-1 text-[10px] transition hover:bg-white/10 ${style}">${label}</button>`;
+    const actionRows = [
+      {
+        action: file => file.isFolderNode() ? "navigate" : "openPreview",
+        label: file => file.isFolderNode() ? "Open" : "View",
+      },
+      {
+        action: () => "downloadRecord",
+        label: () => "Download",
+      },
+      {
+        action: () => "deleteRecord",
+        label: () => "Delete",
+        style: "text-rose-300 hover:text-rose-200",
+      },
+    ];
 
-    this.contextMenu.innerHTML = group.files.map((file, index) => `
-      <section class="border-b border-white/10 px-2 py-2 last:border-0">
-        <h3 class="mb-1 text-[10px] font-semibold text-indigo-300">${escapeHtml(file.getStorageName())}</h3>
-        <div class="flex gap-1">
-          ${actionButton(file.isFolderNode() ? "navigate" : "openPreview", index, file.isFolderNode() ? "Open" : "View")}
-          ${file.isFolderNode() ? "" : actionButton("downloadRecord", index, "Download")}
-          ${actionButton("deleteRecord", index, "Delete", "text-rose-300 hover:text-rose-200")}
+    this.contextMenu.innerHTML = actionRows.map(row => {
+      const choices = group.files
+        .map((file, index) => ({ file, index, action: row.action(file), label: row.label(file) }))
+        .filter(choice => !(choice.action === "downloadRecord" && choice.file.isFolderNode()));
+
+      if (choices.length === 0) return "";
+
+      if (choices.length === 1) {
+        const choice = choices[0];
+        return `<button type="button" data-action="${choice.action}" data-file-index="${choice.index}"
+          class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""}">
+          ${escapeHtml(choice.label)}
+        </button>`;
+      }
+
+      const services = choices.map(choice =>
+        `<button type="button" data-action="${choice.action}" data-file-index="${choice.index}"
+          class="w-full text-left px-3 py-2 text-xs whitespace-nowrap hover:bg-white/10 ${row.style || ""}">
+          ${escapeHtml(choice.file.getStorageName())}
+        </button>`
+      ).join("");
+
+      return `<div class="relative menu-item" data-menu-item>
+        <button type="button" class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""} flex items-center justify-between">
+          <span>${escapeHtml(choices[0].label)}</span>
+          <i class="fa-solid fa-chevron-right text-[9px] text-slate-400"></i>
+        </button>
+        <div class="menu-submenu hidden fixed z-[111] min-w-44 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg">
+          ${services}
         </div>
-      </section>
-    `).join("");
+      </div>`;
+    }).join("");
     this.contextMenu.classList.remove("hidden");
 
     const left = event.clientX || 8;
@@ -173,6 +208,36 @@ class ItemsGridRenderer {
     const rect = this.contextMenu.getBoundingClientRect();
     this.contextMenu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - rect.width - 8))}px`;
     this.contextMenu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - rect.height - 8))}px`;
+
+    this.contextMenu.querySelectorAll("[data-menu-item]").forEach(menuItem => {
+      const submenu = menuItem.querySelector(".menu-submenu");
+      const toggleButton = menuItem.querySelector(":scope > button");
+      if (!submenu || !toggleButton) return;
+
+      const showSubmenu = () => {
+        this.contextMenu.querySelectorAll(".menu-submenu").forEach(openMenu => {
+          if (openMenu !== submenu) openMenu.classList.add("hidden");
+        });
+
+        submenu.classList.remove("hidden");
+        const parentRect = toggleButton.getBoundingClientRect();
+        const submenuRect = submenu.getBoundingClientRect();
+        const showLeft = parentRect.right + submenuRect.width > window.innerWidth - 8;
+        const submenuLeft = showLeft
+          ? parentRect.left - submenuRect.width
+          : parentRect.right;
+        const submenuTop = Math.max(
+          8,
+          Math.min(parentRect.top, window.innerHeight - submenuRect.height - 8)
+        );
+        submenu.style.left = `${submenuLeft}px`;
+        submenu.style.top = `${submenuTop}px`;
+      };
+
+      menuItem.addEventListener("mouseenter", showSubmenu);
+      toggleButton.addEventListener("click", showSubmenu);
+      menuItem.addEventListener("mouseleave", () => submenu.classList.add("hidden"));
+    });
 
     this.contextMenu.querySelectorAll("[data-action]").forEach(button => {
       button.addEventListener("click", () => {
@@ -185,6 +250,7 @@ class ItemsGridRenderer {
 
   hideContextMenu() {
     this.contextMenu.classList.add("hidden");
+    this.contextMenu.querySelectorAll(".menu-submenu").forEach(submenu => submenu.classList.add("hidden"));
   }
 
 }
