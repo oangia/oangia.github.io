@@ -3,6 +3,13 @@ class Config{static get _TEMPLATES(){return{overlayClass:"hidden fixed inset-0 z
 new Config("navSettingsTab");
 
 class UITemplates {
+  static getComparisonStatusClass(status) {
+    if (status === "Same") return "text-emerald-300";
+    if (status === "Different content" || status === "Different size") return "text-amber-300";
+    if (status === "Could not compare") return "text-rose-300";
+    return "text-slate-300";
+  }
+
   // --- Grid Templates ---
   static get grid() {
     return {
@@ -21,19 +28,10 @@ class UITemplates {
         return `<div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors"><i class="${file.getFileIconClass()} text-3xl"></i></div>`;
       },
       card: (group, mediaHTML) => {
-        const statusClass = group.comparisonStatus === "Same content"
-          ? "text-emerald-300"
-          : group.comparisonStatus === "Same path & size"
-            ? "text-sky-300"
-            : group.comparisonStatus === "Different content" || group.comparisonStatus === "Different size"
-              ? "text-amber-300"
-              : group.comparisonStatus === "Could not compare"
-                ? "text-rose-300"
-                : "text-slate-300";
         const services = group.files.map(file =>
           `<span class="rounded bg-white/10 px-1.5 py-0.5">${escapeHtml(file.getStorageName())}</span>`
         ).join("");
-        return `${mediaHTML}<div class="w-full pt-2 border-t border-white/20 flex flex-col"><span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(group.getDisplayName())}">${escapeHtml(group.getDisplayName())}</span><span class="text-[9px] text-slate-300 font-mono mt-0.5">${group.getSubtext()}</span><div class="mt-1 flex flex-wrap gap-1 text-[8px] text-slate-200">${services}</div><span class="mt-1 text-[9px] font-semibold ${statusClass}">${escapeHtml(group.comparisonStatus || "")}</span></div>`;
+        return `${mediaHTML}<div class="w-full pt-2 border-t border-white/20 flex flex-col"><span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(group.getDisplayName())}">${escapeHtml(group.getDisplayName())}</span><span class="text-[9px] text-slate-300 font-mono mt-0.5">${group.getSubtext()}</span><div class="mt-1 flex flex-wrap gap-1 text-[8px] text-slate-200">${services}</div><span class="comparison-status mt-1 text-[9px] font-semibold ${UITemplates.getComparisonStatusClass(group.comparisonStatus)}">${escapeHtml(group.comparisonStatus || "")}</span></div>`;
       },
     };
   }
@@ -98,6 +96,7 @@ class ItemsGridRenderer {
   constructor(containerId, fileManagerInstance) {
     this.container = document.getElementById(containerId);
     this.fileManager = fileManagerInstance;
+    this.statusElements = new Map();
     this.contextMenu = document.createElement("div");
     this.contextMenu.className = "hidden fixed z-[110] max-h-[80vh] min-w-56 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg";
     document.body.appendChild(this.contextMenu);
@@ -114,6 +113,7 @@ class ItemsGridRenderer {
     if (!this.container) return;
 
     const tpl = UITemplates.grid;
+    this.statusElements.clear();
     this.container.className = tpl.containerClass;
     this.container.innerHTML = "";
 
@@ -143,12 +143,22 @@ class ItemsGridRenderer {
       card.innerHTML = tpl.card(group, mediaHTML);
 
       this.container.appendChild(card);
+      this.statusElements.set(group, card.querySelector(".comparison-status"));
 
       const previewEl = card.querySelector(".widget-preview-area");
       if ((file.isImage() && previewEl instanceof HTMLImageElement)
         || (file.isVideo() && previewEl instanceof HTMLVideoElement)) {
         this.fileManager.action("loadPreviewMedia", file, previewEl);
       }
+    }
+  }
+
+  updateComparisonStatuses() {
+    for (const [group, statusElement] of this.statusElements) {
+      if (!statusElement) continue;
+      statusElement.textContent = group.comparisonStatus || "";
+      statusElement.classList.remove("text-emerald-300", "text-amber-300", "text-rose-300", "text-slate-300");
+      statusElement.classList.add(UITemplates.getComparisonStatusClass(group.comparisonStatus));
     }
   }
 
@@ -621,7 +631,7 @@ class FileManager {
       this.allItems = Array.from(groupedFiles.values(), files => new FileGroup(files));
       this.renderView();
       await this.compareFiles(this.allItems);
-      if (requestId === this.listRequestId) this.renderView();
+      if (requestId === this.listRequestId) this.gridRenderer.updateComparisonStatuses();
     } catch (err) {
       console.error(err);
       showToast(err.message || "Failed to list files", "error");

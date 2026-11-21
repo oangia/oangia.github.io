@@ -380,7 +380,7 @@ class FileRecord extends BaseStorageRecord {
     const paths = new Set(records.map(record => record.getFullPath().replace(/^\/+|\/+$/g, "")));
     if (paths.size > 1) return "Different path";
     if (new Set(records.map(record => record.getSize())).size > 1) return "Different size";
-    if (!records.every(record => record.isEditable())) return "Same path & size";
+    if (!records.every(record => record.isEditable())) return "Same";
 
     const hashes = await Promise.all(records.map(async record => {
       try {
@@ -394,7 +394,7 @@ class FileRecord extends BaseStorageRecord {
         );
       }
     }));
-    return hashes.every(hash => hash === hashes[0]) ? "Same content" : "Different content";
+    return hashes.every(hash => hash === hashes[0]) ? "Same" : "Different content";
   }
 
   static async create(path, file, options = { upsert: false, encrypt: false }) {
