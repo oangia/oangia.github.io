@@ -884,6 +884,34 @@ class FileManager {
     progressBar.setAttribute("aria-valuenow", String(percent));
   }
 
+  async compareSyncCopy({ id, size, isEditable }, path, existing, drive, supabase, sourceBlob = null) {
+    if (!existing) return { matches: false, sourceBlob };
+    const normalizePath = value => String(value || "").replace(/^\/+|\/+$/g, "");
+    if (normalizePath(path) !== normalizePath(existing.id || path)
+      || Number(size) !== Number(existing.size)) {
+      return { matches: false, sourceBlob };
+    }
+    if (!isEditable) return { matches: true, sourceBlob };
+
+    if (!sourceBlob) {
+      const { data: sourceResponse, error } = await drive.fetchContent({ id });
+      if (error) throw error;
+      sourceBlob = await sourceResponse.blob();
+    }
+
+    try {
+      const { data: existingResponse, error } = await supabase.fetchContent({ path });
+      if (error) throw error;
+      const [sourceHash, existingHash] = await Promise.all([
+        Crypto.sha256(await sourceBlob.arrayBuffer()),
+        Crypto.sha256(await existingResponse.arrayBuffer())
+      ]);
+      return { matches: sourceHash === existingHash, sourceBlob };
+    } catch (comparisonError) {
+      return { matches: false, sourceBlob, comparisonError };
+    }
+  }
+
   async syncFileToSupabase(file) {
     const services = FileRecord.getStorageServices();
     const drive = services.find(service => service.name === "Google Drive")?.storage;
@@ -900,11 +928,35 @@ class FileManager {
 
     const path = file.getFullPath();
     try {
-      this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Downloading from Google Drive");
-      const { data: response, error } = await drive.fetchContent({ id: file.getId() });
-      if (error) throw error;
+      this.updateSyncProgress("Checking Supabase copy", path, 0, 1, "Comparing path and size");
+      const { data: existing, error: existingError } = await supabase.getByPath(path);
+      if (existingError && existingError.message !== "File not found") throw existingError;
 
-      const blob = await response.blob();
+      const comparison = await this.compareSyncCopy(
+        { id: file.getId(), size: file.getSize(), isEditable: file.isEditable() },
+        path,
+        existing,
+        drive,
+        supabase
+      );
+      if (comparison.comparisonError) {
+        console.warn(`Could not compare ${path}; replacing the Supabase copy:`, comparison.comparisonError);
+      }
+
+      if (comparison.matches) {
+        this.updateSyncProgress("Sync complete", path, 1, 1, "Already up to date", true);
+        showToast(`${file.getDisplayName()} is already up to date`, "info");
+        return;
+      }
+
+      let blob = comparison.sourceBlob;
+      if (!blob) {
+        this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Downloading from Google Drive");
+        const { data: response, error } = await drive.fetchContent({ id: file.getId() });
+        if (error) throw error;
+        blob = await response.blob();
+      }
+
       this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Uploading to Supabase");
       const uploadFile = new File([blob], file.getName(), {
         type: file.getMimeType() || blob.type || "application/octet-stream"
@@ -1022,29 +1074,33 @@ class FileManager {
         let itemFailed = false;
         let itemStatus = "Copied to Supabase";
         try {
-          const { data: response, error } = await drive.fetchContent({ id: entry.id });
-          if (error) throw error;
-          const blob = await response.blob();
-          let matches = false;
-
-          if (existing && Number(existing.size) === Number(entry.size)) {
-            try {
-              const { data: existingResponse, error: existingError } = await supabase.fetchContent({ path });
-              if (existingError) throw existingError;
-              const [driveHash, supabaseHash] = await Promise.all([
-                Crypto.sha256(await blob.arrayBuffer()),
-                Crypto.sha256(await existingResponse.arrayBuffer())
-              ]);
-              matches = driveHash === supabaseHash;
-            } catch (error) {
-              console.warn(`Could not compare ${path}; replacing the Supabase copy:`, error);
-            }
+          const editableFile = new FileEntity({
+            name: entry.name,
+            full_path: path,
+            size: Number(entry.size || 0),
+            mime_type: entry.mimeType
+          });
+          const comparison = await this.compareSyncCopy(
+            { id: entry.id, size: entry.size, isEditable: editableFile.isEditable() },
+            path,
+            existing,
+            drive,
+            supabase
+          );
+          if (comparison.comparisonError) {
+            console.warn(`Could not compare ${path}; replacing the Supabase copy:`, comparison.comparisonError);
           }
 
-          if (matches) {
+          if (comparison.matches) {
             skipped++;
             itemStatus = "Already up to date";
           } else {
+            let blob = comparison.sourceBlob;
+            if (!blob) {
+              const { data: response, error } = await drive.fetchContent({ id: entry.id });
+              if (error) throw error;
+              blob = await response.blob();
+            }
             await uploadFile(path, entry.name, entry.mimeType, blob);
             synced++;
           }
