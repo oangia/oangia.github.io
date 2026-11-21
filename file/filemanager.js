@@ -23,11 +23,13 @@ class UITemplates {
       card: (group, mediaHTML) => {
         const statusClass = group.comparisonStatus === "Same content"
           ? "text-emerald-300"
-          : group.comparisonStatus === "Different content" || group.comparisonStatus === "Different size"
-            ? "text-amber-300"
-            : group.comparisonStatus === "Could not compare"
-              ? "text-rose-300"
-              : "text-slate-300";
+          : group.comparisonStatus === "Same path & size"
+            ? "text-sky-300"
+            : group.comparisonStatus === "Different content" || group.comparisonStatus === "Different size"
+              ? "text-amber-300"
+              : group.comparisonStatus === "Could not compare"
+                ? "text-rose-300"
+                : "text-slate-300";
         const services = group.files.map(file =>
           `<span class="rounded bg-white/10 px-1.5 py-0.5">${escapeHtml(file.getStorageName())}</span>`
         ).join("");
@@ -191,7 +193,7 @@ class ItemsGridRenderer {
         const choice = choices[0];
         return `<button type="button" data-action="${choice.action}" data-file-index="${choice.index}"
           class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""}">
-          ${escapeHtml(choice.label)}
+          ${escapeHtml(choice.label)} (${escapeHtml(choice.file.getStorageName())})
         </button>`;
       }
 
@@ -207,9 +209,9 @@ class ItemsGridRenderer {
         <div class="flex">
           <button type="button" data-action="${defaultChoice.action}" data-file-index="${defaultChoice.index}"
             class="flex-1 text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""}">
-            ${escapeHtml(defaultChoice.label)}
+            ${escapeHtml(defaultChoice.label)} (${escapeHtml(defaultChoice.file.getStorageName())})
           </button>
-          <button type="button" data-menu-toggle aria-label="Choose service for ${escapeHtml(defaultChoice.label)}"
+          <button type="button" data-menu-toggle aria-label="Choose service for ${escapeHtml(defaultChoice.label)} (${escapeHtml(defaultChoice.file.getStorageName())})"
             class="px-2 text-slate-400 hover:bg-white/10 hover:text-white">
             <i class="fa-solid fa-chevron-right text-[9px]"></i>
           </button>

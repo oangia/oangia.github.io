@@ -377,8 +377,10 @@ class FileRecord extends BaseStorageRecord {
 
   static async compareCopies(records) {
     if (records.length < 2) return "Only one copy";
+    const paths = new Set(records.map(record => record.getFullPath().replace(/^\/+|\/+$/g, "")));
+    if (paths.size > 1) return "Different path";
     if (new Set(records.map(record => record.getSize())).size > 1) return "Different size";
-    if (!records.every(record => record.isEditable())) return "Not compared";
+    if (!records.every(record => record.isEditable())) return "Same path & size";
 
     const hashes = await Promise.all(records.map(async record => {
       try {
