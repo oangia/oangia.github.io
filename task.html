@@ -9,6 +9,12 @@
 </head>
 <body class="bg-slate-100 min-h-screen flex justify-center">
   <div id="tracker-root" class="w-full max-w-md bg-slate-50 shadow-xl min-h-screen flex flex-col border-x border-slate-200"></div>
+  <template id="page-info-content">
+    <p>Goals: Be healthy, be useful, enjoy life</p>
+    <p class="mt-3">Diet, exercise, reading (understand not judge)</p>
+    <p class="mt-3">Music: learn songs, practice singing</p>
+    <p class="mt-3">Girls/social: be less annoying</p>
+  </template>
 
   <script>
     const _memoryStorage = new Map();
@@ -89,7 +95,6 @@
         this.containerId = containerId;
         this.id = a.id || Math.random().toString(36).substring(2, 9);
         this.title = s;
-        this.pageDescription = a.pageDescription || "Use this page to keep track of your daily tasks. Check a task when it is complete. Use the sort menu to organize tasks by timeline, priority, section, or objective. The progress counter shows completed tasks; disabled tasks are excluded.";
         this.storageKey = a.storageKey || "daily_tasks_status";
         this.tasks = t || [
           { name: "Learn songs", type: "daily", desc: "Learn as much as possible", priority: 0, timeline: 3, section: "Music", objective: "useful" },
@@ -215,8 +220,9 @@
               <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
           </div>
-          <p class="text-sm text-slate-600 leading-relaxed whitespace-pre-line"></p>`;
-        dialogContent.querySelector("p").textContent = this.pageDescription;
+          <div id="page-info-body-${this.id}" class="text-sm text-slate-600 leading-relaxed"></div>`;
+        dialogContent.querySelector(`#page-info-body-${this.id}`)
+          .append(document.getElementById("page-info-content").content.cloneNode(true));
         infoDialog.appendChild(dialogContent);
 
         const a = document.createElement("main");
