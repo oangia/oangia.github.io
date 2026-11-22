@@ -57,9 +57,10 @@
                 0 / 0 Completed
               </div>
             </div>`,
-          taskItem: (e, t, s, a, r, i, l, n) => `
-            <div class="flex items-start gap-2.5 w-full">
-              <label for="${e}" class="relative flex items-start gap-2.5 w-full ${r ? "cursor-not-allowed" : "cursor-pointer"}">
+          taskItem: (e, t, s, a, r, i, l, n, details, detailId) => `
+            <div class="w-full">
+              <div class="flex items-start gap-2.5 w-full">
+              <label for="${e}" class="relative flex items-start gap-2.5 flex-grow min-w-0 ${r ? "cursor-not-allowed" : "cursor-pointer"}">
                 <input type="checkbox" id="${e}" data-task="${escapeHtml(t)}" data-type="${s}" ${r ? "disabled" : ""} ${n ? 'checked data-always-checked="true"' : ""} class="sr-only peer">
 
                 <div class="mt-0.5 w-3.5 h-3.5 rounded border ${i.border} bg-white ${i.bg} peer-checked:border-transparent flex items-center justify-center transition flex-shrink-0 ${r ? "opacity-50" : ""}">
@@ -78,6 +79,12 @@
                   ${a ? `<span class="text-[10px] text-slate-400 mt-0.5 break-words leading-tight">${escapeHtml(a)}</span>` : ""}
                 </div>
               </label>
+                <button type="button" aria-expanded="false" aria-controls="${detailId}" class="flex-shrink-0 text-[10px] font-medium text-sky-700 hover:text-sky-900 px-1.5 py-1 rounded hover:bg-sky-50 transition">
+                  <span>Details</span>
+                  <i class="fa-solid fa-chevron-down ml-1 text-[9px]" aria-hidden="true"></i>
+                </button>
+              </div>
+              <div id="${detailId}" hidden class="mt-2 ml-6 rounded-md bg-slate-50 border border-slate-200 px-2.5 py-2 text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap">${escapeHtml(details)}</div>
             </div>`
         };
       }
@@ -263,7 +270,8 @@
             e.objective || "default",
             e.section || "General",
             t,
-            !!e.alwaysChecked
+            !!e.alwaysChecked,
+            e.details || ""
           ));
         });
 
@@ -271,15 +279,24 @@
         e.appendChild(s);
       }
 
-      createTaskListItem(e, t, s, a, r, i, l, n = !1) {
+      createTaskListItem(e, t, s, a, r, i, l, n = !1, details = "") {
         const o = this.objectiveColors[r] || this.objectiveColors.default;
         const d = `task-${this.id}-${l}`;
+        const detailId = `${d}-details`;
         const c = document.createElement("li");
         c.className = Tracker._TEMPLATES.listItemClass(a);
-        c.innerHTML = Tracker._TEMPLATES.taskItem(d, e, t, s, a, o, i, n);
+        c.innerHTML = Tracker._TEMPLATES.taskItem(d, e, t, s, a, o, i, n, details || s || "No additional details have been added yet.", detailId);
 
         const p = c.querySelector('input[type="checkbox"]');
         const h = c.querySelector("svg");
+        const detailsButton = c.querySelector("button");
+        const detailsPanel = c.querySelector(`#${detailId}`);
+        detailsButton.addEventListener("click", () => {
+          const isExpanded = detailsButton.getAttribute("aria-expanded") === "true";
+          detailsButton.setAttribute("aria-expanded", String(!isExpanded));
+          detailsButton.querySelector("span").textContent = isExpanded ? "Details" : "Hide";
+          detailsPanel.hidden = isExpanded;
+        });
         p.addEventListener("change", () => {
           n && (p.checked = !0);
           h.classList.toggle("opacity-0", !p.checked);
