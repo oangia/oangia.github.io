@@ -53,14 +53,16 @@
               <select id="sort-select-${a}" class="text-[11px] font-medium bg-slate-800 text-slate-200 border border-slate-700 rounded-md px-2 py-1 outline-none cursor-pointer hover:bg-slate-700 transition">
                 ${s}
               </select>
+              <button type="button" id="page-info-open-${a}" aria-haspopup="dialog" class="text-[11px] font-medium text-slate-200 bg-slate-800 border border-slate-700 rounded-md px-2 py-1 hover:bg-slate-700 transition">
+                <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>About
+              </button>
               <div id="progress-badge-${a}" class="text-[11px] font-medium px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
                 0 / 0 Completed
               </div>
             </div>`,
-          taskItem: (e, t, s, a, r, i, l, n, details, detailId) => `
-            <div class="w-full">
-              <div class="flex items-start gap-2.5 w-full">
-              <label for="${e}" class="relative flex items-start gap-2.5 flex-grow min-w-0 ${r ? "cursor-not-allowed" : "cursor-pointer"}">
+          taskItem: (e, t, s, a, r, i, l, n) => `
+            <div class="flex items-start gap-2.5 w-full">
+              <label for="${e}" class="relative flex items-start gap-2.5 w-full ${r ? "cursor-not-allowed" : "cursor-pointer"}">
                 <input type="checkbox" id="${e}" data-task="${escapeHtml(t)}" data-type="${s}" ${r ? "disabled" : ""} ${n ? 'checked data-always-checked="true"' : ""} class="sr-only peer">
 
                 <div class="mt-0.5 w-3.5 h-3.5 rounded border ${i.border} bg-white ${i.bg} peer-checked:border-transparent flex items-center justify-center transition flex-shrink-0 ${r ? "opacity-50" : ""}">
@@ -79,12 +81,6 @@
                   ${a ? `<span class="text-[10px] text-slate-400 mt-0.5 break-words leading-tight">${escapeHtml(a)}</span>` : ""}
                 </div>
               </label>
-                <button type="button" aria-expanded="false" aria-controls="${detailId}" class="flex-shrink-0 text-[10px] font-medium text-sky-700 hover:text-sky-900 px-1.5 py-1 rounded hover:bg-sky-50 transition">
-                  <span>Details</span>
-                  <i class="fa-solid fa-chevron-down ml-1 text-[9px]" aria-hidden="true"></i>
-                </button>
-              </div>
-              <div id="${detailId}" hidden class="mt-2 ml-6 rounded-md bg-slate-50 border border-slate-200 px-2.5 py-2 text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap">${escapeHtml(details)}</div>
             </div>`
         };
       }
@@ -93,6 +89,7 @@
         this.containerId = containerId;
         this.id = a.id || Math.random().toString(36).substring(2, 9);
         this.title = s;
+        this.pageDescription = a.pageDescription || "Use this page to keep track of your daily tasks. Check a task when it is complete. Use the sort menu to organize tasks by timeline, priority, section, or objective. The progress counter shows completed tasks; disabled tasks are excluded.";
         this.storageKey = a.storageKey || "daily_tasks_status";
         this.tasks = t || [
           { name: "Learn songs", type: "daily", desc: "Learn as much as possible", priority: 0, timeline: 3, section: "Music", objective: "useful" },
@@ -204,6 +201,22 @@
         const t = (new Date).toLocaleDateString(void 0, { weekday: "short", month: "short", day: "numeric" });
         const s = this.options.sortOptions.map(e => Tracker._TEMPLATES.sortOption(e, this.currentSort === e.value)).join("");
         e.innerHTML = Tracker._TEMPLATES.header(this.title, t, s, this.id);
+        const infoDialog = document.createElement("dialog");
+        infoDialog.className = "m-auto w-[calc(100%-2rem)] max-w-md rounded-xl bg-white p-0 text-slate-800 shadow-2xl backdrop:bg-slate-950/60";
+        infoDialog.setAttribute("aria-labelledby", `page-info-title-${this.id}`);
+
+        const dialogContent = document.createElement("div");
+        dialogContent.className = "p-5";
+        dialogContent.innerHTML = `
+          <div class="flex items-start justify-between gap-4 mb-3">
+            <h2 id="page-info-title-${this.id}" class="text-base font-bold">About this page</h2>
+            <button type="button" aria-label="Close page information" class="text-slate-400 hover:text-slate-700 p-1 rounded transition">
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+          </div>
+          <p class="text-sm text-slate-600 leading-relaxed whitespace-pre-line"></p>`;
+        dialogContent.querySelector("p").textContent = this.pageDescription;
+        infoDialog.appendChild(dialogContent);
 
         const a = document.createElement("main");
         a.className = Tracker._TEMPLATES.mainClass;
@@ -217,7 +230,14 @@
         this.panel.appendChild(e);
         this.panel.appendChild(a);
         this.wrapper.appendChild(this.panel);
+        this.wrapper.appendChild(infoDialog);
         container.appendChild(this.wrapper);
+
+        e.querySelector(`#page-info-open-${this.id}`).addEventListener("click", () => infoDialog.showModal());
+        dialogContent.querySelector("button").addEventListener("click", () => infoDialog.close());
+        infoDialog.addEventListener("click", event => {
+          if (event.target === infoDialog) infoDialog.close();
+        });
 
         e.querySelector(`#sort-select-${this.id}`).addEventListener("change", e => {
           this.currentSort = e.target.value;
@@ -270,8 +290,7 @@
             e.objective || "default",
             e.section || "General",
             t,
-            !!e.alwaysChecked,
-            e.details || ""
+            !!e.alwaysChecked
           ));
         });
 
@@ -279,24 +298,15 @@
         e.appendChild(s);
       }
 
-      createTaskListItem(e, t, s, a, r, i, l, n = !1, details = "") {
+      createTaskListItem(e, t, s, a, r, i, l, n = !1) {
         const o = this.objectiveColors[r] || this.objectiveColors.default;
         const d = `task-${this.id}-${l}`;
-        const detailId = `${d}-details`;
         const c = document.createElement("li");
         c.className = Tracker._TEMPLATES.listItemClass(a);
-        c.innerHTML = Tracker._TEMPLATES.taskItem(d, e, t, s, a, o, i, n, details || s || "No additional details have been added yet.", detailId);
+        c.innerHTML = Tracker._TEMPLATES.taskItem(d, e, t, s, a, o, i, n);
 
         const p = c.querySelector('input[type="checkbox"]');
         const h = c.querySelector("svg");
-        const detailsButton = c.querySelector("button");
-        const detailsPanel = c.querySelector(`#${detailId}`);
-        detailsButton.addEventListener("click", () => {
-          const isExpanded = detailsButton.getAttribute("aria-expanded") === "true";
-          detailsButton.setAttribute("aria-expanded", String(!isExpanded));
-          detailsButton.querySelector("span").textContent = isExpanded ? "Details" : "Hide";
-          detailsPanel.hidden = isExpanded;
-        });
         p.addEventListener("change", () => {
           n && (p.checked = !0);
           h.classList.toggle("opacity-0", !p.checked);
