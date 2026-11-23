@@ -22,6 +22,18 @@ Delete
 Upload new file
 
 Create folder 
+
+## Rules
+Storage services only focus on do basic features to interact with the storage. Don't do logic or adjust the data much.
+
+FileRecord will handle the logic and fetch data from services then response to FileManager
+
+FileManager will call components, filerecord to get the data.
+
+Components render UI and handle events then callback the actions to FileManager
+
+FileManager handle actions and call FileRecord
+
 ## Script
 ```js
 // ==UserScript==

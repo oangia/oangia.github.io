@@ -51,7 +51,7 @@ class LocalFileService extends BaseStorageService {
     });
   }
 
-  async fetchContent({ id = null, path = null, metadata = null } = {}) {
+  async fetchContent({ id = null, path = null } = {}) {
     return this._execute(async () => {
       const targetPath = this._normalizePath(id || path);
       const file = this.pathToFile.get(targetPath);
@@ -60,19 +60,7 @@ class LocalFileService extends BaseStorageService {
       const res = await fetch(file.fileUrl);
       if (!res.ok) throw new Error(`Failed to fetch local file content: ${res.statusText}`);
 
-      const fileMetadata = metadata || file.metadata || {};
-      if (fileMetadata.hash_content) return res;
-
-      const buffer = await res.arrayBuffer();
-      const hash_content = await this._computeFileHash(buffer);
-      const { error } = await this.updateMetadata({ id: file.fullPath }, {
-        ...fileMetadata,
-        hash_content
-      });
-      if (error) throw error;
-      if (metadata) metadata.hash_content = hash_content;
-
-      return new Response(buffer, { headers: res.headers });
+      return res;
     });
   }
 
@@ -129,8 +117,7 @@ class LocalFileService extends BaseStorageService {
       let record = this.pathToFile.get(cleanPath);
       const metadata = {
         ...(options.metadata || {}),
-        size: blob.size,
-        hash_content: await this._computeFileHash(blob)
+        size: blob.size
       };
 
       if (record) {

@@ -376,20 +376,30 @@ class FileManager {
     if (!isEditable) return { matches: true };
 
     try {
-      if (!metadata.hash_content) {
-        const { error } = await drive.fetchContent({ id, metadata, metadataKnown: true });
-        if (error) throw error;
-      }
-      if (!existing.metadata?.hash_content) {
-        existing.metadata ||= {};
-        const { error } = await supabase.fetchContent({
-          path,
-          metadata: existing.metadata,
-          metadataKnown: true
-        });
-        if (error) throw error;
-      }
-      return { matches: metadata.hash_content === existing.metadata?.hash_content };
+      const driveRecord = new FileRecord({
+        id,
+        full_path: path,
+        metadata,
+        storageService: drive,
+        storageName: "Google Drive"
+      });
+      if (!driveRecord.getHashContent()) await driveRecord.fetchContent();
+
+      const supabaseRecord = new FileRecord({
+        id: existing.id,
+        name: existing.name,
+        full_path: path,
+        size: existing.size,
+        mime_type: existing.mimeType,
+        metadata: existing.metadata || {},
+        storageService: supabase,
+        storageName: "Supabase"
+      });
+      if (!supabaseRecord.getHashContent()) await supabaseRecord.fetchContent();
+
+      return {
+        matches: driveRecord.getHashContent() === supabaseRecord.getHashContent()
+      };
     } catch (comparisonError) {
       return { matches: false, comparisonError };
     }
@@ -438,20 +448,20 @@ class FileManager {
       }
 
       this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Downloading from Google Drive");
-      const { data: response, error } = await drive.fetchContent({
-        id: file.getId(),
-        metadata: file.getMetadata(),
-        metadataKnown: true
-      });
-      if (error) throw error;
+      const response = await file.fetchContent();
       const blob = await response.blob();
 
       this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Uploading to Supabase");
       const uploadFile = new File([blob], file.getName(), {
         type: file.getMimeType() || blob.type || "application/octet-stream"
       });
-      const { error: uploadError } = await supabase.upload(path, uploadFile, { upsert: true });
-      if (uploadError) throw uploadError;
+      const supabaseRecord = new FileRecord({
+        name: file.getName(),
+        full_path: path,
+        storageService: supabase,
+        storageName: "Supabase"
+      });
+      await supabaseRecord.save(uploadFile);
 
       this.updateSyncProgress("Sync complete", path, 1, 1, "File copied to Supabase", true);
       showToast(`${file.getDisplayName()} synced to Supabase`, "success");
@@ -547,8 +557,13 @@ class FileManager {
         const file = new File([blob], name, {
           type: mimeType || blob.type || "application/octet-stream"
         });
-        const { error } = await supabase.upload(path, file, { upsert: true });
-        if (error) throw error;
+        const record = new FileRecord({
+          name,
+          full_path: path,
+          storageService: supabase,
+          storageName: "Supabase"
+        });
+        await record.save(file);
       };
 
       for (const { entry, path } of files) {
@@ -589,12 +604,13 @@ class FileManager {
             skipped++;
             itemStatus = "Already up to date";
           } else {
-            const { data: response, error } = await drive.fetchContent({
-              id: entry.id,
-              metadata: entry.appProperties || {},
-              metadataKnown: true
-            });
-            if (error) throw error;
+            const driveRecord = FileRecord._fromDriveMetadata(
+              entry,
+              path,
+              drive,
+              "Google Drive"
+            );
+            const response = await driveRecord.fetchContent();
             const blob = await response.blob();
             await uploadFile(path, entry.name, entry.mimeType, blob);
             synced++;

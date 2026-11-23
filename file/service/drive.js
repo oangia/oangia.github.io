@@ -16,7 +16,7 @@ class BaseStorageService {
     throw new Error(`${this.constructor.name} must implement list(path, options)`);
   }
 
-  async fetchContent({ id = null, path = null, metadata = null, metadataKnown = false } = {}) {
+  async fetchContent({ id = null, path = null } = {}) {
     throw new Error(`${this.constructor.name} must implement fetchContent(params)`);
   }
 
@@ -75,12 +75,6 @@ class BaseStorageService {
     };
   }
 
-  async _computeFileHash(fileOrBuffer) {
-    const buffer = fileOrBuffer instanceof ArrayBuffer
-      ? fileOrBuffer
-      : await fileOrBuffer.arrayBuffer();
-    return Crypto.sha256(buffer);
-  }
 }
 
 class DriveStorageService extends BaseStorageService {
@@ -173,7 +167,7 @@ class DriveStorageService extends BaseStorageService {
         throw new Error(errJson.error?.message || `Failed to fetch file content: ${res.statusText}`);
       }
 
-      return this._ensureContentHash(res, { id: fileId, path, metadata, metadataKnown });
+      return res;
     });
   }
 
@@ -240,8 +234,7 @@ class DriveStorageService extends BaseStorageService {
   async upload(path, file, options = {}) {
     return this._execute(async () => {
       const appProperties = {
-        ...(options.appProperties || {}),
-        hash_content: await this._computeFileHash(file)
+        ...(options.appProperties || {})
       };
       const { dirPath, fileName } = this._parsePath(path);
       const parentId = await this._resolveFolderId(dirPath);
@@ -291,8 +284,7 @@ class DriveStorageService extends BaseStorageService {
   async uploadById(id, file, options = {}) {
     return this._execute(async () => {
       const appProperties = {
-        ...(options.appProperties || {}),
-        hash_content: options.appProperties?.hash_content || (await this._computeFileHash(file))
+        ...(options.appProperties || {})
       };
       const metadata = {
         name: file.name,
@@ -357,25 +349,6 @@ class DriveStorageService extends BaseStorageService {
   // =========================================================================
   // GOOGLE DRIVE SPECIFIC PRIVATE METHODS (OAuth & Folder Hierarchy)
   // =========================================================================
-
-  async _ensureContentHash(response, { id, path, metadata, metadataKnown }) {
-    let appProperties = metadata;
-    if (!metadataKnown) {
-      const { data, error } = await this.getById(id);
-      if (error) throw error;
-      appProperties = data.appProperties || {};
-    }
-    if (appProperties?.hash_content) return response;
-
-    const buffer = await response.arrayBuffer();
-    const hash_content = await this._computeFileHash(buffer);
-    appProperties = { ...appProperties, hash_content };
-    const { error } = await this.updateMetadata({ id, path }, appProperties);
-    if (error) throw error;
-    if (metadata) metadata.hash_content = hash_content;
-
-    return new Response(buffer, { headers: response.headers });
-  }
 
   _initOAuthClient() {
     if (this.tokenClient) return true;

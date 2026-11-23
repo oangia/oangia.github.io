@@ -249,11 +249,12 @@ class BaseStorageRecord extends FileEntity {
 
   static async create(path, file, options = { upsert: false }) {
     let uploadFile = this._namedUploadFile(path, file);
-    return await this.getStorage().upload(path, uploadFile, options);
+    return await this._uploadToStorage(this.getStorage(), path, uploadFile, options);
   }
 
   static async update(path, file, options = {}) {
-    return await this.getStorage().upload(
+    return await this._uploadToStorage(
+      this.getStorage(),
       path,
       this._namedUploadFile(path, file),
       { ...options, upsert: true }
@@ -261,7 +262,13 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async updateById(id, file) {
-    return await this.getStorage().uploadById(id, file);
+    return await this._uploadToStorage(this.getStorage(), id, file, {}, true);
+  }
+
+  static async _uploadToStorage(storage, path, file, options = {}, byId = false) {
+    return byId
+      ? await storage.uploadById(path, file, options)
+      : await storage.upload(path, file, options);
   }
 
   static async download(path, downloadName = null) {
@@ -283,9 +290,13 @@ class BaseStorageRecord extends FileEntity {
     if (!this._full_path && !this._id) throw new Error("Cannot save BaseStorageRecord without an ID or full_path.");
     const namedFile = BaseStorageRecord._namedUploadFile(this._full_path || this._name, newFileBlob);
     const storage = this._storageService || BaseStorageRecord.getStorage();
-    const { data, error } = this._id
-      ? await storage.uploadById(this._id, namedFile)
-      : await storage.upload(this._full_path, namedFile, { upsert: true });
+    const { data, error } = await this.constructor._uploadToStorage(
+      storage,
+      this._id || this._full_path,
+      namedFile,
+      { upsert: true },
+      Boolean(this._id)
+    );
     if (error) throw error;
 
     if (data) {
@@ -375,6 +386,16 @@ class FileRecord extends BaseStorageRecord {
     this.hashFullpath();
   }
 
+  static async _uploadToStorage(storage, path, file, options = {}, byId = false) {
+    const hash_content = await Crypto.sha256(await file.arrayBuffer());
+    const uploadOptions = {
+      ...options,
+      metadata: { ...(options.metadata || {}), hash_content },
+      appProperties: { ...(options.appProperties || {}), hash_content }
+    };
+    return super._uploadToStorage(storage, path, file, uploadOptions, byId);
+  }
+
   async hashFullpath() {
     this.hash_filename = await Crypto.sha256(this.getFullPath());
   }
@@ -383,8 +404,61 @@ class FileRecord extends BaseStorageRecord {
     const response = await fetch(url);
     const blob = await response.blob();
     const buffer = await blob.arrayBuffer();
+    await this.hashFullpath();
     this.hash_content = await Crypto.sha256(buffer);
     this.hash_file = await Crypto.sha256(this.hash_filename + this.hash_content);
+  }
+
+  static async computeBackupHash(hashParts) {
+    hashParts.sort((a, b) => a.path.localeCompare(b.path));
+    const encoder = new TextEncoder();
+    const chunks = [];
+    let totalLength = 0;
+
+    for (const part of hashParts) {
+      const pathBytes = encoder.encode(part.path);
+      const contentBytes = new Uint8Array(part.buffer);
+      chunks.push(pathBytes, new Uint8Array([0]), contentBytes);
+      totalLength += pathBytes.length + 1 + contentBytes.length;
+    }
+
+    const combined = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      combined.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    return (await Crypto.sha256(combined.buffer)).slice(0, 16);
+  }
+
+  async fetchContent(expiresIn = 60) {
+    const response = await super.fetchContent(expiresIn);
+    if (this.getHashContent()) {
+      this.hash_content = this.getHashContent();
+      return response;
+    }
+
+    const buffer = await response.arrayBuffer();
+    this.hash_content = await Crypto.sha256(buffer);
+    const metadata = { ...this._metadata, hash_content: this.hash_content };
+    const storage = this._storageService || BaseStorageRecord.getStorage();
+    const content = new Blob([buffer], {
+      type: response.headers.get("Content-Type") || this.getMimeType()
+    });
+    const { error } = await storage.updateMetadata(
+      { id: this.getId(), path: this.getFullPath() },
+      metadata,
+      content
+    );
+    if (error) throw error;
+
+    this._metadata = metadata;
+    return new Response(buffer, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers
+    });
   }
 
   static async compareCopies(records) {
@@ -409,6 +483,91 @@ class FileRecord extends BaseStorageRecord {
       }
     }));
     return hashes.every(hash => hash === hashes[0]) ? "Synced" : "Different content";
+  }
+
+  static async backup() {
+    let storage;
+    try {
+      storage = this.getStorageServices().find(service => service.name === "Supabase")?.storage;
+      if (!storage?.client) throw new Error("Supabase client not initialized");
+
+      storage.onProgress("Collecting all files...", "info");
+      const allFiles = await this._listAllFilesRecursive(storage);
+      if (allFiles.length === 0) {
+        storage.onProgress("Bucket is empty – nothing to backup", "warning");
+        return { success: false, error: "Bucket is empty" };
+      }
+
+      storage.onProgress(`Found ${allFiles.length} file(s). Downloading fresh copies...`, "info");
+      const zip = new JSZip();
+      const hashParts = [];
+      let processed = 0;
+
+      for (const filePath of allFiles) {
+        try {
+          const { data: response, error } = await storage.fetchContent({ path: filePath });
+          if (error) throw error;
+
+          const buffer = await response.arrayBuffer();
+          zip.file(filePath, buffer);
+          hashParts.push({ path: filePath, buffer });
+        } catch (error) {
+          console.warn(`Failed to download ${filePath}:`, error);
+          storage.onProgress(`Skipped ${filePath}`, "warning");
+        }
+        processed++;
+        if (processed % 5 === 0 || processed === allFiles.length) {
+          storage.onProgress(`Downloaded ${processed} / ${allFiles.length}`, "info");
+        }
+      }
+
+      storage.onProgress("Calculating archive hash...", "info");
+      const shortHash = await this.computeBackupHash(hashParts);
+      const today = new Date().toISOString().slice(0, 10);
+      const filename = `${storage.bucket}_${today}_${shortHash}.zip`;
+
+      storage.onProgress("Compressing into ZIP archive...", "info");
+      const blob = await zip.generateAsync({
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 }
+      });
+
+      this._triggerDownload(blob, filename);
+      storage.onProgress(`Backup ready: ${filename}`, "success");
+      return { success: true, filename };
+    } catch (error) {
+      console.error("Backup failed:", error);
+      storage?.onProgress(error.message || "Backup failed", "error");
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async _listAllFilesRecursive(storage, prefix = "") {
+    const { data, error } = await storage.list(prefix, { limit: 1000, offset: 0 });
+    if (error) throw error;
+
+    const results = [];
+    for (const item of data || []) {
+      if (item.name === ".emptyFolderPlaceholder") continue;
+      const path = prefix ? `${prefix}/${item.name}` : item.name;
+      if (item.mimeType === "application/vnd.google-apps.folder") {
+        const nestedFiles = await this._listAllFilesRecursive(storage, path);
+        for (const nestedFile of nestedFiles) results.push(nestedFile);
+      } else {
+        results.push(path);
+      }
+    }
+    return results;
+  }
+
+  static _triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   static async create(path, file, options = { upsert: false, encrypt: false }) {
