@@ -1,5 +1,5 @@
 class FileEntity {
-  constructor({id = null, name = "", full_path = "", size = 0, mime_type = null, url = null, is_folder = false, created_at = null, updated_at = null, metadata = {}} = {}) {
+  constructor({id = null, name = "", full_path = "", size = 0, mime_type = null, url = null, is_folder = false, created_at = null, updated_at = null} = {}) {
     this._id = id;
     this._name = name;
     this._full_path = full_path;
@@ -9,7 +9,6 @@ class FileEntity {
     this._url = url;
     this._created_at = created_at;
     this._updated_at = updated_at;
-    this._metadata = { ...metadata };
   }
   
   getId() { return this._id; }
@@ -20,7 +19,6 @@ class FileEntity {
   getUrl(expiresIn = 60) { return this._url; }
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
-  getMetadata() { return this._metadata; }
 
   isFolderNode() {
     return this._is_folder;
@@ -219,7 +217,6 @@ class BaseStorageRecord extends FileEntity {
       url: file.webContentLink || null,
       updated_at: file.modifiedTime ? new Date(file.modifiedTime).getTime() : null,
       is_folder,
-      metadata: file.appProperties || file.metadata || {},
       storageService: storage,
       storageName
     });
@@ -305,7 +302,6 @@ class BaseStorageRecord extends FileEntity {
       this._mime_type = data.mimeType || this._mime_type;
       this._updated_at = data.modifiedTime ? new Date(data.modifiedTime).getTime() : Date.now();
       this._url = data.webContentLink || null;
-      this._metadata = data.appProperties || data.metadata || this._metadata;
     }
     return this;
   }
@@ -331,8 +327,6 @@ class BaseStorageRecord extends FileEntity {
     const { data: response, error } = await storage.fetchContent({
       id: this.getId(),
       path: this.getFullPath(),
-      metadata: this._metadata,
-      metadataKnown: true
     });
     if (error) throw error;
     return response;
@@ -378,7 +372,6 @@ class FileRecord extends BaseStorageRecord {
 
   constructor(data = {}) {
     super(data);
-    this.hash_content = data.hash_content || null;
     this.hashFullpath();
   }
 

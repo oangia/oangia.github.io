@@ -366,7 +366,7 @@ class FileManager {
     progressBar.setAttribute("aria-valuenow", String(percent));
   }
 
-  async compareSyncCopy({ id, size, isEditable, metadata = {} }, path, existing, drive, supabase) {
+  async compareSyncCopy({ id, size, isEditable }, path, existing, drive, supabase) {
     if (!existing) return { matches: false };
     const normalizePath = value => String(value || "").replace(/^\/+|\/+$/g, "");
     if (normalizePath(path) !== normalizePath(existing.id || path)
@@ -379,7 +379,6 @@ class FileManager {
       const driveRecord = new FileRecord({
         id,
         full_path: path,
-        metadata,
         storageService: drive,
         storageName: "Google Drive"
       });
@@ -391,7 +390,6 @@ class FileManager {
         full_path: path,
         size: existing.size,
         mime_type: existing.mimeType,
-        metadata: existing.metadata || {},
         storageService: supabase,
         storageName: "Supabase"
       });
@@ -429,8 +427,7 @@ class FileManager {
         {
           id: file.getId(),
           size: file.getSize(),
-          isEditable: file.isEditable(),
-          metadata: file.getMetadata()
+          isEditable: file.isEditable()
         },
         path,
         existing,
@@ -588,8 +585,7 @@ class FileManager {
             {
               id: entry.id,
               size: entry.size,
-              isEditable: editableFile.isEditable(),
-              metadata: entry.appProperties || {}
+              isEditable: editableFile.isEditable()
             },
             path,
             existing,

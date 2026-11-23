@@ -40,7 +40,6 @@ class LocalFileService extends BaseStorageService {
         mimeType: f.mimeType,
         size: f.size,
         modifiedTime: f.modifiedTime,
-        metadata: f.metadata,
         webContentLink: f.fileUrl
       }));
 
@@ -75,7 +74,6 @@ class LocalFileService extends BaseStorageService {
           mimeType: record.mimeType,
           size: record.size,
           modifiedTime: record.modifiedTime,
-          metadata: record.metadata,
           webContentLink: record.fileUrl
         };
       }
@@ -100,31 +98,15 @@ class LocalFileService extends BaseStorageService {
     return this.getByPath(id);
   }
 
-  async updateMetadata({ id = null, path = null } = {}, metadata = {}) {
-    return this._execute(async () => {
-      const targetPath = this._normalizePath(id || path);
-      const record = this.pathToFile.get(targetPath);
-      if (!record) throw new Error("Local file not found");
-
-      record.metadata = { ...record.metadata, ...metadata };
-      return record.metadata;
-    });
-  }
-
-  async upload(path, blob, options = {}) {
+  async upload(path, blob) {
     return this._execute(async () => {
       const { cleanPath, dirPath, fileName } = this._parsePath(path);
       let record = this.pathToFile.get(cleanPath);
-      const metadata = {
-        ...(options.metadata || {}),
-        size: blob.size
-      };
 
       if (record) {
         if (record.fileUrl) URL.revokeObjectURL(record.fileUrl);
         record.fileUrl = URL.createObjectURL(blob);
         record.size = blob.size;
-        record.metadata = metadata;
         record.modifiedTime = new Date().toISOString();
       } else {
         const parentNode = this.pathToNode.get(dirPath) || this.rootNode;
@@ -136,8 +118,7 @@ class LocalFileService extends BaseStorageService {
           fileUrl,
           size: blob.size,
           mimeType: blob.type || "application/octet-stream",
-          modifiedTime: new Date().toISOString(),
-          metadata
+          modifiedTime: new Date().toISOString()
         };
         parentNode.files.push(record);
         this.pathToFile.set(cleanPath, record);
@@ -149,14 +130,13 @@ class LocalFileService extends BaseStorageService {
         mimeType: record.mimeType,
         size: record.size,
         modifiedTime: record.modifiedTime,
-        metadata: record.metadata,
         webContentLink: record.fileUrl
       };
     });
   }
 
-  async uploadById(id, file, options = {}) {
-    return this.upload(id, file, options);
+  async uploadById(id, file) {
+    return this.upload(id, file);
   }
 
   async remove(paths) {
@@ -226,7 +206,6 @@ class LocalFileService extends BaseStorageService {
         size: file.size,
         mimeType: file.type || "application/octet-stream",
         modifiedTime: new Date(file.lastModified || Date.now()).toISOString(),
-        metadata: { size: file.size },
         thumbUrl: (isImage || isVideo) ? fileUrl : null
       };
       currentNode.files.push(record);

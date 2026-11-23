@@ -44,14 +44,12 @@ class SupabaseStorageService extends BaseStorageService {
       const files = (data || []).map(item => {
         const isFolder = !item.id;
         const itemPath = cleanPath ? `${cleanPath}/${item.name}` : item.name;
-        const metadata = this._getUserMetadata(item);
         return {
           id: itemPath, // Treat Supabase storage path as unique id
           name: item.name,
           mimeType: isFolder ? "application/vnd.google-apps.folder" : (item.metadata?.mimetype || "application/octet-stream"),
           size: item.metadata?.size || 0,
           modifiedTime: item.updated_at || item.created_at || new Date().toISOString(),
-          metadata,
           webContentLink: null
         };
       });
@@ -92,14 +90,12 @@ class SupabaseStorageService extends BaseStorageService {
       if (!match) throw new Error("File not found");
 
       const isFolder = !match.id;
-      const metadata = this._getUserMetadata(match);
       return {
         id: cleanPath,
         name: match.name,
         mimeType: isFolder ? "application/vnd.google-apps.folder" : (match.metadata?.mimetype || "application/octet-stream"),
         size: match.metadata?.size || 0,
         modifiedTime: match.updated_at || match.created_at || new Date().toISOString(),
-        metadata,
         webContentLink: null
       };
     });
@@ -110,39 +106,16 @@ class SupabaseStorageService extends BaseStorageService {
     return this.getByPath(id);
   }
 
-  async updateMetadata({ id = null, path = null } = {}, metadata = {}, content = null) {
-    if (!this.client) return { data: null, error: new Error("Supabase client not initialized") };
-
-    return this._execute(async () => {
-      const { cleanPath: targetPath, fileName } = this._parsePath(id || path || "");
-      if (!targetPath) throw new Error("File ID or path required to update Supabase metadata");
-      if (!content) throw new Error("File content is required to update Supabase metadata");
-
-      const file = new File([content], fileName, {
-        type: content.type || "application/octet-stream"
-      });
-      const { error } = await this.client.storage.from(this._bucket).update(targetPath, file, {
-        contentType: file.type,
-        metadata
-      });
-      if (error) throw error;
-
-      return { id: targetPath, metadata };
-    });
-  }
-
   async upload(path, file, options = {}) {
     if (!this.client) return { data: null, error: new Error("Supabase client not initialized") };
 
     return this._execute(async () => {
       const { cleanPath, fileName } = this._parsePath(path);
       const upsert = options.upsert !== undefined ? options.upsert : true;
-      const metadata = { ...(options.metadata || {}) };
 
       const { error } = await this.client.storage.from(this._bucket).upload(cleanPath, file, {
         upsert,
-        contentType: file.type || "application/octet-stream",
-        metadata
+        contentType: file.type || "application/octet-stream"
       });
       if (error) throw error;
 
@@ -152,7 +125,6 @@ class SupabaseStorageService extends BaseStorageService {
         mimeType: file.type || "application/octet-stream",
         size: file.size || 0,
         modifiedTime: new Date().toISOString(),
-        metadata,
         webContentLink: null
       };
     });
@@ -180,15 +152,6 @@ class SupabaseStorageService extends BaseStorageService {
 
   _requireClient() {
     if (!this.client) throw new Error("Supabase client not initialized");
-  }
-
-  _getUserMetadata(item) {
-    return item?.user_metadata
-      || item?.userMetadata
-      || item?.metadata?.user_metadata
-      || item?.metadata?.userMetadata
-      || item?.metadata
-      || {};
   }
 
 }
