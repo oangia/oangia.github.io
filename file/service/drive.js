@@ -12,74 +12,38 @@ class BaseStorageService {
   // PUBLIC INTERFACE CONTRACT (Must be implemented by child classes)
   // =========================================================================
 
-  /**
-   * List files/folders at a given path.
-   * @returns {Promise<{data: Array<Object>|null, error: Error|null}>}
-   */
   async list(path, options = {}) {
     throw new Error(`${this.constructor.name} must implement list(path, options)`);
   }
 
-  /**
-   * Fetch the raw file content (Response/Blob/Stream).
-   * @returns {Promise<{data: Response|null, error: Error|null}>}
-   */
   async fetchContent({ id = null, path = null, metadata = null, metadataKnown = false } = {}) {
     throw new Error(`${this.constructor.name} must implement fetchContent(params)`);
   }
 
-  /**
-   * Retrieve file metadata by its folder path.
-   * @returns {Promise<{data: Object|null, error: Error|null}>}
-   */
   async getByPath(path) {
     throw new Error(`${this.constructor.name} must implement getByPath(path)`);
   }
 
-  /**
-   * Retrieve file metadata by its unique provider ID.
-   * @returns {Promise<{data: Object|null, error: Error|null}>}
-   */
   async getById(id) {
     throw new Error(`${this.constructor.name} must implement getById(id)`);
   }
 
-  /**
-   * Update custom metadata/properties on a file.
-   * @returns {Promise<{data: Object|null, error: Error|null}>}
-   */
   async updateMetadata({ id = null, path = null } = {}, properties = {}) {
     throw new Error(`${this.constructor.name} must implement updateMetadata(target, properties)`);
   }
 
-  /**
-   * Upload a new file or overwrite an existing file at a path.
-   * @returns {Promise<{data: Object|null, error: Error|null}>}
-   */
   async upload(path, file, options = {}) {
     throw new Error(`${this.constructor.name} must implement upload(path, file, options)`);
   }
 
-  /**
-   * Overwrite an existing file directly by its unique ID.
-   * @returns {Promise<{data: Object|null, error: Error|null}>}
-   */
   async uploadById(id, file, options = {}) {
     throw new Error(`${this.constructor.name} must implement uploadById(id, file, options)`);
   }
 
-  /**
-   * Delete one or more files by their paths.
-   * @returns {Promise<{data: Object|null, error: Error|null}>}
-   */
   async remove(paths) {
     throw new Error(`${this.constructor.name} must implement remove(paths)`);
   }
 
-  /**
-   * Delete one or more files by their unique IDs.
-   * @returns {Promise<{data: Object|null, error: Error|null}>}
-   */
   async removeById(ids) {
     throw new Error(`${this.constructor.name} must implement removeById(ids)`);
   }
@@ -88,9 +52,6 @@ class BaseStorageService {
   // SHARED HELPER METHODS FOR CHILD CLASSES
   // =========================================================================
 
-  /**
-   * Standardizes async execution into the { data, error } pattern.
-   */
   async _execute(fn) {
     try {
       const data = await fn();
@@ -100,21 +61,21 @@ class BaseStorageService {
     }
   }
 
-  /**
-   * Splits a full path into directory path and file name.
-   */
-  _parsePath(path) {
-    const lastSlashIdx = path.lastIndexOf("/");
+  _normalizePath(path = "") {
+    return String(path).replace(/^\/+/, "").replace(/\/+$/, "");
+  }
+
+  _parsePath(path = "") {
+    const cleanPath = String(path).replace(/^\/+/, "");
+    const lastSlashIdx = cleanPath.lastIndexOf("/");
     return {
-      dirPath: lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "",
-      fileName: lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path
+      cleanPath,
+      dirPath: lastSlashIdx !== -1 ? cleanPath.substring(0, lastSlashIdx) : "",
+      fileName: lastSlashIdx !== -1 ? cleanPath.substring(lastSlashIdx + 1) : cleanPath
     };
   }
 
-  /**
-   * Computes SHA-256 hash of a File, Blob, or ArrayBuffer.
-   */
-  async _computeHash(fileOrBuffer) {
+  async _computeFileHash(fileOrBuffer) {
     const buffer = fileOrBuffer instanceof ArrayBuffer
       ? fileOrBuffer
       : await fileOrBuffer.arrayBuffer();
@@ -168,7 +129,7 @@ class DriveStorageService extends BaseStorageService {
     if (!this.token) return { data: [], error: null };
 
     return this._execute(async () => {
-      const folderId = await this._resolveFolderId(path);
+      const folderId = await this._resolveFolderId(this._normalizePath(path));
       const files = [];
       let pageToken = options.pageToken || null;
 
@@ -280,7 +241,7 @@ class DriveStorageService extends BaseStorageService {
     return this._execute(async () => {
       const appProperties = {
         ...(options.appProperties || {}),
-        hash_content: await this._computeHash(file)
+        hash_content: await this._computeFileHash(file)
       };
       const { dirPath, fileName } = this._parsePath(path);
       const parentId = await this._resolveFolderId(dirPath);
@@ -331,7 +292,7 @@ class DriveStorageService extends BaseStorageService {
     return this._execute(async () => {
       const appProperties = {
         ...(options.appProperties || {}),
-        hash_content: options.appProperties?.hash_content || (await this._computeHash(file))
+        hash_content: options.appProperties?.hash_content || (await this._computeFileHash(file))
       };
       const metadata = {
         name: file.name,
@@ -407,7 +368,7 @@ class DriveStorageService extends BaseStorageService {
     if (appProperties?.hash_content) return response;
 
     const buffer = await response.arrayBuffer();
-    const hash_content = await this._computeHash(buffer);
+    const hash_content = await this._computeFileHash(buffer);
     appProperties = { ...appProperties, hash_content };
     const { error } = await this.updateMetadata({ id, path }, appProperties);
     if (error) throw error;
