@@ -21,7 +21,6 @@ class FileEntity {
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
   getMetadata() { return this._metadata; }
-  getHashContent() { return this._metadata.hash_content || null; }
 
   isFolderNode() {
     return this._is_folder;
@@ -307,7 +306,6 @@ class BaseStorageRecord extends FileEntity {
       this._updated_at = data.modifiedTime ? new Date(data.modifiedTime).getTime() : Date.now();
       this._url = data.webContentLink || null;
       this._metadata = data.appProperties || data.metadata || this._metadata;
-      if ("hash_content" in this) this.hash_content = this.getHashContent();
     }
     return this;
   }
@@ -337,7 +335,6 @@ class BaseStorageRecord extends FileEntity {
       metadataKnown: true
     });
     if (error) throw error;
-    if ("hash_content" in this) this.hash_content = this.getHashContent();
     return response;
   }
 
@@ -375,26 +372,17 @@ class Crypto{static PBKDF2_ITERATIONS=1e5;static async sha256(e){const t=e insta
 
 class FileRecord extends BaseStorageRecord {
   static SALT = "DriveManagerSecureSalt123";
+  hash_filename = null;
+  hash_content = null;
+  hash_file = null;
 
   constructor(data = {}) {
     super(data);
-
-    this.hash_filename = null;
-    this.hash_content = this.getHashContent();
-    this.hash_file = null;
-
+    this.hash_content = data.hash_content || null;
     this.hashFullpath();
   }
 
-  static async _uploadToStorage(storage, path, file, options = {}, byId = false) {
-    const hash_content = await Crypto.sha256(await file.arrayBuffer());
-    const uploadOptions = {
-      ...options,
-      metadata: { ...(options.metadata || {}), hash_content },
-      appProperties: { ...(options.appProperties || {}), hash_content }
-    };
-    return super._uploadToStorage(storage, path, file, uploadOptions, byId);
-  }
+  getHashContent() { return this.hash_content || null; }
 
   async hashFullpath() {
     this.hash_filename = await Crypto.sha256(this.getFullPath());
@@ -403,7 +391,10 @@ class FileRecord extends BaseStorageRecord {
   async hashContent(url) {
     const response = await fetch(url);
     const blob = await response.blob();
-    const buffer = await blob.arrayBuffer();
+    await this._setHashes(await blob.arrayBuffer());
+  }
+
+  async _setHashes(buffer) {
     await this.hashFullpath();
     this.hash_content = await Crypto.sha256(buffer);
     this.hash_file = await Crypto.sha256(this.hash_filename + this.hash_content);
@@ -432,33 +423,24 @@ class FileRecord extends BaseStorageRecord {
     return (await Crypto.sha256(combined.buffer)).slice(0, 16);
   }
 
-  async fetchContent(expiresIn = 60) {
+  async _fetchContentWithHash(expiresIn = 60) {
     const response = await super.fetchContent(expiresIn);
-    if (this.getHashContent()) {
-      this.hash_content = this.getHashContent();
-      return response;
-    }
+    if (this.hash_content) return response;
 
     const buffer = await response.arrayBuffer();
-    this.hash_content = await Crypto.sha256(buffer);
-    const metadata = { ...this._metadata, hash_content: this.hash_content };
-    const storage = this._storageService || BaseStorageRecord.getStorage();
-    const content = new Blob([buffer], {
-      type: response.headers.get("Content-Type") || this.getMimeType()
-    });
-    const { error } = await storage.updateMetadata(
-      { id: this.getId(), path: this.getFullPath() },
-      metadata,
-      content
-    );
-    if (error) throw error;
-
-    this._metadata = metadata;
+    await this._setHashes(buffer);
     return new Response(buffer, {
       status: response.status,
       statusText: response.statusText,
       headers: response.headers
     });
+  }
+
+  async save(newFileBlob) {
+    const buffer = await newFileBlob.arrayBuffer();
+    const savedRecord = await super.save(newFileBlob);
+    await this._setHashes(buffer);
+    return savedRecord;
   }
 
   static async compareCopies(records) {
@@ -603,7 +585,7 @@ class FileRecord extends BaseStorageRecord {
   }
 
   async fetchContent(expiresIn = 60) {
-    const response = await super.fetchContent(expiresIn);
+    const response = await this._fetchContentWithHash(expiresIn);
 
     if (!this.isEncryptedFile()) {
       return response;
