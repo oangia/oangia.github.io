@@ -1,19 +1,140 @@
-class DriveStorageService {
+class BaseStorageService {
   constructor(config = {}) {
+    if (new.target === BaseStorageService) {
+      throw new Error("BaseStorageService is an abstract class and cannot be instantiated directly.");
+    }
+
+    this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
+    this.onConnectionChange = config.onConnectionChange || (() => {});
+  }
+
+  // =========================================================================
+  // PUBLIC INTERFACE CONTRACT (Must be implemented by child classes)
+  // =========================================================================
+
+  /**
+   * List files/folders at a given path.
+   * @returns {Promise<{data: Array<Object>|null, error: Error|null}>}
+   */
+  async list(path, options = {}) {
+    throw new Error(`${this.constructor.name} must implement list(path, options)`);
+  }
+
+  /**
+   * Fetch the raw file content (Response/Blob/Stream).
+   * @returns {Promise<{data: Response|null, error: Error|null}>}
+   */
+  async fetchContent({ id = null, path = null, metadata = null, metadataKnown = false } = {}) {
+    throw new Error(`${this.constructor.name} must implement fetchContent(params)`);
+  }
+
+  /**
+   * Retrieve file metadata by its folder path.
+   * @returns {Promise<{data: Object|null, error: Error|null}>}
+   */
+  async getByPath(path) {
+    throw new Error(`${this.constructor.name} must implement getByPath(path)`);
+  }
+
+  /**
+   * Retrieve file metadata by its unique provider ID.
+   * @returns {Promise<{data: Object|null, error: Error|null}>}
+   */
+  async getById(id) {
+    throw new Error(`${this.constructor.name} must implement getById(id)`);
+  }
+
+  /**
+   * Update custom metadata/properties on a file.
+   * @returns {Promise<{data: Object|null, error: Error|null}>}
+   */
+  async updateMetadata({ id = null, path = null } = {}, properties = {}) {
+    throw new Error(`${this.constructor.name} must implement updateMetadata(target, properties)`);
+  }
+
+  /**
+   * Upload a new file or overwrite an existing file at a path.
+   * @returns {Promise<{data: Object|null, error: Error|null}>}
+   */
+  async upload(path, file, options = {}) {
+    throw new Error(`${this.constructor.name} must implement upload(path, file, options)`);
+  }
+
+  /**
+   * Overwrite an existing file directly by its unique ID.
+   * @returns {Promise<{data: Object|null, error: Error|null}>}
+   */
+  async uploadById(id, file, options = {}) {
+    throw new Error(`${this.constructor.name} must implement uploadById(id, file, options)`);
+  }
+
+  /**
+   * Delete one or more files by their paths.
+   * @returns {Promise<{data: Object|null, error: Error|null}>}
+   */
+  async remove(paths) {
+    throw new Error(`${this.constructor.name} must implement remove(paths)`);
+  }
+
+  /**
+   * Delete one or more files by their unique IDs.
+   * @returns {Promise<{data: Object|null, error: Error|null}>}
+   */
+  async removeById(ids) {
+    throw new Error(`${this.constructor.name} must implement removeById(ids)`);
+  }
+
+  // =========================================================================
+  // SHARED HELPER METHODS FOR CHILD CLASSES
+  // =========================================================================
+
+  /**
+   * Standardizes async execution into the { data, error } pattern.
+   */
+  async _execute(fn) {
+    try {
+      const data = await fn();
+      return { data, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
+
+  /**
+   * Splits a full path into directory path and file name.
+   */
+  _parsePath(path) {
+    const lastSlashIdx = path.lastIndexOf("/");
+    return {
+      dirPath: lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "",
+      fileName: lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path
+    };
+  }
+
+  /**
+   * Computes SHA-256 hash of a File, Blob, or ArrayBuffer.
+   */
+  async _computeHash(fileOrBuffer) {
+    const buffer = fileOrBuffer instanceof ArrayBuffer
+      ? fileOrBuffer
+      : await fileOrBuffer.arrayBuffer();
+    return Crypto.sha256(buffer);
+  }
+}
+
+class DriveStorageService extends BaseStorageService {
+  constructor(config = {}) {
+    super(config);
+
     this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     this.apiBase = "https://www.googleapis.com/drive/v3/files";
     this.uploadBase = "https://www.googleapis.com/upload/drive/v3/files";
-    
+
     this._folderCache = { "": "root" };
     this.tokenClient = null;
     this._refreshTimer = null;
     this._authRequestMode = null;
     this._silentAuthAttempted = false;
-    this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
-    this.onConnectionChange = config.onConnectionChange || (() => {});
-
-    const savedClientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
-    if (savedClientId) this.clientId = savedClientId;
 
     const savedToken = localStorage.getItem("gdrive_access_token");
     const savedExpiry = Number(localStorage.getItem("gdrive_token_expiry"));
@@ -28,24 +149,25 @@ class DriveStorageService {
       localStorage.removeItem("gdrive_token_expiry");
     }
 
-    this._initOAuthClient();
-    this._bindAuthButton();
-    if (this.token) this._scheduleTokenRefresh();
-    else this._requestSilentAccessToken();
-
-    window.addEventListener("load", () => {
+    const init = () => {
       this._initOAuthClient();
       this._bindAuthButton();
       if (this.token) this._scheduleTokenRefresh();
       else this._requestSilentAccessToken();
-    });
+    };
+
+    init();
+    window.addEventListener("load", init);
   }
 
+  // =========================================================================
+  // PUBLIC INTERFACE IMPLEMENTATIONS
+  // =========================================================================
+
   async list(path, options = {}) {
-    if (!this.token) {
-      return { data: [], error: null };
-    }
-    try {
+    if (!this.token) return { data: [], error: null };
+
+    return this._execute(async () => {
       const folderId = await this._resolveFolderId(path);
       const files = [];
       let pageToken = options.pageToken || null;
@@ -53,29 +175,35 @@ class DriveStorageService {
       do {
         const params = new URLSearchParams({
           q: `'${folderId}' in parents and trashed = false`,
-          fields: 'nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink, appProperties)',
-          orderBy: 'folder,name',
+          fields: "nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink, appProperties)",
+          orderBy: "folder,name",
           pageSize: String(options.limit || 100)
         });
         if (pageToken) params.set("pageToken", pageToken);
 
         const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
-        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to list items');
+        if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to list items");
 
         const result = await res.json();
         files.push(...(result.files || []));
         pageToken = result.nextPageToken || null;
       } while (pageToken);
 
-      return { data: files, error: null };
-    } catch (err) {
-      return { data: null, error: err };
-    }
+      return files;
+    });
   }
 
   async fetchContent({ id = null, path = null, metadata = null, metadataKnown = false } = {}) {
-    try {
-      const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?alt=media`, {
+    return this._execute(async () => {
+      let fileId = id;
+      if (!fileId && path) {
+        const { data, error } = await this.getByPath(path);
+        if (error) throw error;
+        fileId = data.id;
+      }
+      if (!fileId) throw new Error("File ID or path required to fetch content");
+
+      const res = await fetch(`${this.apiBase}/${encodeURIComponent(fileId)}?alt=media`, {
         headers: this._headers()
       });
 
@@ -84,36 +212,48 @@ class DriveStorageService {
         throw new Error(errJson.error?.message || `Failed to fetch file content: ${res.statusText}`);
       }
 
-      return {
-        data: await this._ensureContentHash(res, { id, path, metadata, metadataKnown }),
-        error: null
-      };
-    } catch (err) {
-      return { data: null, error: err };
-    }
+      return this._ensureContentHash(res, { id: fileId, path, metadata, metadataKnown });
+    });
   }
 
-  async _ensureContentHash(response, { id, path, metadata, metadataKnown }) {
-    let appProperties = metadata;
-    if (!metadataKnown) {
-      const { data, error } = await this.getById(id);
-      if (error) throw error;
-      appProperties = data.appProperties || {};
-    }
-    if (appProperties?.hash_content) return response;
+  async getByPath(path) {
+    if (!this.token) return { data: null, error: new Error("Not authenticated") };
 
-    const buffer = await response.arrayBuffer();
-    const hash_content = await Crypto.sha256(buffer);
-    appProperties = { ...appProperties, hash_content };
-    const { error } = await this.updateMetadata({ id, path }, appProperties);
-    if (error) throw error;
-    if (metadata) metadata.hash_content = hash_content;
+    return this._execute(async () => {
+      const { dirPath, fileName } = this._parsePath(path);
+      const folderId = await this._resolveFolderId(dirPath);
 
-    return new Response(buffer, { headers: response.headers });
+      const params = new URLSearchParams({
+        q: `'${folderId}' in parents and name = '${fileName}' and trashed = false`,
+        fields: "files(id, name, mimeType, size, modifiedTime, webContentLink, appProperties)"
+      });
+      const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
+      if (!res.ok) throw new Error("Failed to fetch file metadata");
+
+      const json = await res.json();
+      if (!json.files || json.files.length === 0) throw new Error("File not found");
+      if (json.files.length > 1) throw new Error(`Multiple files match path: ${path}`);
+
+      return json.files[0];
+    });
+  }
+
+  async getById(id) {
+    if (!this.token) return { data: null, error: new Error("Not authenticated") };
+
+    return this._execute(async () => {
+      const fields = "id, name, mimeType, size, modifiedTime, webContentLink, appProperties";
+      const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?fields=${fields}`, {
+        headers: this._headers()
+      });
+      if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to fetch file metadata");
+
+      return res.json();
+    });
   }
 
   async updateMetadata({ id = null, path = null } = {}, appProperties = {}) {
-    try {
+    return this._execute(async () => {
       let fileId = id;
       if (!fileId && path) {
         const { data, error } = await this.getByPath(path);
@@ -132,10 +272,148 @@ class DriveStorageService {
         throw new Error(errJson.error?.message || "Failed to update Drive file metadata");
       }
 
-      return { data: await res.json(), error: null };
-    } catch (err) {
-      return { data: null, error: err };
+      return res.json();
+    });
+  }
+
+  async upload(path, file, options = {}) {
+    return this._execute(async () => {
+      const appProperties = {
+        ...(options.appProperties || {}),
+        hash_content: await this._computeHash(file)
+      };
+      const { dirPath, fileName } = this._parsePath(path);
+      const parentId = await this._resolveFolderId(dirPath);
+
+      const query = new URLSearchParams({
+        q: `'${parentId}' in parents and name = '${fileName}' and trashed = false`,
+        fields: "files(id)"
+      });
+      const searchRes = await fetch(`${this.apiBase}?${query}`, { headers: this._headers() });
+      if (!searchRes.ok) throw new Error((await searchRes.json()).error?.message || "Failed to check for existing file");
+      const searchJson = await searchRes.json();
+
+      if (searchJson.files?.length > 0 && options.upsert === false) {
+        throw new Error("File already exists and upsert is disabled");
+      }
+      if (searchJson.files?.length > 1) {
+        throw new Error(`Multiple files match path: ${path}`);
+      }
+      if (searchJson.files?.length === 1) {
+        const { data, error } = await this.uploadById(searchJson.files[0].id, file, { appProperties });
+        if (error) throw error;
+        return data;
+      }
+
+      const metadata = {
+        name: file.name,
+        mimeType: file.type || "application/octet-stream",
+        parents: [parentId],
+        appProperties
+      };
+      const form = new FormData();
+      form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+      form.append("file", file);
+
+      const fields = "id,name,mimeType,size,modifiedTime,webContentLink,appProperties";
+      const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=${fields}`, {
+        method: "POST",
+        headers: this._headers(),
+        body: form
+      });
+      if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
+
+      return res.json();
+    });
+  }
+
+  async uploadById(id, file, options = {}) {
+    return this._execute(async () => {
+      const appProperties = {
+        ...(options.appProperties || {}),
+        hash_content: options.appProperties?.hash_content || (await this._computeHash(file))
+      };
+      const metadata = {
+        name: file.name,
+        mimeType: file.type || "application/octet-stream",
+        appProperties
+      };
+      const form = new FormData();
+      form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+      form.append("file", file);
+
+      const fields = "id,name,mimeType,size,modifiedTime,webContentLink,appProperties";
+      const res = await fetch(`${this.uploadBase}/${encodeURIComponent(id)}?uploadType=multipart&fields=${fields}`, {
+        method: "PATCH",
+        headers: this._headers(),
+        body: form
+      });
+      if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
+
+      return res.json();
+    });
+  }
+
+  async remove(paths) {
+    return this._execute(async () => {
+      for (const path of paths) {
+        const { dirPath, fileName } = this._parsePath(path);
+        const parentId = await this._resolveFolderId(dirPath);
+
+        const params = new URLSearchParams({
+          q: `'${parentId}' in parents and name = '${fileName}' and trashed = false`,
+          fields: "files(id)"
+        });
+        const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
+        if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to find file to delete");
+        const json = await res.json();
+
+        if (json.files?.length > 1) {
+          throw new Error(`Multiple files match path: ${path}; delete by ID instead`);
+        }
+        if (json.files?.length === 1) {
+          const { error } = await this.removeById([json.files[0].id]);
+          if (error) throw error;
+        }
+      }
+      return {};
+    });
+  }
+
+  async removeById(ids) {
+    return this._execute(async () => {
+      for (const id of ids) {
+        const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: this._headers()
+        });
+        if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to delete file");
+      }
+      return {};
+    });
+  }
+
+  // =========================================================================
+  // GOOGLE DRIVE SPECIFIC PRIVATE METHODS (OAuth & Folder Hierarchy)
+  // =========================================================================
+
+  async _ensureContentHash(response, { id, path, metadata, metadataKnown }) {
+    let appProperties = metadata;
+    if (!metadataKnown) {
+      const { data, error } = await this.getById(id);
+      if (error) throw error;
+      appProperties = data.appProperties || {};
     }
+    if (appProperties?.hash_content) return response;
+
+    const buffer = await response.arrayBuffer();
+    const hash_content = await this._computeHash(buffer);
+    appProperties = { ...appProperties, hash_content };
+    const { error } = await this.updateMetadata({ id, path }, appProperties);
+    if (error) throw error;
+    if (metadata) metadata.hash_content = hash_content;
+
+    return new Response(buffer, { headers: response.headers });
   }
 
   _initOAuthClient() {
@@ -157,7 +435,7 @@ class DriveStorageService {
           }
           this.token = res.access_token;
           this.tokenExpiry = Date.now() + Number(res.expires_in) * 1000;
-          
+
           localStorage.setItem("gdrive_access_token", this.token);
           localStorage.setItem("gdrive_token_expiry", this.tokenExpiry);
           this._silentAuthAttempted = false;
@@ -202,7 +480,7 @@ class DriveStorageService {
   _bindAuthButton() {
     const authBtn = document.getElementById("authBtn");
     if (!authBtn || authBtn.dataset.driveBound) return;
-    
+
     authBtn.dataset.driveBound = "true";
     authBtn.onclick = () => {
       const currentClientId = localStorage.getItem("gdrive_oauth_client_id") || this.clientId;
@@ -252,10 +530,10 @@ class DriveStorageService {
 
       const query = new URLSearchParams({
         q: `'${currentParentId}' in parents and name = '${segment}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-        fields: 'files(id, name)'
+        fields: "files(id, name)"
       });
       const res = await fetch(`${this.apiBase}?${query}`, { headers: this._headers() });
-      if (!res.ok) throw new Error('Failed to resolve folder hierarchy');
+      if (!res.ok) throw new Error("Failed to resolve folder hierarchy");
       const data = await res.json();
 
       if (data.files && data.files.length > 0) {
@@ -264,12 +542,12 @@ class DriveStorageService {
       } else {
         const metadata = {
           name: segment,
-          mimeType: 'application/vnd.google-apps.folder',
+          mimeType: "application/vnd.google-apps.folder",
           parents: [currentParentId]
         };
         const createRes = await fetch(this.apiBase, {
-          method: 'POST',
-          headers: this._headers({ 'Content-Type': 'application/json' }),
+          method: "POST",
+          headers: this._headers({ "Content-Type": "application/json" }),
           body: JSON.stringify(metadata)
         });
         if (!createRes.ok) throw new Error(`Failed to create folder: ${segment}`);
@@ -279,176 +557,5 @@ class DriveStorageService {
       }
     }
     return currentParentId;
-  }
-
-  async getByPath(path) {
-    if (!this.token) return { data: null, error: new Error("Not authenticated") };
-    try {
-      const lastSlashIdx = path.lastIndexOf("/");
-      const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
-      const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
-      const folderId = await this._resolveFolderId(dirPath);
-
-      const params = new URLSearchParams({
-        q: `'${folderId}' in parents and name = '${fileName}' and trashed = false`,
-        fields: 'files(id, name, mimeType, size, modifiedTime, webContentLink, appProperties)'
-      });
-      const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
-      if (!res.ok) throw new Error('Failed to fetch file metadata');
-      
-      const json = await res.json();
-      if (!json.files || json.files.length === 0) throw new Error('File not found');
-      if (json.files.length > 1) throw new Error(`Multiple files match path: ${path}`);
-
-      return { data: json.files[0], error: null };
-    } catch (err) {
-      return { data: null, error: err };
-    }
-  }
-
-  async getById(id) {
-    if (!this.token) return { data: null, error: new Error("Not authenticated") };
-    try {
-      const fields = 'id, name, mimeType, size, modifiedTime, webContentLink, appProperties';
-      const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?fields=${fields}`, {
-        headers: this._headers()
-      });
-      if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to fetch file metadata');
-
-      return { data: await res.json(), error: null };
-    } catch (err) {
-      return { data: null, error: err };
-    }
-  }
-
-  async upload(path, file, options = {}) {
-    try {
-      const appProperties = {
-        ...(options.appProperties || {}),
-        hash_content: await Crypto.sha256(await file.arrayBuffer())
-      };
-      const lastSlashIdx = path.lastIndexOf("/");
-      const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
-      const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
-      const parentId = await this._resolveFolderId(dirPath);
-
-      const query = new URLSearchParams({
-        q: `'${parentId}' in parents and name = '${fileName}' and trashed = false`,
-        fields: 'files(id)'
-      });
-      const searchRes = await fetch(`${this.apiBase}?${query}`, { headers: this._headers() });
-      if (!searchRes.ok) throw new Error((await searchRes.json()).error?.message || 'Failed to check for existing file');
-      const searchJson = await searchRes.json();
-      
-      if (searchJson.files && searchJson.files.length > 0 && options.upsert === false) {
-        return { data: null, error: new Error("File already exists and upsert is disabled") };
-      }
-      if (searchJson.files?.length > 1) {
-        return { data: null, error: new Error(`Multiple files match path: ${path}`) };
-      }
-      if (searchJson.files?.length === 1) {
-        return this.uploadById(searchJson.files[0].id, file, { appProperties });
-      }
-
-      let uploadFile = file;
-
-      const metadata = { 
-        name: uploadFile.name, 
-        mimeType: uploadFile.type || 'application/octet-stream',
-        parents: [parentId],
-        appProperties
-      };
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', uploadFile);
-
-      const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=id,name,mimeType,size,modifiedTime,webContentLink,appProperties`, {
-        method: 'POST',
-        headers: this._headers(),
-        body: form
-      });
-      if (!res.ok) throw new Error((await res.json()).error?.message || 'Upload failed');
-      
-      const f = await res.json();
-      return { data: f, error: null };
-    } catch (err) {
-      return { data: null, error: err };
-    }
-  }
-
-  async uploadById(id, file, options = {}) {
-    try {
-      const appProperties = {
-        ...(options.appProperties || {}),
-        hash_content: options.appProperties?.hash_content || await Crypto.sha256(await file.arrayBuffer())
-      };
-      const metadata = {
-        name: file.name,
-        mimeType: file.type || 'application/octet-stream',
-        appProperties
-      };
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', file);
-
-      const fields = 'id,name,mimeType,size,modifiedTime,webContentLink,appProperties';
-      const res = await fetch(
-        `${this.uploadBase}/${encodeURIComponent(id)}?uploadType=multipart&fields=${fields}`,
-        {
-          method: 'PATCH',
-          headers: this._headers(),
-          body: form
-        }
-      );
-      if (!res.ok) throw new Error((await res.json()).error?.message || 'Upload failed');
-
-      return { data: await res.json(), error: null };
-    } catch (err) {
-      return { data: null, error: err };
-    }
-  }
-
-  async remove(paths) {
-    try {
-      for (const path of paths) {
-        const lastSlashIdx = path.lastIndexOf("/");
-        const dirPath = lastSlashIdx !== -1 ? path.substring(0, lastSlashIdx) : "";
-        const fileName = lastSlashIdx !== -1 ? path.substring(lastSlashIdx + 1) : path;
-        const parentId = await this._resolveFolderId(dirPath);
-
-        const params = new URLSearchParams({
-          q: `'${parentId}' in parents and name = '${fileName}' and trashed = false`,
-          fields: 'files(id)'
-        });
-        const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
-        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to find file to delete');
-        const json = await res.json();
-        if (json.files?.length > 1) {
-          throw new Error(`Multiple files match path: ${path}; delete by ID instead`);
-        }
-        if (json.files?.length === 1) {
-          const result = await this.removeById([json.files[0].id]);
-          if (result.error) throw result.error;
-        }
-      }
-      return { data: {}, error: null };
-    } catch (err) {
-      return { data: null, error: err };
-    }
-  }
-
-  async removeById(ids) {
-    try {
-      for (const id of ids) {
-        const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}`, {
-          method: 'DELETE',
-          headers: this._headers()
-        });
-        if (!res.ok) throw new Error((await res.json()).error?.message || 'Failed to delete file');
-      }
-      return { data: {}, error: null };
-    } catch (err) {
-      return { data: null, error: err };
-    }
   }
 }
