@@ -38,25 +38,6 @@ class FileEntity {
     return lastDot !== -1 ? realName.substring(lastDot + 1).toLowerCase() : "";
   }
 
-  getFormattedSize() {
-    if (this.isFolderNode()) return "";
-    const bytes = this._size || 0;
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  }
-
-  getSubtext() {
-    if (this.isFolderNode()) return "Folder";
-    let text = this.getFormattedSize();
-    if (this.isEncryptedFile()) {
-      text += ' <span class="text-emerald-400">Encrypted</span>';
-    }
-    return text;
-  }
-
   _checkMineType(exts, prefix) {return exts.includes(this.getExtension()) || this.getMimeType().startsWith(prefix)}
   isImage() {return this._checkMineType(["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"], "image/")}
   isVideo() {return this._checkMineType(["mp4","webm","mov","avi","mkv"], "video/")}
@@ -68,21 +49,6 @@ class FileEntity {
         ["txt", "md", "log", "html", "htm", "css", "js", "ts", "json", "py", "java", "sql", "yml", "yaml"],
         "text/"
       );
-  }
-
-  getFileIconClass() {
-    if (this.isFolderNode()) return "fa-solid fa-folder text-amber-500";
-    if (this.isEncryptedFile()) return "fa-solid fa-file-shield text-emerald-400";
-
-    const ext = this.getExtension();
-    if (["txt", "md", "log"].includes(ext)) return "fa-solid fa-file-lines";
-    if (["json", "js", "ts", "html", "css", "py", "java", "sql", "yml", "yaml"].includes(ext)) return "fa-solid fa-file-code";
-    if (this.isImage()) return "fa-solid fa-file-image";
-    if (this.isAudio()) return "fa-solid fa-file-audio";
-    if (this.isVideo()) return "fa-solid fa-file-video";
-    if (ext === "pdf") return "fa-solid fa-file-pdf";
-    if (["zip", "rar", "7z"].includes(ext)) return "fa-solid fa-file-zipper";
-    return "fa-solid fa-file";
   }
 
   _guessMimeType() {
@@ -619,5 +585,39 @@ class FileRecord extends BaseStorageRecord {
     }
 
     return new Blob([bytes], { type: mime });
+  }
+  
+  getFormattedSize() {
+    if (this.isFolderNode()) return "";
+    const bytes = this._size || 0;
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  }
+
+  getSubtext() {
+    if (this.isFolderNode()) return "Folder";
+    let text = this.getFormattedSize();
+    if (this.isEncryptedFile()) {
+      text += ' <span class="text-emerald-400">Encrypted</span>';
+    }
+    return text;
+  }
+  
+  getFileIconClass() {
+    if (this.isFolderNode()) return "fa-solid fa-folder text-amber-500";
+    if (this.isEncryptedFile()) return "fa-solid fa-file-shield text-emerald-400";
+
+    const ext = this.getExtension();
+    if (["txt", "md", "log"].includes(ext)) return "fa-solid fa-file-lines";
+    if (["json", "js", "ts", "html", "css", "py", "java", "sql", "yml", "yaml"].includes(ext)) return "fa-solid fa-file-code";
+    if (this.isImage()) return "fa-solid fa-file-image";
+    if (this.isAudio()) return "fa-solid fa-file-audio";
+    if (this.isVideo()) return "fa-solid fa-file-video";
+    if (ext === "pdf") return "fa-solid fa-file-pdf";
+    if (["zip", "rar", "7z"].includes(ext)) return "fa-solid fa-file-zipper";
+    return "fa-solid fa-file";
   }
 }
