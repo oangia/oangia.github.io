@@ -350,6 +350,8 @@ class FileManager {
   async backupGitHubRepo() {
     const btn = document.getElementById("backupGitHubBtn");
     const originalContent = btn?.innerHTML;
+    let uploadedFiles = 0;
+    let totalFiles = 0;
 
     if (btn) {
       btn.disabled = true;
@@ -379,13 +381,23 @@ class FileManager {
 
       const files = tree.tree.filter(entry => entry.type === "blob");
       if (files.length === 0) throw new Error("The GitHub repository contains no files to back up.");
+      totalFiles = files.length;
+      const filenames = files.map(entry => entry.path.split("/").pop());
+      const filenameCounts = new Map();
+      filenames.forEach(name => filenameCounts.set(name, (filenameCounts.get(name) || 0) + 1));
+      const duplicateFilenames = [...filenameCounts]
+        .filter(([, count]) => count > 1)
+        .map(([name]) => name);
+      if (duplicateFilenames.length > 0) {
+        throw new Error(`Cannot back up files into one folder because filenames are duplicated: ${duplicateFilenames.join(", ")}`);
+      }
 
-      const zip = new JSZip();
       for (let offset = 0; offset < files.length; offset += 5) {
         const batch = files.slice(offset, offset + 5);
         const blobs = await Promise.all(batch.map(entry => requestGitHubJson(`${apiBase}/git/blobs/${entry.sha}`)));
 
-        blobs.forEach((blob, index) => {
+        for (let index = 0; index < blobs.length; index++) {
+          const blob = blobs[index];
           if (blob.encoding !== "base64" || typeof blob.content !== "string") {
             throw new Error(`GitHub returned unsupported content for "${batch[index].path}".`);
           }
@@ -394,29 +406,25 @@ class FileManager {
           for (let byte = 0; byte < binary.length; byte++) {
             content[byte] = binary.charCodeAt(byte);
           }
-          zip.file(`oangia.github.io-main/${batch[index].path}`, content);
-        });
 
-        if (btn) {
-          btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up ${Math.min(offset + batch.length, files.length)} / ${files.length}...</span>`;
+          const filename = batch[index].path.split("/").pop();
+          const file = new File([content], filename, { type: "application/octet-stream" });
+          const path = `GitHub Backups/${filename}`;
+          const { error } = await drive.upload(path, file, { upsert: true });
+          if (error) throw new Error(`Could not upload "${batch[index].path}" to Google Drive: ${error.message}`);
+          uploadedFiles++;
+
+          if (btn) {
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up ${uploadedFiles} / ${files.length}...</span>`;
+          }
         }
       }
 
-      const archive = await zip.generateAsync({
-        type: "blob",
-        compression: "DEFLATE",
-        compressionOptions: { level: 6 }
-      });
-      const filename = "oangia.github.io-main.zip";
-      const archiveFile = new File([archive], filename, { type: "application/zip" });
-      const drivePath = `GitHub Backups/oangia.github.io/${filename}`;
-      const { error } = await drive.upload(drivePath, archiveFile, { upsert: true });
-      if (error) throw error;
-
-      showToast(`Repository backup saved to Drive: ${filename}`, "success", 5000);
+      showToast(`Repository backup saved to Drive: ${uploadedFiles} file(s) in GitHub Backups`, "success", 5000);
     } catch (error) {
       console.error("GitHub repository backup failed:", error);
-      showToast(error.message || "GitHub repository backup failed", "error", 5000);
+      const progress = totalFiles ? ` (${uploadedFiles} of ${totalFiles} files uploaded)` : "";
+      showToast(`${error.message || "GitHub repository backup failed"}${progress}`, "error", 5000);
     } finally {
       if (btn) {
         btn.disabled = false;
