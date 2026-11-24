@@ -360,13 +360,53 @@ class FileManager {
       const drive = FileRecord.getStorage();
       if (!drive.token) throw new Error("Connect Google Drive before backing up the repository.");
 
-      const archiveUrl = "https://codeload.github.com/oangia/oangia.github.io/zip/refs/heads/main";
-      const response = await fetch(archiveUrl);
-      if (!response.ok) {
-        throw new Error(`Could not download the GitHub repository archive (${response.status}).`);
+      const requestGitHubJson = async (url) => {
+        const response = await fetch(url, {
+          headers: { Accept: "application/vnd.github+json" }
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.message || `GitHub API request failed (${response.status}).`);
+        }
+        return response.json();
+      };
+
+      const apiBase = "https://api.github.com/repos/oangia/oangia.github.io";
+      const tree = await requestGitHubJson(`${apiBase}/git/trees/main?recursive=1`);
+      if (tree.truncated) {
+        throw new Error("GitHub returned an incomplete repository file list.");
       }
 
-      const archive = await response.blob();
+      const files = tree.tree.filter(entry => entry.type === "blob");
+      if (files.length === 0) throw new Error("The GitHub repository contains no files to back up.");
+
+      const zip = new JSZip();
+      for (let offset = 0; offset < files.length; offset += 5) {
+        const batch = files.slice(offset, offset + 5);
+        const blobs = await Promise.all(batch.map(entry => requestGitHubJson(`${apiBase}/git/blobs/${entry.sha}`)));
+
+        blobs.forEach((blob, index) => {
+          if (blob.encoding !== "base64" || typeof blob.content !== "string") {
+            throw new Error(`GitHub returned unsupported content for "${batch[index].path}".`);
+          }
+          const binary = atob(blob.content.replace(/\s/g, ""));
+          const content = new Uint8Array(binary.length);
+          for (let byte = 0; byte < binary.length; byte++) {
+            content[byte] = binary.charCodeAt(byte);
+          }
+          zip.file(`oangia.github.io-main/${batch[index].path}`, content);
+        });
+
+        if (btn) {
+          btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up ${Math.min(offset + batch.length, files.length)} / ${files.length}...</span>`;
+        }
+      }
+
+      const archive = await zip.generateAsync({
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 }
+      });
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `oangia.github.io-main-${timestamp}.zip`;
       const archiveFile = new File([archive], filename, { type: "application/zip" });
