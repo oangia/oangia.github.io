@@ -36,6 +36,7 @@ class FileManager {
       case "downloadRecord": return this.downloadRecord(args[0]);
       case "deleteRecord": return this.deleteRecord(args[0]);
       case "backup": return this.createBackup();
+      case "backupGitHubRepo": return this.backupGitHubRepo();
       case "syncDriveToSupabase": return this.syncDriveToSupabase();
       case "syncFileToSupabase": return this.syncFileToSupabase(args[0]);
       default: throw new Error(`Unknown file-manager action: ${actionName}`);
@@ -343,6 +344,45 @@ class FileManager {
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = '<i class="fa-solid fa-box-archive"></i> <span>Backup</span>';
+    }
+  }
+
+  async backupGitHubRepo() {
+    const btn = document.getElementById("backupGitHubBtn");
+    const originalContent = btn?.innerHTML;
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up repo...</span>';
+    }
+
+    try {
+      const drive = FileRecord.getStorage();
+      if (!drive.token) throw new Error("Connect Google Drive before backing up the repository.");
+
+      const archiveUrl = "https://codeload.github.com/oangia/oangia.github.io/zip/refs/heads/main";
+      const response = await fetch(archiveUrl);
+      if (!response.ok) {
+        throw new Error(`Could not download the GitHub repository archive (${response.status}).`);
+      }
+
+      const archive = await response.blob();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const filename = `oangia.github.io-main-${timestamp}.zip`;
+      const archiveFile = new File([archive], filename, { type: "application/zip" });
+      const drivePath = `GitHub Backups/oangia.github.io/${filename}`;
+      const { error } = await drive.upload(drivePath, archiveFile, { upsert: false });
+      if (error) throw error;
+
+      showToast(`Repository backup saved to Drive: ${filename}`, "success", 5000);
+    } catch (error) {
+      console.error("GitHub repository backup failed:", error);
+      showToast(error.message || "GitHub repository backup failed", "error", 5000);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+      }
     }
   }
 

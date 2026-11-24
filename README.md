@@ -10,6 +10,9 @@ A backup storage for files (two different places) (v) - firebase and drive
 
 A backup storage for big files (two different places) (x)
 
+### GitHub repository backup
+Use **Actions → Backup GitHub repo to Drive** to save a timestamped ZIP of the `main` branch in `GitHub Backups/oangia.github.io` on the connected Google Drive.
+
 ### User Interface
 A simple html interface to handle it (v)
 
