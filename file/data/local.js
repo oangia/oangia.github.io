@@ -262,6 +262,7 @@ class LocalFileService extends BaseStorageService {
     document.body.appendChild(fileInput);
 
     fileInput.onchange = async (e) => {
+      console.log(e.target.files);
       const files = e.target.files;
       if (files && files.length > 0) {
         this.onProgress(`Loading ${files.length} local files...`, "info");
