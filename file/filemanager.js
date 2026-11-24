@@ -382,15 +382,6 @@ class FileManager {
       const files = tree.tree.filter(entry => entry.type === "blob");
       if (files.length === 0) throw new Error("The GitHub repository contains no files to back up.");
       totalFiles = files.length;
-      const filenames = files.map(entry => entry.path.split("/").pop());
-      const filenameCounts = new Map();
-      filenames.forEach(name => filenameCounts.set(name, (filenameCounts.get(name) || 0) + 1));
-      const duplicateFilenames = [...filenameCounts]
-        .filter(([, count]) => count > 1)
-        .map(([name]) => name);
-      if (duplicateFilenames.length > 0) {
-        throw new Error(`Cannot back up files into one folder because filenames are duplicated: ${duplicateFilenames.join(", ")}`);
-      }
 
       for (let offset = 0; offset < files.length; offset += 5) {
         const batch = files.slice(offset, offset + 5);
@@ -409,7 +400,7 @@ class FileManager {
 
           const filename = batch[index].path.split("/").pop();
           const file = new File([content], filename, { type: "application/octet-stream" });
-          const path = `GitHub Backups/${filename}`;
+          const path = `GitHub Backups/${batch[index].path}`;
           const { error } = await drive.upload(path, file, { upsert: true });
           if (error) throw new Error(`Could not upload "${batch[index].path}" to Google Drive: ${error.message}`);
           uploadedFiles++;

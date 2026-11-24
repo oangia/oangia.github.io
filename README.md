@@ -11,7 +11,7 @@ A backup storage for files (two different places) (v) - firebase and drive
 A backup storage for big files (two different places) (x)
 
 ### GitHub repository backup
-Use **Actions → Backup GitHub repo to Drive** to upload each file from the `main` branch directly into the `GitHub Backups` folder on the connected Google Drive. Files at matching paths are overwritten. If multiple repository files have the same filename, the backup stops before uploading because they cannot share a name in one folder.
+Use **Actions → Backup GitHub repo to Drive** to upload each file from the `main` branch under the `GitHub Backups` folder on the connected Google Drive, preserving the repository's folder structure. Files at matching paths are overwritten.
 
 ### User Interface
 A simple html interface to handle it (v)
