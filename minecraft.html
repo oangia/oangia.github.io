@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minecraft Organic Lake & Shape Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #18181b; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 h-screen w-screen overflow-hidden flex flex-col md:flex-row">
+
+  <!-- Canvas Display Area -->
+  <main id="canvas-container" class="flex-1 relative bg-zinc-950 flex items-center justify-center p-4 md:p-8 overflow-hidden select-none">
+    <div id="legendContainer" class="absolute top-4 left-4 md:top-6 md:left-6 bg-zinc-900/90 border border-zinc-800 backdrop-blur-md px-3.5 py-2 rounded-lg text-xs flex flex-wrap items-center gap-4 z-10 shadow-xl">
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-sm bg-red-500 inline-block border border-red-300"></span>
+        <span class="text-zinc-300">Start</span>
+      </div>
+      <div id="endLegend" class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-sm bg-cyan-400 inline-block border border-cyan-200"></span>
+        <span class="text-zinc-300">End</span>
+      </div>
+      <div id="ctrl1Legend" class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-sm bg-amber-400 inline-block border border-amber-200"></span>
+        <span class="text-zinc-300">Peak / P1</span>
+      </div>
+      <div id="ctrl2Legend" class="flex items-center gap-2 hidden">
+        <span class="w-3 h-3 rounded-sm bg-purple-400 inline-block border border-purple-200"></span>
+        <span class="text-zinc-300">Meander P2</span>
+      </div>
+      <div id="blockCount" class="font-mono text-emerald-400 border-l border-zinc-700 pl-4">
+        0 blocks total
+      </div>
+    </div>
+
+    <div id="toast" class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white font-medium px-4 py-2 rounded-lg shadow-2xl transition-opacity duration-300 opacity-0 pointer-events-none z-20 text-sm flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+      Commands copied to clipboard!
+    </div>
+
+    <canvas id="pixelCanvas" class="shadow-2xl shadow-black border border-zinc-800 rounded-lg max-w-full max-h-full object-contain cursor-crosshair"></canvas>
+  </main>
+
+  <!-- Control Sidebar -->
+  <aside class="w-full md:w-80 lg:w-96 bg-zinc-900 border-b md:border-b-0 md:border-r border-zinc-800 p-5 flex flex-col gap-4 overflow-y-auto z-10 shrink-0">
+    <div>
+      <div class="flex items-center gap-2">
+        <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+        </svg>
+        <h1 class="text-xl font-bold tracking-tight text-emerald-400">Minecraft Lake Tool</h1>
+      </div>
+      <p class="text-xs text-zinc-400 mt-1">Design organic, randomized natural lakes and water pools.</p>
+    </div>
+
+    <div class="space-y-4 text-sm">
+      <!-- Grid Dimensions -->
+      <div class="bg-zinc-950/50 p-3 rounded-lg border border-zinc-800/80 space-y-2">
+        <div class="flex justify-between items-center font-semibold text-emerald-300">
+          <span>Grid Dimensions (Blocks)</span>
+          <span id="gridSizeVal" class="text-zinc-400 font-mono">60 × 60</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="gridWidth" class="text-[11px] text-zinc-400 block mb-1">Width (X)</label>
+            <input type="number" id="gridWidth" min="5" max="250" value="60" class="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg p-2 font-mono outline-none focus:border-emerald-500 text-center">
+          </div>
+          <div>
+            <label for="gridHeight" class="text-[11px] text-zinc-400 block mb-1">Height (Y)</label>
+            <input type="number" id="gridHeight" min="5" max="250" value="60" class="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg p-2 font-mono outline-none focus:border-emerald-500 text-center">
+          </div>
+        </div>
+      </div>
+
+      <!-- Line / Shape Type Selection -->
+      <div class="space-y-1.5">
+        <label for="lineType" class="text-zinc-300 font-medium">Path / Shape Type</label>
+        <select id="lineType" class="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 rounded-lg p-2.5 outline-none focus:border-emerald-500">
+          <option value="curve" selected>1. Single Curve (Arc / Bay)</option>
+          <option value="straight">2. Straight Line (Natural Path)</option>
+          <option value="s-curve">3. S-Curve (River / Meander)</option>
+          <option value="multi-meander">4. Multi-Meander (Looping / Oxbows)</option>
+          <option value="forked">5. Forked / Branching (Y-Split / Tributary)</option>
+          <option value="terraced">6. Terraced / Contour (Stepped Hillside)</option>
+          <option value="jagged">7. Jagged / Fault (Fractal / Crack)</option>
+          <option value="round">8. Organic Lake / Puddle (Natural Loop)</option>
+        </select>
+      </div>
+
+      <!-- Round Shape Radius Controls -->
+      <div id="roundControls" class="bg-zinc-950/40 p-3 rounded-lg border border-zinc-800/60 space-y-3 hidden">
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs">
+            <span class="text-emerald-300 font-medium">Base Radius X</span>
+            <span id="radiusXVal" class="text-emerald-400 font-mono">18</span>
+          </div>
+          <input type="range" id="radiusX" min="5" max="100" value="18" class="w-full accent-emerald-500 cursor-pointer">
+        </div>
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs">
+            <span class="text-emerald-300 font-medium">Base Radius Y</span>
+            <span id="radiusYVal" class="text-emerald-400 font-mono">18</span>
+          </div>
+          <input type="range" id="radiusY" min="5" max="100" value="18" class="w-full accent-emerald-500 cursor-pointer">
+        </div>
+      </div>
+
+      <!-- Noise Intensity (Default set to a simpler 1.5) -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between">
+          <label for="noiseIntensity" class="text-zinc-300 font-medium">Shoreline Irregularity / Bays</label>
+          <span id="noiseVal" class="text-zinc-400 font-mono">1.5</span>
+        </div>
+        <input type="range" id="noiseIntensity" min="0" max="25" step="0.5" value="1.5" class="w-full accent-emerald-500 cursor-pointer">
+      </div>
+
+      <!-- Frequency (Default set to a simpler 0.08) -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between">
+          <label for="frequency" class="text-zinc-300 font-medium">Detail Complexity</label>
+          <span id="freqVal" class="text-zinc-400 font-mono">0.08</span>
+        </div>
+        <input type="range" id="frequency" min="0.02" max="0.4" step="0.01" value="0.08" class="w-full accent-emerald-500 cursor-pointer">
+      </div>
+
+      <!-- Thickness (Default set to 1) -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between">
+          <label for="thickness" class="text-zinc-300 font-medium">Shoreline Wall Thickness</label>
+          <span id="thickVal" class="text-zinc-400 font-mono">1</span>
+        </div>
+        <input type="range" id="thickness" min="1" max="10" value="1" class="w-full accent-emerald-500 cursor-pointer">
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="pt-2 mt-auto space-y-2">
+      <button id="randomizeSeed" class="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-medium py-2.5 rounded-lg border border-zinc-700 transition-colors flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Randomize Lake Seed
+      </button>
+      <button id="copyWorldEdit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg shadow-lg shadow-emerald-950/40 transition-all flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+        Copy WorldEdit Commands
+      </button>
+    </div>
+  </aside>
+
+  <script>
+    // --- BASE SHAPE PLUGIN CLASS ---
+    class ShapePlugin {
+      noise(x, y = 0, seed = 0.5) {
+        const n = Math.sin(x * 12.9898 + y * 78.233 + seed * 43758.5453) * 43758.5453;
+        return n - Math.floor(n);
+      }
+
+      smoothstep(t) {
+        return t * t * (3 - 2 * t);
+      }
+
+      coherentNoise(x, seed = 0.5) {
+        const i = Math.floor(x);
+        const f = x - i;
+        const u = this.smoothstep(f);
+        const g0 = this.noise(i, 0, seed) * 2 - 1;
+        const g1 = this.noise(i + 1, 0, seed) * 2 - 1;
+        return (1 - u) * g0 + u * g1;
+      }
+
+      thickening(points, thickness) {
+        if (thickness <= 1) return this.deduplicatePixels(points);
+
+        const thickened = [];
+        const radius = thickness / 2;
+        const maxOffset = Math.ceil(radius);
+        const radiusSq = radius * radius;
+
+        for (const p of points) {
+          for (let rx = -maxOffset; rx <= maxOffset; rx++) {
+            for (let ry = -maxOffset; ry <= maxOffset; ry++) {
+              if (rx * rx + ry * ry <= radiusSq) {
+                thickened.push({ x: p.x + rx, y: p.y + ry });
+              }
+            }
+          }
+        }
+        return this.deduplicatePixels(thickened);
+      }
+
+      deduplicatePixels(points) {
+        const unique = [];
+        const seen = new Set();
+        for (const p of points) {
+          const key = `${p.x},${p.y}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(p);
+          }
+        }
+        return unique;
+      }
+    }
+
+    // --- PLUGIN 1: Single Curve (Arc / Bay) ---
+    class SingleCurvePlugin extends ShapePlugin {
+      getQuadraticPoint(p0, p1, p2, t) {
+        const u = 1 - t;
+        return {
+          x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+          y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y
+        };
+      }
+
+      generate(start, end, options, seed, ctrl1) {
+        const { noiseIntensity = 1.5, frequency = 0.08, thickness = 1 } = options;
+        const dx = end.x - start.x, dy = end.y - start.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist === 0) return [{ x: start.x, y: start.y }];
+
+        const perpX = -dy / dist, perpY = dx / dist;
+        const rawPoints = [];
+        const steps = Math.max(12, Math.ceil(dist * 4));
+
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const basePoint = this.getQuadraticPoint(start, ctrl1, end, t);
+          const fade = Math.sin(t * Math.PI);
+          const noiseVal = this.coherentNoise(t * dist * frequency, seed);
+
+          rawPoints.push({
+            x: Math.round(basePoint.x + perpX * noiseVal * noiseIntensity * fade),
+            y: Math.round(basePoint.y + perpY * noiseVal * noiseIntensity * fade)
+          });
+        }
+        return this.thickening(rawPoints, thickness);
+      }
+    }
+
+    // --- PLUGIN 2: Straight Line ---
+    class StraightLinePlugin extends ShapePlugin {
+      generate(start, end, options, seed) {
+        const { noiseIntensity = 1, frequency = 0.08, thickness = 1 } = options;
+        const dx = end.x - start.x, dy = end.y - start.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist === 0) return [{ x: start.x, y: start.y }];
+
+        const perpX = -dy / dist, perpY = dx / dist;
+        const rawPoints = [];
+        const steps = Math.max(10, Math.ceil(dist * 2));
+
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const basePoint = { x: start.x + t * dx, y: start.y + t * dy };
+          const fade = Math.sin(t * Math.PI);
+          const noiseVal = this.coherentNoise(t * dist * frequency, seed);
+
+          rawPoints.push({
+            x: Math.round(basePoint.x + perpX * noiseVal * noiseIntensity * fade),
+            y: Math.round(basePoint.y + perpY * noiseVal * noiseIntensity * fade)
+          });
+        }
+        return this.thickening(rawPoints, thickness);
+      }
+    }
+
+    // --- PLUGIN 3: S-Curve (Cubic Bézier) ---
+    class SCurvePlugin extends ShapePlugin {
+      getCubicPoint(p0, p1, p2, p3, t) {
+        const u = 1 - t;
+        return {
+          x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+          y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y
+        };
+      }
+
+      generate(start, end, options, seed, ctrl1, ctrl2) {
+        const { noiseIntensity = 1.5, frequency = 0.08, thickness = 1 } = options;
+        const dx = end.x - start.x, dy = end.y - start.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist === 0) return [{ x: start.x, y: start.y }];
+
+        const perpX = -dy / dist, perpY = dx / dist;
+        const rawPoints = [];
+        const steps = Math.max(20, Math.ceil(dist * 4));
+
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const basePoint = this.getCubicPoint(start, ctrl1, ctrl2, end, t);
+          const fade = Math.sin(t * Math.PI);
+          const noiseVal = this.coherentNoise(t * dist * frequency, seed);
+
+          rawPoints.push({
+            x: Math.round(basePoint.x + perpX * noiseVal * noiseIntensity * fade),
+            y: Math.round(basePoint.y + perpY * noiseVal * noiseIntensity * fade)
+          });
+        }
+        return this.thickening(rawPoints, thickness);
+      }
+    }
+
+    // --- PLUGIN 4: Multi-Meander ---
+    class MultiMeanderPlugin extends ShapePlugin {
+      generate(start, end, options, seed, ctrl1, ctrl2) {
+        const { noiseIntensity = 1.5, frequency = 0.08, thickness = 1 } = options;
+        const dx = end.x - start.x, dy = end.y - start.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist === 0) return [{ x: start.x, y: start.y }];
+
+        const perpX = -dy / dist, perpY = dx / dist;
+        const meanderAmp1 = (ctrl1.x - start.x) * perpX + (ctrl1.y - start.y) * perpY;
+        const meanderAmp2 = (ctrl2.x - end.x) * perpX + (ctrl2.y - end.y) * perpY;
+
+        const rawPoints = [];
+        const steps = Math.max(25, Math.ceil(dist * 4));
+
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const ampInterpolated = meanderAmp1 * (1 - t) + meanderAmp2 * t;
+          const meanderOffset = Math.sin(t * Math.PI * 5) * (ampInterpolated || 10);
+          const basePoint = {
+            x: start.x + t * dx + perpX * meanderOffset,
+            y: start.y + t * dy + perpY * meanderOffset
+          };
+          const fade = Math.sin(t * Math.PI);
+          const noiseVal = this.coherentNoise(t * dist * frequency, seed);
+
+          rawPoints.push({
+            x: Math.round(basePoint.x + perpX * noiseVal * noiseIntensity * fade),
+            y: Math.round(basePoint.y + perpY * noiseVal * noiseIntensity * fade)
+          });
+        }
+        return this.thickening(rawPoints, thickness);
+      }
+    }
+
+    // --- PLUGIN 5: Forked Branching ---
+    class ForkedPlugin extends ShapePlugin {
+      generate(start, end, options, seed, ctrl1) {
+        const curvePlugin = new SingleCurvePlugin();
+        const splitPt = { x: Math.round(start.x + (end.x - start.x) * 0.4), y: Math.round(start.y + (end.y - start.y) * 0.4) };
+
+        const b1End = { x: ctrl1.x, y: ctrl1.y };
+        const b2End = { x: end.x, y: end.y };
+
+        const c1Mid = { x: (start.x + splitPt.x) / 2, y: (start.y + splitPt.y) / 2 };
+        const c2Mid = { x: (splitPt.x + b1End.x) / 2, y: (splitPt.y + b1End.y) / 2 };
+        const c3Mid = { x: (splitPt.x + b2End.x) / 2, y: (splitPt.y + b2End.y) / 2 };
+
+        const p1 = curvePlugin.generate(start, splitPt, options, seed, c1Mid);
+        const p2 = curvePlugin.generate(splitPt, b1End, options, seed + 1, c2Mid);
+        const p3 = curvePlugin.generate(splitPt, b2End, options, seed + 2, c3Mid);
+
+        return this.deduplicatePixels([...p1, ...p2, ...p3]);
+      }
+    }
+
+    // --- PLUGIN 6: Terraced Contour ---
+    class TerracedPlugin extends ShapePlugin {
+      generate(start, end, options, seed, ctrl1) {
+        const { thickness = 1 } = options;
+        const curvePlugin = new SingleCurvePlugin();
+        const mainLine = curvePlugin.generate(start, end, options, seed, ctrl1);
+        const terracedPoints = [];
+
+        for (const p of mainLine) {
+          terracedPoints.push(p);
+          terracedPoints.push({ x: p.x + 2, y: p.y });
+          terracedPoints.push({ x: p.x - 2, y: p.y });
+          terracedPoints.push({ x: p.x, y: p.y + 2 });
+          terracedPoints.push({ x: p.x, y: p.y - 2 });
+        }
+        return this.thickening(terracedPoints, thickness);
+      }
+    }
+
+    // --- PLUGIN 7: Jagged Fault Line ---
+    class JaggedPlugin extends ShapePlugin {
+      generate(start, end, options, seed) {
+        const { frequency = 0.08, thickness = 1 } = options;
+        const dx = end.x - start.x, dy = end.y - start.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist === 0) return [{ x: start.x, y: start.y }];
+
+        const perpX = -dy / dist, perpY = dx / dist;
+        const rawPoints = [];
+        const steps = Math.max(15, Math.ceil(dist * 3));
+        const stepCount = Math.max(3, Math.floor(dist * frequency * 2));
+
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const stepT = Math.floor(t * stepCount) / stepCount;
+          const stepNoise = (this.noise(stepT * 10, 0, seed) - 0.5) * 15;
+
+          rawPoints.push({
+            x: Math.round(start.x + t * dx + perpX * stepNoise),
+            y: Math.round(start.y + t * dy + perpY * stepNoise)
+          });
+        }
+        return this.thickening(rawPoints, thickness);
+      }
+    }
+
+    // --- PLUGIN 8: Organic Lake / Puddle ---
+    class OrganicLakePlugin extends ShapePlugin {
+      generate(center, end, options, seed) {
+        const { radiusX = 18, radiusY = 18, noiseIntensity = 2.5, frequency = 0.08, thickness = 1 } = options;
+        const rawPoints = [];
+        const perimeterEstimate = 2 * Math.PI * Math.sqrt((radiusX * radiusX + radiusY * radiusY) / 2);
+        const steps = Math.max(120, Math.ceil(perimeterEstimate * 4));
+
+        for (let i = 0; i < steps; i++) {
+          const t = i / steps;
+          const angle = t * Math.PI * 2;
+          const angleWarp = this.coherentNoise(angle * 2 + seed * 5, seed) * 0.5;
+          const sampleAngle = angle + angleWarp;
+
+          const n1 = this.coherentNoise(Math.cos(sampleAngle) * frequency * 4 + seed * 11, seed);
+          const n2 = this.coherentNoise(Math.sin(sampleAngle) * frequency * 9 + seed * 22, seed) * 0.5;
+
+          const displacement = (n1 + n2) * noiseIntensity;
+          const rx = Math.max(2, radiusX + displacement);
+          const ry = Math.max(2, radiusY + displacement);
+
+          rawPoints.push({
+            x: Math.round(center.x + Math.cos(angle) * rx),
+            y: Math.round(center.y + Math.sin(angle) * ry)
+          });
+        }
+        return this.thickening(rawPoints, thickness);
+      }
+    }
+
+    // --- PLUGIN REGISTRY MANAGER ---
+    class ShapeRegistry {
+      constructor() { this.plugins = {}; }
+      register(name, pluginInstance) { this.plugins[name] = pluginInstance; }
+      get(name) { return this.plugins[name] || this.plugins['curve']; }
+    }
+
+    const registry = new ShapeRegistry();
+    registry.register('curve', new SingleCurvePlugin());
+    registry.register('straight', new StraightLinePlugin());
+    registry.register('s-curve', new SCurvePlugin());
+    registry.register('multi-meander', new MultiMeanderPlugin());
+    registry.register('forked', new ForkedPlugin());
+    registry.register('terraced', new TerracedPlugin());
+    registry.register('jagged', new JaggedPlugin());
+    registry.register('round', new OrganicLakePlugin());
+
+    // --- APPLICATION STATE ---
+    const canvasContainer = document.getElementById('canvas-container');
+    const canvas = document.getElementById('pixelCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let currentSeed = Math.random();
+    let gridWidth = 60;
+    let gridHeight = 60;
+    let startPoint = { x: 12, y: 30 };
+    let endPoint = { x: 48, y: 30 };
+    let controlPoint1 = { x: 30, y: 15 };
+    let controlPoint2 = { x: 30, y: 45 };
+
+    let activeHandle = null;
+    let currentPixels = [];
+
+    const gridWidthEl = document.getElementById('gridWidth');
+    const gridHeightEl = document.getElementById('gridHeight');
+    const lineTypeEl = document.getElementById('lineType');
+    const radiusXEl = document.getElementById('radiusX');
+    const radiusYEl = document.getElementById('radiusY');
+    const noiseIntensityEl = document.getElementById('noiseIntensity');
+    const frequencyEl = document.getElementById('frequency');
+    const thicknessEl = document.getElementById('thickness');
+    const blockCountEl = document.getElementById('blockCount');
+
+    function getOptions() {
+      return {
+        type: lineTypeEl.value,
+        radiusX: parseFloat(radiusXEl.value),
+        radiusY: parseFloat(radiusYEl.value),
+        noiseIntensity: parseFloat(noiseIntensityEl.value),
+        frequency: parseFloat(frequencyEl.value),
+        thickness: parseInt(thicknessEl.value, 10)
+      };
+    }
+
+    function updateLegendsAndControls() {
+      const type = lineTypeEl.value;
+      const isRound = type === 'round';
+      const showP1 = ['curve', 's-curve', 'multi-meander', 'forked', 'terraced'].includes(type);
+      const showP2 = ['s-curve', 'multi-meander'].includes(type);
+
+      document.getElementById('roundControls').style.display = isRound ? 'block' : 'none';
+      document.getElementById('endLegend').style.display = isRound ? 'none' : 'flex';
+      document.getElementById('ctrl1Legend').style.display = showP1 ? 'flex' : 'none';
+      document.getElementById('ctrl2Legend').style.display = showP2 ? 'flex' : 'none';
+    }
+
+    function autoScaleCanvas() {
+      const containerRect = canvasContainer.getBoundingClientRect();
+      const padding = 32;
+      const availableWidth = containerRect.width - padding;
+      const availableHeight = containerRect.height - padding;
+      const aspect = gridWidth / gridHeight;
+      let width = availableWidth;
+      let height = availableWidth / aspect;
+
+      if (height > availableHeight) {
+        height = availableHeight;
+        width = availableHeight * aspect;
+      }
+
+      canvas.width = Math.max(100, width);
+      canvas.height = Math.max(100, height);
+      render();
+    }
+
+    function render() {
+      const blockWidth = canvas.width / gridWidth;
+      const blockHeight = canvas.height / gridHeight;
+
+      ctx.fillStyle = '#09090b';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Grid Lines
+      ctx.strokeStyle = '#18181b';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= gridWidth; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * blockWidth, 0);
+        ctx.lineTo(i * blockWidth, canvas.height);
+        ctx.stroke();
+      }
+      for (let j = 0; j <= gridHeight; j++) {
+        ctx.beginPath();
+        ctx.moveTo(0, j * blockHeight);
+        ctx.lineTo(canvas.width, j * blockHeight);
+        ctx.stroke();
+      }
+
+      // Generate pixels via active plugin
+      const type = lineTypeEl.value;
+      const plugin = registry.get(type);
+      currentPixels = plugin.generate(startPoint, endPoint, getOptions(), currentSeed, controlPoint1, controlPoint2);
+
+      // Draw Shape Pixels
+      ctx.fillStyle = '#10b981';
+      for (const p of currentPixels) {
+        if (p.x >= 0 && p.x < gridWidth && p.y >= 0 && p.y < gridHeight) {
+          ctx.fillRect(
+            p.x * blockWidth + 1,
+            p.y * blockHeight + 1,
+            blockWidth - 1.5,
+            blockHeight - 1.5
+          );
+        }
+      }
+
+      // Draw Control Line Vectors
+      if (['curve', 's-curve', 'multi-meander', 'forked', 'terraced'].includes(type)) {
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo((startPoint.x + 0.5) * blockWidth, (startPoint.y + 0.5) * blockHeight);
+        ctx.lineTo((controlPoint1.x + 0.5) * blockWidth, (controlPoint1.y + 0.5) * blockHeight);
+        ctx.lineTo((endPoint.x + 0.5) * blockWidth, (endPoint.y + 0.5) * blockHeight);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      if (['s-curve', 'multi-meander'].includes(type)) {
+        ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo((controlPoint1.x + 0.5) * blockWidth, (controlPoint1.y + 0.5) * blockHeight);
+        ctx.lineTo((controlPoint2.x + 0.5) * blockWidth, (controlPoint2.y + 0.5) * blockHeight);
+        ctx.lineTo((endPoint.x + 0.5) * blockWidth, (endPoint.y + 0.5) * blockHeight);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Render Handles
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(startPoint.x * blockWidth + 1, startPoint.y * blockHeight + 1, blockWidth - 1.5, blockHeight - 1.5);
+
+      if (!type.includes('round')) {
+        ctx.fillStyle = '#06b6d4';
+        ctx.fillRect(endPoint.x * blockWidth + 1, endPoint.y * blockHeight + 1, blockWidth - 1.5, blockHeight - 1.5);
+      }
+
+      if (['curve', 's-curve', 'multi-meander', 'forked', 'terraced'].includes(type)) {
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(controlPoint1.x * blockWidth + 1, controlPoint1.y * blockHeight + 1, blockWidth - 1.5, blockHeight - 1.5);
+      }
+      if (['s-curve', 'multi-meander'].includes(type)) {
+        ctx.fillStyle = '#a855f7';
+        ctx.fillRect(controlPoint2.x * blockWidth + 1, controlPoint2.y * blockHeight + 1, blockWidth - 1.5, blockHeight - 1.5);
+      }
+
+      blockCountEl.textContent = `${currentPixels.length} blocks total`;
+    }
+
+    function updateVal(id, val) {
+      document.getElementById(id).textContent = val;
+    }
+
+    function handleDimensionChange() {
+      let w = parseInt(gridWidthEl.value, 10);
+      let h = parseInt(gridHeightEl.value, 10);
+      if (isNaN(w) || w < 5) w = gridWidth;
+      if (isNaN(h) || h < 5) h = gridHeight;
+      gridWidth = Math.min(250, w);
+      gridHeight = Math.min(250, h);
+      updateVal('gridSizeVal', `${gridWidth} × ${gridHeight}`);
+      autoScaleCanvas();
+    }
+
+    gridWidthEl.addEventListener('input', handleDimensionChange);
+    gridHeightEl.addEventListener('input', handleDimensionChange);
+    radiusXEl.addEventListener('input', (e) => { updateVal('radiusXVal', e.target.value); render(); });
+    radiusYEl.addEventListener('input', (e) => { updateVal('radiusYVal', e.target.value); render(); });
+    noiseIntensityEl.addEventListener('input', (e) => { updateVal('noiseVal', e.target.value); render(); });
+    frequencyEl.addEventListener('input', (e) => { updateVal('freqVal', e.target.value); render(); });
+    thicknessEl.addEventListener('input', (e) => { updateVal('thickVal', e.target.value); render(); });
+
+    lineTypeEl.addEventListener('change', () => {
+      updateLegendsAndControls();
+      render();
+    });
+
+    document.getElementById('randomizeSeed').addEventListener('click', () => {
+      currentSeed = Math.random();
+      render();
+    });
+
+    document.getElementById('copyWorldEdit').addEventListener('click', () => {
+      const commands = currentPixels.map(p => `//setblock ${p.x} ~ ${p.y} stone`).join('\n');
+      const textarea = document.createElement('textarea');
+      textarea.value = commands;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+
+      const toast = document.getElementById('toast');
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 2000);
+    });
+
+    function getGridCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const clientX = (e.clientX - rect.left) * scaleX;
+      const clientY = (e.clientY - rect.top) * scaleY;
+      const blockWidth = canvas.width / gridWidth;
+      const blockHeight = canvas.height / gridHeight;
+      return {
+        x: Math.max(0, Math.min(gridWidth - 1, Math.floor(clientX / blockWidth))),
+        y: Math.max(0, Math.min(gridHeight - 1, Math.floor(clientY / blockHeight)))
+      };
+    }
+
+    function handleStart(e) {
+      const pos = getGridCoords(e);
+      const type = lineTypeEl.value;
+
+      if (type === 'round') {
+        activeHandle = 'start';
+        startPoint = pos;
+      } else {
+        const dists = [{ name: 'start', d: Math.hypot(pos.x - startPoint.x, pos.y - startPoint.y) }];
+        if (!type.includes('round')) {
+          dists.push({ name: 'end', d: Math.hypot(pos.x - endPoint.x, pos.y - endPoint.y) });
+        }
+        if (['curve', 's-curve', 'multi-meander', 'forked', 'terraced'].includes(type)) {
+          dists.push({ name: 'ctrl1', d: Math.hypot(pos.x - controlPoint1.x, pos.y - controlPoint1.y) });
+        }
+        if (['s-curve', 'multi-meander'].includes(type)) {
+          dists.push({ name: 'ctrl2', d: Math.hypot(pos.x - controlPoint2.x, pos.y - controlPoint2.y) });
+        }
+
+        dists.sort((a, b) => a.d - b.d);
+        activeHandle = dists[0].d < 6 ? dists[0].name : 'start';
+        if (activeHandle === 'start') startPoint = pos;
+        else if (activeHandle === 'end') endPoint = pos;
+        else if (activeHandle === 'ctrl1') controlPoint1 = pos;
+        else if (activeHandle === 'ctrl2') controlPoint2 = pos;
+      }
+      render();
+    }
+
+    function handleMove(e) {
+      if (!activeHandle) return;
+      const pos = getGridCoords(e);
+      if (activeHandle === 'start') startPoint = pos;
+      else if (activeHandle === 'end') endPoint = pos;
+      else if (activeHandle === 'ctrl1') controlPoint1 = pos;
+      else if (activeHandle === 'ctrl2') controlPoint2 = pos;
+      render();
+    }
+
+    function handleEnd() { activeHandle = null; }
+
+    canvas.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) { handleStart(e.touches[0]); e.preventDefault(); }
+    }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1) { handleMove(e.touches[0]); e.preventDefault(); }
+    }, { passive: false });
+    window.addEventListener('touchend', handleEnd);
+
+    window.addEventListener('resize', autoScaleCanvas);
+    updateLegendsAndControls();
+    autoScaleCanvas();
+  </script>
+</body>
+</html>

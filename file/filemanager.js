@@ -407,11 +407,10 @@ class FileManager {
         compression: "DEFLATE",
         compressionOptions: { level: 6 }
       });
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const filename = `oangia.github.io-main-${timestamp}.zip`;
+      const filename = "oangia.github.io-main.zip";
       const archiveFile = new File([archive], filename, { type: "application/zip" });
       const drivePath = `GitHub Backups/oangia.github.io/${filename}`;
-      const { error } = await drive.upload(drivePath, archiveFile, { upsert: false });
+      const { error } = await drive.upload(drivePath, archiveFile, { upsert: true });
       if (error) throw error;
 
       showToast(`Repository backup saved to Drive: ${filename}`, "success", 5000);
