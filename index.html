@@ -203,43 +203,10 @@
   <script src="./file/controllers/filemanager.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      const actionsMenuBtn = document.getElementById("actionsMenu");
-      const actionsMenuDropdown = document.getElementById("actionsMenuToggleBtn");
-    
-      if (actionsMenuBtn && actionsMenuDropdown) {
-        actionsMenuBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          fileManager.action("toggleActionsMenu");
-        });
-    
-        document.addEventListener("click", (e) => {
-          if (!actionsMenuBtn.contains(e.target) && !actionsMenuDropdown.contains(e.target)) {
-            fileManager.action("closeActionsMenu");
-          }
-        });
-      }
       const fileInput = document.getElementById("fileUpload");
       const encryptedInput = document.getElementById("encryptedFileUpload");
       const folderInput = document.getElementById("folderUpload");
-      const backupGitHubBtn = document.getElementById("backupGitHubBtn");
-      const syncToSupabaseBtn = document.getElementById("syncToSupabaseBtn");
-    
-      document.getElementById("syncProgressCloseBtn")?.addEventListener("click", () => {
-        document.getElementById("syncProgressPanel")?.classList.add("hidden");
-      });
-    
-      backupGitHubBtn?.addEventListener("click", (event) => {
-        event.stopPropagation();
-        fileManager.action("closeActionsMenu");
-        fileManager.action("backupGitHubRepo");
-      });
 
-      syncToSupabaseBtn?.addEventListener("click", (event) => {
-        event.stopPropagation();
-        fileManager.action("closeActionsMenu");
-        fileManager.action("syncDriveToSupabase");
-      });
-    
       // 1. Normal File Upload
       fileInput?.addEventListener("change", (e) => fileManager.action("upload", e, false, false));
     

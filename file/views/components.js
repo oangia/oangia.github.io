@@ -333,10 +333,8 @@ class FilePreviewManager {
   }
 
   _initModalListeners() {
-    const closePreview = () => this.fileManager.action("closePreview");
-
-    document.getElementById("closePreviewModalBtn")?.addEventListener("click", closePreview);
-    document.getElementById("closePreviewModalBtnAlt")?.addEventListener("click", closePreview);
+    document.getElementById("closePreviewModalBtn")?.addEventListener("click", () => this.close());
+    document.getElementById("closePreviewModalBtnAlt")?.addEventListener("click", () => this.close());
     document.getElementById("previewCancelEditBtn")?.addEventListener("click", () => this.fileManager.action("cancelEdit"));
     document.getElementById("previewDownloadBtn")?.addEventListener("click", () => {
       if (this.fileManager.currentFileRecord) this.fileManager.action("downloadRecord", this.fileManager.currentFileRecord);
@@ -404,8 +402,8 @@ class FilePreviewManager {
 
       if (fileRecord.isHtml()) {
         body.innerHTML = tpl.htmlBody(escapedText);
-        document.getElementById("htmlPreviewTab")?.addEventListener("click", () => this.fileManager.action("switchHtmlView", "preview"));
-        document.getElementById("htmlEditorTab")?.addEventListener("click", () => this.fileManager.action("switchHtmlView", "editor"));
+        document.getElementById("htmlPreviewTab")?.addEventListener("click", () => this.switchHtmlView("preview"));
+        document.getElementById("htmlEditorTab")?.addEventListener("click", () => this.switchHtmlView("editor"));
         setTimeout(() => {
           const iframe = document.getElementById("htmlPreviewFrame");
           if (iframe) iframe.srcdoc = text;
@@ -512,7 +510,7 @@ class BreadcrumbManager {
 
       const isRoot = crumb.name.toLowerCase() === "root";
       btn.innerHTML = tpl.crumb(crumb.name, isRoot);
-      btn.onclick = () => this.fileManager.action("jumpBreadcrumb", idx);
+      btn.onclick = () => this.jumpToBreadcrumb(idx);
       this.container.appendChild(btn);
 
       if (!isLast) {
@@ -546,8 +544,8 @@ class CreateFolderModal {
     const submitModalBtn = document.getElementById("submitCreateFolderBtn");
     const folderNameInput = document.getElementById("folderNameInput");
 
-    if (openModalBtn) openModalBtn.addEventListener("click", () => this.fileManager.action("openFolderModal"));
-    if (closeModalBtn) closeModalBtn.addEventListener("click", () => this.fileManager.action("closeFolderModal"));
+    if (openModalBtn) openModalBtn.addEventListener("click", () => this.open());
+    if (closeModalBtn) closeModalBtn.addEventListener("click", () => this.close());
     if (submitModalBtn) submitModalBtn.addEventListener("click", () => this.submit());
 
     if (folderNameInput) {
@@ -579,5 +577,137 @@ class CreateFolderModal {
     const name = document.getElementById("folderNameInput")?.value.trim();
     if (!name) return;
     this.fileManager.action("createFolder", name);
+  }
+}
+
+class SyncProgressPanel {
+  constructor() {
+    document.getElementById("syncProgressCloseBtn")?.addEventListener("click", () => this.hide());
+  }
+
+  update(status, current, completed, total, summary, done = false) {
+    const panel = document.getElementById("syncProgressPanel");
+    const statusEl = document.getElementById("syncProgressStatus");
+    const currentEl = document.getElementById("syncProgressCurrent");
+    const countEl = document.getElementById("syncProgressCount");
+    const summaryEl = document.getElementById("syncProgressSummary");
+    const progressBar = document.getElementById("syncProgressBar");
+    if (!panel || !statusEl || !currentEl || !countEl || !summaryEl || !progressBar) return;
+
+    panel.classList.remove("hidden");
+    statusEl.textContent = status;
+    currentEl.textContent = current;
+    currentEl.title = current;
+    countEl.textContent = `${completed} / ${total}`;
+    summaryEl.textContent = summary;
+    const percent = total > 0 ? Math.min(100, Math.round(completed / total * 100)) : done ? 100 : 0;
+    progressBar.style.width = `${percent}%`;
+    progressBar.setAttribute("aria-valuenow", String(percent));
+  }
+
+  hide() {
+    document.getElementById("syncProgressPanel")?.classList.add("hidden");
+  }
+}
+
+class FileActionsMenu {
+  constructor(fileManager) {
+    this.fileManager = fileManager;
+    this.menuButton = document.getElementById("actionsMenu");
+    this.dropdown = document.getElementById("actionsMenuToggleBtn");
+    this.storageBackupButton = document.getElementById("backupBtn");
+    this.backupGitHubButton = document.getElementById("backupGitHubBtn");
+    this.syncButton = document.getElementById("syncToSupabaseBtn");
+    this._bindListeners();
+  }
+
+  _bindListeners() {
+    this.menuButton?.addEventListener("click", event => {
+      event.stopPropagation();
+      this.toggle();
+    });
+
+    document.addEventListener("click", event => {
+      if (!this.menuButton?.contains(event.target) && !this.dropdown?.contains(event.target)) {
+        this.close();
+      }
+    });
+
+    this.storageBackupButton?.addEventListener("click", event => {
+      event.stopPropagation();
+      this.close();
+      this.fileManager.action("backup");
+    });
+    this.backupGitHubButton?.addEventListener("click", event => {
+      event.stopPropagation();
+      this.close();
+      this.fileManager.action("backupGitHubRepo");
+    });
+    this.syncButton?.addEventListener("click", event => {
+      event.stopPropagation();
+      this.close();
+      this.fileManager.action("syncDriveToSupabase");
+    });
+  }
+
+  toggle() {
+    this.dropdown?.classList.toggle("hidden");
+  }
+
+  close() {
+    this.dropdown?.classList.add("hidden");
+  }
+
+  beginStorageBackup() {
+    const originalContent = this.storageBackupButton?.innerHTML;
+    if (this.storageBackupButton) {
+      this.storageBackupButton.disabled = true;
+      this.storageBackupButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5 text-emerald-400 w-4"></i><span>Backing up...</span>';
+    }
+    return originalContent;
+  }
+
+  endStorageBackup(originalContent) {
+    if (!this.storageBackupButton) return;
+    this.storageBackupButton.disabled = false;
+    this.storageBackupButton.innerHTML = originalContent;
+  }
+
+  beginGitHubBackup() {
+    this.gitHubBackupProgress = { uploadedFiles: 0, totalFiles: 0 };
+    const originalContent = this.backupGitHubButton?.innerHTML;
+    if (this.backupGitHubButton) {
+      this.backupGitHubButton.disabled = true;
+      this.backupGitHubButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up repo...</span>';
+    }
+    return originalContent;
+  }
+
+  updateGitHubBackup(progress) {
+    this.gitHubBackupProgress = progress;
+    if (this.backupGitHubButton && progress.totalFiles) {
+      this.backupGitHubButton.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up ${progress.uploadedFiles} / ${progress.totalFiles}...</span>`;
+    }
+  }
+
+  endGitHubBackup(originalContent) {
+    if (!this.backupGitHubButton) return;
+    this.backupGitHubButton.disabled = false;
+    this.backupGitHubButton.innerHTML = originalContent;
+  }
+
+  beginDriveSync() {
+    const originalContent = this.syncButton?.innerHTML;
+    if (this.syncButton) {
+      this.syncButton.disabled = true;
+      this.syncButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5 w-4"></i><span>Syncing...</span>';
+    }
+    return originalContent;
+  }
+
+  endDriveSync(originalContent) {
+    if (!this.syncButton) return;
+    this.syncButton.disabled = false;
+    this.syncButton.innerHTML = originalContent;
   }
 }

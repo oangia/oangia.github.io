@@ -9,6 +9,8 @@ class FileManager {
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", this);
     this.filePreview = new FilePreviewManager(this);
     this.createFolderModal = new CreateFolderModal(this);
+    this.actionsMenu = new FileActionsMenu(this);
+    this.syncProgress = new SyncProgressPanel();
 
     window.addEventListener("storage-services-changed", () => this.action("refresh"));
     this.action("refresh");
@@ -19,19 +21,12 @@ class FileManager {
       case "refresh": return this.listFiles();
       case "listFiles": return this.listFiles();
       case "navigate": return this.navigate(args[0]);
-      case "jumpBreadcrumb": return this.breadcrumb.jumpToBreadcrumb(args[0]);
       case "openPreview": return this.openPreview(args[0]);
-      case "closePreview": return this.filePreview.close();
       case "cancelEdit": return this.cancelEdit();
       case "saveEditedText": return this.saveEditedText(args[0]);
       case "computeHashes": return this.computeHashes(args[0]);
-      case "switchHtmlView": return this.filePreview.switchHtmlView(args[0]);
       case "loadPreviewMedia": return this.loadPreviewMedia(args[0], args[1]);
       case "createFolder": return this.createFolder(args[0]);
-      case "openFolderModal": return this.createFolderModal.open();
-      case "closeFolderModal": return this.createFolderModal.close();
-      case "toggleActionsMenu": return this.toggleActionsMenu();
-      case "closeActionsMenu": return this.closeActionsMenu();
       case "upload": return this.handleFileUpload(args[0], args[1], args[2]);
       case "downloadRecord": return this.downloadRecord(args[0]);
       case "deleteRecord": return this.deleteRecord(args[0]);
@@ -116,14 +111,6 @@ class FileManager {
     this.gridRenderer?.render(this.filteredItems);
   }
 
-  toggleActionsMenu() {
-    document.getElementById("actionsMenuToggleBtn")?.classList.toggle("hidden");
-  }
-
-  closeActionsMenu() {
-    document.getElementById("actionsMenuToggleBtn")?.classList.add("hidden");
-  }
-
   async handleFileUpload(event, isFolderUpload = false, isEncrypted = false) {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
@@ -182,10 +169,6 @@ class FileManager {
       this.filePreview.showPreviewError();
       showToast(error.message || "Preview failed", "error");
     }
-  }
-
-  closePreview() {
-    this.filePreview.close();
   }
 
   cancelEdit() {
@@ -295,75 +278,40 @@ class FileManager {
   }
 
   async createBackup() {
-    const btn = document.getElementById("backupBtn");
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Backing up...</span>';
-    }
-    
-    await FileRecord.backup();
-
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-box-archive"></i> <span>Backup</span>';
+    const originalContent = this.actionsMenu.beginStorageBackup();
+    try {
+      await FileRecord.backup();
+    } finally {
+      this.actionsMenu.endStorageBackup(originalContent);
     }
   }
 
   async backupGitHubRepo() {
-    const btn = document.getElementById("backupGitHubBtn");
-    const originalContent = btn?.innerHTML;
-    let progress = { uploadedFiles: 0, totalFiles: 0 };
-
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up repo...</span>';
-    }
+    const originalContent = this.actionsMenu.beginGitHubBackup();
 
     try {
-      progress = await FileRecord.backupGitHubRepo(nextProgress => {
-        progress = nextProgress;
-        if (btn && progress.totalFiles) {
-          btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up ${progress.uploadedFiles} / ${progress.totalFiles}...</span>`;
-        }
-      });
+      const progress = await FileRecord.backupGitHubRepo(
+        this.actionsMenu.updateGitHubBackup.bind(this.actionsMenu)
+      );
       showToast(`Repository backup saved to Drive: ${progress.uploadedFiles} file(s) in GitHub Backups`, "success", 5000);
     } catch (error) {
       console.error("GitHub repository backup failed:", error);
+      const progress = this.actionsMenu.gitHubBackupProgress;
       const partialProgress = progress.totalFiles
         ? ` (${progress.uploadedFiles} of ${progress.totalFiles} files uploaded)`
         : "";
       showToast(`${error.message || "GitHub repository backup failed"}${partialProgress}`, "error", 5000);
     } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = originalContent;
-      }
+      this.actionsMenu.endGitHubBackup(originalContent);
     }
-  }
-
-  updateSyncProgress(status, current, completed, total, summary, done = false) {
-    const panel = document.getElementById("syncProgressPanel");
-    const statusEl = document.getElementById("syncProgressStatus");
-    const currentEl = document.getElementById("syncProgressCurrent");
-    const countEl = document.getElementById("syncProgressCount");
-    const summaryEl = document.getElementById("syncProgressSummary");
-    const progressBar = document.getElementById("syncProgressBar");
-    if (!panel || !statusEl || !currentEl || !countEl || !summaryEl || !progressBar) return;
-
-    panel.classList.remove("hidden");
-    statusEl.textContent = status;
-    currentEl.textContent = current;
-    currentEl.title = current;
-    countEl.textContent = `${completed} / ${total}`;
-    summaryEl.textContent = summary;
-    const percent = total > 0 ? Math.min(100, Math.round(completed / total * 100)) : done ? 100 : 0;
-    progressBar.style.width = `${percent}%`;
-    progressBar.setAttribute("aria-valuenow", String(percent));
   }
 
   async syncFileToSupabase(file) {
     try {
-      const result = await FileRecord.syncFileToSupabase(file, (...progress) => this.updateSyncProgress(...progress));
+      const result = await FileRecord.syncFileToSupabase(
+        file,
+        this.syncProgress.update.bind(this.syncProgress)
+      );
       if (result.status === "unavailable") {
         showToast("Connect Google Drive and configure Supabase before syncing", "warning");
       } else if (result.status === "invalid-selection") {
@@ -376,15 +324,12 @@ class FileManager {
     } catch (error) {
       const path = file?.getFullPath?.() || "";
       console.error(`Failed to sync ${path} to Supabase:`, error);
-      this.updateSyncProgress("Sync failed", path, 0, 1, error.message || "Failed to sync file", true);
+      this.syncProgress.update("Sync failed", path, 0, 1, error.message || "Failed to sync file", true);
       showToast(`Failed to sync ${file.getDisplayName()}: ${error.message || "Unknown error"}`, "error");
     }
   }
 
   async syncDriveToSupabase() {
-    const button = document.getElementById("syncToSupabaseBtn");
-    const originalButtonContent = button?.innerHTML;
-
     const statuses = new Map(FileRecord.getServiceStatuses().map(service => [service.name, service.isAvailable]));
     if (!statuses.get("Google Drive") || !statuses.get("Supabase")) {
       showToast("Connect Google Drive and configure Supabase before syncing", "warning");
@@ -394,16 +339,15 @@ class FileManager {
       return;
     }
 
-    if (button) {
-      button.disabled = true;
-      button.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5 w-4"></i><span>Syncing...</span>';
-    }
+    const originalButtonContent = this.actionsMenu.beginDriveSync();
 
     try {
-      const result = await FileRecord.syncDriveToSupabase((...progress) => this.updateSyncProgress(...progress));
+      const result = await FileRecord.syncDriveToSupabase(
+        this.syncProgress.update.bind(this.syncProgress)
+      );
       await this.action("refresh");
       if (result.failed === 0 && result.deleteFailed === 0) {
-        this.updateSyncProgress(
+        this.syncProgress.update(
           "Sync complete",
           `Copied ${result.synced}; skipped ${result.skipped} unchanged; removed ${result.deleted} Supabase-only`,
           result.completedWork,
@@ -416,7 +360,7 @@ class FileManager {
           "success"
         );
       } else {
-        this.updateSyncProgress(
+        this.syncProgress.update(
           "Sync finished with errors",
           `Copied ${result.synced}; skipped ${result.skipped} unchanged; ${result.failed} sync failures; removed ${result.deleted}; ${result.deleteFailed} removal failures`,
           result.completedWork,
@@ -432,13 +376,10 @@ class FileManager {
       }
     } catch (error) {
       console.error("Drive to Supabase sync failed:", error);
-      this.updateSyncProgress("Sync stopped", error.message || "Failed to build a complete file list", 0, 0, "Stopped", true);
+      this.syncProgress.update("Sync stopped", error.message || "Failed to build a complete file list", 0, 0, "Stopped", true);
       showToast(error.message || "Drive to Supabase sync failed", "error", 5000);
     } finally {
-      if (button) {
-        button.disabled = false;
-        button.innerHTML = originalButtonContent;
-      }
+      this.actionsMenu.endDriveSync(originalButtonContent);
     }
   }
 }
