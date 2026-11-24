@@ -10,7 +10,7 @@ class FileManager {
     this.filePreview = new FilePreviewManager(this);
     this.createFolderModal = new CreateFolderModal(this);
 
-    FileRecord.setServiceChangeHandler(() => this.action("refresh"));
+    window.addEventListener("storage-services-changed", () => this.action("refresh"));
     this.action("refresh");
   }
 
@@ -46,7 +46,7 @@ class FileManager {
   async listFiles() {
     const requestId = ++this.listRequestId;
     try {
-      const { data, errors } = await FileRecord.allFromServices(this.breadcrumb.path);
+      const { data, errors } = await FileRecord.getAllFromServices(this.breadcrumb.path);
       if (requestId !== this.listRequestId) return;
       errors.forEach(({ service, error }) => {
         console.error(`Failed to list ${service}:`, error);
@@ -79,7 +79,7 @@ class FileManager {
       try {
         group.comparisonStatus = group.isFolderNode()
           ? await this.compareFolderCopies(group)
-          : await FileRecord.compareCopies(group.files);
+          : await FileRecord.getCopyComparison(group.files);
       } catch (error) {
         const type = group.isFolderNode() ? "folder" : "file";
         console.error(`Failed to compare matching ${type} "${group.getDisplayName()}":`, error);
@@ -104,7 +104,7 @@ class FileManager {
         if (visitedFolders.has(cleanPath)) return;
         visitedFolders.add(cleanPath);
 
-        const { data, error } = await FileRecord.all(cleanPath, {}, service.storage, service.name);
+        const { data, error } = await FileRecord.getAll(cleanPath, {}, service.storage, service.name);
         if (error) throw error;
 
         for (const item of data) {
@@ -128,7 +128,7 @@ class FileManager {
       }
 
       if (!copies[0].isFolderNode()) {
-        const status = await FileRecord.compareCopies(copies);
+        const status = await FileRecord.getCopyComparison(copies);
         if (status !== "Synced") return status;
       }
     }
@@ -221,7 +221,7 @@ class FileManager {
     this.currentFileRecord = file;
     this.filePreview.showLoading(file);
     try {
-      const response = await file.fetchContent(60);
+      const response = await file.getContent(60);
       const blob = await response.blob();
       file._byteLength = blob.size;
       await this.filePreview.renderPreview(file, blob);
@@ -258,7 +258,7 @@ class FileManager {
     this.filePreview.showHashesLoading();
 
     try {
-      await file.hashContent(url);
+      await file.getHashContentFromUrl(url);
       if (!file.hash_content || !file.hash_file) {
         throw new Error("Hash computation returned empty results.");
       }
@@ -276,7 +276,17 @@ class FileManager {
 
   async loadPreviewMedia(file, element) {
     try {
-      await file.loadPreviewMedia(element);
+      if (file.getUrl()?.startsWith("blob:")) {
+        element.loading = "lazy";
+        element.src = file.getUrl();
+        return;
+      }
+
+      const content = await file.getContent();
+      const blob = await content.blob();
+      element.loading = "lazy";
+      element.preload = "auto";
+      element.src = URL.createObjectURL(blob);
     } catch (error) {
       if (error.name === "AbortError") return;
       console.error("Failed to load file preview:", error);
@@ -302,7 +312,7 @@ class FileManager {
 
   async downloadRecord(file) {
     try {
-      const response = await file.fetchContent();
+      const response = await file.getContent();
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
       link.href = url;
@@ -460,7 +470,7 @@ class FileManager {
         storageService: drive,
         storageName: "Google Drive"
       });
-      if (!driveRecord.getHashContent()) await driveRecord.fetchContent();
+      if (!driveRecord.getHashContent()) await driveRecord.getContent();
 
       const supabaseRecord = new FileRecord({
         id: existing.id,
@@ -471,7 +481,7 @@ class FileManager {
         storageService: supabase,
         storageName: "Supabase"
       });
-      if (!supabaseRecord.getHashContent()) await supabaseRecord.fetchContent();
+      if (!supabaseRecord.getHashContent()) await supabaseRecord.getContent();
 
       return {
         matches: driveRecord.getHashContent() === supabaseRecord.getHashContent()
@@ -523,7 +533,7 @@ class FileManager {
       }
 
       this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Downloading from Google Drive");
-      const response = await file.fetchContent();
+      const response = await file.getContent();
       const blob = await response.blob();
 
       this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Uploading to Supabase");
@@ -678,13 +688,19 @@ class FileManager {
             skipped++;
             itemStatus = "Already up to date";
           } else {
-            const driveRecord = FileRecord._fromDriveMetadata(
-              entry,
-              path,
-              drive,
-              "Google Drive"
-            );
-            const response = await driveRecord.fetchContent();
+            const driveRecord = new FileRecord({
+              id: entry.id || null,
+              name: entry.name,
+              full_path: path,
+              size: Number(entry.size || 0),
+              mime_type: entry.mimeType,
+              url: entry.webContentLink || null,
+              updated_at: entry.modifiedTime ? new Date(entry.modifiedTime).getTime() : null,
+              is_folder: entry.mimeType === "application/vnd.google-apps.folder" || entry.mimeType === "inode/directory",
+              storageService: drive,
+              storageName: "Google Drive"
+            });
+            const response = await driveRecord.getContent();
             const blob = await response.blob();
             await uploadFile(path, entry.name, entry.mimeType, blob);
             synced++;

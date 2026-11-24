@@ -55,7 +55,7 @@ class FileEntity {
     const ext = this.getDisplayName().toLowerCase().split(".").pop();
     const mimeMap = {
       txt: "text/plain", html: "text/html", css: "text/css",
-      js: "application/javascript", json: "application/json",
+      js: "application/javaseateipt", json: "application/json",
       png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
       gif: "image/gif", svg: "image/svg+xml", pdf: "application/pdf", zip: "application/zip"
     };
@@ -71,7 +71,6 @@ class BaseStorageRecord extends FileEntity {
   static SUPABASE_ENABLED = true;
   static _storageService = null;
   static _storageServices = null;
-  static _serviceChangeHandler = null;
   
   constructor(data = {}) {
     super(data);
@@ -84,7 +83,7 @@ class BaseStorageRecord extends FileEntity {
   static getStorage() {
     if (!BaseStorageRecord._storageService) {
       BaseStorageRecord._storageService = new DriveStorageService({
-        onConnectionChange: () => BaseStorageRecord.notifyServicesChanged()
+        onConnectionChange: () => BaseStorageRecord._notifyServicesChanged()
       });
     }
     return BaseStorageRecord._storageService;
@@ -92,7 +91,7 @@ class BaseStorageRecord extends FileEntity {
 
   static getStorageServices() {
     if (!BaseStorageRecord._storageServices) {
-      const onConnectionChange = () => BaseStorageRecord.notifyServicesChanged();
+      const onConnectionChange = () => BaseStorageRecord._notifyServicesChanged();
       BaseStorageRecord._storageServices = [
         {
           name: "Google Drive",
@@ -124,19 +123,14 @@ class BaseStorageRecord extends FileEntity {
     }));
   }
 
-  static setServiceChangeHandler(handler) {
-    BaseStorageRecord._serviceChangeHandler = handler;
-    this.getStorageServices();
+  static _notifyServicesChanged() {
+    window.dispatchEvent(new Event("storage-services-changed"));
   }
 
-  static notifyServicesChanged() {
-    BaseStorageRecord._serviceChangeHandler?.();
-  }
-
-  static async allFromServices(path = "", options = {}) {
+  static async getAllFromServices(path = "", options = {}) {
     const services = this.getStorageServices().filter(({ storage, isAvailable }) => isAvailable(storage));
     const results = await Promise.all(services.map(async ({ name, storage }) => {
-      const { data, error } = await this.all(path, options, storage, name);
+      const { data, error } = await this.getAll(path, options, storage, name);
       return { data, error, name };
     }));
 
@@ -149,7 +143,7 @@ class BaseStorageRecord extends FileEntity {
     };
   }
 
-  static async all(path = "", options = {}, storage = this.getStorage(), storageName = "Google Drive") {
+  static async getAll(path = "", options = {}, storage = this.getStorage(), storageName = "Google Drive") {
     const { data, error } = await storage.list(path, {
       limit: 500,
       offset: 0,
@@ -194,7 +188,7 @@ class BaseStorageRecord extends FileEntity {
     return new File([file], name, { type: file.type || "application/octet-stream" });
   }
 
-  static async find(path) {
+  static async getByPath(path) {
     const { data, error } = await this.getStorage().getByPath(path);
     if (error || !data) return { data: null, error };
 
@@ -202,7 +196,7 @@ class BaseStorageRecord extends FileEntity {
     return { data: this._fromDriveMetadata(data, cleanPath), error: null };
   }
 
-  static async findById(id) {
+  static async getById(id) {
     const { data, error } = await this.getStorage().getById(id);
     if (error || !data) return { data: null, error };
 
@@ -233,7 +227,7 @@ class BaseStorageRecord extends FileEntity {
       : await storage.upload(path, file, options);
   }
 
-  static async download(path, downloadName = null) {
+  static async _download(path, downloadName = null) {
     const fileName = downloadName || path.split("/").pop();
     const storage = this.getStorage();
     // Assuming storage has a download method or fallback URL logic
@@ -277,7 +271,7 @@ class BaseStorageRecord extends FileEntity {
     const path = this._full_path || this._name;
 
     if (this.isFolderNode()) {
-      const { data: items, error } = await BaseStorageRecord.all(path, {}, storage, this._storageName);
+      const { data: items, error } = await BaseStorageRecord.getAll(path, {}, storage, this._storageName);
       if (error) throw error;
       if (items?.length) {
         if (!recursive) throw new Error(`Folder "${path}" is not empty. Pass { recursive: true }.`);
@@ -288,7 +282,7 @@ class BaseStorageRecord extends FileEntity {
     return await storage.remove([path]);
   }
 
-  async fetchContent(expiresIn = 60) {
+  async getContent(expiresIn = 60) {
     const storage = this._storageService || BaseStorageRecord.getStorage();
     const { data: response, error } = await storage.fetchContent({
       id: this.getId(),
@@ -298,23 +292,7 @@ class BaseStorageRecord extends FileEntity {
     return response;
   }
 
-  async loadPreviewMedia(element, expiresIn = 60) {
-    if (this.getUrl()?.startsWith("blob:")) {
-      element.loading = "lazy";
-      element.src = this.getUrl();
-      return;
-    }
-
-    const content = await this.fetchContent(expiresIn);
-    const blob = await content.blob();
-    const objectUrl = URL.createObjectURL(blob);
-
-    element.loading = "lazy";
-    element.preload = "auto";
-    element.src = objectUrl;
-  }
-
-  async downloadInstance() {
+  async _downloadInstance() {
     const url = await this.getUrl();
     const link = document.createElement("a");
     link.href = url;
@@ -338,28 +316,29 @@ class FileRecord extends BaseStorageRecord {
 
   constructor(data = {}) {
     super(data);
-    this.hashFullpath();
+    this._hashFullpath();
   }
 
   getHashContent() { return this.hash_content || null; }
 
-  async hashFullpath() {
+  async _hashFullpath() {
     this.hash_filename = await Crypto.sha256(this.getFullPath());
   }
 
-  async hashContent(url) {
+  async getHashContentFromUrl(url) {
     const response = await fetch(url);
     const blob = await response.blob();
     await this._setHashes(await blob.arrayBuffer());
+    return this.getHashContent();
   }
 
   async _setHashes(buffer) {
-    await this.hashFullpath();
+    await this._hashFullpath();
     this.hash_content = await Crypto.sha256(buffer);
     this.hash_file = await Crypto.sha256(this.hash_filename + this.hash_content);
   }
 
-  static async computeBackupHash(hashParts) {
+  static async _computeBackupHash(hashParts) {
     hashParts.sort((a, b) => a.path.localeCompare(b.path));
     const encoder = new TextEncoder();
     const chunks = [];
@@ -383,7 +362,7 @@ class FileRecord extends BaseStorageRecord {
   }
 
   async _fetchContentWithHash(expiresIn = 60) {
-    const response = await super.fetchContent(expiresIn);
+    const response = await super.getContent(expiresIn);
     if (this.hash_content) return response;
 
     const buffer = await response.arrayBuffer();
@@ -402,7 +381,7 @@ class FileRecord extends BaseStorageRecord {
     return savedRecord;
   }
 
-  static async compareCopies(records) {
+  static async getCopyComparison(records) {
     if (records.length < 2) return "Only one copy";
     const paths = new Set(records.map(record => record.getFullPath().replace(/^\/+|\/+$/g, "")));
     if (paths.size > 1) return "Different path";
@@ -411,7 +390,7 @@ class FileRecord extends BaseStorageRecord {
 
     const hashes = await Promise.all(records.map(async record => {
       try {
-        if (!record.getHashContent()) await record.fetchContent();
+        if (!record.getHashContent()) await record.getContent();
         const hash = record.getHashContent();
         if (!hash) throw new Error(`Missing content hash for "${record.getFullPath()}"`);
         return hash;
@@ -463,7 +442,7 @@ class FileRecord extends BaseStorageRecord {
       }
 
       storage.onProgress("Calculating archive hash...", "info");
-      const shortHash = await this.computeBackupHash(hashParts);
+      const shortHash = await this._computeBackupHash(hashParts);
       const today = new Date().toISOString().slice(0, 10);
       const filename = `${storage.bucket}_${today}_${shortHash}.zip`;
 
@@ -543,7 +522,7 @@ class FileRecord extends BaseStorageRecord {
     return await super.create(finalPath, uploadFile, options);
   }
 
-  async fetchContent(expiresIn = 60) {
+  async getContent(expiresIn = 60) {
     const response = await this._fetchContentWithHash(expiresIn);
 
     if (!this.isEncryptedFile()) {
