@@ -1,5 +1,34 @@
-class FileEntity {
+class FileInterface {
+  getId() { throw new Error("FileInterface.getId() must be implemented."); }
+  getName() { throw new Error("FileInterface.getName() must be implemented."); }
+  getFullPath() { throw new Error("FileInterface.getFullPath() must be implemented."); }
+  getSize() { throw new Error("FileInterface.getSize() must be implemented."); }
+  getMimeType() { throw new Error("FileInterface.getMimeType() must be implemented."); }
+  getUrl() { throw new Error("FileInterface.getUrl() must be implemented."); }
+  getDisplayName() { throw new Error("FileInterface.getDisplayName() must be implemented."); }
+  isFolderNode() { throw new Error("FileInterface.isFolderNode() must be implemented."); }
+  isEditable() { throw new Error("FileInterface.isEditable() must be implemented."); }
+  getStorageName() { throw new Error("FileInterface.getStorageName() must be implemented."); }
+  getContent() { throw new Error("FileInterface.getContent() must be implemented."); }
+  save() { throw new Error("FileInterface.save() must be implemented."); }
+  delete() { throw new Error("FileInterface.delete() must be implemented."); }
+  getHashContent() { throw new Error("FileInterface.getHashContent() must be implemented."); }
+  getHashContentFromUrl() { throw new Error("FileInterface.getHashContentFromUrl() must be implemented."); }
+
+  static getAllFromServices() { throw new Error("FileInterface.getAllFromServices() must be implemented."); }
+  static getCopyComparison() { throw new Error("FileInterface.getCopyComparison() must be implemented."); }
+  static getFolderCopyComparison() { throw new Error("FileInterface.getFolderCopyComparison() must be implemented."); }
+  static getServiceStatuses() { throw new Error("FileInterface.getServiceStatuses() must be implemented."); }
+  static create() { throw new Error("FileInterface.create() must be implemented."); }
+  static backup() { throw new Error("FileInterface.backup() must be implemented."); }
+  static backupGitHubRepo() { throw new Error("FileInterface.backupGitHubRepo() must be implemented."); }
+  static syncFileToSupabase() { throw new Error("FileInterface.syncFileToSupabase() must be implemented."); }
+  static syncDriveToSupabase() { throw new Error("FileInterface.syncDriveToSupabase() must be implemented."); }
+}
+
+class FileEntity extends FileInterface {
   constructor({id = null, name = "", full_path = "", size = 0, mime_type = null, url = null, is_folder = false, created_at = null, updated_at = null} = {}) {
+    super();
     this._id = id;
     this._name = name;
     this._full_path = full_path;
@@ -80,7 +109,7 @@ class BaseStorageRecord extends FileEntity {
 
   getStorageName() { return this._storageName; }
 
-  static getStorage() {
+  static _getStorage() {
     if (!BaseStorageRecord._storageService) {
       BaseStorageRecord._storageService = new DriveStorageService({
         onConnectionChange: () => BaseStorageRecord._notifyServicesChanged()
@@ -89,13 +118,13 @@ class BaseStorageRecord extends FileEntity {
     return BaseStorageRecord._storageService;
   }
 
-  static getStorageServices() {
+  static _getStorageServices() {
     if (!BaseStorageRecord._storageServices) {
       const onConnectionChange = () => BaseStorageRecord._notifyServicesChanged();
       BaseStorageRecord._storageServices = [
         {
           name: "Google Drive",
-          storage: this.getStorage(),
+          storage: this._getStorage(),
           isAvailable: storage => Boolean(storage.token)
         },
         {
@@ -117,7 +146,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static getServiceStatuses() {
-    return this.getStorageServices().map(({ name, storage, isAvailable }) => ({
+    return this._getStorageServices().map(({ name, storage, isAvailable }) => ({
       name,
       isAvailable: isAvailable(storage)
     }));
@@ -127,10 +156,14 @@ class BaseStorageRecord extends FileEntity {
     window.dispatchEvent(new Event("storage-services-changed"));
   }
 
+  static _getStorageService(name) {
+    return this._getStorageServices().find(service => service.name === name);
+  }
+
   static async getAllFromServices(path = "", options = {}) {
-    const services = this.getStorageServices().filter(({ storage, isAvailable }) => isAvailable(storage));
+    const services = this._getStorageServices().filter(({ storage, isAvailable }) => isAvailable(storage));
     const results = await Promise.all(services.map(async ({ name, storage }) => {
-      const { data, error } = await this.getAll(path, options, storage, name);
+      const { data, error } = await this._getAll(path, options, storage, name);
       return { data, error, name };
     }));
 
@@ -143,7 +176,7 @@ class BaseStorageRecord extends FileEntity {
     };
   }
 
-  static async getAll(path = "", options = {}, storage = this.getStorage(), storageName = "Google Drive") {
+  static async _getAll(path = "", options = {}, storage = this._getStorage(), storageName = "Google Drive") {
     const { data, error } = await storage.list(path, {
       limit: 500,
       offset: 0,
@@ -166,7 +199,7 @@ class BaseStorageRecord extends FileEntity {
     return { data: fileRecords, error: null };
   }
   
-  static _fromDriveMetadata(file, path, storage = this.getStorage(), storageName = "Google Drive") {
+  static _fromDriveMetadata(file, path, storage = this._getStorage(), storageName = "Google Drive") {
     const is_folder = file.mimeType === "application/vnd.google-apps.folder" || file.mimeType === "inode/directory";
     return new this({
       id: file.id || null,
@@ -189,7 +222,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async getByPath(path) {
-    const { data, error } = await this.getStorage().getByPath(path);
+    const { data, error } = await this._getStorage().getByPath(path);
     if (error || !data) return { data: null, error };
 
     const cleanPath = path.replace(/^\/+|\/+$/g, "");
@@ -197,7 +230,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async getById(id) {
-    const { data, error } = await this.getStorage().getById(id);
+    const { data, error } = await this._getStorage().getById(id);
     if (error || !data) return { data: null, error };
 
     return { data: this._fromDriveMetadata(data, ""), error: null };
@@ -205,12 +238,12 @@ class BaseStorageRecord extends FileEntity {
 
   static async create(path, file, options = { upsert: false }) {
     let uploadFile = this._namedUploadFile(path, file);
-    return await this._uploadToStorage(this.getStorage(), path, uploadFile, options);
+    return await this._uploadToStorage(this._getStorage(), path, uploadFile, options);
   }
 
   static async update(path, file, options = {}) {
     return await this._uploadToStorage(
-      this.getStorage(),
+      this._getStorage(),
       path,
       this._namedUploadFile(path, file),
       { ...options, upsert: true }
@@ -218,7 +251,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async updateById(id, file) {
-    return await this._uploadToStorage(this.getStorage(), id, file, {}, true);
+    return await this._uploadToStorage(this._getStorage(), id, file, {}, true);
   }
 
   static async _uploadToStorage(storage, path, file, options = {}, byId = false) {
@@ -229,7 +262,7 @@ class BaseStorageRecord extends FileEntity {
 
   static async _download(path, downloadName = null) {
     const fileName = downloadName || path.split("/").pop();
-    const storage = this.getStorage();
+    const storage = this._getStorage();
     // Assuming storage has a download method or fallback URL logic
     const { data } = await storage.getByPath(path);
     const url = data?.webContentLink;
@@ -245,7 +278,7 @@ class BaseStorageRecord extends FileEntity {
   async save(newFileBlob) {
     if (!this._full_path && !this._id) throw new Error("Cannot save BaseStorageRecord without an ID or full_path.");
     const namedFile = BaseStorageRecord._namedUploadFile(this._full_path || this._name, newFileBlob);
-    const storage = this._storageService || BaseStorageRecord.getStorage();
+    const storage = this._storageService || BaseStorageRecord._getStorage();
     const { data, error } = await this.constructor._uploadToStorage(
       storage,
       this._id || this._full_path,
@@ -267,11 +300,11 @@ class BaseStorageRecord extends FileEntity {
   }
 
   async delete({ recursive = false } = {}) {
-    const storage = this._storageService || BaseStorageRecord.getStorage();
+    const storage = this._storageService || BaseStorageRecord._getStorage();
     const path = this._full_path || this._name;
 
     if (this.isFolderNode()) {
-      const { data: items, error } = await BaseStorageRecord.getAll(path, {}, storage, this._storageName);
+      const { data: items, error } = await BaseStorageRecord._getAll(path, {}, storage, this._storageName);
       if (error) throw error;
       if (items?.length) {
         if (!recursive) throw new Error(`Folder "${path}" is not empty. Pass { recursive: true }.`);
@@ -283,7 +316,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   async getContent(expiresIn = 60) {
-    const storage = this._storageService || BaseStorageRecord.getStorage();
+    const storage = this._storageService || BaseStorageRecord._getStorage();
     const { data: response, error } = await storage.fetchContent({
       id: this.getId(),
       path: this.getFullPath(),
@@ -405,10 +438,56 @@ class FileRecord extends BaseStorageRecord {
     return hashes.every(hash => hash === hashes[0]) ? "Synced" : "Different content";
   }
 
+  static async getFolderCopyComparison(folders) {
+    const services = new Map(this._getStorageServices().map(service => [service.name, service]));
+    const trees = await Promise.all(folders.map(async folder => {
+      const service = services.get(folder.getStorageName());
+      if (!service) throw new Error(`Storage service not found: ${folder.getStorageName()}`);
+
+      const rootPath = folder.getFullPath().replace(/^\/+|\/+$/g, "");
+      const items = new Map();
+      const visitedFolders = new Set();
+      const collect = async path => {
+        const cleanPath = path.replace(/^\/+|\/+$/g, "");
+        if (visitedFolders.has(cleanPath)) return;
+        visitedFolders.add(cleanPath);
+
+        const { data, error } = await this._getAll(cleanPath, {}, service.storage, service.name);
+        if (error) throw error;
+
+        for (const item of data) {
+          const itemPath = item.getFullPath().replace(/^\/+|\/+$/g, "");
+          const relativePath = itemPath.slice(rootPath.length).replace(/^\/+/, "");
+          items.set(relativePath, item);
+          if (item.isFolderNode()) await collect(itemPath);
+        }
+      };
+
+      await collect(rootPath);
+      return items;
+    }));
+
+    const paths = new Set(trees.flatMap(tree => Array.from(tree.keys())));
+    for (const path of paths) {
+      const copies = trees.map(tree => tree.get(path));
+      if (copies.some(copy => !copy)
+        || new Set(copies.map(copy => copy.isFolderNode())).size > 1) {
+        return "Different files";
+      }
+
+      if (!copies[0].isFolderNode()) {
+        const status = await this.getCopyComparison(copies);
+        if (status !== "Synced") return status;
+      }
+    }
+
+    return "Synced";
+  }
+
   static async backup() {
     let storage;
     try {
-      storage = this.getStorageServices().find(service => service.name === "Supabase")?.storage;
+      storage = this._getStorageService("Supabase")?.storage;
       if (!storage?.client) throw new Error("Supabase client not initialized");
 
       storage.onProgress("Collecting all files...", "info");
@@ -488,6 +567,361 @@ class FileRecord extends BaseStorageRecord {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  static async backupGitHubRepo(onProgress = () => {}) {
+    const drive = this._getStorage();
+    if (!drive.token) throw new Error("Connect Google Drive before backing up the repository.");
+
+    let uploadedFiles = 0;
+    let totalFiles = 0;
+    const requestGitHubJson = async url => {
+      const response = await fetch(url, {
+        headers: { Accept: "application/vnd.github+json" }
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || `GitHub API request failed (${response.status}).`);
+      }
+      return response.json();
+    };
+
+    const apiBase = "https://api.github.com/repos/oangia/oangia.github.io";
+    const tree = await requestGitHubJson(`${apiBase}/git/trees/main?recursive=1`);
+    if (tree.truncated) {
+      throw new Error("GitHub returned an incomplete repository file list.");
+    }
+
+    const files = tree.tree.filter(entry => entry.type === "blob");
+    if (files.length === 0) throw new Error("The GitHub repository contains no files to back up.");
+    totalFiles = files.length;
+    onProgress({ uploadedFiles, totalFiles });
+
+    for (let offset = 0; offset < files.length; offset += 5) {
+      const batch = files.slice(offset, offset + 5);
+      const blobs = await Promise.all(batch.map(entry =>
+        requestGitHubJson(`${apiBase}/git/blobs/${entry.sha}`)
+      ));
+
+      for (let index = 0; index < blobs.length; index++) {
+        const blob = blobs[index];
+        if (blob.encoding !== "base64" || typeof blob.content !== "string") {
+          throw new Error(`GitHub returned unsupported content for "${batch[index].path}".`);
+        }
+
+        const binary = atob(blob.content.replace(/\s/g, ""));
+        const content = new Uint8Array(binary.length);
+        for (let byte = 0; byte < binary.length; byte++) {
+          content[byte] = binary.charCodeAt(byte);
+        }
+
+        const filename = batch[index].path.split("/").pop();
+        const file = new File([content], filename, { type: "application/octet-stream" });
+        const path = `GitHub Backups/${batch[index].path}`;
+        const { error } = await this.create(path, file, { upsert: true });
+        if (error) {
+          throw new Error(`Could not upload "${batch[index].path}" to Google Drive: ${error.message}`);
+        }
+        uploadedFiles++;
+        onProgress({ uploadedFiles, totalFiles });
+      }
+    }
+
+    return { uploadedFiles, totalFiles };
+  }
+
+  static async _compareSyncCopy({ id, size, isEditable }, path, existing, drive, supabase) {
+    if (!existing) return { matches: false };
+    const normalizePath = value => String(value || "").replace(/^\/+|\/+$/g, "");
+    if (normalizePath(path) !== normalizePath(existing.id || path)
+      || Number(size) !== Number(existing.size)) {
+      return { matches: false };
+    }
+    if (!isEditable) return { matches: true };
+
+    try {
+      const driveRecord = new this({
+        id,
+        full_path: path,
+        storageService: drive,
+        storageName: "Google Drive"
+      });
+      if (!driveRecord.getHashContent()) await driveRecord.getContent();
+
+      const supabaseRecord = new this({
+        id: existing.id,
+        name: existing.name,
+        full_path: path,
+        size: existing.size,
+        mime_type: existing.mimeType,
+        storageService: supabase,
+        storageName: "Supabase"
+      });
+      if (!supabaseRecord.getHashContent()) await supabaseRecord.getContent();
+
+      return { matches: driveRecord.getHashContent() === supabaseRecord.getHashContent() };
+    } catch (comparisonError) {
+      return { matches: false, comparisonError };
+    }
+  }
+
+  static async syncFileToSupabase(file, onProgress = () => {}) {
+    const driveService = this._getStorageService("Google Drive");
+    const supabaseService = this._getStorageService("Supabase");
+    if (!driveService?.isAvailable(driveService.storage)
+      || !supabaseService?.isAvailable(supabaseService.storage)) {
+      return { status: "unavailable" };
+    }
+    if (!file || file.isFolderNode() || file.getStorageName() !== "Google Drive") {
+      return { status: "invalid-selection" };
+    }
+
+    const path = file.getFullPath();
+    const drive = driveService.storage;
+    const supabase = supabaseService.storage;
+    onProgress("Checking Supabase copy", path, 0, 1, "Comparing path and size");
+    const { data: existing, error: existingError } = await supabase.getByPath(path);
+    if (existingError && existingError.message !== "File not found") throw existingError;
+
+    const comparison = await this._compareSyncCopy(
+      {
+        id: file.getId(),
+        size: file.getSize(),
+        isEditable: file.isEditable()
+      },
+      path,
+      existing,
+      drive,
+      supabase
+    );
+    if (comparison.comparisonError) {
+      console.warn(`Could not compare ${path}; replacing the Supabase copy:`, comparison.comparisonError);
+    }
+
+    if (comparison.matches) {
+      onProgress("Sync complete", path, 1, 1, "Already up to date", true);
+      return { status: "up-to-date" };
+    }
+
+    onProgress("Syncing file to Supabase", path, 0, 1, "Downloading from Google Drive");
+    const response = await file.getContent();
+    const blob = await response.blob();
+    onProgress("Syncing file to Supabase", path, 0, 1, "Uploading to Supabase");
+
+    const uploadFile = new File([blob], file.getName(), {
+      type: file.getMimeType() || blob.type || "application/octet-stream"
+    });
+    const supabaseRecord = new this({
+      name: file.getName(),
+      full_path: path,
+      storageService: supabase,
+      storageName: "Supabase"
+    });
+    await supabaseRecord.save(uploadFile);
+    onProgress("Sync complete", path, 1, 1, "File copied to Supabase", true);
+    return { status: "synced" };
+  }
+
+  static async syncDriveToSupabase(onProgress = () => {}) {
+    const driveService = this._getStorageService("Google Drive");
+    const supabaseService = this._getStorageService("Supabase");
+    if (!driveService?.isAvailable(driveService.storage)
+      || !supabaseService?.isAvailable(supabaseService.storage)) {
+      throw new Error("Connect Google Drive and configure Supabase before syncing");
+    }
+
+    const drive = driveService.storage;
+    const supabase = supabaseService.storage;
+    const files = [];
+    const emptyFolders = [];
+    onProgress("Preparing sync", "Scanning Google Drive...", 0, 0, "In progress");
+    const collectDriveFiles = async (path = "") => {
+      onProgress("Scanning Google Drive", path || "/", 0, 0, "Building file list");
+      const { data, error } = await drive.list(path, { limit: 1000 });
+      if (error) throw error;
+
+      const entries = data || [];
+      if (path && entries.length === 0) emptyFolders.push(path);
+      for (const entry of entries) {
+        const entryPath = path ? `${path}/${entry.name}` : entry.name;
+        if (entry.mimeType === "application/vnd.google-apps.folder") {
+          await collectDriveFiles(entryPath);
+        } else {
+          files.push({ entry, path: entryPath });
+        }
+      }
+    };
+    await collectDriveFiles();
+
+    const drivePaths = new Set(files.map(file => file.path));
+    for (const folderPath of emptyFolders) {
+      drivePaths.add(`${folderPath}/.emptyFolderPlaceholder`);
+    }
+
+    const supabaseFiles = new Map();
+    const collectSupabaseFiles = async (path = "") => {
+      onProgress("Scanning Supabase", path || "/", 0, 0, "Building file list");
+      let offset = 0;
+      while (true) {
+        const { data, error } = await supabase.list(path, { limit: 1000, offset });
+        if (error) throw error;
+
+        const entries = data || [];
+        for (const entry of entries) {
+          const entryPath = path ? `${path}/${entry.name}` : entry.name;
+          if (entry.mimeType === "application/vnd.google-apps.folder") {
+            await collectSupabaseFiles(entryPath);
+          } else {
+            supabaseFiles.set(entryPath, entry);
+          }
+        }
+
+        if (entries.length < 1000) break;
+        offset += entries.length;
+      }
+    };
+    await collectSupabaseFiles();
+
+    const orphanedPaths = [...supabaseFiles.keys()].filter(path => !drivePaths.has(path));
+    const totalWork = files.length + emptyFolders.length + orphanedPaths.length;
+    let completedWork = 0;
+    let synced = 0;
+    let skipped = 0;
+    let failed = 0;
+    let deleted = 0;
+    let deleteFailed = 0;
+
+    const uploadFile = async (path, name, mimeType, blob) => {
+      const file = new File([blob], name, {
+        type: mimeType || blob.type || "application/octet-stream"
+      });
+      const record = new this({
+        name,
+        full_path: path,
+        storageService: supabase,
+        storageName: "Supabase"
+      });
+      await record.save(file);
+    };
+
+    for (const { entry, path } of files) {
+      const existing = supabaseFiles.get(path);
+      onProgress(
+        existing ? "Checking Supabase copy" : "Copying Drive file to Supabase",
+        path,
+        completedWork,
+        totalWork,
+        "In progress"
+      );
+      let itemFailed = false;
+      let itemStatus = "Copied to Supabase";
+      try {
+        const editableFile = new FileEntity({
+          name: entry.name,
+          full_path: path,
+          size: Number(entry.size || 0),
+          mime_type: entry.mimeType
+        });
+        const comparison = await this._compareSyncCopy(
+          { id: entry.id, size: entry.size, isEditable: editableFile.isEditable() },
+          path,
+          existing,
+          drive,
+          supabase
+        );
+        if (comparison.comparisonError) {
+          console.warn(`Could not compare ${path}; replacing the Supabase copy:`, comparison.comparisonError);
+        }
+
+        if (comparison.matches) {
+          skipped++;
+          itemStatus = "Already up to date";
+        } else {
+          const driveRecord = new this({
+            id: entry.id || null,
+            name: entry.name,
+            full_path: path,
+            size: Number(entry.size || 0),
+            mime_type: entry.mimeType,
+            url: entry.webContentLink || null,
+            updated_at: entry.modifiedTime ? new Date(entry.modifiedTime).getTime() : null,
+            is_folder: entry.mimeType === "application/vnd.google-apps.folder" || entry.mimeType === "inode/directory",
+            storageService: drive,
+            storageName: "Google Drive"
+          });
+          const response = await driveRecord.getContent();
+          await uploadFile(path, entry.name, entry.mimeType, await response.blob());
+          synced++;
+        }
+      } catch (error) {
+        console.error(`Failed to sync ${path}:`, error);
+        failed++;
+        itemFailed = true;
+      }
+
+      completedWork++;
+      onProgress(
+        itemFailed ? "Failed to copy file" : itemStatus,
+        path,
+        completedWork,
+        totalWork,
+        `${synced} copied · ${skipped} unchanged · ${failed} failed`
+      );
+    }
+
+    for (const folderPath of emptyFolders) {
+      onProgress("Creating empty folder in Supabase", folderPath, completedWork, totalWork, "In progress");
+      let itemFailed = false;
+      try {
+        await uploadFile(
+          `${folderPath}/.emptyFolderPlaceholder`,
+          ".emptyFolderPlaceholder",
+          "application/octet-stream",
+          new Blob([])
+        );
+        synced++;
+      } catch (error) {
+        console.error(`Failed to sync empty folder ${folderPath}:`, error);
+        failed++;
+        itemFailed = true;
+      }
+
+      completedWork++;
+      onProgress(
+        itemFailed ? "Failed to create folder" : "Folder created in Supabase",
+        folderPath,
+        completedWork,
+        totalWork,
+        `${synced} copied · ${skipped} unchanged · ${failed} failed`
+      );
+    }
+
+    for (let index = 0; index < orphanedPaths.length; index += 100) {
+      const batch = orphanedPaths.slice(index, index + 100);
+      const current = batch.length === 1 ? batch[0] : `${batch[0]} (+${batch.length - 1} more)`;
+      onProgress("Removing Supabase-only files", current, completedWork, totalWork, "In progress");
+      let batchFailed = false;
+      try {
+        const { error } = await supabase.remove(batch);
+        if (error) throw error;
+        deleted += batch.length;
+      } catch (error) {
+        console.error("Failed to remove Supabase-only files:", error);
+        deleteFailed += batch.length;
+        batchFailed = true;
+      }
+
+      completedWork += batch.length;
+      onProgress(
+        batchFailed ? "Failed to remove files" : "Removed Supabase-only files",
+        current,
+        completedWork,
+        totalWork,
+        `${deleted} removed · ${deleteFailed} failed`
+      );
+    }
+
+    return { synced, skipped, failed, deleted, deleteFailed, completedWork, totalWork };
   }
 
   static async create(path, file, options = { upsert: false, encrypt: false }) {

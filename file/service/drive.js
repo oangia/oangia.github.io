@@ -1,16 +1,9 @@
-class BaseStorageService {
-  constructor(config = {}) {
-    if (new.target === BaseStorageService) {
-      throw new Error("BaseStorageService is an abstract class and cannot be instantiated directly.");
+class StorageServiceInterface {
+  constructor() {
+    if (new.target === StorageServiceInterface) {
+      throw new Error("StorageServiceInterface is an abstract class and cannot be instantiated directly.");
     }
-
-    this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
-    this.onConnectionChange = config.onConnectionChange || (() => {});
   }
-
-  // =========================================================================
-  // PUBLIC INTERFACE CONTRACT (Must be implemented by child classes)
-  // =========================================================================
 
   async list(path, options = {}) {
     throw new Error(`${this.constructor.name} must implement list(path, options)`);
@@ -42,6 +35,22 @@ class BaseStorageService {
 
   async removeById(ids) {
     throw new Error(`${this.constructor.name} must implement removeById(ids)`);
+  }
+
+  onProgress(message, type) {
+    throw new Error(`${this.constructor.name} must implement onProgress(message, type)`);
+  }
+}
+
+class BaseStorageService extends StorageServiceInterface {
+  constructor(config = {}) {
+    super();
+    if (new.target === BaseStorageService) {
+      throw new Error("BaseStorageService is an abstract class and cannot be instantiated directly.");
+    }
+
+    this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
+    this.onConnectionChange = config.onConnectionChange || (() => {});
   }
 
   // =========================================================================

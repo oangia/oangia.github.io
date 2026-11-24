@@ -78,7 +78,7 @@ class FileManager {
       }
       try {
         group.comparisonStatus = group.isFolderNode()
-          ? await this.compareFolderCopies(group)
+          ? await FileRecord.getFolderCopyComparison(group.files)
           : await FileRecord.getCopyComparison(group.files);
       } catch (error) {
         const type = group.isFolderNode() ? "folder" : "file";
@@ -86,54 +86,6 @@ class FileManager {
         group.comparisonStatus = "Could not compare";
       }
     }
-  }
-
-  async compareFolderCopies(group) {
-    const services = new Map(
-      FileRecord.getStorageServices().map(service => [service.name, service])
-    );
-    const trees = await Promise.all(group.files.map(async folder => {
-      const service = services.get(folder.getStorageName());
-      if (!service) throw new Error(`Storage service not found: ${folder.getStorageName()}`);
-
-      const rootPath = folder.getFullPath().replace(/^\/+|\/+$/g, "");
-      const items = new Map();
-      const visitedFolders = new Set();
-      const collect = async path => {
-        const cleanPath = path.replace(/^\/+|\/+$/g, "");
-        if (visitedFolders.has(cleanPath)) return;
-        visitedFolders.add(cleanPath);
-
-        const { data, error } = await FileRecord.getAll(cleanPath, {}, service.storage, service.name);
-        if (error) throw error;
-
-        for (const item of data) {
-          const itemPath = item.getFullPath().replace(/^\/+|\/+$/g, "");
-          const relativePath = itemPath.slice(rootPath.length).replace(/^\/+/, "");
-          items.set(relativePath, item);
-          if (item.isFolderNode()) await collect(itemPath);
-        }
-      };
-
-      await collect(rootPath);
-      return items;
-    }));
-
-    const paths = new Set(trees.flatMap(tree => Array.from(tree.keys())));
-    for (const path of paths) {
-      const copies = trees.map(tree => tree.get(path));
-      if (copies.some(copy => !copy)
-        || new Set(copies.map(copy => copy.isFolderNode())).size > 1) {
-        return "Different files";
-      }
-
-      if (!copies[0].isFolderNode()) {
-        const status = await FileRecord.getCopyComparison(copies);
-        if (status !== "Synced") return status;
-      }
-    }
-
-    return "Synced";
   }
 
   renderView() {
@@ -360,8 +312,7 @@ class FileManager {
   async backupGitHubRepo() {
     const btn = document.getElementById("backupGitHubBtn");
     const originalContent = btn?.innerHTML;
-    let uploadedFiles = 0;
-    let totalFiles = 0;
+    let progress = { uploadedFiles: 0, totalFiles: 0 };
 
     if (btn) {
       btn.disabled = true;
@@ -369,63 +320,19 @@ class FileManager {
     }
 
     try {
-      const drive = FileRecord.getStorage();
-      if (!drive.token) throw new Error("Connect Google Drive before backing up the repository.");
-
-      const requestGitHubJson = async (url) => {
-        const response = await fetch(url, {
-          headers: { Accept: "application/vnd.github+json" }
-        });
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.message || `GitHub API request failed (${response.status}).`);
+      progress = await FileRecord.backupGitHubRepo(nextProgress => {
+        progress = nextProgress;
+        if (btn && progress.totalFiles) {
+          btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up ${progress.uploadedFiles} / ${progress.totalFiles}...</span>`;
         }
-        return response.json();
-      };
-
-      const apiBase = "https://api.github.com/repos/oangia/oangia.github.io";
-      const tree = await requestGitHubJson(`${apiBase}/git/trees/main?recursive=1`);
-      if (tree.truncated) {
-        throw new Error("GitHub returned an incomplete repository file list.");
-      }
-
-      const files = tree.tree.filter(entry => entry.type === "blob");
-      if (files.length === 0) throw new Error("The GitHub repository contains no files to back up.");
-      totalFiles = files.length;
-
-      for (let offset = 0; offset < files.length; offset += 5) {
-        const batch = files.slice(offset, offset + 5);
-        const blobs = await Promise.all(batch.map(entry => requestGitHubJson(`${apiBase}/git/blobs/${entry.sha}`)));
-
-        for (let index = 0; index < blobs.length; index++) {
-          const blob = blobs[index];
-          if (blob.encoding !== "base64" || typeof blob.content !== "string") {
-            throw new Error(`GitHub returned unsupported content for "${batch[index].path}".`);
-          }
-          const binary = atob(blob.content.replace(/\s/g, ""));
-          const content = new Uint8Array(binary.length);
-          for (let byte = 0; byte < binary.length; byte++) {
-            content[byte] = binary.charCodeAt(byte);
-          }
-
-          const filename = batch[index].path.split("/").pop();
-          const file = new File([content], filename, { type: "application/octet-stream" });
-          const path = `GitHub Backups/${batch[index].path}`;
-          const { error } = await drive.upload(path, file, { upsert: true });
-          if (error) throw new Error(`Could not upload "${batch[index].path}" to Google Drive: ${error.message}`);
-          uploadedFiles++;
-
-          if (btn) {
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up ${uploadedFiles} / ${files.length}...</span>`;
-          }
-        }
-      }
-
-      showToast(`Repository backup saved to Drive: ${uploadedFiles} file(s) in GitHub Backups`, "success", 5000);
+      });
+      showToast(`Repository backup saved to Drive: ${progress.uploadedFiles} file(s) in GitHub Backups`, "success", 5000);
     } catch (error) {
       console.error("GitHub repository backup failed:", error);
-      const progress = totalFiles ? ` (${uploadedFiles} of ${totalFiles} files uploaded)` : "";
-      showToast(`${error.message || "GitHub repository backup failed"}${progress}`, "error", 5000);
+      const partialProgress = progress.totalFiles
+        ? ` (${progress.uploadedFiles} of ${progress.totalFiles} files uploaded)`
+        : "";
+      showToast(`${error.message || "GitHub repository backup failed"}${partialProgress}`, "error", 5000);
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -454,103 +361,20 @@ class FileManager {
     progressBar.setAttribute("aria-valuenow", String(percent));
   }
 
-  async compareSyncCopy({ id, size, isEditable }, path, existing, drive, supabase) {
-    if (!existing) return { matches: false };
-    const normalizePath = value => String(value || "").replace(/^\/+|\/+$/g, "");
-    if (normalizePath(path) !== normalizePath(existing.id || path)
-      || Number(size) !== Number(existing.size)) {
-      return { matches: false };
-    }
-    if (!isEditable) return { matches: true };
-
-    try {
-      const driveRecord = new FileRecord({
-        id,
-        full_path: path,
-        storageService: drive,
-        storageName: "Google Drive"
-      });
-      if (!driveRecord.getHashContent()) await driveRecord.getContent();
-
-      const supabaseRecord = new FileRecord({
-        id: existing.id,
-        name: existing.name,
-        full_path: path,
-        size: existing.size,
-        mime_type: existing.mimeType,
-        storageService: supabase,
-        storageName: "Supabase"
-      });
-      if (!supabaseRecord.getHashContent()) await supabaseRecord.getContent();
-
-      return {
-        matches: driveRecord.getHashContent() === supabaseRecord.getHashContent()
-      };
-    } catch (comparisonError) {
-      return { matches: false, comparisonError };
-    }
-  }
-
   async syncFileToSupabase(file) {
-    const services = FileRecord.getStorageServices();
-    const drive = services.find(service => service.name === "Google Drive")?.storage;
-    const supabase = services.find(service => service.name === "Supabase")?.storage;
-
-    if (!drive?.token || !supabase?.client) {
-      showToast("Connect Google Drive and configure Supabase before syncing", "warning");
-      return;
-    }
-    if (!file || file.isFolderNode() || file.getStorageName() !== "Google Drive") {
-      showToast("Select a Google Drive file to sync", "warning");
-      return;
-    }
-
-    const path = file.getFullPath();
     try {
-      this.updateSyncProgress("Checking Supabase copy", path, 0, 1, "Comparing path and size");
-      const { data: existing, error: existingError } = await supabase.getByPath(path);
-      if (existingError && existingError.message !== "File not found") throw existingError;
-
-      const comparison = await this.compareSyncCopy(
-        {
-          id: file.getId(),
-          size: file.getSize(),
-          isEditable: file.isEditable()
-        },
-        path,
-        existing,
-        drive,
-        supabase
-      );
-      if (comparison.comparisonError) {
-        console.warn(`Could not compare ${path}; replacing the Supabase copy:`, comparison.comparisonError);
-      }
-
-      if (comparison.matches) {
-        this.updateSyncProgress("Sync complete", path, 1, 1, "Already up to date", true);
+      const result = await FileRecord.syncFileToSupabase(file, (...progress) => this.updateSyncProgress(...progress));
+      if (result.status === "unavailable") {
+        showToast("Connect Google Drive and configure Supabase before syncing", "warning");
+      } else if (result.status === "invalid-selection") {
+        showToast("Select a Google Drive file to sync", "warning");
+      } else if (result.status === "up-to-date") {
         showToast(`${file.getDisplayName()} is already up to date`, "info");
-        return;
+      } else {
+        showToast(`${file.getDisplayName()} synced to Supabase`, "success");
       }
-
-      this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Downloading from Google Drive");
-      const response = await file.getContent();
-      const blob = await response.blob();
-
-      this.updateSyncProgress("Syncing file to Supabase", path, 0, 1, "Uploading to Supabase");
-      const uploadFile = new File([blob], file.getName(), {
-        type: file.getMimeType() || blob.type || "application/octet-stream"
-      });
-      const supabaseRecord = new FileRecord({
-        name: file.getName(),
-        full_path: path,
-        storageService: supabase,
-        storageName: "Supabase"
-      });
-      await supabaseRecord.save(uploadFile);
-
-      this.updateSyncProgress("Sync complete", path, 1, 1, "File copied to Supabase", true);
-      showToast(`${file.getDisplayName()} synced to Supabase`, "success");
     } catch (error) {
+      const path = file?.getFullPath?.() || "";
       console.error(`Failed to sync ${path} to Supabase:`, error);
       this.updateSyncProgress("Sync failed", path, 0, 1, error.message || "Failed to sync file", true);
       showToast(`Failed to sync ${file.getDisplayName()}: ${error.message || "Unknown error"}`, "error");
@@ -558,13 +382,11 @@ class FileManager {
   }
 
   async syncDriveToSupabase() {
-    const services = FileRecord.getStorageServices();
-    const drive = services.find(service => service.name === "Google Drive")?.storage;
-    const supabase = services.find(service => service.name === "Supabase")?.storage;
     const button = document.getElementById("syncToSupabaseBtn");
     const originalButtonContent = button?.innerHTML;
 
-    if (!drive?.token || !supabase?.client) {
+    const statuses = new Map(FileRecord.getServiceStatuses().map(service => [service.name, service.isAvailable]));
+    if (!statuses.get("Google Drive") || !statuses.get("Supabase")) {
       showToast("Connect Google Drive and configure Supabase before syncing", "warning");
       return;
     }
@@ -577,236 +399,40 @@ class FileManager {
       button.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5 w-4"></i><span>Syncing...</span>';
     }
 
-    let completedWork = 0;
-    let totalWork = 0;
-    this.updateSyncProgress("Preparing sync", "Scanning Google Drive...", 0, 0, "In progress");
-
     try {
-      const files = [];
-      const emptyFolders = [];
-      const collectFiles = async (path = "") => {
-        this.updateSyncProgress("Scanning Google Drive", path || "/", 0, 0, "Building file list");
-        const { data, error } = await drive.list(path, { limit: 1000 });
-        if (error) throw error;
-
-        const entries = data || [];
-        if (path && entries.length === 0) emptyFolders.push(path);
-
-        for (const entry of entries) {
-          const entryPath = path ? `${path}/${entry.name}` : entry.name;
-          if (entry.mimeType === "application/vnd.google-apps.folder") {
-            await collectFiles(entryPath);
-          } else {
-            files.push({ entry, path: entryPath });
-          }
-        }
-      };
-
-      await collectFiles();
-      const drivePaths = new Set(files.map(file => file.path));
-      for (const folderPath of emptyFolders) {
-        drivePaths.add(`${folderPath}/.emptyFolderPlaceholder`);
-      }
-
-      const supabaseFiles = new Map();
-      const collectSupabaseFiles = async (path = "") => {
-        this.updateSyncProgress("Scanning Supabase", path || "/", 0, 0, "Building file list");
-        let offset = 0;
-        while (true) {
-          const { data, error } = await supabase.list(path, { limit: 1000, offset });
-          if (error) throw error;
-
-          const entries = data || [];
-          for (const entry of entries) {
-            const entryPath = path ? `${path}/${entry.name}` : entry.name;
-            if (entry.mimeType === "application/vnd.google-apps.folder") {
-              await collectSupabaseFiles(entryPath);
-            } else {
-              supabaseFiles.set(entryPath, entry);
-            }
-          }
-
-          if (entries.length < 1000) break;
-          offset += entries.length;
-        }
-      };
-      await collectSupabaseFiles();
-
-      const orphanedPaths = [...supabaseFiles.keys()].filter(path => !drivePaths.has(path));
-      totalWork = files.length + emptyFolders.length + orphanedPaths.length;
-
-      let synced = 0;
-      let skipped = 0;
-      let failed = 0;
-      const uploadFile = async (path, name, mimeType, blob) => {
-        const file = new File([blob], name, {
-          type: mimeType || blob.type || "application/octet-stream"
-        });
-        const record = new FileRecord({
-          name,
-          full_path: path,
-          storageService: supabase,
-          storageName: "Supabase"
-        });
-        await record.save(file);
-      };
-
-      for (const { entry, path } of files) {
-        const existing = supabaseFiles.get(path);
-        this.updateSyncProgress(
-          existing ? "Checking Supabase copy" : "Copying Drive file to Supabase",
-          path,
-          completedWork,
-          totalWork,
-          "In progress"
-        );
-        let itemFailed = false;
-        let itemStatus = "Copied to Supabase";
-        try {
-          const editableFile = new FileEntity({
-            name: entry.name,
-            full_path: path,
-            size: Number(entry.size || 0),
-            mime_type: entry.mimeType
-          });
-          const comparison = await this.compareSyncCopy(
-            {
-              id: entry.id,
-              size: entry.size,
-              isEditable: editableFile.isEditable()
-            },
-            path,
-            existing,
-            drive,
-            supabase
-          );
-          if (comparison.comparisonError) {
-            console.warn(`Could not compare ${path}; replacing the Supabase copy:`, comparison.comparisonError);
-          }
-
-          if (comparison.matches) {
-            skipped++;
-            itemStatus = "Already up to date";
-          } else {
-            const driveRecord = new FileRecord({
-              id: entry.id || null,
-              name: entry.name,
-              full_path: path,
-              size: Number(entry.size || 0),
-              mime_type: entry.mimeType,
-              url: entry.webContentLink || null,
-              updated_at: entry.modifiedTime ? new Date(entry.modifiedTime).getTime() : null,
-              is_folder: entry.mimeType === "application/vnd.google-apps.folder" || entry.mimeType === "inode/directory",
-              storageService: drive,
-              storageName: "Google Drive"
-            });
-            const response = await driveRecord.getContent();
-            const blob = await response.blob();
-            await uploadFile(path, entry.name, entry.mimeType, blob);
-            synced++;
-          }
-        } catch (error) {
-          console.error(`Failed to sync ${path} to Supabase:`, error);
-          failed++;
-          itemFailed = true;
-        }
-        completedWork++;
-        this.updateSyncProgress(
-          itemFailed ? "Failed to copy file" : itemStatus,
-          path,
-          completedWork,
-          totalWork,
-          `${synced} copied · ${skipped} unchanged · ${failed} failed`
-        );
-      }
-
-      for (const folderPath of emptyFolders) {
-        this.updateSyncProgress("Creating empty folder in Supabase", folderPath, completedWork, totalWork, "In progress");
-        let itemFailed = false;
-        try {
-          const placeholderPath = `${folderPath}/.emptyFolderPlaceholder`;
-          await uploadFile(
-            placeholderPath,
-            ".emptyFolderPlaceholder",
-            "application/octet-stream",
-            new Blob([])
-          );
-          synced++;
-        } catch (error) {
-          console.error(`Failed to sync empty folder ${folderPath} to Supabase:`, error);
-          failed++;
-          itemFailed = true;
-        }
-        completedWork++;
-        this.updateSyncProgress(
-          itemFailed ? "Failed to create folder" : "Folder created in Supabase",
-          folderPath,
-          completedWork,
-          totalWork,
-          `${synced} copied · ${skipped} unchanged · ${failed} failed`
-        );
-      }
-
-      let deleted = 0;
-      let deleteFailed = 0;
-      for (let index = 0; index < orphanedPaths.length; index += 100) {
-        const batch = orphanedPaths.slice(index, index + 100);
-        const current = batch.length === 1
-          ? batch[0]
-          : `${batch[0]} (+${batch.length - 1} more)`;
-        this.updateSyncProgress("Removing Supabase-only files", current, completedWork, totalWork, "In progress");
-        let batchFailed = false;
-        try {
-          const { error } = await supabase.remove(batch);
-          if (error) throw error;
-          deleted += batch.length;
-        } catch (error) {
-          console.error("Failed to remove Supabase-only files:", error);
-          deleteFailed += batch.length;
-          batchFailed = true;
-        }
-        completedWork += batch.length;
-        this.updateSyncProgress(
-          batchFailed ? "Failed to remove files" : "Removed Supabase-only files",
-          current,
-          completedWork,
-          totalWork,
-          `${deleted} removed · ${deleteFailed} failed`
-        );
-      }
-
+      const result = await FileRecord.syncDriveToSupabase((...progress) => this.updateSyncProgress(...progress));
       await this.action("refresh");
-      if (failed === 0 && deleteFailed === 0) {
+      if (result.failed === 0 && result.deleteFailed === 0) {
         this.updateSyncProgress(
           "Sync complete",
-          `Copied ${synced}; skipped ${skipped} unchanged; removed ${deleted} Supabase-only`,
-          completedWork,
-          totalWork,
+          `Copied ${result.synced}; skipped ${result.skipped} unchanged; removed ${result.deleted} Supabase-only`,
+          result.completedWork,
+          result.totalWork,
           "Complete",
           true
         );
         showToast(
-          `Copied ${synced}, skipped ${skipped} unchanged, removed ${deleted} Supabase-only item(s)`,
+          `Copied ${result.synced}, skipped ${result.skipped} unchanged, removed ${result.deleted} Supabase-only item(s)`,
           "success"
         );
       } else {
         this.updateSyncProgress(
           "Sync finished with errors",
-          `Copied ${synced}; skipped ${skipped} unchanged; ${failed} sync failures; removed ${deleted}; ${deleteFailed} removal failures`,
-          completedWork,
-          totalWork,
+          `Copied ${result.synced}; skipped ${result.skipped} unchanged; ${result.failed} sync failures; removed ${result.deleted}; ${result.deleteFailed} removal failures`,
+          result.completedWork,
+          result.totalWork,
           "Finished with errors",
           true
         );
         showToast(
-          `Copied ${synced}, skipped ${skipped} unchanged; ${failed} sync failures, ${deleted} removed, ${deleteFailed} removals failed`,
+          `Copied ${result.synced}, skipped ${result.skipped} unchanged; ${result.failed} sync failures, ${result.deleted} removed, ${result.deleteFailed} removals failed`,
           "warning",
           5000
         );
       }
     } catch (error) {
       console.error("Drive to Supabase sync failed:", error);
-      this.updateSyncProgress("Sync stopped", error.message || "Failed to build a complete file list", completedWork, totalWork, "Stopped");
+      this.updateSyncProgress("Sync stopped", error.message || "Failed to build a complete file list", 0, 0, "Stopped", true);
       showToast(error.message || "Drive to Supabase sync failed", "error", 5000);
     } finally {
       if (button) {
