@@ -73,6 +73,10 @@ class DriveStorageService extends BaseStorageService {
     this.uploadBase = "https://www.googleapis.com/upload/drive/v3/files";
 
     this._folderCache = { "": "root" };
+    this._pathCache = new Map();
+    this._childrenCache = new Map();
+    this._allItemsLoaded = false;
+    this._allItemsPromise = null;
     this.tokenClient = null;
     this._refreshTimer = null;
     this._authRequestMode = null;
@@ -110,31 +114,57 @@ class DriveStorageService extends BaseStorageService {
     if (!this.token) return { data: [], error: null };
 
     try {
-      const folderId = await this._resolveFolderId(this._normalizePath(path));
-      const files = [];
-      let pageToken = options.pageToken || null;
-
-      do {
-        const params = new URLSearchParams({
-          q: `'${folderId}' in parents and trashed = false`,
-          fields: "nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink)",
-          orderBy: "folder,name",
-          pageSize: String(options.limit || 100)
-        });
-        if (pageToken) params.set("pageToken", pageToken);
-
-        const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
-        if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to list items");
-
-        const result = await res.json();
-        files.push(...(result.files || []));
-        pageToken = result.nextPageToken || null;
-      } while (pageToken);
-
-      return { data: files, error: null };
+      await this.loadAll();
+      const cleanPath = this._normalizePath(path);
+      const children = this._childrenCache.get(cleanPath) || [];
+      const offset = Number(options.offset || 0);
+      const limit = Number(options.limit || 0);
+      const paged = limit > 0 ? children.slice(offset, offset + limit) : children.slice(offset);
+      return { data: paged, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
+  }
+
+  async loadAll() {
+    if (!this.token) return { data: [], error: null };
+    if (this._allItemsLoaded) {
+      return {
+        data: Array.from(this._pathCache.entries()).map(([path, item]) => ({ ...item, path })),
+        error: null
+      };
+    }
+    if (this._allItemsPromise) return this._allItemsPromise;
+
+    this._allItemsPromise = (async () => {
+      try {
+        this._pathCache = new Map();
+        this._childrenCache = new Map();
+        this._childrenCache.set("", []);
+        this._folderCache = { "": "root" };
+
+        await this._scanFolder("root", "");
+        this._allItemsLoaded = true;
+
+        return {
+          data: Array.from(this._pathCache.entries()).map(([path, item]) => ({ ...item, path })),
+          error: null
+        };
+      } catch (err) {
+        return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+      } finally {
+        this._allItemsPromise = null;
+      }
+    })();
+    console.log(this._allItemsPromise);
+    return this._allItemsPromise;
+  }
+
+  invalidateCache() {
+    this._allItemsLoaded = false;
+    this._allItemsPromise = null;
+    this._pathCache = new Map();
+    this._childrenCache = new Map();
   }
 
   async fetchContent({ id = null, path = null } = {}) {
@@ -166,21 +196,11 @@ class DriveStorageService extends BaseStorageService {
     if (!this.token) return { data: null, error: new Error("Not authenticated") };
 
     try {
-      const { dirPath, fileName } = this._parsePath(path);
-      const folderId = await this._resolveFolderId(dirPath);
-
-      const params = new URLSearchParams({
-        q: `'${folderId}' in parents and name = '${fileName}' and trashed = false`,
-        fields: "files(id, name, mimeType, size, modifiedTime, webContentLink)"
-      });
-      const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
-      if (!res.ok) throw new Error("Failed to fetch file metadata");
-
-      const json = await res.json();
-      if (!json.files || json.files.length === 0) throw new Error("File not found");
-      if (json.files.length > 1) throw new Error(`Multiple files match path: ${path}`);
-
-      return { data: json.files[0], error: null };
+      await this.loadAll();
+      const cleanPath = this._normalizePath(path);
+      const item = this._pathCache.get(cleanPath);
+      if (!item) throw new Error("File not found");
+      return { data: item, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
@@ -224,6 +244,7 @@ class DriveStorageService extends BaseStorageService {
       if (searchJson.files?.length === 1) {
         const { data, error } = await this.uploadById(searchJson.files[0].id, file);
         if (error) throw error;
+        this.invalidateCache();
         return data;
       }
 
@@ -244,7 +265,9 @@ class DriveStorageService extends BaseStorageService {
       });
       if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
 
-      return { data: await res.json(), error: null };
+      const uploaded = await res.json();
+      this.invalidateCache();
+      return { data: uploaded, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
@@ -268,7 +291,9 @@ class DriveStorageService extends BaseStorageService {
       });
       if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
 
-      return { data: await res.json(), error: null };
+      const uploaded = await res.json();
+      this.invalidateCache();
+      return { data: uploaded, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
@@ -296,6 +321,7 @@ class DriveStorageService extends BaseStorageService {
           if (error) throw error;
         }
       }
+      this.invalidateCache();
       return { data: {}, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
@@ -311,6 +337,7 @@ class DriveStorageService extends BaseStorageService {
         });
         if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to delete file");
       }
+      this.invalidateCache();
       return { data: {}, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
@@ -343,7 +370,9 @@ class DriveStorageService extends BaseStorageService {
           localStorage.setItem("gdrive_access_token", this.token);
           localStorage.setItem("gdrive_token_expiry", this.tokenExpiry);
           this._silentAuthAttempted = false;
+          this.invalidateCache();
           this._scheduleTokenRefresh();
+          void this.loadAll();
 
           if (requestMode !== "silent") {
             if (typeof showToast === "function") showToast("Connected to Google Drive successfully", "success");
@@ -414,6 +443,55 @@ class DriveStorageService extends BaseStorageService {
   _headers(extra = {}) {
     if (!this.token) throw new Error("Not authenticated. Please click 'Connect Drive'.");
     return { Authorization: `Bearer ${this.token}`, ...extra };
+  }
+
+  async _listFolderDirect(folderId) {
+    const items = [];
+    let pageToken = null;
+
+    do {
+      const params = new URLSearchParams({
+        q: `'${folderId}' in parents and trashed = false`,
+        fields: "nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink)",
+        orderBy: "folder,name",
+        pageSize: "100"
+      });
+      if (pageToken) params.set("pageToken", pageToken);
+
+      const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
+      if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to list Drive items");
+
+      const result = await res.json();
+      items.push(...(result.files || []));
+      pageToken = result.nextPageToken || null;
+    } while (pageToken);
+
+    return items;
+  }
+
+  async _scanFolder(folderId, parentPath) {
+    const items = await this._listFolderDirect(folderId);
+    const orderedItems = [...items].sort((a, b) => {
+      const aFolder = a.mimeType === "application/vnd.google-apps.folder";
+      const bFolder = b.mimeType === "application/vnd.google-apps.folder";
+      if (aFolder !== bFolder) return aFolder ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    for (const item of orderedItems) {
+      const path = parentPath ? `${parentPath}/${item.name}` : item.name;
+      this._pathCache.set(path, item);
+
+      const siblings = this._childrenCache.get(parentPath) || [];
+      siblings.push(item);
+      this._childrenCache.set(parentPath, siblings);
+
+      if (item.mimeType === "application/vnd.google-apps.folder") {
+        this._childrenCache.set(path, []);
+        this._folderCache[path] = item.id;
+        await this._scanFolder(item.id, path);
+      }
+    }
   }
 
   async _resolveFolderId(pathString) {
