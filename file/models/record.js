@@ -6,22 +6,20 @@ class FileInterface {
   getMimeType() { throw new Error("FileInterface.getMimeType() must be implemented."); }
   getUrl() { throw new Error("FileInterface.getUrl() must be implemented."); }
   getDisplayName() { throw new Error("FileInterface.getDisplayName() must be implemented."); }
+  getStorageName() { throw new Error("FileInterface.getStorageName() must be implemented."); }
   isFolderNode() { throw new Error("FileInterface.isFolderNode() must be implemented."); }
   isEditable() { throw new Error("FileInterface.isEditable() must be implemented."); }
-  getStorageName() { throw new Error("FileInterface.getStorageName() must be implemented."); }
   getContent() { throw new Error("FileInterface.getContent() must be implemented."); }
-  save() { throw new Error("FileInterface.save() must be implemented."); }
-  delete() { throw new Error("FileInterface.delete() must be implemented."); }
   getHashContent() { throw new Error("FileInterface.getHashContent() must be implemented."); }
   getHashContentFromUrl() { throw new Error("FileInterface.getHashContentFromUrl() must be implemented."); }
-
+  save() { throw new Error("FileInterface.save() must be implemented."); }
+  delete() { throw new Error("FileInterface.delete() must be implemented."); }
+  static create() { throw new Error("FileInterface.create() must be implemented."); }
   static getAllFromServices() { throw new Error("FileInterface.getAllFromServices() must be implemented."); }
+  static getServiceStatuses() { throw new Error("FileInterface.getServiceStatuses() must be implemented."); }
   static getCopyComparison() { throw new Error("FileInterface.getCopyComparison() must be implemented."); }
   static getFolderCopyComparison() { throw new Error("FileInterface.getFolderCopyComparison() must be implemented."); }
-  static getServiceStatuses() { throw new Error("FileInterface.getServiceStatuses() must be implemented."); }
-  static create() { throw new Error("FileInterface.create() must be implemented."); }
   static backup() { throw new Error("FileInterface.backup() must be implemented."); }
-  static backupGitHubRepo() { throw new Error("FileInterface.backupGitHubRepo() must be implemented."); }
   static syncFileToSupabase() { throw new Error("FileInterface.syncFileToSupabase() must be implemented."); }
   static syncDriveToSupabase() { throw new Error("FileInterface.syncDriveToSupabase() must be implemented."); }
 }
@@ -567,67 +565,6 @@ class FileRecord extends BaseStorageRecord {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
-  }
-
-  static async backupGitHubRepo(onProgress = () => {}) {
-    const drive = this._getStorage();
-    if (!drive.token) throw new Error("Connect Google Drive before backing up the repository.");
-
-    let uploadedFiles = 0;
-    let totalFiles = 0;
-    const requestGitHubJson = async url => {
-      const response = await fetch(url, {
-        headers: { Accept: "application/vnd.github+json" }
-      });
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || `GitHub API request failed (${response.status}).`);
-      }
-      return response.json();
-    };
-
-    const apiBase = "https://api.github.com/repos/oangia/oangia.github.io";
-    const tree = await requestGitHubJson(`${apiBase}/git/trees/main?recursive=1`);
-    if (tree.truncated) {
-      throw new Error("GitHub returned an incomplete repository file list.");
-    }
-
-    const files = tree.tree.filter(entry => entry.type === "blob");
-    if (files.length === 0) throw new Error("The GitHub repository contains no files to back up.");
-    totalFiles = files.length;
-    onProgress({ uploadedFiles, totalFiles });
-
-    for (let offset = 0; offset < files.length; offset += 5) {
-      const batch = files.slice(offset, offset + 5);
-      const blobs = await Promise.all(batch.map(entry =>
-        requestGitHubJson(`${apiBase}/git/blobs/${entry.sha}`)
-      ));
-
-      for (let index = 0; index < blobs.length; index++) {
-        const blob = blobs[index];
-        if (blob.encoding !== "base64" || typeof blob.content !== "string") {
-          throw new Error(`GitHub returned unsupported content for "${batch[index].path}".`);
-        }
-
-        const binary = atob(blob.content.replace(/\s/g, ""));
-        const content = new Uint8Array(binary.length);
-        for (let byte = 0; byte < binary.length; byte++) {
-          content[byte] = binary.charCodeAt(byte);
-        }
-
-        const filename = batch[index].path.split("/").pop();
-        const file = new File([content], filename, { type: "application/octet-stream" });
-        const path = `GitHub Backups/${batch[index].path}`;
-        const { error } = await this.create(path, file, { upsert: true });
-        if (error) {
-          throw new Error(`Could not upload "${batch[index].path}" to Google Drive: ${error.message}`);
-        }
-        uploadedFiles++;
-        onProgress({ uploadedFiles, totalFiles });
-      }
-    }
-
-    return { uploadedFiles, totalFiles };
   }
 
   static async _compareSyncCopy({ id, size, isEditable }, path, existing, drive, supabase) {

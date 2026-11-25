@@ -290,9 +290,64 @@ class FileManager {
     const originalContent = this.actionsMenu.beginGitHubBackup();
 
     try {
-      const progress = await FileRecord.backupGitHubRepo(
-        this.actionsMenu.updateGitHubBackup.bind(this.actionsMenu)
-      );
+      const drive = FileRecord.getServiceStatuses().find(service => service.name === "Google Drive");
+      if (!drive?.isAvailable) throw new Error("Connect Google Drive before backing up the repository.");
+
+      let uploadedFiles = 0;
+      const requestGitHubJson = async url => {
+        const response = await fetch(url, {
+          headers: { Accept: "application/vnd.github+json" }
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.message || `GitHub API request failed (${response.status}).`);
+        }
+        return response.json();
+      };
+
+      const apiBase = "https://api.github.com/repos/oangia/oangia.github.io";
+      const tree = await requestGitHubJson(`${apiBase}/git/trees/main?recursive=1`);
+      if (tree.truncated) {
+        throw new Error("GitHub returned an incomplete repository file list.");
+      }
+
+      const files = tree.tree.filter(entry => entry.type === "blob");
+      if (files.length === 0) throw new Error("The GitHub repository contains no files to back up.");
+      const totalFiles = files.length;
+      const onProgress = this.actionsMenu.updateGitHubBackup.bind(this.actionsMenu);
+      onProgress({ uploadedFiles, totalFiles });
+
+      for (let offset = 0; offset < files.length; offset += 5) {
+        const batch = files.slice(offset, offset + 5);
+        const blobs = await Promise.all(batch.map(entry =>
+          requestGitHubJson(`${apiBase}/git/blobs/${entry.sha}`)
+        ));
+
+        for (let index = 0; index < blobs.length; index++) {
+          const blob = blobs[index];
+          if (blob.encoding !== "base64" || typeof blob.content !== "string") {
+            throw new Error(`GitHub returned unsupported content for "${batch[index].path}".`);
+          }
+
+          const binary = atob(blob.content.replace(/\s/g, ""));
+          const content = new Uint8Array(binary.length);
+          for (let byte = 0; byte < binary.length; byte++) {
+            content[byte] = binary.charCodeAt(byte);
+          }
+
+          const filename = batch[index].path.split("/").pop();
+          const file = new File([content], filename, { type: "application/octet-stream" });
+          const path = `GitHub Backups/${batch[index].path}`;
+          const { error } = await FileRecord.create(path, file, { upsert: true });
+          if (error) {
+            throw new Error(`Could not upload "${batch[index].path}" to Google Drive: ${error.message}`);
+          }
+          uploadedFiles++;
+          onProgress({ uploadedFiles, totalFiles });
+        }
+      }
+
+      const progress = { uploadedFiles, totalFiles };
       showToast(`Repository backup saved to Drive: ${progress.uploadedFiles} file(s) in GitHub Backups`, "success", 5000);
     } catch (error) {
       console.error("GitHub repository backup failed:", error);
