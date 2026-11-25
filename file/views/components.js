@@ -2,6 +2,12 @@ const escapeHtml=e=>String(e||"").replace(/[&<>'"]/g,e=>({"&":"&amp;","<":"&lt;"
 class Config{static get _TEMPLATES(){return{overlayClass:"hidden fixed inset-0 z-[60] bg-black/40",panelClass:"hidden fixed inset-0 z-[70] flex items-center justify-center p-6 overflow-y-auto",modalBox:e=>`\n        <div class="max-w-3xl w-full bg-zinc-900/0 border border-white/15 backdrop-blur-md rounded-2xl p-6 space-y-6 shadow-2xl relative">\n          <button id="configCloseBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 transition">\n            <i class="fa-solid fa-xmark text-lg"></i>\n          </button>\n\n          <div class="border-b border-white/10 pb-4">\n            <h2 class="text-lg font-bold text-white mb-1">Configuration</h2>\n            <p class="text-xs text-slate-400">Enter your Google Drive and Supabase credentials.</p>\n          </div>\n\n          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">\n            <h3 class="font-semibold text-sm text-white flex items-center gap-2">\n              <i class="fa-solid fa-shield-halved text-indigo-400"></i> Google Drive & Encryption\n            </h3>\n            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">\n              <div>\n                <label class="block text-xs font-medium text-slate-300 mb-1">Google Client ID</label>\n                <input id="clientIdInput" name="gdrive_oauth_client_id" type="text" placeholder="123456789-abc.apps.googleusercontent.com"\n                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">\n                <p class="text-[10px] text-slate-400 mt-1">\n                  Current origin: <code id="originLabel" class="text-indigo-300">${e}</code>\n                </p>\n              </div>\n              <div>\n                <label class="block text-xs font-medium text-slate-300 mb-1">Private Encryption Key / Password</label>\n                <input id="secretKeyInput" name="gdrive_encryption_password" type="password" placeholder="Enter a secure encryption passphrase"\n                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">\n                <p class="text-[10px] text-slate-400 mt-1">Required to encrypt/decrypt secure uploads.</p>\n              </div>\n            </div>\n          </div>\n      \n          <div class="bg-black/20 border border-white/10 p-4 rounded-xl space-y-4">\n            <h3 class="font-semibold text-sm text-white flex items-center gap-2">\n              <i class="fa-solid fa-bolt text-emerald-400"></i> Supabase Credentials\n            </h3>\n            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">\n              <div>\n                <label class="block text-xs font-medium text-slate-300 mb-1">Project URL</label>\n                <input type="text" name="sb_url" placeholder="https://xxxxx.supabase.co" \n                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">\n              </div>\n              <div>\n                <label class="block text-xs font-medium text-slate-300 mb-1">Anon Public Key</label>\n                <input type="text" name="sb_key" placeholder="eyJhbGciOiJIUzI1NiIsIn..." \n                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">\n              </div>\n              <div class="lg:col-span-2">\n                <label class="block text-xs font-medium text-slate-300 mb-1">Storage Bucket Name</label>\n                <input type="text" name="sb_bucket" placeholder="files" value="files" data-default="files"\n                       class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-400">\n              </div>\n            </div>\n          </div>\n      \n          <div class="pt-2 flex justify-end gap-3">\n            <button id="configCancelBtn" class="px-5 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button>\n            <button id="configSaveBtn" class="px-5 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">Save & Connect</button>\n          </div>\n        </div>`}}constructor(e){this.btnId=e,this.panelId="configPanel",this.overlayId="configOverlay",this.#e(),this.#t(),this.#n(),localStorage.getItem("sb_url")&&localStorage.getItem("sb_key")||this.open()}open(){document.getElementById(this.overlayId)?.classList.remove("hidden"),document.getElementById(this.panelId)?.classList.remove("hidden")}close(){document.getElementById(this.overlayId)?.classList.add("hidden"),document.getElementById(this.panelId)?.classList.add("hidden")}#e(){document.getElementById(this.overlayId)?.remove(),document.getElementById(this.panelId)?.remove();const e=document.createElement("div");e.id=this.overlayId,e.className=Config._TEMPLATES.overlayClass;const t=document.createElement("div");t.id=this.panelId,t.className=Config._TEMPLATES.panelClass,t.innerHTML=Config._TEMPLATES.modalBox(window.location.origin),document.body.appendChild(e),document.body.appendChild(t),document.getElementById("configCloseBtn").onclick=()=>this.close(),document.getElementById("configCancelBtn").onclick=()=>this.close(),e.onclick=()=>this.close(),t.querySelector("div").onclick=e=>e.stopPropagation(),document.getElementById("configSaveBtn").onclick=()=>this.#o()}#t(){const e=document.getElementById(this.btnId);e&&(e.onclick=e=>{e.preventDefault(),e.stopPropagation(),this.open()})}#n(){const e=document.getElementById(this.panelId);e&&e.querySelectorAll("input[name]").forEach(e=>{const t=localStorage.getItem(e.name);null!==t&&""!==t?e.value=t:e.dataset.default&&(e.value=e.dataset.default)})}#o(){const e=document.getElementById(this.panelId).querySelectorAll("input[name]"),t=Object.fromEntries([...e].map(e=>[e.name,e.value.trim()||e.dataset.default||""]));t.sb_url&&t.sb_key?(Object.entries(t).forEach(([e,t])=>localStorage.setItem(e,t)),this.close(),location.reload()):showToast("URL and Anon Key are required","warning")}}
 new Config("navSettingsTab");
 
+class ViewInterface {
+  initHTML() {}
+  bindEvents() {}
+  render(params) {}
+}
+
 class UITemplates {
   static getComparisonStatusClass(status) {
     if (status === "Synced") return "text-emerald-300";
@@ -91,94 +97,169 @@ class UITemplates {
     };
   }
 }
-
-class ItemsGridRenderer {
+class ItemsGridRenderer extends ViewInterface {
   constructor(containerId, fileManagerInstance) {
-    this.container = document.getElementById(containerId);
+    super();
+    this.containerId = containerId;
     this.fileManager = fileManagerInstance;
+
+    this.initHTML();
+    this.bindEvents();
+    this.render();
+  }
+
+  initHTML() {
+    this.container = document.getElementById(this.containerId);
     this.contextMenuActions = document.getElementById("contextMenuActions");
     this.contextMenuActionsParking = document.getElementById("contextMenuActionsParking");
     this.statusElements = new Map();
+    this.items = [];
+    this.contextMenuGroup = null;
+
     this.contextMenu = document.createElement("div");
-    this.contextMenu.className = "hidden fixed z-[110] max-h-[80vh] min-w-56 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg";
+    this.contextMenu.className =
+      "hidden fixed z-[110] max-h-[80vh] min-w-56 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg";
     document.body.appendChild(this.contextMenu);
-    this.container?.addEventListener("contextmenu", event => {
-      if (event.target instanceof Element && event.target.closest(".group")) return;
-      this.showContextMenu(event, null);
+  }
+
+  bindEvents() {
+    this.container?.addEventListener("contextmenu", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const card = event.target.closest("[data-group-index]");
+      const group = card ? this.items[Number(card.dataset.groupIndex)] : null;
+      this.showContextMenu(event, group);
     });
-    this.contextMenu.addEventListener("pointerdown", event => event.stopPropagation());
-    document.addEventListener("pointerdown", event => {
+
+    this.container?.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const card = event.target.closest("[data-group-index]");
+      if (!card) return;
+      const file = this.items[Number(card.dataset.groupIndex)]?.selectedFile;
+      if (!file) return;
+      this.fileManager.action(file.isFolderNode() ? "navigate" : "openPreview", file);
+    });
+
+    this.contextMenu.addEventListener("pointerdown", (e) => e.stopPropagation());
+
+    this.contextMenu.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const button = event.target.closest("button");
+      if (!button) return;
+
+      if (button.matches("[data-menu-toggle]")) {
+        const menuItem = button.closest("[data-menu-item]");
+        if (menuItem) this.showSubmenu(menuItem);
+        return;
+      }
+
+      if (!button.dataset.action) return;
+      const file = this.contextMenuGroup?.files[Number(button.dataset.fileIndex)];
+      if (!file) return;
+
+      this.hideContextMenu();
+      this.fileManager.action(button.dataset.action, file);
+    });
+
+    this.contextMenu.addEventListener("pointerover", (event) => {
+      const menuItem = event.target.closest?.("[data-menu-item]");
+      if (menuItem && !menuItem.contains(event.relatedTarget)) {
+        this.showSubmenu(menuItem);
+      }
+    });
+
+    this.contextMenu.addEventListener("pointerout", (event) => {
+      const menuItem = event.target.closest?.("[data-menu-item]");
+      if (menuItem && !menuItem.contains(event.relatedTarget)) {
+        menuItem.querySelector(".menu-submenu")?.classList.add("hidden");
+      }
+    });
+
+    document.addEventListener("pointerdown", (event) => {
       if (!this.contextMenu.contains(event.target)) this.hideContextMenu();
     });
-    document.addEventListener("keydown", event => {
+
+    document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") this.hideContextMenu();
     });
   }
 
-  async render(items) {
-    if (!this.container) return;
+  render(items = []) {
+    this.items = items;
+    if (!this.container) return [];
 
     const tpl = UITemplates.grid;
+    const previewMedia = [];
     this.statusElements.clear();
+
     this.container.className = tpl.containerClass;
     this.container.innerHTML = "";
 
-    if (!items || items.length === 0) {
+    if (!items.length) {
       this.container.innerHTML = tpl.emptyState;
-      return;
+      return previewMedia;
     }
 
-    for (const group of items) {
+    items.forEach((group, index) => {
       const file = group.selectedFile;
       const card = document.createElement("div");
       card.className = tpl.cardClass;
       card.title = "Right-click for service actions";
-      card.addEventListener("contextmenu", event => this.showContextMenu(event, group));
-      card.onclick = () => {
-        if (file.isFolderNode()) {
-          this.fileManager.action("navigate", file);
-        } else {
-          this.fileManager.action("openPreview", file);
-        }
-      };
+      card.dataset.groupIndex = String(index);
 
-      const mediaHTML = file.isFolderNode()
-        ? tpl.folderIcon
-        : tpl.fileMedia(file);
-
+      const mediaHTML = file.isFolderNode() ? tpl.folderIcon : tpl.fileMedia(file);
       card.innerHTML = tpl.card(group, mediaHTML);
-
       this.container.appendChild(card);
+
       this.statusElements.set(group, card.querySelector(".comparison-status"));
 
       const previewEl = card.querySelector(".widget-preview-area");
-      if ((file.isImage() && previewEl instanceof HTMLImageElement)
-        || (file.isVideo() && previewEl instanceof HTMLVideoElement)) {
-        this.fileManager.action("loadPreviewMedia", file, previewEl);
+      if (
+        (file.isImage() && previewEl instanceof HTMLImageElement) ||
+        (file.isVideo() && previewEl instanceof HTMLVideoElement)
+      ) {
+        previewMedia.push({ file, element: previewEl });
       }
-    }
+    });
+
+    return previewMedia;
   }
 
   updateComparisonStatuses() {
-    for (const [group, statusElement] of this.statusElements) {
-      if (!statusElement) continue;
-      statusElement.textContent = group.comparisonStatus || "";
-      statusElement.classList.remove("text-emerald-300", "text-amber-300", "text-rose-300", "text-slate-300");
-      statusElement.classList.add(UITemplates.getComparisonStatusClass(group.comparisonStatus));
+    for (const [group, el] of this.statusElements) {
+      if (!el) continue;
+      el.textContent = group.comparisonStatus || "";
+      el.classList.remove("text-emerald-300", "text-amber-300", "text-rose-300", "text-slate-300");
+      el.classList.add(UITemplates.getComparisonStatusClass(group.comparisonStatus));
     }
   }
 
   showContextMenu(event, group) {
     event.preventDefault();
     event.stopPropagation();
+
+    this.#resetContextMenuState(group);
+    this.contextMenu.innerHTML = this.#buildMenuContent(group);
+    this.#attachParkedActions(group);
+    this.contextMenu.classList.remove("hidden");
+    this.#positionContextMenu(event);
+  }
+
+  #resetContextMenuState(group) {
     this.contextMenuActions?.classList.add("hidden");
+    this.contextMenuGroup = group;
+
     if (this.contextMenuActions && this.contextMenuActionsParking) {
       this.contextMenuActionsParking.appendChild(this.contextMenuActions);
     }
+  }
+
+  #buildMenuContent(group) {
+    if (!group) return "";
+
     const actionRows = [
       {
-        action: file => file.isFolderNode() ? "navigate" : "openPreview",
-        label: file => file.isFolderNode() ? "Open" : "View",
+        action: (f) => (f.isFolderNode() ? "navigate" : "openPreview"),
+        label: (f) => (f.isFolderNode() ? "Open" : "View"),
       },
       {
         action: () => "downloadRecord",
@@ -187,7 +268,7 @@ class ItemsGridRenderer {
       {
         action: () => "syncFileToSupabase",
         label: () => "Sync to Supabase",
-        filter: file => !file.isFolderNode() && file.getStorageName() === "Google Drive",
+        filter: (f) => !f.isFolderNode() && f.getStorageName() === "Google Drive",
       },
       {
         action: () => "deleteRecord",
@@ -196,108 +277,106 @@ class ItemsGridRenderer {
       },
     ];
 
-    this.contextMenu.innerHTML = group ? actionRows.map(row => {
-      const choices = group.files
-        .map((file, index) => ({ file, index, action: row.action(file), label: row.label(file) }))
-        .filter(choice => !(choice.action === "downloadRecord" && choice.file.isFolderNode()))
-        .filter(choice => !row.filter || row.filter(choice.file))
-        .sort((a, b) => {
-          if (a.file.getStorageName() === "Google Drive") return -1;
-          if (b.file.getStorageName() === "Google Drive") return 1;
-          return 0;
-        });
+    return actionRows
+      .map((row) => {
+        const choices = group.files
+          .map((file, index) => ({
+            file,
+            index,
+            action: row.action(file),
+            label: row.label(file),
+          }))
+          .filter((c) => !(c.action === "downloadRecord" && c.file.isFolderNode()))
+          .filter((c) => !row.filter || row.filter(c.file))
+          .sort((a, b) => {
+            if (a.file.getStorageName() === "Google Drive") return -1;
+            if (b.file.getStorageName() === "Google Drive") return 1;
+            return 0;
+          });
 
-      if (choices.length === 0) return "";
+        if (choices.length === 0) return "";
 
-      if (choices.length === 1) {
-        const choice = choices[0];
-        return `<button type="button" data-action="${choice.action}" data-file-index="${choice.index}"
-          class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""}">
-          ${escapeHtml(choice.label)} (${escapeHtml(choice.file.getStorageName())})
-        </button>`;
-      }
+        if (choices.length === 1) {
+          const c = choices[0];
+          return `<button type="button" data-action="${c.action}" data-file-index="${c.index}"
+            class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""}">
+            ${escapeHtml(c.label)} (${escapeHtml(c.file.getStorageName())})
+          </button>`;
+        }
 
-      const services = choices.map(choice =>
-        `<button type="button" data-action="${choice.action}" data-file-index="${choice.index}"
-          class="w-full text-left px-3 py-2 text-xs whitespace-nowrap hover:bg-white/10 ${row.style || ""}">
-          ${escapeHtml(choice.file.getStorageName())}
-        </button>`
-      ).join("");
+        const services = choices
+          .map(
+            (c) =>
+              `<button type="button" data-action="${c.action}" data-file-index="${c.index}"
+              class="w-full text-left px-3 py-2 text-xs whitespace-nowrap hover:bg-white/10 ${row.style || ""}">
+              ${escapeHtml(c.file.getStorageName())}
+            </button>`
+          )
+          .join("");
 
-      return `<div class="relative menu-item" data-menu-item>
-        <button type="button" data-menu-toggle aria-label="Choose service for ${escapeHtml(choices[0].label)}"
-          class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""} flex items-center justify-between">
-          <span>${escapeHtml(choices[0].label)}</span>
-          <span class="px-1 text-slate-400">
-            <i class="fa-solid fa-chevron-right text-[9px]"></i>
-          </span>
-        </button>
-        <div class="menu-submenu hidden fixed z-[111] min-w-44 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg">
-          ${services}
-        </div>
-      </div>`;
-    }).join("") : "";
-    if (!group && this.contextMenuActions) {
-      this.contextMenu.insertAdjacentHTML("beforeend", '<div class="border-t border-white/10 my-1"></div>');
-      this.contextMenuActions.classList.remove("hidden");
-      this.contextMenu.appendChild(this.contextMenuActions);
-    }
-    this.contextMenu.classList.remove("hidden");
+        return `<div class="relative menu-item" data-menu-item>
+          <button type="button" data-menu-toggle aria-label="Choose service for ${escapeHtml(choices[0].label)}"
+            class="w-full text-left px-3 py-2 text-xs transition hover:bg-white/10 ${row.style || ""} flex items-center justify-between">
+            <span>${escapeHtml(choices[0].label)}</span>
+            <span class="px-1 text-slate-400"><i class="fa-solid fa-chevron-right text-[9px]"></i></span>
+          </button>
+          <div class="menu-submenu hidden fixed z-[111] min-w-44 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg">
+            ${services}
+          </div>
+        </div>`;
+      })
+      .join("");
+  }
 
+  #attachParkedActions(group) {
+    if (group || !this.contextMenuActions) return;
+
+    this.contextMenu.insertAdjacentHTML(
+      "beforeend",
+      '<div class="border-t border-white/10 my-1"></div>'
+    );
+    this.contextMenuActions.classList.remove("hidden");
+    this.contextMenu.appendChild(this.contextMenuActions);
+  }
+
+  #positionContextMenu(event) {
     const left = event.clientX || 8;
     const top = event.clientY || 8;
     const rect = this.contextMenu.getBoundingClientRect();
+
     this.contextMenu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - rect.width - 8))}px`;
     this.contextMenu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - rect.height - 8))}px`;
+  }
 
-    this.contextMenu.querySelectorAll("[data-menu-item]").forEach(menuItem => {
-      const submenu = menuItem.querySelector(".menu-submenu");
-      const toggleButton = menuItem.querySelector("[data-menu-toggle]");
-      if (!submenu || !toggleButton) return;
+  showSubmenu(menuItem) {
+    const submenu = menuItem.querySelector(".menu-submenu");
+    const toggleButton = menuItem.querySelector("[data-menu-toggle]");
+    if (!submenu || !toggleButton) return;
 
-      const showSubmenu = () => {
-        this.contextMenu.querySelectorAll(".menu-submenu").forEach(openMenu => {
-          if (openMenu !== submenu) openMenu.classList.add("hidden");
-        });
-
-        submenu.classList.remove("hidden");
-        const parentRect = toggleButton.getBoundingClientRect();
-        const submenuRect = submenu.getBoundingClientRect();
-        const showLeft = parentRect.right + submenuRect.width > window.innerWidth - 8;
-        const submenuLeft = showLeft
-          ? parentRect.left - submenuRect.width
-          : parentRect.right;
-        const submenuTop = Math.max(
-          8,
-          Math.min(parentRect.top, window.innerHeight - submenuRect.height - 8)
-        );
-        submenu.style.left = `${submenuLeft}px`;
-        submenu.style.top = `${submenuTop}px`;
-      };
-
-      menuItem.addEventListener("mouseenter", showSubmenu);
-      toggleButton.addEventListener("click", showSubmenu);
-      menuItem.addEventListener("mouseleave", () => submenu.classList.add("hidden"));
+    this.contextMenu.querySelectorAll(".menu-submenu").forEach((m) => {
+      if (m !== submenu) m.classList.add("hidden");
     });
 
-    this.contextMenu.querySelectorAll("[data-action]").forEach(button => {
-      button.addEventListener("click", () => {
-        const file = group.files[Number(button.dataset.fileIndex)];
-        this.hideContextMenu();
-        this.fileManager.action(button.dataset.action, file);
-      });
-    });
+    submenu.classList.remove("hidden");
+
+    const parentRect = toggleButton.getBoundingClientRect();
+    const submenuRect = submenu.getBoundingClientRect();
+    const showLeft = parentRect.right + submenuRect.width > window.innerWidth - 8;
+
+    submenu.style.left = `${showLeft ? parentRect.left - submenuRect.width : parentRect.right}px`;
+    submenu.style.top = `${Math.max(8, Math.min(parentRect.top, window.innerHeight - submenuRect.height - 8))}px`;
   }
 
   hideContextMenu() {
     this.contextMenu.classList.add("hidden");
     this.contextMenuActions?.classList.add("hidden");
+
     if (this.contextMenuActions && this.contextMenuActionsParking) {
       this.contextMenuActionsParking.appendChild(this.contextMenuActions);
     }
-    this.contextMenu.querySelectorAll(".menu-submenu").forEach(submenu => submenu.classList.add("hidden"));
-  }
 
+    this.contextMenu.querySelectorAll(".menu-submenu").forEach((m) => m.classList.add("hidden"));
+  }
 }
 
 class FileGroup {
@@ -306,42 +385,70 @@ class FileGroup {
     this.comparisonStatus = "";
   }
 
-  get selectedFile() { return this.files[0]; }
-  isFolderNode() { return this.selectedFile.isFolderNode(); }
-  getName() { return this.selectedFile.getName(); }
-  getDisplayName() { return this.selectedFile.getDisplayName(); }
-  getFullPath() { return this.selectedFile.getFullPath(); }
-  getSubtext() { return this.selectedFile.getSubtext(); }
-  getSize() { return this.selectedFile.getSize(); }
+  get selectedFile() {
+    return this.files[0];
+  }
+  isFolderNode() {
+    return this.selectedFile.isFolderNode();
+  }
+  getName() {
+    return this.selectedFile.getName();
+  }
+  getDisplayName() {
+    return this.selectedFile.getDisplayName();
+  }
+  getFullPath() {
+    return this.selectedFile.getFullPath();
+  }
+  getSubtext() {
+    return this.selectedFile.getSubtext();
+  }
+  getSize() {
+    return this.selectedFile.getSize();
+  }
 }
 
-class FilePreviewManager {
+class FilePreviewManager extends ViewInterface {
   constructor(fileManagerInstance) {
+    super();
     this.fileManager = fileManagerInstance;
     this._currentBlobUrl = null;
 
-    this._ensureModalInDOM();
-    this._initModalListeners();
+    this.initHTML();
+    this.bindEvents();
   }
 
-  _ensureModalInDOM() {
-    if (!document.getElementById("modalPreview")) {
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = UITemplates.preview.modalHtml.trim();
-      document.body.appendChild(tempDiv.firstChild);
-    }
+  initHTML() {
+    if (document.getElementById("modalPreview")) return;
+
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = UITemplates.preview.modalHtml.trim();
+    document.body.appendChild(tempDiv.firstChild);
   }
 
-  _initModalListeners() {
-    document.getElementById("closePreviewModalBtn")?.addEventListener("click", () => this.close());
-    document.getElementById("closePreviewModalBtnAlt")?.addEventListener("click", () => this.close());
-    document.getElementById("previewCancelEditBtn")?.addEventListener("click", () => this.fileManager.action("cancelEdit"));
-    document.getElementById("previewDownloadBtn")?.addEventListener("click", () => {
-      if (this.fileManager.currentFileRecord) this.fileManager.action("downloadRecord", this.fileManager.currentFileRecord);
-    });
-    document.getElementById("previewSaveBtn")?.addEventListener("click", () => {
-      const textarea = document.getElementById("editTextarea");
-      if (textarea) this.fileManager.action("saveEditedText", textarea.value);
+  bindEvents() {
+    const modal = document.getElementById("modalPreview");
+    modal?.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const button = event.target.closest("button");
+      if (!button) return;
+
+      if (button.id === "closePreviewModalBtn" || button.id === "closePreviewModalBtnAlt") {
+        this.close();
+      } else if (button.id === "previewCancelEditBtn") {
+        this.fileManager.action("cancelEdit");
+      } else if (button.id === "previewDownloadBtn" && this.fileManager.currentFileRecord) {
+        this.fileManager.action("downloadRecord", this.fileManager.currentFileRecord);
+      } else if (button.id === "previewSaveBtn") {
+        const textarea = modal.querySelector("#editTextarea");
+        if (textarea) this.fileManager.action("saveEditedText", textarea.value);
+      } else if (button.matches(".content-hash")) {
+        this.fileManager.action("computeHashes", this._currentBlobUrl);
+      } else if (button.id === "htmlPreviewTab") {
+        this.switchHtmlView("preview");
+      } else if (button.id === "htmlEditorTab") {
+        this.switchHtmlView("editor");
+      }
     });
   }
 
@@ -358,23 +465,27 @@ class FilePreviewManager {
     const saveBtn = document.getElementById("previewSaveBtn");
     const cancelBtn = document.getElementById("previewCancelEditBtn");
 
-    if (title) title.textContent = `${fileRecord.getDisplayName()} — ${fileRecord.getStorageName()}${fileRecord.isEncryptedFile() ? " (Decrypted securely)" : ""}`;
+    if (title) {
+      title.textContent = `${fileRecord.getDisplayName()} — ${fileRecord.getStorageName()}${
+        fileRecord.isEncryptedFile() ? " (Decrypted securely)" : ""
+      }`;
+    }
     if (body) body.innerHTML = tpl.loadingSpinner;
     if (sidebar) sidebar.innerHTML = tpl.sidebarLoading;
-    document.getElementById("modalPreview")?.classList.remove("hidden");
 
+    document.getElementById("modalPreview")?.classList.remove("hidden");
     saveBtn?.classList.add("hidden");
     cancelBtn?.classList.add("hidden");
   }
 
-  async renderPreview(fileRecord, blob) {
+  async render(fileRecord, blob) {
     const tpl = UITemplates.preview;
     const body = document.getElementById("previewBody");
     const sidebar = document.getElementById("previewSidebarDetails");
     const saveBtn = document.getElementById("previewSaveBtn");
     const cancelBtn = document.getElementById("previewCancelEditBtn");
-    this._currentBlobUrl = URL.createObjectURL(blob);
 
+    this._currentBlobUrl = URL.createObjectURL(blob);
     const displayName = escapeHtml(fileRecord.getDisplayName());
     const escapedUrl = escapeHtml(this._currentBlobUrl);
 
@@ -384,10 +495,8 @@ class FilePreviewManager {
         url: escapedUrl,
         pathHash: fileRecord.hash_filename || "",
         fullPath: escapeHtml(fileRecord.getFullPath()),
-        sizeDisplay: fileRecord.getFormattedSize()
+        sizeDisplay: fileRecord.getFormattedSize(),
       });
-
-      sidebar.querySelector(".content-hash")?.addEventListener("click", () => this.fileManager.action("computeHashes", escapedUrl));
     }
 
     if (fileRecord.isImage()) {
@@ -402,19 +511,14 @@ class FilePreviewManager {
 
       if (fileRecord.isHtml()) {
         body.innerHTML = tpl.htmlBody(escapedText);
-        document.getElementById("htmlPreviewTab")?.addEventListener("click", () => this.switchHtmlView("preview"));
-        document.getElementById("htmlEditorTab")?.addEventListener("click", () => this.switchHtmlView("editor"));
-        setTimeout(() => {
-          const iframe = document.getElementById("htmlPreviewFrame");
-          if (iframe) iframe.srcdoc = text;
-        }, 50);
+        const iframe = document.getElementById("htmlPreviewFrame");
+        if (iframe) iframe.srcdoc = text;
       } else {
         body.innerHTML = tpl.textBody(escapedText);
         saveBtn?.classList.remove("hidden");
         cancelBtn?.classList.remove("hidden");
       }
     }
-
   }
 
   showPreviewError() {
@@ -466,15 +570,31 @@ class FilePreviewManager {
       if (previewTab) previewTab.className = tpl.inactiveTabClass;
     }
   }
-
 }
 
-class BreadcrumbManager {
+class BreadcrumbManager extends ViewInterface {
   constructor(containerId, fileManagerInstance) {
-    this.container = document.getElementById(containerId);
+    super();
+    this.containerId = containerId;
     this.fileManager = fileManagerInstance;
+
+    this.initHTML();
+    this.bindEvents();
+    this.render();
+  }
+
+  initHTML() {
+    this.container = document.getElementById(this.containerId);
     this.history = [{ path: "", name: "root" }];
     this.path = "";
+  }
+
+  bindEvents() {
+    this.container?.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const crumb = event.target.closest("[data-breadcrumb-index]");
+      if (crumb) this.jumpToBreadcrumb(Number(crumb.dataset.breadcrumbIndex));
+    });
   }
 
   navigateToFolder(path, name) {
@@ -507,10 +627,8 @@ class BreadcrumbManager {
       const isLast = idx === this.history.length - 1;
       const btn = document.createElement("button");
       btn.className = tpl.crumbClass(isLast);
-
-      const isRoot = crumb.name.toLowerCase() === "root";
-      btn.innerHTML = tpl.crumb(crumb.name, isRoot);
-      btn.onclick = () => this.jumpToBreadcrumb(idx);
+      btn.dataset.breadcrumbIndex = String(idx);
+      btn.innerHTML = tpl.crumb(crumb.name, crumb.name.toLowerCase() === "root");
       this.container.appendChild(btn);
 
       if (!isLast) {
@@ -523,14 +641,16 @@ class BreadcrumbManager {
   }
 }
 
-class CreateFolderModal {
+class CreateFolderModal extends ViewInterface {
   constructor(fileManagerInstance) {
+    super();
     this.fileManager = fileManagerInstance;
-    this.injectHTML();
-    this.initListeners();
+
+    this.initHTML();
+    this.bindEvents();
   }
 
-  injectHTML() {
+  initHTML() {
     if (document.getElementById("modalCreateFolder")) return;
 
     const wrapper = document.createElement("div");
@@ -538,29 +658,23 @@ class CreateFolderModal {
     document.body.appendChild(wrapper.firstElementChild);
   }
 
-  initListeners() {
-    const openModalBtn = document.getElementById("openCreateFolderModalBtn");
-    const closeModalBtn = document.getElementById("closeCreateFolderModalBtn");
-    const submitModalBtn = document.getElementById("submitCreateFolderBtn");
-    const folderNameInput = document.getElementById("folderNameInput");
+  bindEvents() {
+    document.getElementById("openCreateFolderModalBtn")?.addEventListener("click", () => this.open());
+    document.getElementById("closeCreateFolderModalBtn")?.addEventListener("click", () => this.close());
+    document.getElementById("submitCreateFolderBtn")?.addEventListener("click", () => this.submit());
 
-    if (openModalBtn) openModalBtn.addEventListener("click", () => this.open());
-    if (closeModalBtn) closeModalBtn.addEventListener("click", () => this.close());
-    if (submitModalBtn) submitModalBtn.addEventListener("click", () => this.submit());
-
-    if (folderNameInput) {
-      folderNameInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          this.submit();
-        }
-      });
-    }
+    document.getElementById("folderNameInput")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        this.submit();
+      }
+    });
   }
 
   open() {
     const input = document.getElementById("folderNameInput");
     const modal = document.getElementById("modalCreateFolder");
+
     if (input) input.value = "";
     if (modal) modal.classList.remove("hidden");
 
@@ -569,8 +683,7 @@ class CreateFolderModal {
   }
 
   close() {
-    const modal = document.getElementById("modalCreateFolder");
-    if (modal) modal.classList.add("hidden");
+    document.getElementById("modalCreateFolder")?.classList.add("hidden");
   }
 
   async submit() {
@@ -580,8 +693,13 @@ class CreateFolderModal {
   }
 }
 
-class SyncProgressPanel {
+class SyncProgressPanel extends ViewInterface {
   constructor() {
+    super();
+    this.bindEvents();
+  }
+
+  bindEvents() {
     document.getElementById("syncProgressCloseBtn")?.addEventListener("click", () => this.hide());
   }
 
@@ -592,6 +710,7 @@ class SyncProgressPanel {
     const countEl = document.getElementById("syncProgressCount");
     const summaryEl = document.getElementById("syncProgressSummary");
     const progressBar = document.getElementById("syncProgressBar");
+
     if (!panel || !statusEl || !currentEl || !countEl || !summaryEl || !progressBar) return;
 
     panel.classList.remove("hidden");
@@ -600,7 +719,8 @@ class SyncProgressPanel {
     currentEl.title = current;
     countEl.textContent = `${completed} / ${total}`;
     summaryEl.textContent = summary;
-    const percent = total > 0 ? Math.min(100, Math.round(completed / total * 100)) : done ? 100 : 0;
+
+    const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : done ? 100 : 0;
     progressBar.style.width = `${percent}%`;
     progressBar.setAttribute("aria-valuenow", String(percent));
   }
@@ -610,40 +730,48 @@ class SyncProgressPanel {
   }
 }
 
-class FileActionsMenu {
+class FileActionsMenu extends ViewInterface {
   constructor(fileManager) {
+    super();
     this.fileManager = fileManager;
+
+    this.initHTML();
+    this.bindEvents();
+  }
+
+  initHTML() {
     this.menuButton = document.getElementById("actionsMenu");
     this.dropdown = document.getElementById("actionsMenuToggleBtn");
     this.storageBackupButton = document.getElementById("backupBtn");
     this.backupGitHubButton = document.getElementById("backupGitHubBtn");
     this.syncButton = document.getElementById("syncToSupabaseBtn");
-    this._bindListeners();
   }
 
-  _bindListeners() {
-    this.menuButton?.addEventListener("click", event => {
+  bindEvents() {
+    this.menuButton?.addEventListener("click", (event) => {
       event.stopPropagation();
       this.toggle();
     });
 
-    document.addEventListener("click", event => {
+    document.addEventListener("click", (event) => {
       if (!this.menuButton?.contains(event.target) && !this.dropdown?.contains(event.target)) {
         this.close();
       }
     });
 
-    this.storageBackupButton?.addEventListener("click", event => {
+    this.storageBackupButton?.addEventListener("click", (event) => {
       event.stopPropagation();
       this.close();
       this.fileManager.action("backup");
     });
-    this.backupGitHubButton?.addEventListener("click", event => {
+
+    this.backupGitHubButton?.addEventListener("click", (event) => {
       event.stopPropagation();
       this.close();
       this.fileManager.action("backupGitHubRepo");
     });
-    this.syncButton?.addEventListener("click", event => {
+
+    this.syncButton?.addEventListener("click", (event) => {
       event.stopPropagation();
       this.close();
       this.fileManager.action("syncDriveToSupabase");
@@ -662,7 +790,8 @@ class FileActionsMenu {
     const originalContent = this.storageBackupButton?.innerHTML;
     if (this.storageBackupButton) {
       this.storageBackupButton.disabled = true;
-      this.storageBackupButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5 text-emerald-400 w-4"></i><span>Backing up...</span>';
+      this.storageBackupButton.innerHTML =
+        '<i class="fa-solid fa-spinner fa-spin mr-2.5 text-emerald-400 w-4"></i><span>Backing up...</span>';
     }
     return originalContent;
   }
@@ -678,7 +807,8 @@ class FileActionsMenu {
     const originalContent = this.backupGitHubButton?.innerHTML;
     if (this.backupGitHubButton) {
       this.backupGitHubButton.disabled = true;
-      this.backupGitHubButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up repo...</span>';
+      this.backupGitHubButton.innerHTML =
+        '<i class="fa-solid fa-spinner fa-spin mr-2.5"></i><span>Backing up repo...</span>';
     }
     return originalContent;
   }
@@ -700,7 +830,8 @@ class FileActionsMenu {
     const originalContent = this.syncButton?.innerHTML;
     if (this.syncButton) {
       this.syncButton.disabled = true;
-      this.syncButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2.5 w-4"></i><span>Syncing...</span>';
+      this.syncButton.innerHTML =
+        '<i class="fa-solid fa-spinner fa-spin mr-2.5 w-4"></i><span>Syncing...</span>';
     }
     return originalContent;
   }

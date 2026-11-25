@@ -25,7 +25,6 @@ class FileManager {
       case "cancelEdit": return this.cancelEdit();
       case "saveEditedText": return this.saveEditedText(args[0]);
       case "computeHashes": return this.computeHashes(args[0]);
-      case "loadPreviewMedia": return this.loadPreviewMedia(args[0], args[1]);
       case "createFolder": return this.createFolder(args[0]);
       case "upload": return this.handleFileUpload(args[0], args[1], args[2]);
       case "downloadRecord": return this.downloadRecord(args[0]);
@@ -108,7 +107,8 @@ class FileManager {
       ).join(" · ");
     }
 
-    this.gridRenderer?.render(this.filteredItems);
+    const previewMedia = this.gridRenderer?.render(this.filteredItems) || [];
+    previewMedia.forEach(({ file, element }) => this.loadPreviewMedia(file, element));
   }
 
   async handleFileUpload(event, isFolderUpload = false, isEncrypted = false) {
@@ -163,7 +163,7 @@ class FileManager {
       const response = await file.getContent(60);
       const blob = await response.blob();
       file._byteLength = blob.size;
-      await this.filePreview.renderPreview(file, blob);
+      await this.filePreview.render(file, blob);
     } catch (error) {
       console.error("Preview failed:", error);
       this.filePreview.showPreviewError();
