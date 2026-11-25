@@ -41,10 +41,6 @@ class StorageServiceInterface {
 class BaseStorageService extends StorageServiceInterface {
   constructor(config = {}) {
     super();
-    if (new.target === BaseStorageService) {
-      throw new Error("BaseStorageService is an abstract class and cannot be instantiated directly.");
-    }
-
     this.onConnectionChange = config.onConnectionChange || (() => {});
   }
 
