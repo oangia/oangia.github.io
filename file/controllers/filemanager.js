@@ -209,8 +209,22 @@ class FileManager {
     }
   }
 
-  async loadPreviewMedia(file, element) {
+  async loadPreviewMedia(file, element, useThumbnail = true) {
     try {
+      if (useThumbnail && element instanceof HTMLImageElement && file.getThumbnail()) {
+        element.loading = "lazy";
+        element.onerror = () => {
+          element.onerror = null;
+          if (!file.isImage()) {
+            element.remove();
+            return;
+          }
+          void this.loadPreviewMedia(file, element, false);
+        };
+        element.src = file.getThumbnail();
+        return;
+      }
+
       if (file.getUrl()?.startsWith("blob:")) {
         element.loading = "lazy";
         element.src = file.getUrl();

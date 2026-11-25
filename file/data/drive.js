@@ -210,7 +210,7 @@ class DriveStorageService extends BaseStorageService {
     if (!this.token) return { data: null, error: new Error("Not authenticated") };
 
     try {
-      const fields = "id, name, mimeType, size, modifiedTime, webContentLink";
+      const fields = "id, name, mimeType, size, modifiedTime, webContentLink, thumbnailLink";
       const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?fields=${fields}`, {
         headers: this._headers()
       });
@@ -452,7 +452,7 @@ class DriveStorageService extends BaseStorageService {
     do {
       const params = new URLSearchParams({
         q: `'${folderId}' in parents and trashed = false`,
-        fields: "nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink)",
+        fields: "nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink, thumbnailLink)",
         orderBy: "folder,name",
         pageSize: "100"
       });

@@ -5,6 +5,7 @@ class FileInterface {
   getSize() { throw new Error("FileInterface.getSize() must be implemented."); }
   getMimeType() { throw new Error("FileInterface.getMimeType() must be implemented."); }
   getUrl() { throw new Error("FileInterface.getUrl() must be implemented."); }
+  getThumbnail() { throw new Error("FileInterface.getThumbnail() must be implemented."); }
   getDisplayName() { throw new Error("FileInterface.getDisplayName() must be implemented."); }
   getStorageName() { throw new Error("FileInterface.getStorageName() must be implemented."); }
   isFolderNode() { throw new Error("FileInterface.isFolderNode() must be implemented."); }
@@ -25,7 +26,7 @@ class FileInterface {
 }
 
 class FileEntity extends FileInterface {
-  constructor({id = null, name = "", full_path = "", size = 0, mime_type = null, url = null, is_folder = false, created_at = null, updated_at = null} = {}) {
+  constructor({id = null, name = "", full_path = "", size = 0, mime_type = null, url = null, thumbnail = null, is_folder = false, created_at = null, updated_at = null} = {}) {
     super();
     this._id = id;
     this._name = name;
@@ -34,8 +35,10 @@ class FileEntity extends FileInterface {
     this._size = size;
     this._mime_type = this._is_folder? "inode/directory" : (mime_type || this._guessMimeType());
     this._url = url;
+    this._thumbnail = thumbnail || null;
     this._created_at = created_at;
     this._updated_at = updated_at;
+    if (!this._thumbnail && this.isImage()) this._thumbnail = this._url;
   }
   
   getId() { return this._id; }
@@ -44,6 +47,7 @@ class FileEntity extends FileInterface {
   getSize() { return this._size; }
   getMimeType() { return this._mime_type; }
   getUrl(expiresIn = 60) { return this._url; }
+  getThumbnail() { return this._thumbnail; }
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
 
@@ -206,6 +210,7 @@ class BaseStorageRecord extends FileEntity {
       size: Number(file.size || 0),
       mime_type: file.mimeType,
       url: file.webContentLink || null,
+      thumbnail: file.thumbnailLink || null,
       updated_at: file.modifiedTime ? new Date(file.modifiedTime).getTime() : null,
       is_folder,
       storageService: storage,
@@ -293,6 +298,7 @@ class BaseStorageRecord extends FileEntity {
       this._mime_type = data.mimeType || this._mime_type;
       this._updated_at = data.modifiedTime ? new Date(data.modifiedTime).getTime() : Date.now();
       this._url = data.webContentLink || null;
+      this._thumbnail = data.thumbnailLink || (this.isImage() ? this._url : null);
     }
     return this;
   }

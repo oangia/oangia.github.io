@@ -37,7 +37,8 @@ class LocalFileService extends BaseStorageService {
         mimeType: f.mimeType,
         size: f.size,
         modifiedTime: f.modifiedTime,
-        webContentLink: f.fileUrl
+        webContentLink: f.fileUrl,
+        thumbnailLink: f.thumbUrl || null
       }));
 
       folderItems.sort((a, b) => a.name.localeCompare(b.name));
@@ -76,7 +77,8 @@ class LocalFileService extends BaseStorageService {
             mimeType: record.mimeType,
             size: record.size,
             modifiedTime: record.modifiedTime,
-            webContentLink: record.fileUrl
+            webContentLink: record.fileUrl,
+            thumbnailLink: record.thumbUrl || null
           },
           error: null
         };
