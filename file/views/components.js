@@ -597,19 +597,20 @@ class BreadcrumbManager extends ViewInterface {
     });
   }
 
-  navigateToFolder(path, name) {
-    if (this.path === path) return;
+  navigateToFolder(path, name, breadcrumbIndex = null) {
+    if (breadcrumbIndex === null && this.path === path) return;
+    if (breadcrumbIndex === null) {
+      this.history.push({ path, name });
+    } else {
+      this.history = this.history.slice(0, breadcrumbIndex + 1);
+    }
     this.path = path;
-    this.history.push({ path, name });
     this.render();
     this.fileManager.action("listFiles");
   }
 
   jumpToBreadcrumb(index) {
-    this.history = this.history.slice(0, index + 1);
-    this.path = this.history[this.history.length - 1].path;
-    this.render();
-    this.fileManager.action("listFiles");
+    this.navigateToFolder(this.history[index].path, null, index);
   }
 
   reset() {
