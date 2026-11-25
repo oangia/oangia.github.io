@@ -36,10 +36,6 @@ class StorageServiceInterface {
   async removeById(ids) {
     throw new Error(`${this.constructor.name} must implement removeById(ids)`);
   }
-
-  onProgress(message, type) {
-    throw new Error(`${this.constructor.name} must implement onProgress(message, type)`);
-  }
 }
 
 class BaseStorageService extends StorageServiceInterface {
@@ -49,7 +45,6 @@ class BaseStorageService extends StorageServiceInterface {
       throw new Error("BaseStorageService is an abstract class and cannot be instantiated directly.");
     }
 
-    this.onProgress = config.onProgress || ((msg, type) => console.log(`[${type}] ${msg}`));
     this.onConnectionChange = config.onConnectionChange || (() => {});
   }
 
@@ -343,7 +338,6 @@ class DriveStorageService extends BaseStorageService {
           this._authRequestMode = null;
           if (res.error) {
             if (requestMode === "silent") return;
-            this.onProgress(`Auth error: ${res.error}`, "error");
             if (typeof showToast === "function") showToast(`Auth error: ${res.error}`, "error");
             return;
           }
@@ -356,7 +350,6 @@ class DriveStorageService extends BaseStorageService {
           this._scheduleTokenRefresh();
 
           if (requestMode !== "silent") {
-            this.onProgress("Connected to Google Drive successfully", "success");
             if (typeof showToast === "function") showToast("Connected to Google Drive successfully", "success");
           }
 

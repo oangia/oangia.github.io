@@ -9,10 +9,7 @@ class LocalFileService extends BaseStorageService {
     this.pathToNode.set("", this.rootNode);
 
     this.folderButtonId = config.folderButtonId || "selectFolderBtn";
-
-    const init = () => this._bindFolderButton();
-    init();
-    window.addEventListener("load", init);
+    this._bindFolderButton();
   }
 
   // =========================================================================
@@ -286,9 +283,9 @@ class LocalFileService extends BaseStorageService {
       console.log(e.target.files);
       const files = e.target.files;
       if (files && files.length > 0) {
-        this.onProgress(`Loading ${files.length} local files...`, "info");
+        if (typeof showToast === "function") showToast(`Loading ${files.length} local files...`, "info");
         await this.loadFiles(files);
-        this.onProgress(`Loaded folder: ${this.rootNode.name}`, "success");
+        if (typeof showToast === "function") showToast(`Loaded folder: ${this.rootNode.name}`, "success");
         this.onConnectionChange();
       }
     };

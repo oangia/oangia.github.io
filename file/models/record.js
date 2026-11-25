@@ -488,14 +488,14 @@ class FileRecord extends BaseStorageRecord {
       storage = this._getStorageService("Supabase")?.storage;
       if (!storage?.client) throw new Error("Supabase client not initialized");
 
-      storage.onProgress("Collecting all files...", "info");
+      showToast("Collecting all files...", "info");
       const allFiles = await this._listAllFilesRecursive(storage);
       if (allFiles.length === 0) {
-        storage.onProgress("Bucket is empty – nothing to backup", "warning");
+        showToast("Bucket is empty – nothing to backup", "warning");
         return { success: false, error: "Bucket is empty" };
       }
 
-      storage.onProgress(`Found ${allFiles.length} file(s). Downloading fresh copies...`, "info");
+      showToast(`Found ${allFiles.length} file(s). Downloading fresh copies...`, "info");
       const zip = new JSZip();
       const hashParts = [];
       let processed = 0;
@@ -510,20 +510,20 @@ class FileRecord extends BaseStorageRecord {
           hashParts.push({ path: filePath, buffer });
         } catch (error) {
           console.warn(`Failed to download ${filePath}:`, error);
-          storage.onProgress(`Skipped ${filePath}`, "warning");
+          showToast(`Skipped ${filePath}`, "warning");
         }
         processed++;
         if (processed % 5 === 0 || processed === allFiles.length) {
-          storage.onProgress(`Downloaded ${processed} / ${allFiles.length}`, "info");
+          showToast(`Downloaded ${processed} / ${allFiles.length}`, "info");
         }
       }
 
-      storage.onProgress("Calculating archive hash...", "info");
+      showToast("Calculating archive hash...", "info");
       const shortHash = await this._computeBackupHash(hashParts);
       const today = new Date().toISOString().slice(0, 10);
       const filename = `${storage.bucket}_${today}_${shortHash}.zip`;
 
-      storage.onProgress("Compressing into ZIP archive...", "info");
+      showToast("Compressing into ZIP archive...", "info");
       const blob = await zip.generateAsync({
         type: "blob",
         compression: "DEFLATE",
@@ -531,11 +531,11 @@ class FileRecord extends BaseStorageRecord {
       });
 
       this._triggerDownload(blob, filename);
-      storage.onProgress(`Backup ready: ${filename}`, "success");
+      showToast(`Backup ready: ${filename}`, "success");
       return { success: true, filename };
     } catch (error) {
       console.error("Backup failed:", error);
-      storage?.onProgress(error.message || "Backup failed", "error");
+      showToast(error.message || "Backup failed", "error");
       return { success: false, error: error.message };
     }
   }

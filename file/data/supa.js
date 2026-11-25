@@ -4,15 +4,6 @@ class SupabaseStorageService extends BaseStorageService {
 
     this._bucket = localStorage.getItem("sb_bucket") || config.bucket || "files";
     this.client = null;
-    this.init(config);
-  }
-
-  get bucket() {
-    return this._bucket;
-  }
-
-  // Standardized initialization method
-  init(config = {}) {
     const savedUrl = localStorage.getItem("sb_url") || config.url;
     const savedKey = localStorage.getItem("sb_key") || config.key;
     const savedBucket = localStorage.getItem("sb_bucket") || config.bucket;
