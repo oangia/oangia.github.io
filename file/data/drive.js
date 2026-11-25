@@ -57,15 +57,6 @@ class BaseStorageService extends StorageServiceInterface {
   // SHARED HELPER METHODS FOR CHILD CLASSES
   // =========================================================================
 
-  async _execute(fn) {
-    try {
-      const data = await fn();
-      return { data, error: null };
-    } catch (err) {
-      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
-    }
-  }
-
   _normalizePath(path = "") {
     return String(path).replace(/^\/+/, "").replace(/\/+$/, "");
   }
@@ -127,7 +118,7 @@ class DriveStorageService extends BaseStorageService {
   async list(path, options = {}) {
     if (!this.token) return { data: [], error: null };
 
-    return this._execute(async () => {
+    try {
       const folderId = await this._resolveFolderId(this._normalizePath(path));
       const files = [];
       let pageToken = options.pageToken || null;
@@ -149,12 +140,14 @@ class DriveStorageService extends BaseStorageService {
         pageToken = result.nextPageToken || null;
       } while (pageToken);
 
-      return files;
-    });
+      return { data: files, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async fetchContent({ id = null, path = null } = {}) {
-    return this._execute(async () => {
+    try {
       let fileId = id;
       if (!fileId && path) {
         const { data, error } = await this.getByPath(path);
@@ -172,14 +165,16 @@ class DriveStorageService extends BaseStorageService {
         throw new Error(errJson.error?.message || `Failed to fetch file content: ${res.statusText}`);
       }
 
-      return res;
-    });
+      return { data: res, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async getByPath(path) {
     if (!this.token) return { data: null, error: new Error("Not authenticated") };
 
-    return this._execute(async () => {
+    try {
       const { dirPath, fileName } = this._parsePath(path);
       const folderId = await this._resolveFolderId(dirPath);
 
@@ -194,26 +189,30 @@ class DriveStorageService extends BaseStorageService {
       if (!json.files || json.files.length === 0) throw new Error("File not found");
       if (json.files.length > 1) throw new Error(`Multiple files match path: ${path}`);
 
-      return json.files[0];
-    });
+      return { data: json.files[0], error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async getById(id) {
     if (!this.token) return { data: null, error: new Error("Not authenticated") };
 
-    return this._execute(async () => {
+    try {
       const fields = "id, name, mimeType, size, modifiedTime, webContentLink";
       const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?fields=${fields}`, {
         headers: this._headers()
       });
       if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to fetch file metadata");
 
-      return res.json();
-    });
+      return { data: await res.json(), error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async upload(path, file, options = {}) {
-    return this._execute(async () => {
+    try {
       const { dirPath, fileName } = this._parsePath(path);
       const parentId = await this._resolveFolderId(dirPath);
 
@@ -254,12 +253,14 @@ class DriveStorageService extends BaseStorageService {
       });
       if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
 
-      return res.json();
-    });
+      return { data: await res.json(), error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async uploadById(id, file) {
-    return this._execute(async () => {
+    try {
       const metadata = {
         name: file.name,
         mimeType: file.type || "application/octet-stream"
@@ -276,12 +277,14 @@ class DriveStorageService extends BaseStorageService {
       });
       if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
 
-      return res.json();
-    });
+      return { data: await res.json(), error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async remove(paths) {
-    return this._execute(async () => {
+    try {
       for (const path of paths) {
         const { dirPath, fileName } = this._parsePath(path);
         const parentId = await this._resolveFolderId(dirPath);
@@ -302,12 +305,14 @@ class DriveStorageService extends BaseStorageService {
           if (error) throw error;
         }
       }
-      return {};
-    });
+      return { data: {}, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async removeById(ids) {
-    return this._execute(async () => {
+    try {
       for (const id of ids) {
         const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}`, {
           method: "DELETE",
@@ -315,8 +320,10 @@ class DriveStorageService extends BaseStorageService {
         });
         if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to delete file");
       }
-      return {};
-    });
+      return { data: {}, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   // =========================================================================

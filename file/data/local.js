@@ -20,7 +20,7 @@ class LocalFileService extends BaseStorageService {
   // =========================================================================
 
   async list(path = "", options = {}) {
-    return this._execute(async () => {
+    try {
       const cleanPath = this._normalizePath(path);
       const node = this.pathToNode.get(cleanPath) || (cleanPath === "" ? this.rootNode : null);
       if (!node) throw new Error("Folder not found");
@@ -46,12 +46,14 @@ class LocalFileService extends BaseStorageService {
       folderItems.sort((a, b) => a.name.localeCompare(b.name));
       fileItems.sort((a, b) => a.name.localeCompare(b.name));
 
-      return [...folderItems, ...fileItems];
-    });
+      return { data: [...folderItems, ...fileItems], error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async fetchContent({ id = null, path = null } = {}) {
-    return this._execute(async () => {
+    try {
       const targetPath = this._normalizePath(id || path);
       const file = this.pathToFile.get(targetPath);
       if (!file) throw new Error("Local file not found");
@@ -59,39 +61,49 @@ class LocalFileService extends BaseStorageService {
       const res = await fetch(file.fileUrl);
       if (!res.ok) throw new Error(`Failed to fetch local file content: ${res.statusText}`);
 
-      return res;
-    });
+      return { data: res, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async getByPath(path) {
-    return this._execute(async () => {
+    try {
       const cleanPath = this._normalizePath(path);
       const record = this.pathToFile.get(cleanPath);
       if (record) {
         return {
-          id: record.fullPath,
-          name: record.name,
-          mimeType: record.mimeType,
-          size: record.size,
-          modifiedTime: record.modifiedTime,
-          webContentLink: record.fileUrl
+          data: {
+            id: record.fullPath,
+            name: record.name,
+            mimeType: record.mimeType,
+            size: record.size,
+            modifiedTime: record.modifiedTime,
+            webContentLink: record.fileUrl
+          },
+          error: null
         };
       }
 
       const node = this.pathToNode.get(cleanPath);
       if (node) {
         return {
-          id: cleanPath,
-          name: node.name,
-          mimeType: "application/vnd.google-apps.folder",
-          size: this._calculateFolderSize(node),
-          modifiedTime: new Date().toISOString(),
-          webContentLink: null
+          data: {
+            id: cleanPath,
+            name: node.name,
+            mimeType: "application/vnd.google-apps.folder",
+            size: this._calculateFolderSize(node),
+            modifiedTime: new Date().toISOString(),
+            webContentLink: null
+          },
+          error: null
         };
       }
 
       throw new Error("Path not found");
-    });
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async getById(id) {
@@ -99,7 +111,7 @@ class LocalFileService extends BaseStorageService {
   }
 
   async upload(path, blob) {
-    return this._execute(async () => {
+    try {
       const { cleanPath, dirPath, fileName } = this._parsePath(path);
       let record = this.pathToFile.get(cleanPath);
 
@@ -125,14 +137,19 @@ class LocalFileService extends BaseStorageService {
       }
 
       return {
-        id: record.fullPath,
-        name: record.name,
-        mimeType: record.mimeType,
-        size: record.size,
-        modifiedTime: record.modifiedTime,
-        webContentLink: record.fileUrl
+        data: {
+          id: record.fullPath,
+          name: record.name,
+          mimeType: record.mimeType,
+          size: record.size,
+          modifiedTime: record.modifiedTime,
+          webContentLink: record.fileUrl
+        },
+        error: null
       };
-    });
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async uploadById(id, file) {
@@ -140,14 +157,16 @@ class LocalFileService extends BaseStorageService {
   }
 
   async remove(paths) {
-    return this._execute(async () => {
+    try {
       for (const path of paths) {
         const cleanPath = this._normalizePath(path);
         const isFolder = this.pathToNode.has(cleanPath);
         this.deleteLocalPath(cleanPath, isFolder);
       }
-      return {};
-    });
+      return { data: {}, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async removeById(ids) {
@@ -214,12 +233,14 @@ class LocalFileService extends BaseStorageService {
   }
 
   async getFileUrl(path) {
-    return this._execute(async () => {
+    try {
       const cleanPath = this._normalizePath(path);
       const record = this.pathToFile.get(cleanPath);
       if (!record) throw new Error("File not found");
-      return { signedUrl: record.fileUrl };
-    });
+      return { data: { signedUrl: record.fileUrl }, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   deleteLocalPath(path, isFolder) {

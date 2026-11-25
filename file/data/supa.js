@@ -32,7 +32,7 @@ class SupabaseStorageService extends BaseStorageService {
   async list(path, options = {}) {
     if (!this.client) return { data: null, error: new Error("Supabase client not initialized") };
 
-    return this._execute(async () => {
+    try {
       const cleanPath = this._normalizePath(path);
       const { data, error } = await this.client.storage.from(this._bucket).list(cleanPath, {
         limit: options.limit || 100,
@@ -54,12 +54,14 @@ class SupabaseStorageService extends BaseStorageService {
         };
       });
 
-      return files;
-    });
+      return { data: files, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async fetchContent({ id = null, path = null } = {}) {
-    return this._execute(async () => {
+    try {
       this._requireClient();
       const targetPath = this._normalizePath(id || path);
       if (!targetPath) throw new Error("File ID or path required for fetching content");
@@ -72,14 +74,16 @@ class SupabaseStorageService extends BaseStorageService {
         throw new Error(`Failed to fetch file content: ${res.statusText}`);
       }
 
-      return res;
-    });
+      return { data: res, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async getByPath(path) {
     if (!this.client) return { data: null, error: new Error("Supabase client not initialized") };
 
-    return this._execute(async () => {
+    try {
       const { cleanPath, dirPath, fileName } = this._parsePath(path);
       const { data, error } = await this.client.storage.from(this._bucket).list(dirPath, {
         search: fileName
@@ -91,14 +95,19 @@ class SupabaseStorageService extends BaseStorageService {
 
       const isFolder = !match.id;
       return {
-        id: cleanPath,
-        name: match.name,
-        mimeType: isFolder ? "application/vnd.google-apps.folder" : (match.metadata?.mimetype || "application/octet-stream"),
-        size: match.metadata?.size || 0,
-        modifiedTime: match.updated_at || match.created_at || new Date().toISOString(),
-        webContentLink: null
+        data: {
+          id: cleanPath,
+          name: match.name,
+          mimeType: isFolder ? "application/vnd.google-apps.folder" : (match.metadata?.mimetype || "application/octet-stream"),
+          size: match.metadata?.size || 0,
+          modifiedTime: match.updated_at || match.created_at || new Date().toISOString(),
+          webContentLink: null
+        },
+        error: null
       };
-    });
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async getById(id) {
@@ -109,7 +118,7 @@ class SupabaseStorageService extends BaseStorageService {
   async upload(path, file, options = {}) {
     if (!this.client) return { data: null, error: new Error("Supabase client not initialized") };
 
-    return this._execute(async () => {
+    try {
       const { cleanPath, fileName } = this._parsePath(path);
       const upsert = options.upsert !== undefined ? options.upsert : true;
 
@@ -120,14 +129,19 @@ class SupabaseStorageService extends BaseStorageService {
       if (error) throw error;
 
       return {
-        id: cleanPath,
-        name: fileName,
-        mimeType: file.type || "application/octet-stream",
-        size: file.size || 0,
-        modifiedTime: new Date().toISOString(),
-        webContentLink: null
+        data: {
+          id: cleanPath,
+          name: fileName,
+          mimeType: file.type || "application/octet-stream",
+          size: file.size || 0,
+          modifiedTime: new Date().toISOString(),
+          webContentLink: null
+        },
+        error: null
       };
-    });
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async uploadById(id, file, options = {}) {
@@ -137,13 +151,15 @@ class SupabaseStorageService extends BaseStorageService {
   async remove(paths) {
     if (!this.client) return { data: null, error: new Error("Supabase client not initialized") };
 
-    return this._execute(async () => {
+    try {
       const cleanPaths = paths.map(p => this._normalizePath(p));
       const { data, error } = await this.client.storage.from(this._bucket).remove(cleanPaths);
       if (error) throw error;
 
-      return data || {};
-    });
+      return { data: data || {}, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   async removeById(ids) {
