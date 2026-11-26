@@ -17,6 +17,7 @@ class LocalFileService extends BaseStorageService {
 
     fileInput.onchange = event => {
       this.files = event.target.files;
+      console.log(this.files);
       this.onConnectionChange(this.files);
     };
 
