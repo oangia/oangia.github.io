@@ -111,7 +111,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   getStorageName() { return this._storageName; }
-
+  
   static _getStorage() {
     if (!BaseStorageRecord._storageService) {
       BaseStorageRecord._storageService = new DriveStorageService({
@@ -179,11 +179,10 @@ class BaseStorageRecord extends FileEntity {
   static _listFromStorage(storage, path, options = {}) {
     if (storage instanceof DriveStorageService) return FileRecord._driveList(storage, path, options);
     if (storage instanceof SupabaseStorageService) {
-      return storage.load(FileRecord._normalizePath(path), options);
+      return FileRecord._supabaseListCached(storage, path, options);
     }
     return storage.load(path, options);
   }
-
   static _getByPathFromStorage(storage, path) {
     if (storage instanceof DriveStorageService) return FileRecord._driveGetByPath(storage, path);
     if (storage instanceof SupabaseStorageService) return FileRecord._supabaseGetByPath(storage, path);
@@ -594,6 +593,10 @@ class FileRecord extends BaseStorageRecord {
   static SALT = "DriveManagerSecureSalt123";
   static _driveCaches = new WeakMap();
 
+  static DRIVE_CACHE_KEY = "file_manager_drive_cache_v1";
+  static SUPABASE_CACHE_KEY = "file_manager_supabase_cache_v1";
+  static _forceNetworkRefresh = false;
+
   static _normalizePath(path = "") {
     return String(path).replace(/^\/+/, "").replace(/\/+$/, "");
   }
@@ -608,6 +611,115 @@ class FileRecord extends BaseStorageRecord {
     };
   }
 
+  // --- localStorage cache helpers ---
+
+  static async reloadStorageDataFromServer() {
+    this._forceNetworkRefresh = true;
+    try {
+      localStorage.removeItem(this.DRIVE_CACHE_KEY);
+      localStorage.removeItem(this.SUPABASE_CACHE_KEY);
+      BaseStorageRecord._listingCaches = new WeakMap();
+
+      const drive = this._getStorage();
+      if (drive) {
+        this._invalidateDriveCache(drive, { clearPersistent: true });
+        if (drive.isAvailable()) {
+          await this._driveLoadAll(drive);
+        }
+      }
+    } finally {
+      this._forceNetworkRefresh = false;
+    }
+  }
+
+  static _readJsonCache(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      localStorage.removeItem(key);
+      return null;
+    }
+  }
+
+  static _writeJsonCache(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (err) {
+      console.warn("Failed to write storage cache:", err);
+    }
+  }
+
+  static _loadDriveCacheFromLocalStorage(cache) {
+    if (this._forceNetworkRefresh) return false;
+    const saved = this._readJsonCache(this.DRIVE_CACHE_KEY);
+    if (!saved?.allItemsLoaded || !Array.isArray(saved.pathEntries)) return false;
+
+    cache.pathCache = new Map(saved.pathEntries);
+    cache.childrenCache = new Map(
+      (saved.childrenEntries || []).map(([path, items]) => [path, items || []])
+    );
+    cache.folderCache =
+      saved.folderCache && typeof saved.folderCache === "object"
+        ? { ...saved.folderCache }
+        : { "": "root" };
+    if (!cache.folderCache[""]) cache.folderCache[""] = "root";
+    cache.allItemsLoaded = true;
+    cache.allItemsPromise = null;
+    return true;
+  }
+
+  static _saveDriveCacheToLocalStorage(cache) {
+    this._writeJsonCache(this.DRIVE_CACHE_KEY, {
+      allItemsLoaded: true,
+      savedAt: Date.now(),
+      pathEntries: Array.from(cache.pathCache.entries()),
+      childrenEntries: Array.from(cache.childrenCache.entries()),
+      folderCache: cache.folderCache
+    });
+  }
+
+  static _getSupabaseListCache() {
+    const saved = this._readJsonCache(this.SUPABASE_CACHE_KEY);
+    if (!saved || typeof saved.lists !== "object") return { lists: {} };
+    return saved;
+  }
+
+  static _setSupabaseListCache(cacheObj) {
+    this._writeJsonCache(this.SUPABASE_CACHE_KEY, {
+      ...cacheObj,
+      savedAt: Date.now()
+    });
+  }
+
+  static async _supabaseListCached(storage, path, options = {}) {
+    const cleanPath = this._normalizePath(path);
+    const cacheable =
+      !this._forceNetworkRefresh &&
+      !options.search &&
+      !options.name &&
+      (options.offset === undefined || options.offset === 0);
+
+    if (cacheable) {
+      const bag = this._getSupabaseListCache();
+      const hit = bag.lists[cleanPath];
+      if (hit && Array.isArray(hit.data)) {
+        return { data: hit.data, error: null };
+      }
+    }
+
+    const { data, error } = await storage.load(cleanPath, options);
+    if (!error && cacheable) {
+      const bag = this._getSupabaseListCache();
+      bag.lists[cleanPath] = { data: data || [], savedAt: Date.now() };
+      this._setSupabaseListCache(bag);
+    }
+    return { data, error };
+  }
+
+  // --- Supabase path lookup ---
+
   static async _supabaseGetByPath(storage, path) {
     const cleanPath = this._normalizePath(path);
     const { dirPath, fileName } = this._parsePath(cleanPath);
@@ -618,6 +730,8 @@ class FileRecord extends BaseStorageRecord {
     if (!item) return { data: null, error: new Error("File not found") };
     return { data: this._supabaseMetadata(item, cleanPath), error: null };
   }
+
+  // --- Drive in-memory + persistent cache ---
 
   static _driveCacheFor(storage) {
     let cache = this._driveCaches.get(storage);
@@ -653,6 +767,14 @@ class FileRecord extends BaseStorageRecord {
   static async _driveLoadAll(storage) {
     if (!storage.isAvailable()) return { data: [], error: null };
     const cache = this._driveCacheFor(storage);
+
+    if (!cache.allItemsLoaded && this._loadDriveCacheFromLocalStorage(cache)) {
+      return {
+        data: Array.from(cache.pathCache.entries()).map(([path, item]) => ({ ...item, path })),
+        error: null
+      };
+    }
+
     if (cache.allItemsLoaded) {
       return {
         data: Array.from(cache.pathCache.entries()).map(([path, item]) => ({ ...item, path })),
@@ -670,6 +792,7 @@ class FileRecord extends BaseStorageRecord {
 
         await this._scanDriveFolder(storage, cache, "root", "");
         cache.allItemsLoaded = true;
+        this._saveDriveCacheToLocalStorage(cache);
 
         return {
           data: Array.from(cache.pathCache.entries()).map(([path, item]) => ({ ...item, path })),
@@ -684,12 +807,16 @@ class FileRecord extends BaseStorageRecord {
     return cache.allItemsPromise;
   }
 
-  static _invalidateDriveCache(storage) {
+  static _invalidateDriveCache(storage, { clearPersistent = false } = {}) {
     const cache = this._driveCacheFor(storage);
     cache.allItemsLoaded = false;
     cache.allItemsPromise = null;
     cache.pathCache = new Map();
     cache.childrenCache = new Map();
+    cache.folderCache = { "": "root" };
+    if (clearPersistent) {
+      localStorage.removeItem(this.DRIVE_CACHE_KEY);
+    }
   }
 
   static async _driveGetByPath(storage, path) {
@@ -773,7 +900,7 @@ class FileRecord extends BaseStorageRecord {
       if (byId) {
         const { data: uploaded, error } = await storage.uploadById(path, file);
         if (error) throw error;
-        this._invalidateDriveCache(storage);
+        this._invalidateDriveCache(storage, { clearPersistent: true });
         return { data: uploaded, error: null };
       }
 
@@ -792,7 +919,7 @@ class FileRecord extends BaseStorageRecord {
         ? await storage.uploadById(existing[0].id, file)
         : await storage.upload(parentId, file, { name: fileName });
       if (result.error) throw result.error;
-      this._invalidateDriveCache(storage);
+      this._invalidateDriveCache(storage, { clearPersistent: true });
       return result;
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
@@ -816,7 +943,7 @@ class FileRecord extends BaseStorageRecord {
           if (error) throw error;
         }
       }
-      this._invalidateDriveCache(storage);
+      this._invalidateDriveCache(storage, { clearPersistent: true });
       return { data: {}, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
@@ -1358,7 +1485,7 @@ class FileRecord extends BaseStorageRecord {
 
     return new Blob([bytes], { type: mime });
   }
-  
+
   getFormattedSize() {
     if (this.isFolderNode()) return "";
     const bytes = this._size || 0;
@@ -1377,7 +1504,7 @@ class FileRecord extends BaseStorageRecord {
     }
     return text;
   }
-  
+
   getFileIconClass() {
     if (this.isFolderNode()) return "fa-solid fa-folder text-amber-500";
     if (this.isEncryptedFile()) return "fa-solid fa-file-shield text-emerald-400";

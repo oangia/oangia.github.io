@@ -601,7 +601,6 @@ class FileActionsMenu extends ViewInterface {
     this.syncButton.innerHTML = originalContent;
   }
 }
-
 class FileManager {
   constructor() {
     this.allItems = [];
@@ -613,14 +612,28 @@ class FileManager {
     this.actionsMenu = new FileActionsMenu(this);
     this.syncProgress = new SyncProgressPanel();
 
+    this._bindRefreshStorageButton();
+
     window.addEventListener("storage-services-changed", () => this.action("refresh"));
     this.action("refresh");
+  }
+
+  _bindRefreshStorageButton() {
+    const btn = document.getElementById("refreshStorageCacheBtn");
+    if (!btn || btn.dataset.refreshBound) return;
+    btn.dataset.refreshBound = "true";
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      this.actionsMenu?.close?.();
+      void this.action("reloadStorageData");
+    });
   }
 
   action(actionName, ...args) {
     switch (actionName) {
       case "refresh": return this.listFiles();
       case "listFiles": return this.listFiles();
+      case "reloadStorageData": return this.reloadStorageData();
       case "navigate": return this.navigate(args[0]);
       case "openFilePreview": return this.openFilePreview(args[0]);
       case "upload": return this.handleFileUpload(args[0], args[1], args[2]);
@@ -630,6 +643,24 @@ class FileManager {
       case "syncDriveToSupabase": return this.syncDriveToSupabase();
       case "syncFileToSupabase": return this.syncFileToSupabase(args[0]);
       default: throw new Error(`Unknown file-manager action: ${actionName}`);
+    }
+  }
+
+  async reloadStorageData() {
+    try {
+      if (typeof showToast === "function") {
+        showToast("Refreshing storage data from servers...", "info", 2500);
+      }
+      await FileRecord.reloadStorageDataFromServer();
+      await this.listFiles();
+      if (typeof showToast === "function") {
+        showToast("Storage data refreshed", "success");
+      }
+    } catch (error) {
+      console.error("Failed to refresh storage data:", error);
+      if (typeof showToast === "function") {
+        showToast(error.message || "Failed to refresh storage data", "error");
+      }
     }
   }
 
@@ -782,7 +813,7 @@ class FileManager {
       }
     }
 
-    await this.action("refresh");
+    await this.action("reloadStorageData");
     if (failed === 0) {
       showToast(`Successfully uploaded ${success} item(s)`, "success");
     } else {
@@ -834,7 +865,6 @@ class FileManager {
       const blob = await response.blob();
       if (!panel.isConnected) return;
 
-      // HTML: full-size sandboxed iframe
       if (file.isHtml()) {
         const frame = document.createElement("iframe");
         frame.title = file.getDisplayName();
@@ -848,7 +878,6 @@ class FileManager {
 
       objectUrl = URL.createObjectURL(blob);
 
-      // Images: centered <img>
       if (file.isImage()) {
         const img = document.createElement("img");
         img.src = objectUrl;
@@ -858,7 +887,6 @@ class FileManager {
         return;
       }
 
-      // Everything else (PDF, video, etc.): centered iframe
       const frame = document.createElement("iframe");
       frame.title = file.getDisplayName();
       frame.setAttribute("allowtransparency", "true");
@@ -1045,7 +1073,7 @@ class FileManager {
       const result = await FileRecord.syncDriveToSupabase(
         this.syncProgress.update.bind(this.syncProgress)
       );
-      await this.action("refresh");
+      await this.action("reloadStorageData");
       if (result.failed === 0 && result.deleteFailed === 0) {
         this.syncProgress.update(
           "Sync complete",
