@@ -235,17 +235,17 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async getAllFromServices(path = "", options = {}) {
-    const services = this._getStorageServices().filter(
-      ({ name, storage }) => name !== "Supabase" && storage?.isAvailable()
-    );
+    const services = this._getStorageServices().filter(({ storage }) => storage?.isAvailable());
     for (const { storage } of services) this._listingCaches.set(storage, new Map());
     const results = await Promise.all(services.map(async ({ name, storage }) => {
       const { data, error } = await this._getAll(path, options, storage, name);
       return { data, error, name };
     }));
+    const supabaseResult = results.find(result => result.name === "Supabase");
 
     return {
-      data: results.flatMap(result => result.data),
+      data: results.filter(result => result.name !== "Supabase").flatMap(result => result.data),
+      comparisonData: supabaseResult?.data || [],
       errors: results.filter(result => result.error).map(result => ({
         service: result.name,
         error: result.error

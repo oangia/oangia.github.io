@@ -39,7 +39,7 @@ class FileManager {
   async listFiles() {
     const requestId = ++this.listRequestId;
     try {
-      const { data, errors } = await FileRecord.getAllFromServices(this.breadcrumb.path);
+      const { data, comparisonData, errors } = await FileRecord.getAllFromServices(this.breadcrumb.path);
       if (requestId !== this.listRequestId) return;
       errors.forEach(({ service, error }) => {
         console.error(`Failed to list ${service}:`, error);
@@ -55,7 +55,11 @@ class FileManager {
       });
       this.allItems = Array.from(groupedFiles.values(), files => new FileGroup(files));
       this.renderView();
-      await this.compareFiles(this.allItems);
+      await this.compareFiles(
+        this.allItems,
+        comparisonData,
+        errors.find(({ service }) => service === "Supabase")?.error
+      );
       if (requestId === this.listRequestId) this.gridRenderer.updateComparisonStatuses();
     } catch (err) {
       console.error(err);
@@ -63,8 +67,47 @@ class FileManager {
     }
   }
 
-  async compareFiles(groups) {
+  async compareFiles(groups, comparisonData = [], supabaseError) {
+    const supabaseAvailable = FileRecord.getServiceStatuses()
+      .some(service => service.name === "Supabase" && service.isAvailable);
+    const supabaseByPath = new Map(comparisonData.map(file => {
+      const path = file.getFullPath().replace(/^\/+|\/+$/g, "");
+      return [`${file.isFolderNode() ? "folder" : "file"}:${path}`, file];
+    }));
+
     for (const group of groups) {
+      const driveFile = group.files.find(file => file.getStorageName() === "Google Drive");
+      if (driveFile) {
+        if (!supabaseAvailable) {
+          group.comparisonStatus = "Supabase not connected";
+          continue;
+        }
+        if (supabaseError) {
+          group.comparisonStatus = "Could not compare";
+          continue;
+        }
+
+        const path = driveFile.getFullPath().replace(/^\/+|\/+$/g, "");
+        const supabaseFile = supabaseByPath.get(
+          `${driveFile.isFolderNode() ? "folder" : "file"}:${path}`
+        );
+        if (!supabaseFile) {
+          group.comparisonStatus = "Not synced";
+          continue;
+        }
+
+        try {
+          group.comparisonStatus = driveFile.isFolderNode()
+            ? await FileRecord.getFolderCopyComparison([driveFile, supabaseFile])
+            : await FileRecord.getCopyComparison([driveFile, supabaseFile]);
+        } catch (error) {
+          const type = group.isFolderNode() ? "folder" : "file";
+          console.error(`Failed to compare matching ${type} "${group.getDisplayName()}":`, error);
+          group.comparisonStatus = "Could not compare";
+        }
+        continue;
+      }
+
       if (group.files.length === 1) {
         group.comparisonStatus = `Only in ${group.files[0].getStorageName()}`;
         continue;
