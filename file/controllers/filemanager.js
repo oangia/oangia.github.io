@@ -863,7 +863,7 @@ class FileManager {
       frame.title = file.getDisplayName();
       frame.setAttribute("allowtransparency", "true");
       frame.className =
-        "w-[90vw] h-[90vh] max-w-5xl border-0 rounded-lg bg-white shadow-2xl";
+        "w-[100vw] h-[100vh] max-w-5xl border-0 rounded-lg bg-transparent shadow-2xl";
       frame.src = objectUrl;
       panel.appendChild(frame);
     } catch (error) {

@@ -1,57 +1,6 @@
-class BaseStorageService {
+class DriveStorageService {
   constructor(config = {}) {
-    if (new.target === BaseStorageService) {
-      throw new Error("BaseStorageService is abstract and cannot be instantiated directly.");
-    }
-
     this.onConnectionChange = config.onConnectionChange || (() => {});
-  }
-
-  isAvailable() { return false; }
-
-  async load(path, options = {}) {
-    return this._unsupported("load");
-  }
-
-  async getById(id) {
-    return this.getByPath(id);
-  }
-
-  async getByPath(path) {
-    return this._unsupported("getByPath");
-  }
-
-  async fetchContent({ id = null, path = null } = {}) {
-    return this._unsupported("fetchContent");
-  }
-
-  async upload(path, file, options = {}) {
-    return this._unsupported("upload");
-  }
-
-  async uploadById(id, file, options = {}) {
-    return this.upload(id, file, { ...options, upsert: true });
-  }
-
-  async remove(paths) {
-    return this._unsupported("remove");
-  }
-
-  async removeById(ids) {
-    return this.remove(ids);
-  }
-
-  _unsupported(operation) {
-    return {
-      data: null,
-      error: new Error(`${this.constructor.name} does not support ${operation}`)
-    };
-  }
-}
-
-class DriveStorageService extends BaseStorageService {
-  constructor(config = {}) {
-    super(config);
 
     this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     this.apiBase = "https://www.googleapis.com/drive/v3/files";
@@ -84,6 +33,10 @@ class DriveStorageService extends BaseStorageService {
     window.addEventListener("load", init);
   }
 
+  isAvailable() {
+    return Boolean(this.token);
+  }
+
   async load(folderId, options = {}) {
     try {
       const nameFilter = options.name
@@ -108,8 +61,6 @@ class DriveStorageService extends BaseStorageService {
     }
   }
 
-  isAvailable() { return Boolean(this.token); }
-
   async fetchContent({ id } = {}) {
     try {
       if (!id) throw new Error("File ID required to fetch content");
@@ -125,10 +76,6 @@ class DriveStorageService extends BaseStorageService {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
   }
-
-  // =========================================================================
-  // GOOGLE DRIVE SPECIFIC PRIVATE METHODS (OAuth & Folder Hierarchy)
-  // =========================================================================
 
   _bindAuthButton() {
     const authBtn = document.getElementById("authBtn");
@@ -223,5 +170,85 @@ class DriveStorageService extends BaseStorageService {
   _headers(extra = {}) {
     if (!this.token) throw new Error("Not authenticated. Please click 'Connect Drive'.");
     return { Authorization: `Bearer ${this.token}`, ...extra };
+  }
+}
+
+class LocalFileService {
+  constructor(btnId) {
+    this.onConnectionChange = () => {};
+    this.files = null;
+    const button = document.getElementById(btnId);
+    if (!button || button.dataset.localDriveBound) return this;
+
+    button.dataset.localDriveBound = "true";
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.webkitdirectory = true;
+    fileInput.multiple = true;
+    fileInput.style.display = "none";
+    document.body.appendChild(fileInput);
+
+    fileInput.onchange = event => {
+      this.files = event.target.files;
+      console.log(this.files);
+      this.onConnectionChange(this.files);
+    };
+
+    button.onclick = () => fileInput.click();
+  }
+
+  isAvailable() {
+    return Boolean(this.files?.length);
+  }
+
+  async load() {
+    return { data: this.files, error: null };
+  }
+
+  async fetchContent({ id } = {}) {
+    if (!(id instanceof Blob)) {
+      return { data: null, error: new Error("A local File is required to fetch content") };
+    }
+    return { data: new Response(id), error: null };
+  }
+}
+
+class SupabaseStorageService {
+  constructor(config = {}) {
+    this.onConnectionChange = config.onConnectionChange || (() => {});
+    this.client = null;
+    this._bucket = localStorage.getItem("sb_bucket") || config.bucket || "files";
+    const savedUrl = localStorage.getItem("sb_url") || config.url;
+    const savedKey = localStorage.getItem("sb_key") || config.key;
+
+    this.client = savedUrl && savedKey
+      ? window.supabase.createClient(savedUrl, savedKey)
+      : null;
+  }
+
+  isAvailable() {
+    return Boolean(this.client);
+  }
+
+  async load(path, options = {}) {
+    const { data, error } = await this.client.storage.from(this._bucket).list(path, options);
+    console.log(path, { data, error });
+    return { data, error };
+  }
+
+  async fetchContent({ id } = {}) {
+    const { data, error } = await this.client.storage.from(this._bucket).download(id);
+    return { data, error };
+  }
+
+  async upload(path, file, options = {}) {
+    const { data, error } = await this.client.storage.from(this._bucket).upload(path, file, options);
+    return { data, error };
+  }
+
+  async remove(paths) {
+    const { data, error } = await this.client.storage.from(this._bucket).remove(paths);
+    return { data, error };
   }
 }
