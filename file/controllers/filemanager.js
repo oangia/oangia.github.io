@@ -75,6 +75,7 @@ class UITemplates {
     };
   }
 }
+
 class ItemsGridRenderer extends ViewInterface {
   constructor(containerId, fileManagerInstance) {
     super();
@@ -247,11 +248,6 @@ class ItemsGridRenderer extends ViewInterface {
         action: () => "syncFileToSupabase",
         label: () => "Sync to Supabase",
         filter: (f) => !f.isFolderNode() && f.getStorageName() === "Google Drive",
-      },
-      {
-        action: () => "deleteRecord",
-        label: () => "Delete",
-        style: "text-rose-300 hover:text-rose-200",
       },
     ];
 
@@ -611,7 +607,7 @@ class FileManager {
     this.allItems = [];
     this.filteredItems = [];
     this.listRequestId = 0;
-    
+
     this.breadcrumb = new BreadcrumbManager("breadcrumbNav", this);
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", this);
     this.actionsMenu = new FileActionsMenu(this);
@@ -629,7 +625,6 @@ class FileManager {
       case "openFilePreview": return this.openFilePreview(args[0]);
       case "upload": return this.handleFileUpload(args[0], args[1], args[2]);
       case "downloadRecord": return this.downloadRecord(args[0]);
-      case "deleteRecord": return this.deleteRecord(args[0]);
       case "backup": return this.createBackup();
       case "backupGitHubRepo": return this.backupGitHubRepo();
       case "syncDriveToSupabase": return this.syncDriveToSupabase();
