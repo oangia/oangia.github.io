@@ -29,7 +29,7 @@ class UITemplates {
           return `<img class="${mediaClass}">`;
         }
         if (file.isVideo()) {
-          return `<video class="${mediaClass}" muted playsinline preload="metadata" aria-label="${escapeHtml(file.getDisplayName())}"></video>`;
+          return `<video class="${mediaClass}" autoplay loop muted playsinline preload="metadata" aria-label="${escapeHtml(file.getDisplayName())}"></video>`;
         }
         return `<div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors"><i class="${file.getFileIconClass()} text-3xl"></i></div>`;
       },
