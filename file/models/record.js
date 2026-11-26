@@ -137,13 +137,12 @@ class BaseStorageRecord extends FileEntity {
 
   static _getStorageServices() {
     if (!BaseStorageRecord._storageServices) {
-      const onConnectionChange = () => BaseStorageRecord._notifyServicesChanged();
       let localFiles;
       localFiles = new LocalFileService({
         folderButtonId: "openLocalFolderBtn",
         onConnectionChange: () => {
           FileRecord._releaseLocalFileUrls(localFiles);
-          onConnectionChange();
+          BaseStorageRecord._notifyServicesChanged();
         }
       });
       BaseStorageRecord._storageServices = [
@@ -964,8 +963,9 @@ class FileRecord extends BaseStorageRecord {
   static async backup() {
     let storage;
     try {
-      storage = this._getStorageService("Supabase")?.storage;
-      if (!storage?.client) throw new Error("Supabase client not initialized");
+      const supabaseService = this._getStorageService("Supabase");
+      storage = supabaseService?.storage;
+      if (!storage?.isAvailable()) throw new Error("Supabase client not initialized");
 
       showToast("Collecting all files...", "info");
       const allFiles = await this._listAllFilesRecursive(storage);
@@ -1000,7 +1000,7 @@ class FileRecord extends BaseStorageRecord {
       showToast("Calculating archive hash...", "info");
       const shortHash = await this._computeBackupHash(hashParts);
       const today = new Date().toISOString().slice(0, 10);
-      const filename = `${storage.getName()}_${today}_${shortHash}.zip`;
+      const filename = `${supabaseService.name}_${today}_${shortHash}.zip`;
 
       showToast("Compressing into ZIP archive...", "info");
       const blob = await zip.generateAsync({

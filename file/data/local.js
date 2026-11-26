@@ -1,9 +1,8 @@
 class LocalFileService extends BaseStorageService {
-  constructor(config = {}) {
-    super({ ...config, name: config.name || "Local folder" });
+  constructor(btnId) {
+    //super();
     this.files = null;
-    const folderButtonId = config.folderButtonId || "selectFolderBtn";
-    const button = document.getElementById(folderButtonId);
+    const button = document.getElementById(btnId);
     if (!button || button.dataset.localDriveBound) return this;
 
     button.dataset.localDriveBound = "true";

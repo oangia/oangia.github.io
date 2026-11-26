@@ -1,6 +1,6 @@
 class SupabaseStorageService extends BaseStorageService {
   constructor(config = {}) {
-    super({ ...config, name: config.name || "Supabase" });
+    super(config);
     this.client = null;
     this._bucket = localStorage.getItem("sb_bucket") || config.bucket || "files";
     const savedUrl = localStorage.getItem("sb_url") || config.url;

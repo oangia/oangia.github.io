@@ -4,11 +4,9 @@ class BaseStorageService {
       throw new Error("BaseStorageService is abstract and cannot be instantiated directly.");
     }
 
-    this.onConnectionChange = config.onConnectionChange || (() => {});
-    this.name = config.name || this.constructor.name;
+    this.
+     = config.onConnectionChange || (() => {});
   }
-
-  getName() { return this.name; }
 
   isAvailable() { return false; }
 
