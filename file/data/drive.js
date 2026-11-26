@@ -106,7 +106,7 @@ class DriveStorageService extends BaseStorageService {
       const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
       if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to list Drive items");
       const files = await res.json();
-      console.log(files);
+      console.log(folderId, files);
       return { data: files, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };

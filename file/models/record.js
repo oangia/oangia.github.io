@@ -104,6 +104,7 @@ class BaseStorageRecord extends FileEntity {
   static _storageServices = null;
   static _localFileUrls = new WeakMap();
   static _localFileIndexes = new WeakMap();
+  static _listingCaches = new WeakMap();
   
   constructor(data = {}) {
     super(data);
@@ -238,6 +239,7 @@ class BaseStorageRecord extends FileEntity {
 
   static async getAllFromServices(path = "", options = {}) {
     const services = this._getStorageServices().filter(({ storage }) => storage?.isAvailable());
+    for (const { storage } of services) this._listingCaches.set(storage, new Map());
     const results = await Promise.all(services.map(async ({ name, storage }) => {
       const { data, error } = await this._getAll(path, options, storage, name);
       return { data, error, name };
@@ -253,6 +255,23 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async _getAll(path = "", options = {}, storage = this._getStorage(), storageName = "Google Drive") {
+    let cache = this._listingCaches.get(storage);
+    if (!cache) {
+      cache = new Map();
+      this._listingCaches.set(storage, cache);
+    }
+
+    const key = `${this._normalizePath(path)}:${JSON.stringify(options)}`;
+    if (cache.has(key)) return cache.get(key);
+
+    const listing = this._getAllUncached(path, options, storage, storageName);
+    cache.set(key, listing);
+    const result = await listing;
+    if (result.error) cache.delete(key);
+    return result;
+  }
+
+  static async _getAllUncached(path, options, storage, storageName) {
     if (storage instanceof LocalFileService) {
       return this._getAllLocalFiles(path, storage, storageName);
     }

@@ -15,7 +15,7 @@ class SupabaseStorageService extends BaseStorageService {
 
   load(path, options = {}) {
     const files = this.client.storage.from(this._bucket).list(path, options);
-    console.log(files);
+    console.log(path, files);
     return files;
   }
 
