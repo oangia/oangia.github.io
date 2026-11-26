@@ -1,72 +1,55 @@
-class StorageServiceInterface {
-  constructor() {
-    if (new.target === StorageServiceInterface) {
-      throw new Error("StorageServiceInterface is an abstract class and cannot be instantiated directly.");
+class BaseStorageService {
+  constructor(config = {}) {
+    if (new.target === BaseStorageService) {
+      throw new Error("BaseStorageService is abstract and cannot be instantiated directly.");
     }
+
+    this.onConnectionChange = config.onConnectionChange || (() => {});
   }
 
-  async list(path, options = {}) {
-    throw new Error(`${this.constructor.name} must implement list(path, options)`);
-  }
-
-  async fetchContent({ id = null, path = null } = {}) {
-    throw new Error(`${this.constructor.name} must implement fetchContent(params)`);
-  }
-
-  async getByPath(path) {
-    throw new Error(`${this.constructor.name} must implement getByPath(path)`);
+  async load(path, options = {}) {
+    return this._unsupported("load");
   }
 
   async getById(id) {
-    throw new Error(`${this.constructor.name} must implement getById(id)`);
+    return this.getByPath(id);
+  }
+
+  async getByPath(path) {
+    return this._unsupported("getByPath");
+  }
+
+  async fetchContent({ id = null, path = null } = {}) {
+    return this._unsupported("fetchContent");
   }
 
   async upload(path, file, options = {}) {
-    throw new Error(`${this.constructor.name} must implement upload(path, file, options)`);
+    return this._unsupported("upload");
   }
 
   async uploadById(id, file, options = {}) {
-    throw new Error(`${this.constructor.name} must implement uploadById(id, file, options)`);
+    return this.upload(id, file, { ...options, upsert: true });
   }
 
   async remove(paths) {
-    throw new Error(`${this.constructor.name} must implement remove(paths)`);
+    return this._unsupported("remove");
   }
 
   async removeById(ids) {
-    throw new Error(`${this.constructor.name} must implement removeById(ids)`);
-  }
-}
-
-class BaseStorageService extends StorageServiceInterface {
-  constructor(config = {}) {
-    super();
-    this.onConnectionChange = config.onConnectionChange || (() => {});
+    return this.remove(ids);
   }
 
-  // =========================================================================
-  // SHARED HELPER METHODS FOR CHILD CLASSES
-  // =========================================================================
-
-  _normalizePath(path = "") {
-    return String(path).replace(/^\/+/, "").replace(/\/+$/, "");
-  }
-
-  _parsePath(path = "") {
-    const cleanPath = String(path).replace(/^\/+/, "");
-    const lastSlashIdx = cleanPath.lastIndexOf("/");
+  _unsupported(operation) {
     return {
-      cleanPath,
-      dirPath: lastSlashIdx !== -1 ? cleanPath.substring(0, lastSlashIdx) : "",
-      fileName: lastSlashIdx !== -1 ? cleanPath.substring(lastSlashIdx + 1) : cleanPath
+      data: null,
+      error: new Error(`${this.constructor.name} does not support ${operation}`)
     };
   }
-
 }
 
-class DriveStorageService {
+class DriveStorageService extends BaseStorageService {
   constructor(config = {}) {
-    this.onConnectionChange = config.onConnectionChange || (() => {});
+    super(config);
 
     this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     this.apiBase = "https://www.googleapis.com/drive/v3/files";
@@ -92,6 +75,7 @@ class DriveStorageService {
 
     const init = () => {
       this._initOAuthClient();
+      this._bindAuthButton();
       if (this.token) this._scheduleTokenRefresh();
       else this._requestSilentAccessToken();
     };
@@ -100,98 +84,156 @@ class DriveStorageService {
     window.addEventListener("load", init);
   }
 
-  async fetchContent(id) {
-    const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?alt=media`, {
-      headers: this._headers()
-    });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.error?.message || `Failed to fetch file content: ${res.statusText}`);
+  async load(folderId, options = {}) {
+    try {
+      const nameFilter = options.name
+        ? ` and name = '${String(options.name).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`
+        : "";
+      const mimeTypeFilter = options.mimeType ? ` and mimeType = '${options.mimeType}'` : "";
+      const params = new URLSearchParams({
+        q: `'${folderId}' in parents and trashed = false${nameFilter}${mimeTypeFilter}`,
+        fields: "nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink, thumbnailLink)",
+        orderBy: "folder,name",
+        pageSize: "100"
+      });
+      if (options.pageToken) params.set("pageToken", options.pageToken);
+
+      const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
+      if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to list Drive items");
+      return { data: await res.json(), error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
-    return res;
   }
 
   async getById(id) {
-    const fields = "id, name, mimeType, size, modifiedTime, webContentLink, thumbnailLink";
-    const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?fields=${fields}`, {
-      headers: this._headers()
-    });
-    if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to fetch file metadata");
-    return res.json();
-  }
-
-  async searchFiles(parentId, name) {
-    const query = new URLSearchParams({
-      q: `'${parentId}' in parents and name = '${name}' and trashed = false`,
-      fields: "files(id)"
-    });
-    const res = await fetch(`${this.apiBase}?${query}`, { headers: this._headers() });
-    if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to find Drive item");
-    return res.json();
-  }
-
-  async createFile(parentId, file) {
-    const metadata = {
-      name: file.name,
-      mimeType: file.type || "application/octet-stream",
-      parents: [parentId]
-    };
-    const form = new FormData();
-    form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-    form.append("file", file);
-
-    const fields = "id,name,mimeType,size,modifiedTime,webContentLink";
-    const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=${fields}`, {
-      method: "POST",
-      headers: this._headers(),
-      body: form
-    });
-    if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
-    return res.json();
-  }
-
-  async updateFile(id, file) {
-    const metadata = {
-      name: file.name,
-      mimeType: file.type || "application/octet-stream"
-    };
-    const form = new FormData();
-    form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-    form.append("file", file);
-
-    const fields = "id,name,mimeType,size,modifiedTime,webContentLink";
-    const res = await fetch(`${this.uploadBase}/${encodeURIComponent(id)}?uploadType=multipart&fields=${fields}`, {
-      method: "PATCH",
-      headers: this._headers(),
-      body: form
-    });
-    if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
-    return res.json();
-  }
-
-  async deleteFile(id) {
-    const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-      headers: this._headers()
-    });
-    if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to delete file");
-  }
-
-  connect(clientId = this.clientId) {
-    if (!clientId) throw new Error("Google Client ID is not configured");
-    this.clientId = clientId;
-    if (!this.tokenClient && !this._initOAuthClient()) {
-      throw new Error("Google API is still loading. Please try again in a moment.");
+    try {
+      const fields = "id, name, mimeType, size, modifiedTime, webContentLink, thumbnailLink";
+      const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?fields=${fields}`, {
+        headers: this._headers()
+      });
+      if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to fetch file metadata");
+      return { data: await res.json(), error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
+  }
 
-    this._silentAuthAttempted = false;
-    this._authRequestMode = "interactive";
-    this.tokenClient.requestAccessToken({ prompt: "" });
+  async fetchContent({ id } = {}) {
+    try {
+      if (!id) throw new Error("File ID required to fetch content");
+      const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?alt=media`, {
+        headers: this._headers()
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || `Failed to fetch file content: ${res.statusText}`);
+      }
+      return { data: res, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
+
+  async upload(parentId, file, options = {}) {
+    try {
+      const metadata = {
+        name: options.name || file.name,
+        mimeType: file.type || "application/octet-stream",
+        parents: [parentId]
+      };
+      const form = new FormData();
+      form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+      form.append("file", file);
+
+      const fields = "id,name,mimeType,size,modifiedTime,webContentLink";
+      const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=${fields}`, {
+        method: "POST",
+        headers: this._headers(),
+        body: form
+      });
+      if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
+      return { data: await res.json(), error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
+
+  async uploadById(id, file) {
+    try {
+      const metadata = {
+        name: file.name,
+        mimeType: file.type || "application/octet-stream"
+      };
+      const form = new FormData();
+      form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+      form.append("file", file);
+
+      const fields = "id,name,mimeType,size,modifiedTime,webContentLink";
+      const res = await fetch(`${this.uploadBase}/${encodeURIComponent(id)}?uploadType=multipart&fields=${fields}`, {
+        method: "PATCH",
+        headers: this._headers(),
+        body: form
+      });
+      if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
+      return { data: await res.json(), error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
+
+  async remove(ids) {
+    try {
+      for (const id of ids) {
+        const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: this._headers()
+        });
+        if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to delete file");
+      }
+      return { data: {}, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
   }
 
   // =========================================================================
   // GOOGLE DRIVE SPECIFIC PRIVATE METHODS (OAuth & Folder Hierarchy)
   // =========================================================================
+
+  _bindAuthButton() {
+    const authBtn = document.getElementById("authBtn");
+    if (!authBtn || authBtn.dataset.driveBound) return;
+
+    authBtn.dataset.driveBound = "true";
+    authBtn.onclick = () => {
+      const currentClientId = localStorage.getItem("gdrive_oauth_client_id") || this.clientId;
+      if (!currentClientId) {
+        if (typeof showToast === "function") {
+          showToast("Please configure your Google Client ID in settings first!", "error");
+        } else {
+          alert("Please configure your Google Client ID in settings first!");
+        }
+        document.getElementById("configModal")?.classList.remove("hidden");
+        return;
+      }
+
+      try {
+        this.clientId = currentClientId;
+        if (!this.tokenClient && !this._initOAuthClient()) {
+          throw new Error("Google API is still loading. Please try again in a moment.");
+        }
+
+        this._silentAuthAttempted = false;
+        this._authRequestMode = "interactive";
+        this.tokenClient.requestAccessToken({ prompt: "" });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (typeof showToast === "function") showToast(message, "error");
+        else alert(message);
+      }
+    };
+  }
 
   _initOAuthClient() {
     if (this.tokenClient) return true;
@@ -252,44 +294,5 @@ class DriveStorageService {
   _headers(extra = {}) {
     if (!this.token) throw new Error("Not authenticated. Please click 'Connect Drive'.");
     return { Authorization: `Bearer ${this.token}`, ...extra };
-  }
-
-  async _listFolderPage(folderId, pageToken = null) {
-    const params = new URLSearchParams({
-      q: `'${folderId}' in parents and trashed = false`,
-      fields: "nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink, thumbnailLink)",
-      orderBy: "folder,name",
-      pageSize: "100"
-    });
-    if (pageToken) params.set("pageToken", pageToken);
-
-    const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
-    if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to list Drive items");
-    return res.json();
-  }
-
-  async _findFolderDirect(parentId, name) {
-    const query = new URLSearchParams({
-      q: `'${parentId}' in parents and name = '${name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-      fields: "files(id, name)"
-    });
-    const res = await fetch(`${this.apiBase}?${query}`, { headers: this._headers() });
-    if (!res.ok) throw new Error("Failed to resolve folder hierarchy");
-    return res.json();
-  }
-
-  async _createFolderDirect(parentId, name) {
-    const metadata = {
-      name,
-      mimeType: "application/vnd.google-apps.folder",
-      parents: [parentId]
-    };
-    const res = await fetch(this.apiBase, {
-      method: "POST",
-      headers: this._headers({ "Content-Type": "application/json" }),
-      body: JSON.stringify(metadata)
-    });
-    if (!res.ok) throw new Error(`Failed to create folder: ${name}`);
-    return res.json();
   }
 }
