@@ -374,7 +374,7 @@ class BaseStorageRecord extends FileEntity {
       modifiedTime: new Date(file.lastModified || Date.now()).toISOString(),
       webContentLink: url
     }, path, storage, storageName);
-    if (record.isImage() || record.isVideo()) record._thumbnail = url;
+    if (record.isImage()) record._thumbnail = url;
     return record;
   }
 

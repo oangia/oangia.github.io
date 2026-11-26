@@ -4,6 +4,7 @@ class FileManager {
     this.filteredItems = [];
     this.listRequestId = 0;
     this.currentFileRecord = null;
+    this.videoThumbnailCache = new Map();
     
     this.breadcrumb = new BreadcrumbManager("breadcrumbNav", this);
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", this);
@@ -12,7 +13,10 @@ class FileManager {
     this.actionsMenu = new FileActionsMenu(this);
     this.syncProgress = new SyncProgressPanel();
 
-    window.addEventListener("storage-services-changed", () => this.action("refresh"));
+    window.addEventListener("storage-services-changed", () => {
+      this.videoThumbnailCache.clear();
+      this.action("refresh");
+    });
     this.action("refresh");
   }
 
@@ -211,6 +215,13 @@ class FileManager {
 
   async loadPreviewMedia(file, element, useThumbnail = true) {
     try {
+      const videoUrl = file.getUrl();
+      if (file.isVideo() && element instanceof HTMLImageElement && videoUrl?.startsWith("blob:")) {
+        element.loading = "lazy";
+        element.src = await this._getVideoThumbnail(videoUrl);
+        return;
+      }
+
       if (useThumbnail && element instanceof HTMLImageElement && file.getThumbnail()) {
         element.loading = "lazy";
         element.onerror = () => {
@@ -240,6 +251,66 @@ class FileManager {
       if (error.name === "AbortError") return;
       console.error("Failed to load file preview:", error);
     }
+  }
+
+  _getVideoThumbnail(url) {
+    let thumbnail = this.videoThumbnailCache.get(url);
+    if (!thumbnail) {
+      thumbnail = this._createVideoThumbnail(url).catch(error => {
+        this.videoThumbnailCache.delete(url);
+        throw error;
+      });
+      this.videoThumbnailCache.set(url, thumbnail);
+    }
+    return thumbnail;
+  }
+
+  _createVideoThumbnail(url) {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement("video");
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = "metadata";
+
+      const cleanup = () => {
+        video.removeEventListener("loadeddata", onLoadedData);
+        video.removeEventListener("error", onError);
+        video.removeAttribute("src");
+        video.load();
+      };
+      const onError = () => {
+        cleanup();
+        reject(new Error("Could not decode video for its thumbnail"));
+      };
+      const onLoadedData = () => {
+        if (!video.videoWidth || !video.videoHeight) {
+          onError();
+          return;
+        }
+
+        const scale = Math.min(320 / video.videoWidth, 180 / video.videoHeight, 1);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+
+        try {
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("Could not create a video thumbnail canvas");
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const thumbnail = canvas.toDataURL("image/jpeg", 0.75);
+          cleanup();
+          resolve(thumbnail);
+        } catch (error) {
+          cleanup();
+          reject(error);
+        }
+      };
+
+      video.addEventListener("loadeddata", onLoadedData, { once: true });
+      video.addEventListener("error", onError, { once: true });
+      video.src = url;
+      video.load();
+    });
   }
 
   async createFolder(name) {
