@@ -456,58 +456,6 @@ class BreadcrumbManager extends ViewInterface {
   }
 }
 
-class CreateFolderModal extends ViewInterface {
-  constructor(fileManagerInstance) {
-    super();
-    this.fileManager = fileManagerInstance;
-
-    this.initHTML();
-    this.bindEvents();
-  }
-
-  initHTML() {
-    if (document.getElementById("modalCreateFolder")) return;
-
-    const wrapper = document.createElement("div");
-    wrapper.innerHTML = UITemplates.createFolderModal.modalHtml.trim();
-    document.body.appendChild(wrapper.firstElementChild);
-  }
-
-  bindEvents() {
-    document.getElementById("openCreateFolderModalBtn")?.addEventListener("click", () => this.open());
-    document.getElementById("closeCreateFolderModalBtn")?.addEventListener("click", () => this.close());
-    document.getElementById("submitCreateFolderBtn")?.addEventListener("click", () => this.submit());
-
-    document.getElementById("folderNameInput")?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        this.submit();
-      }
-    });
-  }
-
-  open() {
-    const input = document.getElementById("folderNameInput");
-    const modal = document.getElementById("modalCreateFolder");
-
-    if (input) input.value = "";
-    if (modal) modal.classList.remove("hidden");
-
-    document.getElementById("actionsMenuToggleBtn")?.classList.add("hidden");
-    if (input) setTimeout(() => input.focus(), 50);
-  }
-
-  close() {
-    document.getElementById("modalCreateFolder")?.classList.add("hidden");
-  }
-
-  async submit() {
-    const name = document.getElementById("folderNameInput")?.value.trim();
-    if (!name) return;
-    this.fileManager.action("createFolder", name);
-  }
-}
-
 class SyncProgressPanel extends ViewInterface {
   constructor() {
     super();
