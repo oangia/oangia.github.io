@@ -42,22 +42,6 @@ class UITemplates {
     };
   }
 
-  // --- Preview Modal Templates ---
-  static get preview() {
-    return {
-      modalHtml: `<div id="modalPreview" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-0 m-0"><div class="w-screen h-screen flex flex-col overflow-hidden m-0 p-0 text-slate-100"><div class="flex items-center justify-between px-6 py-3.5 border-b border-white/15 bg-black/40 shrink-0"><h3 id="previewTitle" class="font-bold text-sm text-white truncate"></h3><button id="closePreviewModalBtn" class="text-slate-400 hover:text-white p-1 text-lg transition"><i class="fa-solid fa-xmark"></i></button></div><div class="flex-1 flex overflow-hidden bg-transparent"><div id="previewBody" class="flex-1 overflow-auto flex items-center justify-center"></div></div><div class="px-6 py-3.5 border-t border-white/15 bg-black/40 flex justify-end gap-2 flex-wrap shrink-0"><button id="previewSaveBtn" class="hidden px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg transition"><i class="fa-solid fa-floppy-disk mr-1 text-emerald-400"></i> Save</button><button id="previewCancelEditBtn" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button><button id="previewDownloadBtn" type="button" class="px-4 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg transition"><i class="fa-solid fa-download mr-1 text-indigo-400"></i> Download</button><button id="closePreviewModalBtnAlt" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Close</button></div></div></div>`,
-      loadingSpinner: `<div class="wire-subtext py-12 flex justify-center"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>`,
-      imageBody: (url, altText) => `<img src="${url}" alt="${altText}" class="max-w-full h-full shadow-md object-contain">`,
-      videoBody: (url) => `<video controls class="max-w-full max-h-[100vh] rounded-lg shadow-md wire-border" src="${url}"></video>`,
-      audioBody: (url, displayName) => `<div class="w-full max-w-lg text-center"><audio controls class="w-full mb-3" src="${url}"></audio><p class="text-xs wire-text">${displayName}</p></div>`,
-      htmlBody: (text) => `<div class="flex flex-col h-full w-full"><div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 px-1"><div class="flex items-center gap-1 bg-black/40 p-1 rounded wire-border text-xs"><button type="button" id="htmlPreviewTab" class="px-3 py-1 rounded bg-indigo-600 text-white font-medium transition">Preview</button><button type="button" id="htmlEditorTab" class="px-3 py-1 rounded wire-subtext hover:text-white transition">Code Editor</button></div><span class="text-[11px] wire-subtext italic">HTML Interactive File</span></div><div id="htmlPreviewContainer" class="w-full h-[70vh] bg-white rounded-lg overflow-hidden wire-border"><iframe sandbox="allow-scripts" id="htmlPreviewFrame" class="w-full h-full border-0" sandbox="allow-scripts allow-modals"></iframe></div><div id="htmlEditorContainer" class="w-full h-[70vh] hidden"><textarea id="editTextarea" class="w-full h-full font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${text}</textarea></div></div>`,
-      textBody: (text) => `<textarea id="editTextarea" class="w-full h-[75vh] font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${text}</textarea>`,
-      errorBody: `<div class="text-center space-y-4 py-12 wire-subtext"><i class="fa-solid fa-file text-5xl"></i><p class="text-sm">Preview not available for this file type.</p></div>`,
-      activeTabClass: "px-3 py-1 rounded bg-indigo-600 text-white font-medium transition",
-      inactiveTabClass: "px-3 py-1 rounded wire-subtext hover:text-white transition"
-    };
-  }
-
   // --- Breadcrumb Templates ---
   static get breadcrumb() {
     return {
@@ -130,7 +114,7 @@ class ItemsGridRenderer extends ViewInterface {
       if (!card) return;
       const file = this.items[Number(card.dataset.groupIndex)]?.selectedFile;
       if (!file) return;
-      this.fileManager.action(file.isFolderNode() ? "navigate" : "openPreview", file);
+      this.fileManager.action(file.isFolderNode() ? "navigate" : "openFileInNewTab", file);
     });
 
     this.contextMenu.addEventListener("pointerdown", (e) => e.stopPropagation());
@@ -252,8 +236,8 @@ class ItemsGridRenderer extends ViewInterface {
 
     const actionRows = [
       {
-        action: (f) => (f.isFolderNode() ? "navigate" : "openPreview"),
-        label: (f) => (f.isFolderNode() ? "Open" : "View"),
+        action: (f) => (f.isFolderNode() ? "navigate" : "openFileInNewTab"),
+        label: (f) => (f.isFolderNode() ? "Open" : "Open in new tab"),
       },
       {
         action: () => "downloadRecord",
@@ -399,138 +383,6 @@ class FileGroup {
   }
   getSize() {
     return this.selectedFile.getSize();
-  }
-}
-
-class FilePreviewManager extends ViewInterface {
-  constructor(fileManagerInstance) {
-    super();
-    this.fileManager = fileManagerInstance;
-    this._currentBlobUrl = null;
-
-    this.initHTML();
-    this.bindEvents();
-  }
-
-  initHTML() {
-    if (document.getElementById("modalPreview")) return;
-
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = UITemplates.preview.modalHtml.trim();
-    document.body.appendChild(tempDiv.firstChild);
-  }
-
-  bindEvents() {
-    const modal = document.getElementById("modalPreview");
-    modal?.addEventListener("click", (event) => {
-      if (!(event.target instanceof Element)) return;
-      const button = event.target.closest("button");
-      if (!button) return;
-
-      if (button.id === "closePreviewModalBtn" || button.id === "closePreviewModalBtnAlt") {
-        this.close();
-      } else if (button.id === "previewCancelEditBtn") {
-        this.fileManager.action("cancelEdit");
-      } else if (button.id === "previewDownloadBtn" && this.fileManager.currentFileRecord) {
-        this.fileManager.action("downloadRecord", this.fileManager.currentFileRecord);
-      } else if (button.id === "previewSaveBtn") {
-        const textarea = modal.querySelector("#editTextarea");
-        if (textarea) this.fileManager.action("saveEditedText", textarea.value);
-      } else if (button.id === "htmlPreviewTab") {
-        this.switchHtmlView("preview");
-      } else if (button.id === "htmlEditorTab") {
-        this.switchHtmlView("editor");
-      }
-    });
-  }
-
-  showLoading(fileRecord) {
-    if (this._currentBlobUrl) {
-      URL.revokeObjectURL(this._currentBlobUrl);
-      this._currentBlobUrl = null;
-    }
-
-    const tpl = UITemplates.preview;
-    const title = document.getElementById("previewTitle");
-    const body = document.getElementById("previewBody");
-    const saveBtn = document.getElementById("previewSaveBtn");
-    const cancelBtn = document.getElementById("previewCancelEditBtn");
-
-    if (title) {
-      title.textContent = `${fileRecord.getDisplayName()} — ${fileRecord.getStorageName()}${
-        fileRecord.isEncryptedFile() ? " (Decrypted securely)" : ""
-      }`;
-    }
-    if (body) body.innerHTML = tpl.loadingSpinner;
-
-    document.getElementById("modalPreview")?.classList.remove("hidden");
-    saveBtn?.classList.add("hidden");
-    cancelBtn?.classList.add("hidden");
-  }
-
-  async render(fileRecord, blob) {
-    const tpl = UITemplates.preview;
-    const body = document.getElementById("previewBody");
-    const saveBtn = document.getElementById("previewSaveBtn");
-    const cancelBtn = document.getElementById("previewCancelEditBtn");
-
-    this._currentBlobUrl = URL.createObjectURL(blob);
-    const displayName = escapeHtml(fileRecord.getDisplayName());
-    const escapedUrl = escapeHtml(this._currentBlobUrl);
-
-    if (fileRecord.isImage()) {
-      body.innerHTML = tpl.imageBody(escapedUrl, displayName);
-    } else if (fileRecord.isVideo()) {
-      body.innerHTML = tpl.videoBody(escapedUrl);
-    } else if (fileRecord.isAudio()) {
-      body.innerHTML = tpl.audioBody(escapedUrl, displayName);
-    } else {
-      const text = await blob.text();
-      const escapedText = escapeHtml(text);
-
-      if (fileRecord.isHtml()) {
-        body.innerHTML = tpl.htmlBody(escapedText);
-        const iframe = document.getElementById("htmlPreviewFrame");
-        if (iframe) iframe.srcdoc = text;
-      } else {
-        body.innerHTML = tpl.textBody(escapedText);
-        saveBtn?.classList.remove("hidden");
-        cancelBtn?.classList.remove("hidden");
-      }
-    }
-  }
-
-  showPreviewError() {
-    const tpl = UITemplates.preview;
-    const body = document.getElementById("previewBody");
-    if (body) body.innerHTML = tpl.errorBody;
-  }
-
-  close() {
-    document.getElementById("modalPreview")?.classList.add("hidden");
-  }
-
-  switchHtmlView(view) {
-    const tpl = UITemplates.preview;
-    const previewTab = document.getElementById("htmlPreviewTab");
-    const editorTab = document.getElementById("htmlEditorTab");
-    const previewContainer = document.getElementById("htmlPreviewContainer");
-    const editorContainer = document.getElementById("htmlEditorContainer");
-    const iframe = document.getElementById("htmlPreviewFrame");
-    const textarea = document.getElementById("editTextarea");
-
-    if (view === "preview") {
-      if (iframe && textarea) iframe.srcdoc = textarea.value;
-      previewContainer?.classList.remove("hidden");
-      editorContainer?.classList.add("hidden");
-      if (previewTab) previewTab.className = tpl.activeTabClass;
-      if (editorTab) editorTab.className = tpl.inactiveTabClass;
-    } else {
-      previewContainer?.classList.add("hidden");
-      editorContainer?.classList.remove("hidden");
-      if (editorTab) editorTab.className = tpl.activeTabClass;
-      if (previewTab) previewTab.className = tpl.inactiveTabClass;
-    }
   }
 }
 

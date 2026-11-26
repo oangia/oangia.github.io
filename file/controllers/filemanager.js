@@ -3,11 +3,9 @@ class FileManager {
     this.allItems = [];
     this.filteredItems = [];
     this.listRequestId = 0;
-    this.currentFileRecord = null;
     
     this.breadcrumb = new BreadcrumbManager("breadcrumbNav", this);
     this.gridRenderer = new ItemsGridRenderer("itemsGrid", this);
-    this.filePreview = new FilePreviewManager(this);
     this.createFolderModal = new CreateFolderModal(this);
     this.actionsMenu = new FileActionsMenu(this);
     this.syncProgress = new SyncProgressPanel();
@@ -21,9 +19,7 @@ class FileManager {
       case "refresh": return this.listFiles();
       case "listFiles": return this.listFiles();
       case "navigate": return this.navigate(args[0]);
-      case "openPreview": return this.openPreview(args[0]);
-      case "cancelEdit": return this.cancelEdit();
-      case "saveEditedText": return this.saveEditedText(args[0]);
+      case "openFileInNewTab": return this.openFileInNewTab(args[0]);
       case "createFolder": return this.createFolder(args[0]);
       case "upload": return this.handleFileUpload(args[0], args[1], args[2]);
       case "downloadRecord": return this.downloadRecord(args[0]);
@@ -198,34 +194,44 @@ class FileManager {
     this.breadcrumb.navigateToFolder(file.getFullPath(), file.getName());
   }
 
-  async openPreview(file) {
-    this.currentFileRecord = file;
-    this.filePreview.showLoading(file);
+  async openFileInNewTab(file) {
+    const newTab = window.open("about:blank", "_blank");
+    if (!newTab) {
+      showToast("Allow pop-ups to open files in a new tab", "warning");
+      return;
+    }
+    newTab.opener = null;
+
+    let objectUrl;
     try {
       const response = await file.getContent(60);
       const blob = await response.blob();
-      file._byteLength = blob.size;
-      await this.filePreview.render(file, blob);
+      newTab.document.title = file.getDisplayName();
+
+      if (file.isHtml()) {
+        const frame = newTab.document.createElement("iframe");
+        frame.setAttribute("sandbox", "allow-scripts");
+        frame.title = file.getDisplayName();
+        frame.style.cssText = "position:fixed;inset:0;width:100%;height:100%;border:0";
+        newTab.document.body.style.margin = "0";
+        newTab.document.body.appendChild(frame);
+        frame.srcdoc = await blob.text();
+        return;
+      }
+
+      objectUrl = URL.createObjectURL(blob);
+      const handleLoad = () => {
+        if (newTab.location.href !== objectUrl) return;
+        newTab.removeEventListener("load", handleLoad);
+        newTab.addEventListener("pagehide", () => URL.revokeObjectURL(objectUrl), { once: true });
+      };
+      newTab.addEventListener("load", handleLoad);
+      newTab.location.replace(objectUrl);
     } catch (error) {
-      console.error("Preview failed:", error);
-      this.filePreview.showPreviewError();
-      showToast(error.message || "Preview failed", "error");
-    }
-  }
-
-  cancelEdit() {
-    if (this.currentFileRecord) this.action("openPreview", this.currentFileRecord);
-  }
-
-  async saveEditedText(updatedContent) {
-    if (!this.currentFileRecord) return;
-    try {
-      await this.currentFileRecord.save(new Blob([updatedContent], { type: "text/plain;charset=utf-8" }));
-      showToast("Changes saved successfully", "success", 2000);
-      await this.action("refresh");
-    } catch (err) {
-      console.error(err);
-      showToast(err.message || "Failed to save changes", "error", 2500);
+      console.error("Failed to open file:", error);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      newTab.close();
+      showToast(error.message || "Failed to open file", "error");
     }
   }
 
