@@ -19,8 +19,8 @@ class SupabaseStorageService extends BaseStorageService {
     return files;
   }
 
-  async fdetchContent({ id } = {}) {
-    return await this.client.storage.from(this._bucket).download(id);
+  fdetchContent({ id } = {}) {
+    return this.client.storage.from(this._bucket).download(id);
   }
 
   upload(path, file, options = {}) {
