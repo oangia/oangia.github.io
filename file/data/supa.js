@@ -13,8 +13,8 @@ class SupabaseStorageService extends BaseStorageService {
 
   isAvailable() { return Boolean(this.client); }
 
-  load(path, options = {}) {
-    const files = this.client.storage.from(this._bucket).list(path, options);
+  async load(path, options = {}) {
+    const files = await this.client.storage.from(this._bucket).list(path, options);
     console.log(path, files);
     return files;
   }
