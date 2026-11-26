@@ -26,7 +26,7 @@ class UITemplates {
       fileMedia: (file) => {
         const mediaClass = "widget-preview-area flex-1 w-full h-full object-cover overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors";
         if (file.isVideo()) {
-          return `<video class="${mediaClass}" autoplay loop muted playsinline preload="metadata" aria-label="${escapeHtml(file.getDisplayName())}"></video>`;
+          return `<video class="${mediaClass}" muted preload="metadata" aria-label="${escapeHtml(file.getDisplayName())}"></video>`;
         }
         if (file.getThumbnail() || file.isImage()) {
           return `<img class="${mediaClass}">`;
