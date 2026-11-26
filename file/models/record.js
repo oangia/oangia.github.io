@@ -114,8 +114,21 @@ class BaseStorageRecord extends FileEntity {
   static _getStorage() {
     if (!BaseStorageRecord._storageService) {
       BaseStorageRecord._storageService = new DriveStorageService({
-        onConnectionChange: () => BaseStorageRecord._notifyServicesChanged()
+        onConnectionChange: ({ error, requestMode } = {}) => {
+          const storage = BaseStorageRecord._storageService;
+          if (!error && storage) {
+            FileRecord._invalidateDriveCache(storage);
+            void FileRecord._driveLoadAll(storage);
+          }
+          if (error && requestMode !== "silent" && typeof showToast === "function") {
+            showToast(`Auth error: ${error}`, "error");
+          } else if (!error && requestMode !== "silent" && typeof showToast === "function") {
+            showToast("Connected to Google Drive successfully", "success");
+          }
+          BaseStorageRecord._notifyServicesChanged();
+        }
       });
+      FileRecord._bindDriveAuthButton(BaseStorageRecord._storageService);
     }
     return BaseStorageRecord._storageService;
   }
@@ -162,6 +175,76 @@ class BaseStorageRecord extends FileEntity {
     return this._getStorageServices().find(service => service.name === name);
   }
 
+  static _bindDriveAuthButton(storage) {
+    const authBtn = document.getElementById("authBtn");
+    if (!authBtn || authBtn.dataset.driveBound) return;
+
+    authBtn.dataset.driveBound = "true";
+    authBtn.onclick = () => {
+      const currentClientId = localStorage.getItem("gdrive_oauth_client_id") || storage.clientId;
+      if (!currentClientId) {
+        if (typeof showToast === "function") {
+          showToast("Please configure your Google Client ID in settings first!", "error");
+        } else {
+          alert("Please configure your Google Client ID in settings first!");
+        }
+        document.getElementById("configModal")?.classList.remove("hidden");
+        return;
+      }
+
+      try {
+        storage.connect(currentClientId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (typeof showToast === "function") showToast(message, "error");
+        else alert(message);
+      }
+    };
+  }
+
+  static _listFromStorage(storage, path, options = {}) {
+    return storage instanceof DriveStorageService
+      ? FileRecord._driveList(storage, path, options)
+      : storage.list(path, options);
+  }
+
+  static _getByPathFromStorage(storage, path) {
+    return storage instanceof DriveStorageService
+      ? FileRecord._driveGetByPath(storage, path)
+      : storage.getByPath(path);
+  }
+
+  static async _getByIdFromStorage(storage, id) {
+    if (!(storage instanceof DriveStorageService)) return storage.getById(id);
+    try {
+      return { data: await storage.getById(id), error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
+
+  static async _fetchContentFromStorage(storage, params) {
+    if (!(storage instanceof DriveStorageService)) return storage.fetchContent(params);
+    try {
+      let id = params.id;
+      if (!id && params.path) {
+        const { data, error } = await FileRecord._driveGetByPath(storage, params.path);
+        if (error) throw error;
+        id = data.id;
+      }
+      if (!id) throw new Error("File ID or path required to fetch content");
+      return { data: await storage.fetchContent(id), error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
+
+  static async _removeFromStorage(storage, paths) {
+    return storage instanceof DriveStorageService
+      ? FileRecord._driveRemove(storage, paths)
+      : storage.remove(paths);
+  }
+
   static async getAllFromServices(path = "", options = {}) {
     const services = this._getStorageServices().filter(({ storage, isAvailable }) => isAvailable(storage));
     const results = await Promise.all(services.map(async ({ name, storage }) => {
@@ -179,7 +262,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async _getAll(path = "", options = {}, storage = this._getStorage(), storageName = "Google Drive") {
-    const { data, error } = await storage.list(path, {
+    const { data, error } = await this._listFromStorage(storage, path, {
       limit: 500,
       offset: 0,
       sortBy: { column: "name", order: "asc" },
@@ -225,7 +308,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async getByPath(path) {
-    const { data, error } = await this._getStorage().getByPath(path);
+    const { data, error } = await this._getByPathFromStorage(this._getStorage(), path);
     if (error || !data) return { data: null, error };
 
     const cleanPath = path.replace(/^\/+|\/+$/g, "");
@@ -233,7 +316,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async getById(id) {
-    const { data, error } = await this._getStorage().getById(id);
+    const { data, error } = await this._getByIdFromStorage(this._getStorage(), id);
     if (error || !data) return { data: null, error };
 
     return { data: this._fromDriveMetadata(data, ""), error: null };
@@ -258,6 +341,9 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async _uploadToStorage(storage, path, file, options = {}, byId = false) {
+    if (storage instanceof DriveStorageService) {
+      return FileRecord._driveUpload(storage, path, file, options, byId);
+    }
     return byId
       ? await storage.uploadById(path, file, options)
       : await storage.upload(path, file, options);
@@ -267,7 +353,7 @@ class BaseStorageRecord extends FileEntity {
     const fileName = downloadName || path.split("/").pop();
     const storage = this._getStorage();
     // Assuming storage has a download method or fallback URL logic
-    const { data } = await storage.getByPath(path);
+    const { data } = await this._getByPathFromStorage(storage, path);
     const url = data?.webContentLink;
     if (!url) return;
     
@@ -316,12 +402,12 @@ class BaseStorageRecord extends FileEntity {
       }
     }
 
-    return await storage.remove([path]);
+    return await BaseStorageRecord._removeFromStorage(storage, [path]);
   }
 
   async getContent(expiresIn = 60) {
     const storage = this._storageService || BaseStorageRecord._getStorage();
-    const { data: response, error } = await storage.fetchContent({
+    const { data: response, error } = await BaseStorageRecord._fetchContentFromStorage(storage, {
       id: this.getId(),
       path: this.getFullPath(),
     });
@@ -347,9 +433,214 @@ class Crypto{static PBKDF2_ITERATIONS=1e5;static async sha256(e){const t=e insta
 
 class FileRecord extends BaseStorageRecord {
   static SALT = "DriveManagerSecureSalt123";
+  static _driveCaches = new WeakMap();
   hash_filename = null;
   hash_content = null;
   hash_file = null;
+
+  static _normalizePath(path = "") {
+    return String(path).replace(/^\/+/, "").replace(/\/+$/, "");
+  }
+
+  static _parsePath(path = "") {
+    const cleanPath = String(path).replace(/^\/+/, "");
+    const lastSlashIdx = cleanPath.lastIndexOf("/");
+    return {
+      cleanPath,
+      dirPath: lastSlashIdx !== -1 ? cleanPath.substring(0, lastSlashIdx) : "",
+      fileName: lastSlashIdx !== -1 ? cleanPath.substring(lastSlashIdx + 1) : cleanPath
+    };
+  }
+
+  static _driveCacheFor(storage) {
+    let cache = this._driveCaches.get(storage);
+    if (!cache) {
+      cache = {
+        folderCache: { "": "root" },
+        pathCache: new Map(),
+        childrenCache: new Map(),
+        allItemsLoaded: false,
+        allItemsPromise: null
+      };
+      this._driveCaches.set(storage, cache);
+    }
+    return cache;
+  }
+
+  static async _driveList(storage, path, options = {}) {
+    if (!storage.token) return { data: [], error: null };
+
+    try {
+      await this._driveLoadAll(storage);
+      const cleanPath = this._normalizePath(path);
+      const children = this._driveCacheFor(storage).childrenCache.get(cleanPath) || [];
+      const offset = Number(options.offset || 0);
+      const limit = Number(options.limit || 0);
+      const paged = limit > 0 ? children.slice(offset, offset + limit) : children.slice(offset);
+      return { data: paged, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
+
+  static async _driveLoadAll(storage) {
+    if (!storage.token) return { data: [], error: null };
+    const cache = this._driveCacheFor(storage);
+    if (cache.allItemsLoaded) {
+      return {
+        data: Array.from(cache.pathCache.entries()).map(([path, item]) => ({ ...item, path })),
+        error: null
+      };
+    }
+    if (cache.allItemsPromise) return cache.allItemsPromise;
+
+    cache.allItemsPromise = (async () => {
+      try {
+        cache.pathCache = new Map();
+        cache.childrenCache = new Map();
+        cache.childrenCache.set("", []);
+        cache.folderCache = { "": "root" };
+
+        await this._scanDriveFolder(storage, cache, "root", "");
+        cache.allItemsLoaded = true;
+
+        return {
+          data: Array.from(cache.pathCache.entries()).map(([path, item]) => ({ ...item, path })),
+          error: null
+        };
+      } catch (err) {
+        return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+      } finally {
+        cache.allItemsPromise = null;
+      }
+    })();
+    return cache.allItemsPromise;
+  }
+
+  static _invalidateDriveCache(storage) {
+    const cache = this._driveCacheFor(storage);
+    cache.allItemsLoaded = false;
+    cache.allItemsPromise = null;
+    cache.pathCache = new Map();
+    cache.childrenCache = new Map();
+  }
+
+  static async _driveGetByPath(storage, path) {
+    if (!storage.token) return { data: null, error: new Error("Not authenticated") };
+
+    try {
+      await this._driveLoadAll(storage);
+      const cleanPath = this._normalizePath(path);
+      const item = this._driveCacheFor(storage).pathCache.get(cleanPath);
+      if (!item) throw new Error("File not found");
+      return { data: item, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
+
+  static async _scanDriveFolder(storage, cache, folderId, parentPath) {
+    const items = [];
+    let pageToken = null;
+    do {
+      const page = await storage._listFolderPage(folderId, pageToken);
+      items.push(...(page.files || []));
+      pageToken = page.nextPageToken || null;
+    } while (pageToken);
+
+    const orderedItems = [...items].sort((a, b) => {
+      const aFolder = a.mimeType === "application/vnd.google-apps.folder";
+      const bFolder = b.mimeType === "application/vnd.google-apps.folder";
+      if (aFolder !== bFolder) return aFolder ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    for (const item of orderedItems) {
+      const path = parentPath ? `${parentPath}/${item.name}` : item.name;
+      cache.pathCache.set(path, item);
+
+      const siblings = cache.childrenCache.get(parentPath) || [];
+      siblings.push(item);
+      cache.childrenCache.set(parentPath, siblings);
+
+      if (item.mimeType === "application/vnd.google-apps.folder") {
+        cache.childrenCache.set(path, []);
+        cache.folderCache[path] = item.id;
+        await this._scanDriveFolder(storage, cache, item.id, path);
+      }
+    }
+  }
+
+  static async _resolveDriveFolderId(storage, pathString) {
+    if (!pathString) return "root";
+    const cache = this._driveCacheFor(storage);
+    if (cache.folderCache[pathString]) return cache.folderCache[pathString];
+
+    const segments = pathString.split("/").filter(Boolean);
+    let currentParentId = "root";
+    let accumulatedPath = "";
+
+    for (const segment of segments) {
+      accumulatedPath = accumulatedPath ? `${accumulatedPath}/${segment}` : segment;
+      if (cache.folderCache[accumulatedPath]) {
+        currentParentId = cache.folderCache[accumulatedPath];
+        continue;
+      }
+
+      const result = await storage._findFolderDirect(currentParentId, segment);
+      let folder = result.files?.[0];
+      if (!folder) folder = await storage._createFolderDirect(currentParentId, segment);
+      currentParentId = folder.id;
+      cache.folderCache[accumulatedPath] = currentParentId;
+    }
+    return currentParentId;
+  }
+
+  static async _driveUpload(storage, path, file, options = {}, byId = false) {
+    try {
+      if (byId) {
+        const uploaded = await storage.updateFile(path, file);
+        this._invalidateDriveCache(storage);
+        return { data: uploaded, error: null };
+      }
+
+      const { dirPath, fileName } = this._parsePath(path);
+      const parentId = await this._resolveDriveFolderId(storage, dirPath);
+      const searchResult = await storage.searchFiles(parentId, fileName);
+      const existing = searchResult.files || [];
+      if (existing.length > 0 && options.upsert === false) {
+        throw new Error("File already exists and upsert is disabled");
+      }
+      if (existing.length > 1) throw new Error(`Multiple files match path: ${path}`);
+
+      const uploaded = existing.length === 1
+        ? await storage.updateFile(existing[0].id, file)
+        : await storage.createFile(parentId, file);
+      this._invalidateDriveCache(storage);
+      return { data: uploaded, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
+
+  static async _driveRemove(storage, paths) {
+    try {
+      for (const path of paths) {
+        const { dirPath, fileName } = this._parsePath(path);
+        const parentId = await this._resolveDriveFolderId(storage, dirPath);
+        const searchResult = await storage.searchFiles(parentId, fileName);
+        const matches = searchResult.files || [];
+        if (matches.length > 1) {
+          throw new Error(`Multiple files match path: ${path}; delete by ID instead`);
+        }
+        if (matches.length === 1) await storage.deleteFile(matches[0].id);
+      }
+      this._invalidateDriveCache(storage);
+      return { data: {}, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
 
   constructor(data = {}) {
     super(data);
@@ -680,7 +971,7 @@ class FileRecord extends BaseStorageRecord {
     onProgress("Preparing sync", "Scanning Google Drive...", 0, 0, "In progress");
     const collectDriveFiles = async (path = "") => {
       onProgress("Scanning Google Drive", path || "/", 0, 0, "Building file list");
-      const { data, error } = await drive.list(path, { limit: 1000 });
+      const { data, error } = await this._listFromStorage(drive, path, { limit: 1000 });
       if (error) throw error;
 
       const entries = data || [];
