@@ -25,14 +25,11 @@ class UITemplates {
       folderIcon: `<div class="flex-1 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-folder text-5xl"></i></div>`,
       fileMedia: (file) => {
         const mediaClass = "widget-preview-area flex-1 w-full h-full object-cover overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors";
-        if (file.isVideo() && file.getUrl()?.startsWith("blob:")) {
-          return `<img class="${mediaClass}" alt="${escapeHtml(file.getDisplayName())}">`;
+        if (file.isVideo()) {
+          return `<video class="${mediaClass}" autoplay loop muted playsinline preload="metadata" aria-label="${escapeHtml(file.getDisplayName())}"></video>`;
         }
         if (file.getThumbnail() || file.isImage()) {
           return `<img class="${mediaClass}">`;
-        }
-        if (file.isVideo()) {
-          return `<video class="${mediaClass}" autoplay loop muted playsinline preload="metadata" aria-label="${escapeHtml(file.getDisplayName())}"></video>`;
         }
         return `<div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors"><i class="${file.getFileIconClass()} text-3xl"></i></div>`;
       },
@@ -217,8 +214,7 @@ class ItemsGridRenderer extends ViewInterface {
 
       const previewEl = card.querySelector(".widget-preview-area");
       if (
-        ((file.getThumbnail() || file.isImage() || (file.isVideo() && file.getUrl()?.startsWith("blob:"))) &&
-          previewEl instanceof HTMLImageElement) ||
+        ((file.getThumbnail() || file.isImage()) && previewEl instanceof HTMLImageElement) ||
         (file.isVideo() && previewEl instanceof HTMLVideoElement)
       ) {
         previewMedia.push({ file, element: previewEl });
