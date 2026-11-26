@@ -103,6 +103,7 @@ class BaseStorageRecord extends FileEntity {
   static _storageService = null;
   static _storageServices = null;
   static _localFileUrls = new WeakMap();
+  static _localFileIndexes = new WeakMap();
   
   constructor(data = {}) {
     super(data);
@@ -284,25 +285,9 @@ class BaseStorageRecord extends FileEntity {
     if (error) return { data: [], error };
 
     const basePath = this._normalizePath(path);
-    const folders = new Map();
-    const fileRecords = [];
-    for (const file of files || []) {
-      const filePath = this._localFilePath(file);
-      const relativePath = basePath
-        ? filePath.startsWith(`${basePath}/`) ? filePath.slice(basePath.length + 1) : ""
-        : filePath;
-      if (!relativePath) continue;
-
-      const segments = relativePath.split("/");
-      if (segments.length > 1) {
-        const folderName = segments[0];
-        folders.set(folderName, (folders.get(folderName) || 0) + file.size);
-        continue;
-      }
-
-      fileRecords.push(this._fromLocalFile(file, filePath, storage, storageName));
-    }
-
+    const index = this._localFileIndexFor(storage, files);
+    const folders = index.foldersByParent.get(basePath) || new Map();
+    const filesInFolder = index.filesByParent.get(basePath) || [];
     const folderRecords = Array.from(folders, ([name, size]) => this._fromDriveMetadata({
       id: basePath ? `${basePath}/${name}` : name,
       name,
@@ -310,9 +295,52 @@ class BaseStorageRecord extends FileEntity {
       size,
       modifiedTime: new Date().toISOString()
     }, basePath ? `${basePath}/${name}` : name, storage, storageName));
+    const fileRecords = filesInFolder.map(({ file, path: filePath }) =>
+      this._fromLocalFile(file, filePath, storage, storageName));
     folderRecords.sort((a, b) => a.getName().localeCompare(b.getName()));
     fileRecords.sort((a, b) => a.getName().localeCompare(b.getName()));
     return { data: [...folderRecords, ...fileRecords], error: null };
+  }
+
+  static _localFileIndexFor(storage, files = storage.files) {
+    const cached = this._localFileIndexes.get(storage);
+    if (cached?.source === files) return cached;
+
+    const index = {
+      source: files,
+      foldersByParent: new Map(),
+      filesByParent: new Map(),
+      filesByPath: new Map()
+    };
+
+    for (const file of Array.from(files || [])) {
+      const filePath = this._localFilePath(file);
+      if (!filePath) continue;
+
+      const segments = filePath.split("/");
+      segments.pop();
+      let parentPath = "";
+      for (const folderName of segments) {
+        let folders = index.foldersByParent.get(parentPath);
+        if (!folders) {
+          folders = new Map();
+          index.foldersByParent.set(parentPath, folders);
+        }
+        folders.set(folderName, (folders.get(folderName) || 0) + (file.size || 0));
+        parentPath = parentPath ? `${parentPath}/${folderName}` : folderName;
+      }
+
+      let filesInFolder = index.filesByParent.get(parentPath);
+      if (!filesInFolder) {
+        filesInFolder = [];
+        index.filesByParent.set(parentPath, filesInFolder);
+      }
+      filesInFolder.push({ file, path: filePath });
+      index.filesByPath.set(filePath, file);
+    }
+
+    this._localFileIndexes.set(storage, index);
+    return index;
   }
 
   static _localFilePath(file) {
@@ -324,7 +352,7 @@ class BaseStorageRecord extends FileEntity {
 
   static _findLocalFile(storage, path) {
     const cleanPath = this._normalizePath(path);
-    return Array.from(storage.files || []).find(file => this._localFilePath(file) === cleanPath) || null;
+    return this._localFileIndexFor(storage).filesByPath.get(cleanPath) || null;
   }
 
   static _fromLocalFile(file, path, storage, storageName) {
@@ -351,6 +379,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static _releaseLocalFileUrls(storage) {
+    this._localFileIndexes.delete(storage);
     const urls = this._localFileUrls.get(storage);
     if (!urls) return;
     for (const url of urls.values()) URL.revokeObjectURL(url);
@@ -779,11 +808,6 @@ class FileRecord extends BaseStorageRecord {
     }
   }
 
-  constructor(data = {}) {
-    super(data);
-    this._hashFullpath();
-  }
-
   getHashContent() { return this.hash_content || null; }
 
   async _hashFullpath() {
@@ -791,7 +815,9 @@ class FileRecord extends BaseStorageRecord {
   }
 
   async getHashContentFromUrl(url) {
-    const response = await fetch(url);
+    const response = this._storageService instanceof LocalFileService
+      ? await this.getContent()
+      : await fetch(url);
     const blob = await response.blob();
     await this._setHashes(await blob.arrayBuffer());
     return this.getHashContent();
