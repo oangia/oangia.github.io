@@ -148,18 +148,15 @@ class BaseStorageRecord extends FileEntity {
       BaseStorageRecord._storageServices = [
         {
           name: "Google Drive",
-          storage: this._getStorage(),
-          isAvailable: storage => Boolean(storage.token)
+          storage: this._getStorage()
         },
         {
           name: "Supabase",
-          storage: BaseStorageRecord.SUPABASE_ENABLED ? new SupabaseStorageService() : null,
-          isAvailable: storage => BaseStorageRecord.SUPABASE_ENABLED && Boolean(storage?.client)
+          storage: BaseStorageRecord.SUPABASE_ENABLED ? new SupabaseStorageService() : null
         },
         {
           name: "Local folder",
-          storage: localFiles,
-          isAvailable: storage => Boolean(storage.files?.length)
+          storage: localFiles
         }
       ];
     }
@@ -167,9 +164,9 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static getServiceStatuses() {
-    return this._getStorageServices().map(({ name, storage, isAvailable }) => ({
+    return this._getStorageServices().map(({ name, storage }) => ({
       name,
-      isAvailable: isAvailable(storage)
+      isAvailable: Boolean(storage?.isAvailable())
     }));
   }
 
@@ -203,7 +200,10 @@ class BaseStorageRecord extends FileEntity {
 
   static async _fetchContentFromStorage(storage, params) {
     if (storage instanceof LocalFileService) {
-      const file = FileRecord._findLocalFile(storage, params.path || params.id);
+      const { data: files, error } = await storage.load();
+      if (error) return { data: null, error };
+      const index = FileRecord._localFileIndexFor(storage, files);
+      const file = index.filesByPath.get(FileRecord._normalizePath(params.path || params.id));
       if (!file) return { data: null, error: new Error("Local file not found") };
       return storage.fetchContent({ id: file });
     }
@@ -237,7 +237,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async getAllFromServices(path = "", options = {}) {
-    const services = this._getStorageServices().filter(({ storage, isAvailable }) => isAvailable(storage));
+    const services = this._getStorageServices().filter(({ storage }) => storage?.isAvailable());
     const results = await Promise.all(services.map(async ({ name, storage }) => {
       const { data, error } = await this._getAll(path, options, storage, name);
       return { data, error, name };
@@ -302,7 +302,7 @@ class BaseStorageRecord extends FileEntity {
     return { data: [...folderRecords, ...fileRecords], error: null };
   }
 
-  static _localFileIndexFor(storage, files = storage.files) {
+  static _localFileIndexFor(storage, files) {
     const cached = this._localFileIndexes.get(storage);
     if (cached?.source === files) return cached;
 
@@ -352,7 +352,7 @@ class BaseStorageRecord extends FileEntity {
 
   static _findLocalFile(storage, path) {
     const cleanPath = this._normalizePath(path);
-    return this._localFileIndexFor(storage).filesByPath.get(cleanPath) || null;
+    return this._localFileIndexes.get(storage)?.filesByPath.get(cleanPath) || null;
   }
 
   static _fromLocalFile(file, path, storage, storageName) {
@@ -620,7 +620,7 @@ class FileRecord extends BaseStorageRecord {
   }
 
   static async _driveList(storage, path, options = {}) {
-    if (!storage.token) return { data: [], error: null };
+    if (!storage.isAvailable()) return { data: [], error: null };
 
     try {
       await this._driveLoadAll(storage);
@@ -636,7 +636,7 @@ class FileRecord extends BaseStorageRecord {
   }
 
   static async _driveLoadAll(storage) {
-    if (!storage.token) return { data: [], error: null };
+    if (!storage.isAvailable()) return { data: [], error: null };
     const cache = this._driveCacheFor(storage);
     if (cache.allItemsLoaded) {
       return {
@@ -678,7 +678,7 @@ class FileRecord extends BaseStorageRecord {
   }
 
   static async _driveGetByPath(storage, path) {
-    if (!storage.token) return { data: null, error: new Error("Not authenticated") };
+    if (!storage.isAvailable()) return { data: null, error: new Error("Not authenticated") };
 
     try {
       await this._driveLoadAll(storage);
@@ -815,7 +815,7 @@ class FileRecord extends BaseStorageRecord {
   }
 
   async getHashContentFromUrl(url) {
-    const response = this._storageService instanceof LocalFileService
+    const response = url?.startsWith("blob:")
       ? await this.getContent()
       : await fetch(url);
     const blob = await response.blob();
@@ -981,7 +981,7 @@ class FileRecord extends BaseStorageRecord {
       showToast("Calculating archive hash...", "info");
       const shortHash = await this._computeBackupHash(hashParts);
       const today = new Date().toISOString().slice(0, 10);
-      const filename = `${storage.bucket}_${today}_${shortHash}.zip`;
+      const filename = `${storage.getName()}_${today}_${shortHash}.zip`;
 
       showToast("Compressing into ZIP archive...", "info");
       const blob = await zip.generateAsync({
@@ -1065,8 +1065,8 @@ class FileRecord extends BaseStorageRecord {
   static async syncFileToSupabase(file, onProgress = () => {}) {
     const driveService = this._getStorageService("Google Drive");
     const supabaseService = this._getStorageService("Supabase");
-    if (!driveService?.isAvailable(driveService.storage)
-      || !supabaseService?.isAvailable(supabaseService.storage)) {
+    if (!driveService?.storage?.isAvailable()
+      || !supabaseService?.storage?.isAvailable()) {
       return { status: "unavailable" };
     }
     if (!file || file.isFolderNode() || file.getStorageName() !== "Google Drive") {
@@ -1122,8 +1122,8 @@ class FileRecord extends BaseStorageRecord {
   static async syncDriveToSupabase(onProgress = () => {}) {
     const driveService = this._getStorageService("Google Drive");
     const supabaseService = this._getStorageService("Supabase");
-    if (!driveService?.isAvailable(driveService.storage)
-      || !supabaseService?.isAvailable(supabaseService.storage)) {
+    if (!driveService?.storage?.isAvailable()
+      || !supabaseService?.storage?.isAvailable()) {
       throw new Error("Connect Google Drive and configure Supabase before syncing");
     }
 

@@ -5,7 +5,12 @@ class BaseStorageService {
     }
 
     this.onConnectionChange = config.onConnectionChange || (() => {});
+    this.name = config.name || this.constructor.name;
   }
+
+  getName() { return this.name; }
+
+  isAvailable() { return false; }
 
   async load(path, options = {}) {
     return this._unsupported("load");
@@ -105,6 +110,8 @@ class DriveStorageService extends BaseStorageService {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
   }
+
+  isAvailable() { return Boolean(this.token); }
 
   async getById(id) {
     try {

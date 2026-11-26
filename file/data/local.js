@@ -1,6 +1,6 @@
 class LocalFileService extends BaseStorageService {
   constructor(config = {}) {
-    super(config);
+    super({ ...config, name: config.name || "Local folder" });
     this.files = null;
     const folderButtonId = config.folderButtonId || "selectFolderBtn";
     const button = document.getElementById(folderButtonId);
@@ -27,6 +27,8 @@ class LocalFileService extends BaseStorageService {
   async load() {
     return { data: this.files, error: null };
   }
+
+  isAvailable() { return Boolean(this.files?.length); }
 
   async fetchContent({ id } = {}) {
     if (!(id instanceof Blob)) {
