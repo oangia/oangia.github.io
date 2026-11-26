@@ -11,8 +11,6 @@ class FileInterface {
   isFolderNode() { throw new Error("FileInterface.isFolderNode() must be implemented."); }
   isEditable() { throw new Error("FileInterface.isEditable() must be implemented."); }
   getContent() { throw new Error("FileInterface.getContent() must be implemented."); }
-  getHashContent() { throw new Error("FileInterface.getHashContent() must be implemented."); }
-  getHashContentFromUrl() { throw new Error("FileInterface.getHashContentFromUrl() must be implemented."); }
   save() { throw new Error("FileInterface.save() must be implemented."); }
   delete() { throw new Error("FileInterface.delete() must be implemented."); }
   static create() { throw new Error("FileInterface.create() must be implemented."); }
@@ -586,16 +584,13 @@ class BaseStorageRecord extends FileEntity {
 
 /**
  * FileRecord: Extends BaseStorageRecord to add Cryptography (AES-GCM), 
- * Hashing (SHA-256), and secure wrappers over storage operations.
+ * and secure wrappers over storage operations.
  */
-class Crypto{static PBKDF2_ITERATIONS=1e5;static async sha256(e){const t=e instanceof ArrayBuffer?e:(new TextEncoder).encode(e),r=await window.crypto.subtle.digest("SHA-256",t);return Array.from(new Uint8Array(r)).map(e=>e.toString(16).padStart(2,"0")).join("")}static async _deriveKey(e,t){if(!e)throw new Error("Encryption passphrase is required.");if(!t)throw new Error("Salt is required for key derivation.");const r=new TextEncoder,n=await window.crypto.subtle.importKey("raw",r.encode(e),{name:"PBKDF2"},!1,["deriveKey"]);return window.crypto.subtle.deriveKey({name:"PBKDF2",salt:"string"==typeof t?r.encode(t):t,iterations:this.PBKDF2_ITERATIONS,hash:"SHA-256"},n,{name:"AES-GCM",length:256},!1,["encrypt","decrypt"])}static async encrypt(e,t,r){const n=await this._deriveKey(t,r),a=window.crypto.getRandomValues(new Uint8Array(12)),i=e instanceof ArrayBuffer?e:(new TextEncoder).encode(e),o=await window.crypto.subtle.encrypt({name:"AES-GCM",iv:a},n,i),s=new Uint8Array(a.byteLength+o.byteLength);s.set(a,0),s.set(new Uint8Array(o),a.byteLength);let c="";for(let e=0;e<s.byteLength;e++)c+=String.fromCharCode(s[e]);return btoa(c)}static async decrypt(e,t,r){const n=await this._deriveKey(t,r),a=atob(e),i=new Uint8Array(a.length);for(let e=0;e<a.length;e++)i[e]=a.charCodeAt(e);const o=i.slice(0,12),s=i.slice(12);return await window.crypto.subtle.decrypt({name:"AES-GCM",iv:o},n,s)}}
+class Crypto{static PBKDF2_ITERATIONS=1e5;static async _deriveKey(e,t){if(!e)throw new Error("Encryption passphrase is required.");if(!t)throw new Error("Salt is required for key derivation.");const r=new TextEncoder,n=await window.crypto.subtle.importKey("raw",r.encode(e),{name:"PBKDF2"},!1,["deriveKey"]);return window.crypto.subtle.deriveKey({name:"PBKDF2",salt:"string"==typeof t?r.encode(t):t,iterations:this.PBKDF2_ITERATIONS,hash:"SHA-256"},n,{name:"AES-GCM",length:256},!1,["encrypt","decrypt"])}static async encrypt(e,t,r){const n=await this._deriveKey(t,r),a=window.crypto.getRandomValues(new Uint8Array(12)),i=e instanceof ArrayBuffer?e:(new TextEncoder).encode(e),o=await window.crypto.subtle.encrypt({name:"AES-GCM",iv:a},n,i),s=new Uint8Array(a.byteLength+o.byteLength);s.set(a,0),s.set(new Uint8Array(o),a.byteLength);let c="";for(let e=0;e<s.byteLength;e++)c+=String.fromCharCode(s[e]);return btoa(c)}static async decrypt(e,t,r){const n=await this._deriveKey(t,r),a=atob(e),i=new Uint8Array(a.length);for(let e=0;e<a.length;e++)i[e]=a.charCodeAt(e);const o=i.slice(0,12),s=i.slice(12);return await window.crypto.subtle.decrypt({name:"AES-GCM",iv:o},n,s)}}
 
 class FileRecord extends BaseStorageRecord {
   static SALT = "DriveManagerSecureSalt123";
   static _driveCaches = new WeakMap();
-  hash_filename = null;
-  hash_content = null;
-  hash_file = null;
 
   static _normalizePath(path = "") {
     return String(path).replace(/^\/+/, "").replace(/\/+$/, "");
@@ -826,68 +821,8 @@ class FileRecord extends BaseStorageRecord {
     }
   }
 
-  getHashContent() { return this.hash_content || null; }
-
-  async _hashFullpath() {
-    this.hash_filename = await Crypto.sha256(this.getFullPath());
-  }
-
-  async getHashContentFromUrl(url) {
-    const response = url?.startsWith("blob:")
-      ? await this.getContent()
-      : await fetch(url);
-    const blob = await response.blob();
-    await this._setHashes(await blob.arrayBuffer());
-    return this.getHashContent();
-  }
-
-  async _setHashes(buffer) {
-    await this._hashFullpath();
-    this.hash_content = await Crypto.sha256(buffer);
-    this.hash_file = await Crypto.sha256(this.hash_filename + this.hash_content);
-  }
-
-  static async _computeBackupHash(hashParts) {
-    hashParts.sort((a, b) => a.path.localeCompare(b.path));
-    const encoder = new TextEncoder();
-    const chunks = [];
-    let totalLength = 0;
-
-    for (const part of hashParts) {
-      const pathBytes = encoder.encode(part.path);
-      const contentBytes = new Uint8Array(part.buffer);
-      chunks.push(pathBytes, new Uint8Array([0]), contentBytes);
-      totalLength += pathBytes.length + 1 + contentBytes.length;
-    }
-
-    const combined = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      combined.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    return (await Crypto.sha256(combined.buffer)).slice(0, 16);
-  }
-
-  async _fetchContentWithHash(expiresIn = 60) {
-    const response = await super.getContent(expiresIn);
-    if (this.hash_content) return response;
-
-    const buffer = await response.arrayBuffer();
-    await this._setHashes(buffer);
-    return new Response(buffer, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers
-    });
-  }
-
   async save(newFileBlob) {
-    const buffer = await newFileBlob.arrayBuffer();
-    const savedRecord = await super.save(newFileBlob);
-    await this._setHashes(buffer);
-    return savedRecord;
+    return await super.save(newFileBlob);
   }
 
   static async getCopyComparison(records) {
@@ -897,12 +832,10 @@ class FileRecord extends BaseStorageRecord {
     if (new Set(records.map(record => record.getSize())).size > 1) return "Different size";
     if (!records.every(record => record.isEditable())) return "Synced";
 
-    const hashes = await Promise.all(records.map(async record => {
+    const contents = await Promise.all(records.map(async record => {
       try {
-        if (!record.getHashContent()) await record.getContent();
-        const hash = record.getHashContent();
-        if (!hash) throw new Error(`Missing content hash for "${record.getFullPath()}"`);
-        return hash;
+        const response = await record.getContent();
+        return new Uint8Array(await response.arrayBuffer());
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         throw new Error(
@@ -911,7 +844,11 @@ class FileRecord extends BaseStorageRecord {
         );
       }
     }));
-    return hashes.every(hash => hash === hashes[0]) ? "Synced" : "Different content";
+    const first = contents[0];
+    const matches = contents.every(content =>
+      content.length === first.length && content.every((byte, index) => byte === first[index])
+    );
+    return matches ? "Synced" : "Different content";
   }
 
   static async getFolderCopyComparison(folders) {
@@ -976,7 +913,6 @@ class FileRecord extends BaseStorageRecord {
 
       showToast(`Found ${allFiles.length} file(s). Downloading fresh copies...`, "info");
       const zip = new JSZip();
-      const hashParts = [];
       let processed = 0;
 
       for (const filePath of allFiles) {
@@ -986,7 +922,6 @@ class FileRecord extends BaseStorageRecord {
 
           const buffer = await response.arrayBuffer();
           zip.file(filePath, buffer);
-          hashParts.push({ path: filePath, buffer });
         } catch (error) {
           console.warn(`Failed to download ${filePath}:`, error);
           showToast(`Skipped ${filePath}`, "warning");
@@ -997,10 +932,8 @@ class FileRecord extends BaseStorageRecord {
         }
       }
 
-      showToast("Calculating archive hash...", "info");
-      const shortHash = await this._computeBackupHash(hashParts);
       const today = new Date().toISOString().slice(0, 10);
-      const filename = `${supabaseService.name}_${today}_${shortHash}.zip`;
+      const filename = `${supabaseService.name}_${today}.zip`;
 
       showToast("Compressing into ZIP archive...", "info");
       const blob = await zip.generateAsync({
@@ -1062,8 +995,6 @@ class FileRecord extends BaseStorageRecord {
         storageService: drive,
         storageName: "Google Drive"
       });
-      if (!driveRecord.getHashContent()) await driveRecord.getContent();
-
       const supabaseRecord = new this({
         id: existing.id,
         name: existing.name,
@@ -1073,9 +1004,19 @@ class FileRecord extends BaseStorageRecord {
         storageService: supabase,
         storageName: "Supabase"
       });
-      if (!supabaseRecord.getHashContent()) await supabaseRecord.getContent();
-
-      return { matches: driveRecord.getHashContent() === supabaseRecord.getHashContent() };
+      const [driveResponse, supabaseResponse] = await Promise.all([
+        driveRecord.getContent(),
+        supabaseRecord.getContent()
+      ]);
+      const [driveContent, supabaseContent] = await Promise.all([
+        driveResponse.arrayBuffer(),
+        supabaseResponse.arrayBuffer()
+      ]);
+      const driveBytes = new Uint8Array(driveContent);
+      const supabaseBytes = new Uint8Array(supabaseContent);
+      const matches = driveBytes.length === supabaseBytes.length
+        && driveBytes.every((byte, index) => byte === supabaseBytes[index]);
+      return { matches };
     } catch (comparisonError) {
       return { matches: false, comparisonError };
     }
@@ -1373,7 +1314,7 @@ class FileRecord extends BaseStorageRecord {
   }
 
   async getContent(expiresIn = 60) {
-    const response = await this._fetchContentWithHash(expiresIn);
+    const response = await super.getContent(expiresIn);
 
     if (!this.isEncryptedFile()) {
       return response;

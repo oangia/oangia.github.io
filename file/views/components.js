@@ -45,20 +45,14 @@ class UITemplates {
   // --- Preview Modal Templates ---
   static get preview() {
     return {
-      modalHtml: `<div id="modalPreview" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-0 m-0"><div class="w-screen h-screen flex flex-col overflow-hidden m-0 p-0 text-slate-100"><div class="flex items-center justify-between px-6 py-3.5 border-b border-white/15 bg-black/40 shrink-0"><h3 id="previewTitle" class="font-bold text-sm text-white truncate"></h3><button id="closePreviewModalBtn" class="text-slate-400 hover:text-white p-1 text-lg transition"><i class="fa-solid fa-xmark"></i></button></div><div class="flex-1 flex overflow-hidden bg-transparent"><div id="previewBody" class="flex-1 overflow-auto flex items-center justify-center"></div><div class="w-80 border-l border-white/15 bg-zinc-950/60 flex flex-col overflow-y-auto p-4 shrink-0"><div class="flex items-center gap-2 pb-3 mb-3 border-b border-white/15"><i class="fa-solid fa-fingerprint text-indigo-400 text-sm"></i><h4 class="font-bold text-xs uppercase tracking-wider text-slate-200">File Details & Hashes</h4></div><div id="previewSidebarDetails" class="space-y-4 text-xs text-slate-300"></div></div></div><div class="px-6 py-3.5 border-t border-white/15 bg-black/40 flex justify-end gap-2 flex-wrap shrink-0"><button id="previewSaveBtn" class="hidden px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg transition"><i class="fa-solid fa-floppy-disk mr-1 text-emerald-400"></i> Save</button><button id="previewCancelEditBtn" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button><button id="previewDownloadBtn" type="button" class="px-4 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg transition"><i class="fa-solid fa-download mr-1 text-indigo-400"></i> Download</button><button id="closePreviewModalBtnAlt" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Close</button></div></div></div>`,
+      modalHtml: `<div id="modalPreview" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-0 m-0"><div class="w-screen h-screen flex flex-col overflow-hidden m-0 p-0 text-slate-100"><div class="flex items-center justify-between px-6 py-3.5 border-b border-white/15 bg-black/40 shrink-0"><h3 id="previewTitle" class="font-bold text-sm text-white truncate"></h3><button id="closePreviewModalBtn" class="text-slate-400 hover:text-white p-1 text-lg transition"><i class="fa-solid fa-xmark"></i></button></div><div class="flex-1 flex overflow-hidden bg-transparent"><div id="previewBody" class="flex-1 overflow-auto flex items-center justify-center"></div></div><div class="px-6 py-3.5 border-t border-white/15 bg-black/40 flex justify-end gap-2 flex-wrap shrink-0"><button id="previewSaveBtn" class="hidden px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400 text-emerald-200 hover:text-white text-xs font-semibold rounded-lg transition"><i class="fa-solid fa-floppy-disk mr-1 text-emerald-400"></i> Save</button><button id="previewCancelEditBtn" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button><button id="previewDownloadBtn" type="button" class="px-4 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400 text-indigo-200 hover:text-white text-xs font-semibold rounded-lg transition"><i class="fa-solid fa-download mr-1 text-indigo-400"></i> Download</button><button id="closePreviewModalBtnAlt" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Close</button></div></div></div>`,
       loadingSpinner: `<div class="wire-subtext py-12 flex justify-center"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>`,
-      sidebarLoading: `<div class="text-center py-10 space-y-2 wire-subtext"><i class="fa-solid fa-spinner fa-spin text-xl text-indigo-400"></i><p class="text-xs">Loading info...</p></div>`,
-      hashesLoading: `<div class="text-center py-4 space-y-2 wire-subtext"><i class="fa-solid fa-spinner fa-spin text-indigo-400"></i><p class="text-[10px]">Computing cryptographic hashes...</p></div>`,
-      sidebarContent: ({ displayName, url, pathHash, fullPath, sizeDisplay }) => `<div class="space-y-4 text-xs wire-subtext"><div><span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Name</span><p class="wire-text font-medium break-all">${displayName}</p></div><div><span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">File Size</span><p class="wire-text font-mono text-xs">${sizeDisplay}</p></div><div><div class="flex justify-between items-center mb-1"><span class="text-[10px] font-bold wire-subtext uppercase tracking-wider block">Signed URL</span><div class="space-x-2"><button onclick="navigator.clipboard.writeText('${url}'); showToast('URL copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy</button><a href="${url}" download="${displayName}" class="text-[11px] text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-download"></i> Download</a></div></div><div class="font-mono text-[9px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all max-h-16 overflow-y-auto">${url}</div></div><hr class="border-white/20"><div class="space-y-1.5"><div class="flex justify-between items-center"><span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">1. Path Hash</span><button onclick="navigator.clipboard.writeText('${pathHash}'); showToast('Path hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button></div><div><span class="text-[10px] wire-subtext block mb-0.5">Exact string hashed: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">${fullPath}</code></span><div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${pathHash}</div></div></div><div class="space-y-3" id="hashesComputeContainer"><div><span class="text-[10px] wire-subtext block mb-1">Content & Combined Hashes are uncalculated</span><button class="content-hash w-full py-2.5 bg-transparent hover:border-indigo-300 wire-border text-indigo-300 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-fingerprint"></i> Calculate Content & Combined Hashes</button></div></div></div>`,
-      hashesResult: ({ contentHash, combinedHash, rawCombinedString, byteLength }) => `<div class="space-y-4"><div class="space-y-1.5"><div class="flex justify-between items-center"><span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">2. Content Hash</span><button onclick="navigator.clipboard.writeText('${contentHash}'); showToast('Content hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button></div><div><span class="text-[10px] wire-subtext block mb-0.5">Hashed input: <code class="bg-black/40 text-indigo-200 px-1 py-0.5 rounded wire-border">ArrayBuffer (${byteLength} bytes)</code></span><div class="font-mono text-[10px] bg-slate-950/90 text-slate-200 p-2 rounded wire-border break-all select-all">${contentHash}</div></div></div><div class="space-y-1.5"><div class="flex justify-between items-center"><span class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">3. Combined Hash</span><button onclick="navigator.clipboard.writeText('${combinedHash}'); showToast('Combined hash copied', 'success', 1500);" class="text-[11px] wire-subtext hover:wire-text"><i class="fa-regular fa-copy"></i> Copy Hash</button></div><div><span class="text-[10px] wire-subtext block mb-0.5">Exact concatenated string hashed:</span><div class="font-mono text-[9px] bg-black/40 wire-subtext p-1.5 rounded wire-border break-all select-all max-h-14 overflow-y-auto mb-1">${rawCombinedString}</div><div class="font-mono text-[10px] bg-slate-950/90 text-emerald-400 p-2 rounded wire-border break-all select-all">${combinedHash}</div></div></div></div>`,
-      hashesError: (message) => `<div class="text-xs text-rose-400 p-2 bg-rose-950/60 wire-border rounded">Failed to compute hashes: ${message}</div>`,
       imageBody: (url, altText) => `<img src="${url}" alt="${altText}" class="max-w-full h-full shadow-md object-contain">`,
       videoBody: (url) => `<video controls class="max-w-full max-h-[100vh] rounded-lg shadow-md wire-border" src="${url}"></video>`,
       audioBody: (url, displayName) => `<div class="w-full max-w-lg text-center"><audio controls class="w-full mb-3" src="${url}"></audio><p class="text-xs wire-text">${displayName}</p></div>`,
       htmlBody: (text) => `<div class="flex flex-col h-full w-full"><div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 px-1"><div class="flex items-center gap-1 bg-black/40 p-1 rounded wire-border text-xs"><button type="button" id="htmlPreviewTab" class="px-3 py-1 rounded bg-indigo-600 text-white font-medium transition">Preview</button><button type="button" id="htmlEditorTab" class="px-3 py-1 rounded wire-subtext hover:text-white transition">Code Editor</button></div><span class="text-[11px] wire-subtext italic">HTML Interactive File</span></div><div id="htmlPreviewContainer" class="w-full h-[70vh] bg-white rounded-lg overflow-hidden wire-border"><iframe sandbox="allow-scripts" id="htmlPreviewFrame" class="w-full h-full border-0" sandbox="allow-scripts allow-modals"></iframe></div><div id="htmlEditorContainer" class="w-full h-[70vh] hidden"><textarea id="editTextarea" class="w-full h-full font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${text}</textarea></div></div>`,
       textBody: (text) => `<textarea id="editTextarea" class="w-full h-[75vh] font-mono text-xs p-4 bg-black/40 wire-text rounded-lg wire-border outline-none">${text}</textarea>`,
       errorBody: `<div class="text-center space-y-4 py-12 wire-subtext"><i class="fa-solid fa-file text-5xl"></i><p class="text-sm">Preview not available for this file type.</p></div>`,
-      sidebarError: `<p class="text-xs text-rose-400 p-2">Failed to load file details.</p>`,
       activeTabClass: "px-3 py-1 rounded bg-indigo-600 text-white font-medium transition",
       inactiveTabClass: "px-3 py-1 rounded wire-subtext hover:text-white transition"
     };
@@ -442,8 +436,6 @@ class FilePreviewManager extends ViewInterface {
       } else if (button.id === "previewSaveBtn") {
         const textarea = modal.querySelector("#editTextarea");
         if (textarea) this.fileManager.action("saveEditedText", textarea.value);
-      } else if (button.matches(".content-hash")) {
-        this.fileManager.action("computeHashes", this._currentBlobUrl);
       } else if (button.id === "htmlPreviewTab") {
         this.switchHtmlView("preview");
       } else if (button.id === "htmlEditorTab") {
@@ -461,7 +453,6 @@ class FilePreviewManager extends ViewInterface {
     const tpl = UITemplates.preview;
     const title = document.getElementById("previewTitle");
     const body = document.getElementById("previewBody");
-    const sidebar = document.getElementById("previewSidebarDetails");
     const saveBtn = document.getElementById("previewSaveBtn");
     const cancelBtn = document.getElementById("previewCancelEditBtn");
 
@@ -471,7 +462,6 @@ class FilePreviewManager extends ViewInterface {
       }`;
     }
     if (body) body.innerHTML = tpl.loadingSpinner;
-    if (sidebar) sidebar.innerHTML = tpl.sidebarLoading;
 
     document.getElementById("modalPreview")?.classList.remove("hidden");
     saveBtn?.classList.add("hidden");
@@ -481,23 +471,12 @@ class FilePreviewManager extends ViewInterface {
   async render(fileRecord, blob) {
     const tpl = UITemplates.preview;
     const body = document.getElementById("previewBody");
-    const sidebar = document.getElementById("previewSidebarDetails");
     const saveBtn = document.getElementById("previewSaveBtn");
     const cancelBtn = document.getElementById("previewCancelEditBtn");
 
     this._currentBlobUrl = URL.createObjectURL(blob);
     const displayName = escapeHtml(fileRecord.getDisplayName());
     const escapedUrl = escapeHtml(this._currentBlobUrl);
-
-    if (sidebar) {
-      sidebar.innerHTML = tpl.sidebarContent({
-        displayName,
-        url: escapedUrl,
-        pathHash: fileRecord.hash_filename || "",
-        fullPath: escapeHtml(fileRecord.getFullPath()),
-        sizeDisplay: fileRecord.getFormattedSize(),
-      });
-    }
 
     if (fileRecord.isImage()) {
       body.innerHTML = tpl.imageBody(escapedUrl, displayName);
@@ -524,24 +503,7 @@ class FilePreviewManager extends ViewInterface {
   showPreviewError() {
     const tpl = UITemplates.preview;
     const body = document.getElementById("previewBody");
-    const sidebar = document.getElementById("previewSidebarDetails");
     if (body) body.innerHTML = tpl.errorBody;
-    if (sidebar) sidebar.innerHTML = tpl.sidebarError;
-  }
-
-  showHashesLoading() {
-    const container = document.getElementById("hashesComputeContainer");
-    if (container) container.innerHTML = UITemplates.preview.hashesLoading;
-  }
-
-  renderHashesResult(result) {
-    const container = document.getElementById("hashesComputeContainer");
-    if (container) container.innerHTML = UITemplates.preview.hashesResult(result);
-  }
-
-  renderHashesError(message) {
-    const container = document.getElementById("hashesComputeContainer");
-    if (container) container.innerHTML = UITemplates.preview.hashesError(escapeHtml(message));
   }
 
   close() {

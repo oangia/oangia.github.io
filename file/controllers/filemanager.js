@@ -24,7 +24,6 @@ class FileManager {
       case "openPreview": return this.openPreview(args[0]);
       case "cancelEdit": return this.cancelEdit();
       case "saveEditedText": return this.saveEditedText(args[0]);
-      case "computeHashes": return this.computeHashes(args[0]);
       case "createFolder": return this.createFolder(args[0]);
       case "upload": return this.handleFileUpload(args[0], args[1], args[2]);
       case "downloadRecord": return this.downloadRecord(args[0]);
@@ -184,28 +183,6 @@ class FileManager {
     } catch (err) {
       console.error(err);
       showToast(err.message || "Failed to save changes", "error", 2500);
-    }
-  }
-
-  async computeHashes(url) {
-    const file = this.currentFileRecord;
-    if (!file) return;
-    this.filePreview.showHashesLoading();
-
-    try {
-      await file.getHashContentFromUrl(url);
-      if (!file.hash_content || !file.hash_file) {
-        throw new Error("Hash computation returned empty results.");
-      }
-      this.filePreview.renderHashesResult({
-        contentHash: file.hash_content,
-        combinedHash: file.hash_file,
-        rawCombinedString: escapeHtml(file.hash_filename + file.hash_content),
-        byteLength: file._byteLength || "Unknown"
-      });
-    } catch (error) {
-      console.error(error);
-      this.filePreview.renderHashesError(error.message || "Unknown error");
     }
   }
 
