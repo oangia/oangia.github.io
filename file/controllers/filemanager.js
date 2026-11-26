@@ -19,7 +19,7 @@ class FileManager {
       case "refresh": return this.listFiles();
       case "listFiles": return this.listFiles();
       case "navigate": return this.navigate(args[0]);
-      case "openFileInNewTab": return this.openFileInNewTab(args[0]);
+      case "openFilePreview": return this.openFilePreview(args[0]);
       case "createFolder": return this.createFolder(args[0]);
       case "upload": return this.handleFileUpload(args[0], args[1], args[2]);
       case "downloadRecord": return this.downloadRecord(args[0]);
@@ -194,43 +194,62 @@ class FileManager {
     this.breadcrumb.navigateToFolder(file.getFullPath(), file.getName());
   }
 
-  async openFileInNewTab(file) {
-    const newTab = window.open("about:blank", "_blank");
-    if (!newTab) {
-      showToast("Allow pop-ups to open files in a new tab", "warning");
-      return;
-    }
-    newTab.opener = null;
+  async openFilePreview(file) {
+    this.activeFilePreview?.close();
+
+    const panel = document.createElement("div");
+    panel.className = "fixed inset-0 z-[120]";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "true");
+    panel.setAttribute("aria-label", `Preview: ${file.getDisplayName()}`);
+    panel.style.backgroundColor = "transparent";
+
+    const frame = document.createElement("iframe");
+    frame.title = file.getDisplayName();
+    frame.setAttribute("allowtransparency", "true");
+    frame.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent";
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "absolute right-4 top-4 z-[1] rounded-full border border-white/20 bg-zinc-900/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur";
+    closeButton.setAttribute("aria-label", "Close preview");
+    closeButton.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
 
     let objectUrl;
+    const close = () => {
+      if (!panel.isConnected) return;
+      document.removeEventListener("keydown", handleKeydown);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      panel.remove();
+      if (this.activeFilePreview?.panel === panel) this.activeFilePreview = null;
+    };
+    const handleKeydown = (event) => {
+      if (event.key === "Escape") close();
+    };
+
+    closeButton.addEventListener("click", close);
+    document.addEventListener("keydown", handleKeydown);
+    panel.append(frame, closeButton);
+    document.body.appendChild(panel);
+    this.activeFilePreview = { panel, close };
+
     try {
       const response = await file.getContent(60);
       const blob = await response.blob();
-      newTab.document.title = file.getDisplayName();
+      if (!panel.isConnected) return;
 
       if (file.isHtml()) {
-        const frame = newTab.document.createElement("iframe");
         frame.setAttribute("sandbox", "allow-scripts");
-        frame.title = file.getDisplayName();
-        frame.style.cssText = "position:fixed;inset:0;width:100%;height:100%;border:0";
-        newTab.document.body.style.margin = "0";
-        newTab.document.body.appendChild(frame);
         frame.srcdoc = await blob.text();
         return;
       }
 
       objectUrl = URL.createObjectURL(blob);
-      const handleLoad = () => {
-        if (newTab.location.href !== objectUrl) return;
-        newTab.removeEventListener("load", handleLoad);
-        newTab.addEventListener("pagehide", () => URL.revokeObjectURL(objectUrl), { once: true });
-      };
-      newTab.addEventListener("load", handleLoad);
-      newTab.location.replace(objectUrl);
+      frame.src = objectUrl;
     } catch (error) {
       console.error("Failed to open file:", error);
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-      newTab.close();
+      if (!panel.isConnected) return;
+      close();
       showToast(error.message || "Failed to open file", "error");
     }
   }

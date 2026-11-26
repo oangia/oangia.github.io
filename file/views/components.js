@@ -114,7 +114,7 @@ class ItemsGridRenderer extends ViewInterface {
       if (!card) return;
       const file = this.items[Number(card.dataset.groupIndex)]?.selectedFile;
       if (!file) return;
-      this.fileManager.action(file.isFolderNode() ? "navigate" : "openFileInNewTab", file);
+      this.fileManager.action(file.isFolderNode() ? "navigate" : "openFilePreview", file);
     });
 
     this.contextMenu.addEventListener("pointerdown", (e) => e.stopPropagation());
@@ -236,8 +236,8 @@ class ItemsGridRenderer extends ViewInterface {
 
     const actionRows = [
       {
-        action: (f) => (f.isFolderNode() ? "navigate" : "openFileInNewTab"),
-        label: (f) => (f.isFolderNode() ? "Open" : "Open in new tab"),
+        action: (f) => (f.isFolderNode() ? "navigate" : "openFilePreview"),
+        label: (f) => (f.isFolderNode() ? "Open" : "Open preview"),
       },
       {
         action: () => "downloadRecord",

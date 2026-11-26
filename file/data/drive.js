@@ -55,8 +55,6 @@ class DriveStorageService extends BaseStorageService {
 
     this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     this.apiBase = "https://www.googleapis.com/drive/v3/files";
-    this.uploadBase = "https://www.googleapis.com/upload/drive/v3/files";
-
     this.tokenClient = null;
     this._refreshTimer = null;
     this._authRequestMode = null;
@@ -112,19 +110,6 @@ class DriveStorageService extends BaseStorageService {
 
   isAvailable() { return Boolean(this.token); }
 
-  async getById(id) {
-    try {
-      const fields = "id, name, mimeType, size, modifiedTime, webContentLink, thumbnailLink";
-      const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?fields=${fields}`, {
-        headers: this._headers()
-      });
-      if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to fetch file metadata");
-      return { data: await res.json(), error: null };
-    } catch (err) {
-      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
-    }
-  }
-
   async fetchContent({ id } = {}) {
     try {
       if (!id) throw new Error("File ID required to fetch content");
@@ -136,68 +121,6 @@ class DriveStorageService extends BaseStorageService {
         throw new Error(errJson.error?.message || `Failed to fetch file content: ${res.statusText}`);
       }
       return { data: res, error: null };
-    } catch (err) {
-      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
-    }
-  }
-
-  async upload(parentId, file, options = {}) {
-    try {
-      const metadata = {
-        name: options.name || file.name,
-        mimeType: file.type || "application/octet-stream",
-        parents: [parentId]
-      };
-      const form = new FormData();
-      form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-      form.append("file", file);
-
-      const fields = "id,name,mimeType,size,modifiedTime,webContentLink";
-      const res = await fetch(`${this.uploadBase}?uploadType=multipart&fields=${fields}`, {
-        method: "POST",
-        headers: this._headers(),
-        body: form
-      });
-      if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
-      return { data: await res.json(), error: null };
-    } catch (err) {
-      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
-    }
-  }
-
-  async uploadById(id, file) {
-    try {
-      const metadata = {
-        name: file.name,
-        mimeType: file.type || "application/octet-stream"
-      };
-      const form = new FormData();
-      form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-      form.append("file", file);
-
-      const fields = "id,name,mimeType,size,modifiedTime,webContentLink";
-      const res = await fetch(`${this.uploadBase}/${encodeURIComponent(id)}?uploadType=multipart&fields=${fields}`, {
-        method: "PATCH",
-        headers: this._headers(),
-        body: form
-      });
-      if (!res.ok) throw new Error((await res.json()).error?.message || "Upload failed");
-      return { data: await res.json(), error: null };
-    } catch (err) {
-      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
-    }
-  }
-
-  async remove(ids) {
-    try {
-      for (const id of ids) {
-        const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}`, {
-          method: "DELETE",
-          headers: this._headers()
-        });
-        if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to delete file");
-      }
-      return { data: {}, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
@@ -248,7 +171,7 @@ class DriveStorageService extends BaseStorageService {
     try {
       this.tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: this.clientId,
-        scope: "https://www.googleapis.com/auth/drive",
+        scope: "https://www.googleapis.com/auth/drive.readonly",
         callback: (res) => {
           const requestMode = this._authRequestMode || "interactive";
           this._authRequestMode = null;
