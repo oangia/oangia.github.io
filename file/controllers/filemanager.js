@@ -799,20 +799,15 @@ class FileManager {
     this.activeFilePreview?.close();
 
     const panel = document.createElement("div");
-    panel.className = "fixed inset-0 z-[120]";
+    panel.className = "fixed inset-0 z-[120] flex items-center justify-center bg-black/60";
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-modal", "true");
     panel.setAttribute("aria-label", `Preview: ${file.getDisplayName()}`);
-    panel.style.backgroundColor = "transparent";
-
-    const frame = document.createElement("iframe");
-    frame.title = file.getDisplayName();
-    frame.setAttribute("allowtransparency", "true");
-    frame.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent";
 
     const closeButton = document.createElement("button");
     closeButton.type = "button";
-    closeButton.className = "absolute right-4 top-4 z-[1] rounded-full border border-white/20 bg-zinc-900/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur";
+    closeButton.className =
+      "absolute right-4 top-4 z-[1] rounded-full border border-white/20 bg-zinc-900/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur";
     closeButton.setAttribute("aria-label", "Close preview");
     closeButton.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
 
@@ -830,7 +825,7 @@ class FileManager {
 
     closeButton.addEventListener("click", close);
     document.addEventListener("keydown", handleKeydown);
-    panel.append(frame, closeButton);
+    panel.appendChild(closeButton);
     document.body.appendChild(panel);
     this.activeFilePreview = { panel, close };
 
@@ -839,14 +834,38 @@ class FileManager {
       const blob = await response.blob();
       if (!panel.isConnected) return;
 
+      // HTML: full-size sandboxed iframe
       if (file.isHtml()) {
+        const frame = document.createElement("iframe");
+        frame.title = file.getDisplayName();
         frame.setAttribute("sandbox", "allow-scripts");
+        frame.setAttribute("allowtransparency", "true");
+        frame.className = "absolute inset-0 w-full h-full border-0 bg-transparent";
         frame.srcdoc = await blob.text();
+        panel.appendChild(frame);
         return;
       }
 
       objectUrl = URL.createObjectURL(blob);
+
+      // Images: centered <img>
+      if (file.isImage()) {
+        const img = document.createElement("img");
+        img.src = objectUrl;
+        img.alt = file.getDisplayName();
+        img.className = "max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl";
+        panel.appendChild(img);
+        return;
+      }
+
+      // Everything else (PDF, video, etc.): centered iframe
+      const frame = document.createElement("iframe");
+      frame.title = file.getDisplayName();
+      frame.setAttribute("allowtransparency", "true");
+      frame.className =
+        "w-[90vw] h-[90vh] max-w-5xl border-0 rounded-lg bg-white shadow-2xl";
       frame.src = objectUrl;
+      panel.appendChild(frame);
     } catch (error) {
       console.error("Failed to open file:", error);
       if (!panel.isConnected) return;
