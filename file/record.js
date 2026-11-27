@@ -181,7 +181,7 @@ class BaseStorageRecord extends FileEntity {
     if (storage instanceof SupabaseStorageService) {
       return FileRecord._supabaseListCached(storage, path, options);
     }
-    return storage.load(path, options);
+    return storage.list(path, options);
   }
   static _getByPathFromStorage(storage, path) {
     if (storage instanceof DriveStorageService) return FileRecord._driveGetByPath(storage, path);
@@ -197,20 +197,20 @@ class BaseStorageRecord extends FileEntity {
 
   static async _fetchContentFromStorage(storage, params) {
     if (storage instanceof LocalFileService) {
-      const { data: files, error } = await storage.load();
+      const { data: files, error } = await storage.list();
       if (error) return { data: null, error };
       const index = FileRecord._localFileIndexFor(storage, files);
       const file = index.filesByPath.get(FileRecord._normalizePath(params.path || params.id));
       if (!file) return { data: null, error: new Error("Local file not found") };
-      return storage.fetchContent({ id: file });
+      return storage.download({ id: file });
     }
     if (storage instanceof SupabaseStorageService) {
       const path = params.id || params.path;
       if (!path) return { data: null, error: new Error("File path required for fetching content") };
-      const { data, error } = await storage.fetchContent({ id: FileRecord._normalizePath(path) });
+      const { data, error } = await storage.download({ id: FileRecord._normalizePath(path) });
       return error ? { data: null, error } : { data: new Response(data), error: null };
     }
-    if (!(storage instanceof DriveStorageService)) return storage.fetchContent(params);
+    if (!(storage instanceof DriveStorageService)) return storage.download(params);
     try {
       let id = params.id;
       if (!id && params.path) {
@@ -219,7 +219,7 @@ class BaseStorageRecord extends FileEntity {
         id = data.id;
       }
       if (!id) throw new Error("File ID or path required to fetch content");
-      return storage.fetchContent({ id });
+      return storage.download({ id });
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
@@ -298,7 +298,7 @@ class BaseStorageRecord extends FileEntity {
   }
 
   static async _getAllLocalFiles(path, storage, storageName) {
-    const { data: files, error } = await storage.load();
+    const { data: files, error } = await storage.list();
     if (error) return { data: [], error };
 
     const basePath = this._normalizePath(path);
@@ -709,7 +709,7 @@ class FileRecord extends BaseStorageRecord {
       }
     }
 
-    const { data, error } = await storage.load(cleanPath, options);
+    const { data, error } = await storage.list(cleanPath, options);
     if (!error && cacheable) {
       const bag = this._getSupabaseListCache();
       bag.lists[cleanPath] = { data: data || [], savedAt: Date.now() };
@@ -723,7 +723,7 @@ class FileRecord extends BaseStorageRecord {
   static async _supabaseGetByPath(storage, path) {
     const cleanPath = this._normalizePath(path);
     const { dirPath, fileName } = this._parsePath(cleanPath);
-    const { data, error } = await storage.load(dirPath, { search: fileName });
+    const { data, error } = await storage.list(dirPath, { search: fileName });
     if (error) return { data: null, error };
 
     const item = (data || []).find(entry => entry.name === fileName);
@@ -837,7 +837,7 @@ class FileRecord extends BaseStorageRecord {
     const items = [];
     let pageToken = null;
     do {
-      const { data: page, error } = await storage.load(folderId, { pageToken });
+      const { data: page, error } = await storage.list(folderId, { pageToken });
       if (error) throw error;
       items.push(...(page.files || []));
       pageToken = page.nextPageToken || null;
@@ -882,7 +882,7 @@ class FileRecord extends BaseStorageRecord {
         continue;
       }
 
-      const { data: result, error } = await storage.load(currentParentId, {
+      const { data: result, error } = await storage.list(currentParentId, {
         name: segment,
         mimeType: "application/vnd.google-apps.folder"
       });
@@ -907,7 +907,7 @@ class FileRecord extends BaseStorageRecord {
       const { dirPath, fileName } = this._parsePath(path);
       const parentId = await this._resolveDriveFolderId(storage, dirPath);
       if (!parentId) throw new Error(`Drive folder not found: ${dirPath}`);
-      const { data: searchResult, error } = await storage.load(parentId, { name: fileName });
+      const { data: searchResult, error } = await storage.list(parentId, { name: fileName });
       if (error) throw error;
       const existing = searchResult.files || [];
       if (existing.length > 0 && options.upsert === false) {
@@ -932,7 +932,7 @@ class FileRecord extends BaseStorageRecord {
         const { dirPath, fileName } = this._parsePath(path);
         const parentId = await this._resolveDriveFolderId(storage, dirPath);
         if (!parentId) continue;
-        const { data: searchResult, error } = await storage.load(parentId, { name: fileName });
+        const { data: searchResult, error } = await storage.list(parentId, { name: fileName });
         if (error) throw error;
         const matches = searchResult.files || [];
         if (matches.length > 1) {
@@ -1046,7 +1046,7 @@ class FileRecord extends BaseStorageRecord {
 
       for (const filePath of allFiles) {
         try {
-          const { data: response, error } = await storage.fetchContent({ id: filePath });
+          const { data: response, error } = await storage.download({ id: filePath });
           if (error) throw error;
 
           const buffer = await response.arrayBuffer();
@@ -1082,7 +1082,7 @@ class FileRecord extends BaseStorageRecord {
   }
 
   static async _listAllFilesRecursive(storage, prefix = "") {
-    const { data, error } = await storage.load(prefix, { limit: 1000, offset: 0 });
+    const { data, error } = await storage.list(prefix, { limit: 1000, offset: 0 });
     if (error) throw error;
 
     const results = [];
@@ -1249,7 +1249,7 @@ class FileRecord extends BaseStorageRecord {
       onProgress("Scanning Supabase", path || "/", 0, 0, "Building file list");
       let offset = 0;
       while (true) {
-        const { data, error } = await supabase.load(path, { limit: 1000, offset });
+        const { data, error } = await supabase.list(path, { limit: 1000, offset });
         if (error) throw error;
 
         const entries = data || [];
