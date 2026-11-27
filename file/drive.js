@@ -4,6 +4,9 @@ class DriveStorageService {
 
     this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     this.apiBase = "https://www.googleapis.com/drive/v3/files";
+    this.uploadBase = "https://www.googleapis.com/upload/drive/v3/files";
+    // Cần scope "drive" để upload/xóa mọi file; dùng "drive.file" nếu chỉ cần quyền trên file do app tạo/chọn
+    this.scope = config.scope || "https://www.googleapis.com/auth/drive";
     this.tokenClient = null;
     this._refreshTimer = null;
     this._authRequestMode = null;
@@ -37,7 +40,7 @@ class DriveStorageService {
     return Boolean(this.token);
   }
 
-  async load(folderId, options = {}) {
+  async list(folderId, options = {}) {
     try {
       const nameFilter = options.name
         ? ` and name = '${String(options.name).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`
@@ -61,7 +64,7 @@ class DriveStorageService {
     }
   }
 
-  async fetchContent({ id } = {}) {
+  async download({ id } = {}) {
     try {
       if (!id) throw new Error("File ID required to fetch content");
       const res = await fetch(`${this.apiBase}/${encodeURIComponent(id)}?alt=media`, {
@@ -72,6 +75,89 @@ class DriveStorageService {
         throw new Error(errJson.error?.message || `Failed to fetch file content: ${res.statusText}`);
       }
       return { data: res, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
+
+  /**
+   * Upload file lên Google Drive
+   * @param {string} folderId - ID thư mục đích trên Drive (vd: "root" hoặc folderId)
+   * @param {File|Blob} file - File hoặc Blob cần upload
+   * @param {object} options - { name, mimeType, fileId } (truyền fileId nếu muốn ghi đè nội dung file cũ)
+   */
+  async upload(folderId = "root", file, options = {}) {
+    try {
+      if (!file) throw new Error("File is required to upload");
+
+      const fileName = options.name || file.name || "untitled";
+      const mimeType = options.mimeType || file.type || "application/octet-stream";
+
+      const metadata = {
+        name: fileName,
+        mimeType,
+        // Khi cập nhật file đã tồn tại (PATCH), Drive không cho gửi parents trực tiếp
+        ...(options.fileId ? {} : { parents: folderId ? [folderId] : ["root"] })
+      };
+
+      const formData = new FormData();
+      formData.append(
+        "metadata",
+        new Blob([JSON.stringify(metadata)], { type: "application/json" })
+      );
+      formData.append("file", file, fileName);
+
+      const url = options.fileId
+        ? `${this.uploadBase}/${encodeURIComponent(options.fileId)}?uploadType=multipart&fields=id,name,mimeType,size,modifiedTime,webContentLink,thumbnailLink`
+        : `${this.uploadBase}?uploadType=multipart&fields=id,name,mimeType,size,modifiedTime,webContentLink,thumbnailLink`;
+
+      const res = await fetch(url, {
+        method: options.fileId ? "PATCH" : "POST",
+        headers: this._headers(),
+        body: formData
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || `Failed to upload file: ${res.statusText}`);
+      }
+
+      const uploadedFile = await res.json();
+      return { data: uploadedFile, error: null };
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }
+
+  /**
+   * Xóa một hoặc nhiều file/folder trên Google Drive
+   * @param {string|string[]} fileIds - Một fileId hoặc mảng fileIds
+   * @param {object} options - { permanent: false } (mặc định chuyển vào Thùng rác; true để xóa vĩnh viễn)
+   */
+  async remove(fileIds, options = {}) {
+    try {
+      const ids = (Array.isArray(fileIds) ? fileIds : [fileIds]).filter(Boolean);
+      if (!ids.length) throw new Error("File ID(s) required to remove");
+
+      const permanent = Boolean(options.permanent);
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          const url = `${this.apiBase}/${encodeURIComponent(id)}`;
+          const res = await fetch(url, {
+            method: permanent ? "DELETE" : "PATCH",
+            headers: this._headers({ "Content-Type": "application/json" }),
+            ...(permanent ? {} : { body: JSON.stringify({ trashed: true }) })
+          });
+
+          if (!res.ok) {
+            const errJson = await res.json().catch(() => ({}));
+            throw new Error(errJson.error?.message || `Failed to remove ${id}: ${res.statusText}`);
+          }
+          return { id, removed: true, permanent };
+        })
+      );
+
+      return { data: results, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
@@ -118,7 +204,7 @@ class DriveStorageService {
     try {
       this.tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: this.clientId,
-        scope: "https://www.googleapis.com/auth/drive.readonly",
+        scope: this.scope,
         callback: (res) => {
           const requestMode = this._authRequestMode || "interactive";
           this._authRequestMode = null;
@@ -202,11 +288,11 @@ class LocalFileService {
     return Boolean(this.files?.length);
   }
 
-  async load() {
+  async list() {
     return { data: this.files, error: null };
   }
 
-  async fetchContent({ id } = {}) {
+  async download({ id } = {}) {
     if (!(id instanceof Blob)) {
       return { data: null, error: new Error("A local File is required to fetch content") };
     }
@@ -231,13 +317,13 @@ class SupabaseStorageService {
     return Boolean(this.client);
   }
 
-  async load(path, options = {}) {
+  async list(path, options = {}) {
     const { data, error } = await this.client.storage.from(this._bucket).list(path, options);
     console.log(path, { data, error });
     return { data, error };
   }
 
-  async fetchContent({ id } = {}) {
+  async download({ id } = {}) {
     const { data, error } = await this.client.storage.from(this._bucket).download(id);
     return { data, error };
   }
