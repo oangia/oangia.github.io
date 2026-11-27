@@ -1,21 +1,4 @@
-class FileInterface {
-  getDisplayName() { throw new Error("FileInterface.getDisplayName() must be implemented."); }
-  getStorageName() { throw new Error("FileInterface.getStorageName() must be implemented."); }
-  isFolderNode() { throw new Error("FileInterface.isFolderNode() must be implemented."); }
-  isEditable() { throw new Error("FileInterface.isEditable() must be implemented."); }
-  save() { throw new Error("FileInterface.save() must be implemented."); }
-  delete() { throw new Error("FileInterface.delete() must be implemented."); }
-  static create() { throw new Error("FileInterface.create() must be implemented."); }
-  static getAllFromServices() { throw new Error("FileInterface.getAllFromServices() must be implemented."); }
-  static getServiceStatuses() { throw new Error("FileInterface.getServiceStatuses() must be implemented."); }
-  static getCopyComparison() { throw new Error("FileInterface.getCopyComparison() must be implemented."); }
-  static getFolderCopyComparison() { throw new Error("FileInterface.getFolderCopyComparison() must be implemented."); }
-  static backup() { throw new Error("FileInterface.backup() must be implemented."); }
-  static syncFileToSupabase() { throw new Error("FileInterface.syncFileToSupabase() must be implemented."); }
-  static syncDriveToSupabase() { throw new Error("FileInterface.syncDriveToSupabase() must be implemented."); }
-}
-
-class FileEntity extends FileInterface {
+class FileEntity {
   constructor({id = null, name = "", full_path = "", size = 0, mime_type = null, url = null, thumbnail = null, is_folder = false, created_at = null, updated_at = null} = {}) {
     super();
     this._id = id;
