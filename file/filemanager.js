@@ -52,28 +52,6 @@ class UITemplates {
       crumbClass: (isLast) => (isLast ? "font-bold text-indigo-300 wire-text" : "wire-subtext hover:wire-text") + " inline-flex items-center"
     };
   }
-
-  // --- Create Folder Modal Templates ---
-  static get createFolderModal() {
-    return {
-      modalHtml: `
-        <div id="modalCreateFolder" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4">
-          <div class="bg-zinc-900/80 border border-white/20 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 class="font-bold text-base text-white">Create New Folder</h3>
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Folder Name</label>
-              <input type="text" id="folderNameInput" placeholder="e.g. documents" 
-                     class="w-full px-3 py-2 bg-white/5 border border-white/20 text-white rounded-lg text-xs focus:outline-none focus:border-indigo-400">
-            </div>
-            <div class="flex justify-end space-x-2 pt-2">
-              <button id="closeCreateFolderModalBtn" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold rounded-lg transition">Cancel</button>
-              <button id="submitCreateFolderBtn" class="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400 text-white text-xs font-semibold rounded-lg transition">Create Folder</button>
-            </div>
-          </div>
-        </div>
-      `
-    };
-  }
 }
 
 class ItemsGridRenderer extends ViewInterface {
