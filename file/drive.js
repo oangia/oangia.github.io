@@ -260,10 +260,10 @@ class DriveStorageService {
 }
 
 class LocalFileService {
-  constructor(btnId) {
-    this.onConnectionChange = () => {};
+  constructor(config = {}) {
+    this.onConnectionChange = config.onConnectionChange;
     this.files = null;
-    const button = document.getElementById(btnId);
+    const button = document.getElementById(config.folderButtonId);
     if (!button || button.dataset.localDriveBound) return this;
 
     button.dataset.localDriveBound = "true";
