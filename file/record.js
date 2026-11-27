@@ -1,6 +1,5 @@
 class FileEntity {
   constructor({id = null, name = "", full_path = "", size = 0, mime_type = null, url = null, thumbnail = null, is_folder = false, created_at = null, updated_at = null} = {}) {
-    super();
     this._id = id;
     this._name = name;
     this._full_path = full_path;
