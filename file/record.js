@@ -1,16 +1,8 @@
 class FileInterface {
-  getId() { throw new Error("FileInterface.getId() must be implemented."); }
-  getName() { throw new Error("FileInterface.getName() must be implemented."); }
-  getFullPath() { throw new Error("FileInterface.getFullPath() must be implemented."); }
-  getSize() { throw new Error("FileInterface.getSize() must be implemented."); }
-  getMimeType() { throw new Error("FileInterface.getMimeType() must be implemented."); }
-  getUrl() { throw new Error("FileInterface.getUrl() must be implemented."); }
-  getThumbnail() { throw new Error("FileInterface.getThumbnail() must be implemented."); }
   getDisplayName() { throw new Error("FileInterface.getDisplayName() must be implemented."); }
   getStorageName() { throw new Error("FileInterface.getStorageName() must be implemented."); }
   isFolderNode() { throw new Error("FileInterface.isFolderNode() must be implemented."); }
   isEditable() { throw new Error("FileInterface.isEditable() must be implemented."); }
-  getContent() { throw new Error("FileInterface.getContent() must be implemented."); }
   save() { throw new Error("FileInterface.save() must be implemented."); }
   delete() { throw new Error("FileInterface.delete() must be implemented."); }
   static create() { throw new Error("FileInterface.create() must be implemented."); }
