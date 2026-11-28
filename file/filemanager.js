@@ -48,7 +48,7 @@ class FileManager {
     this._bindEvents();
     this._renderBreadcrumb();
     this._renderGrid([]);
-
+    FileRecord.use("supabase");
     this.action("listFiles");
   }
 
