@@ -473,19 +473,15 @@ class FileRecord {
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
 
-  _resolveStorage() {
-    const storage = this._storage || FileRecord.current;
-    if (!storage) throw new Error("No storage service selected.");
-    return storage;
-  }
-
   getNavigationTarget() {
     const storage = this._storage || FileRecord.current;
     return storage instanceof DriveStorageService ? this._id : this._full_path;
   }
 
   async getContent(params = {}) {
-    const storage = this._resolveStorage();
+    const storage = this._storage || FileRecord.current;
+    if (!storage) throw new Error("No storage service selected.");
+
     const target = storage instanceof SupabaseStorageService
       ? (this._full_path || this._id)
       : (this._id || this._full_path);
@@ -499,17 +495,9 @@ class FileRecord {
     return data;
   }
 
-  isFolderNode() {
-    return this._is_folder;
-  }
-
-  isEncryptedFile() {
-    return this._name.endsWith(".enc");
-  }
-
-  getDisplayName() {
-    return this.isEncryptedFile() ? this._name.replace(/\.enc$/, "") : this._name;
-  }
+  isFolderNode() { return this._is_folder; }
+  isEncryptedFile() { return this._name.endsWith(".enc"); }
+  getDisplayName() { return this.isEncryptedFile() ? this._name.replace(/\.enc$/, "") : this._name; }
 
   getExtension() {
     const realName = this.getDisplayName();
@@ -552,42 +540,29 @@ class FileRecord {
     return mimeMap[ext] || "application/octet-stream";
   }
 
-  static use(nameOrService, options = {}) {
-    if (typeof nameOrService !== "string") {
-      this.current = nameOrService;
-      return this;
-    }
-
-    if (!this.services[nameOrService]) {
+  static use(name, options = {}) {
+    if (!this.services[name]) {
       const factories = {
         drive: () => new DriveStorageService(options),
         supabase: () => new SupabaseStorageService(options),
-        local: () => new LocalFileService(options)
+        local: () => new LocalFileService({ folderButtonId: "openLocalFolderBtn", ...options })
       };
-      if (!factories[nameOrService]) throw new Error(`Unknown service: ${nameOrService}`);
-      this.services[nameOrService] = factories[nameOrService]();
+      if (!factories[name]) throw new Error(`Unknown service: ${name}`);
+      this.services[name] = factories[name]();
     }
-
-    this.current = this.services[nameOrService];
-    return this;
-  }
-
-  static ensureService() {
-    if (!this.current) {
-      this.use(localStorage.getItem("sb_url") && localStorage.getItem("sb_key") ? "supabase" : "drive");
-    }
+    this.current = this.services[name];
     return this.current;
   }
 
   static isAvailable() {
-    const storage = this.ensureService();
-    return typeof storage.isAvailable === "function" ? storage.isAvailable() : true;
+    return Boolean(this.current && (typeof this.current.isAvailable !== "function" || this.current.isAvailable()));
   }
 
   static async list(path = "", options = {}) {
-    const storage = this.ensureService();
-    const queryPath = storage instanceof DriveStorageService ? (path || "root") : path;
+    const storage = this.current;
+    if (!storage) throw new Error("No storage service selected.");
 
+    const queryPath = storage instanceof DriveStorageService ? (path || "root") : path;
     const { data, error } = await storage.list(queryPath, options);
     if (error || !data) return { data: [], error };
 
@@ -619,7 +594,8 @@ class FileRecord {
   }
 
   static async upload(path, file, options = {}) {
-    const storage = this.ensureService();
+    const storage = this.current;
+    if (!storage) throw new Error("No storage service selected.");
 
     const name = path.split("/").pop();
     const namedFile = file instanceof File && file.name === name
@@ -630,7 +606,9 @@ class FileRecord {
   }
 
   async remove() {
-    const storage = this._resolveStorage();
+    const storage = this._storage || FileRecord.current;
+    if (!storage) throw new Error("No storage service selected.");
+
     const target = storage instanceof SupabaseStorageService
       ? (this._full_path || this._id)
       : (this._id || this._full_path);
