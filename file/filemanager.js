@@ -48,7 +48,7 @@ class DriveStorageService {
       const params = new URLSearchParams({
         q: `'${targetFolder}' in parents and trashed = false${nameFilter}${mimeTypeFilter}`,
         fields: "nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink, thumbnailLink)",
-        orderBy: "folder,name",
+        orderBy: "name",
         pageSize: "100"
       });
       if (options.pageToken) params.set("pageToken", options.pageToken);
