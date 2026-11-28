@@ -493,7 +493,7 @@ class LocalFileService {
     if (!file) {
       return { data: null, error: new Error(`Local file not found: ${key}`) };
     }
-    return { data: new Response(file), error: null };
+    return { data: file, error: null };
   }
 }
 
@@ -766,18 +766,19 @@ class FileRecord extends FileEntity {
   async download(params = {}) {
     const storage = this._storage || FileRecord.current;
     if (!storage) throw new Error("No storage service selected.");
-
+  
     const target = storage instanceof SupabaseStorageService
       ? (this._full_path || this._id)
       : (this._id || this._full_path);
-
+  
     const { data, error } = await storage.download({
       id: target,
       path: this._full_path,
       ...params
     });
     if (error) throw error;
-    return data instanceof Response ? data : new Response(data);
+    if (data instanceof Response || data instanceof Blob) return data;
+    return new Response(data);
   }
 
   async remove() {
@@ -1166,8 +1167,8 @@ class FileManager {
     this.activeFilePreview = { panel, close };
 
     try {
-      const response = await file.download();
-      const blob = await response.blob();
+      const raw = await file.download();
+      const blob = raw instanceof Blob ? raw : await raw.blob();
       if (!panel.isConnected) return;
 
       if (file.isHtml()) {
@@ -1230,8 +1231,8 @@ class FileManager {
         return;
       }
 
-      const content = await file.download();
-      const blob = await content.blob();
+      const raw = await file.download();
+      const blob = raw instanceof Blob ? raw : await raw.blob();
       element.loading = "lazy";
       element.preload = "auto";
       element.src = URL.createObjectURL(blob);
