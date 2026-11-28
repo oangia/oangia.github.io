@@ -852,10 +852,6 @@ class FileManager {
 
     this.gridContainer = document.getElementById(gridId);
     this.contextRecord = null;
-    this.contextMenu = document.getElementById("contextMenuActions");
-    this.contextMenu.className =
-      "hidden fixed z-[110] max-h-[80vh] min-w-44 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg rounded-lg";
-    document.body.appendChild(this.contextMenu);
 
     this.breadcrumbContainer = document.getElementById(breadcrumbId);
     this.path = "";
@@ -884,8 +880,6 @@ class FileManager {
       }).current;
     
       FileRecord.current = local;
-      document.getElementById("contextMenuActions")?.classList.add("hidden");
-      this._hideContextMenu();
     });
     document.getElementById("authBtn")?.addEventListener("click", () => {
       const hasSupabase = Boolean(localStorage.getItem("sb_url") && localStorage.getItem("sb_key"));
@@ -923,13 +917,6 @@ class FileManager {
       }
     });
 
-    this.gridContainer?.addEventListener("contextmenu", (event) => {
-      if (!(event.target instanceof Element)) return;
-      const card = event.target.closest("[data-item-index]");
-      const record = card ? this.items[Number(card.dataset.itemIndex)] : null;
-      this._showContextMenu(event, record);
-    });
-
     this.gridContainer?.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
       const card = event.target.closest("[data-item-index]");
@@ -939,36 +926,11 @@ class FileManager {
       this.action(record.isFolderNode() ? "navigate" : "openFilePreview", record);
     });
 
-    this.contextMenu.addEventListener("pointerdown", (e) => e.stopPropagation());
-
-    this.contextMenu.addEventListener("click", (event) => {
-      if (!(event.target instanceof Element)) return;
-      const button = event.target.closest("button[data-action]");
-      if (!button) return;
-      const action = button.dataset.action;
-      const record = this.contextRecord;
-      const targetId = button.dataset.target;
-      this._hideContextMenu();
-      if (action === "triggerUpload") {
-        document.getElementById(targetId)?.click();
-        return;
-      }
-      if (!record && action !== "refresh" && action !== "listFiles") return;
-      this.action(action, record);
-    });
 
     this.breadcrumbContainer?.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
       const crumb = event.target.closest("[data-breadcrumb-index]");
       if (crumb) this.jumpToBreadcrumb(Number(crumb.dataset.breadcrumbIndex));
-    });
-
-    document.addEventListener("pointerdown", (event) => {
-      if (!this.contextMenu.contains(event.target)) this._hideContextMenu();
-    });
-
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") this._hideContextMenu();
     });
   }
 
@@ -1035,25 +997,6 @@ class FileManager {
     });
 
     return previewMedia;
-  }
-
-  _showContextMenu(event, record) {
-    if (!this.contextMenu) return;
-    event.preventDefault();
-    event.stopPropagation();
-    this.contextRecord = record || null;
-  
-    this.contextMenu.classList.remove("hidden");
-    const left = event.clientX || 8;
-    const top = event.clientY || 8;
-    const rect = this.contextMenu.getBoundingClientRect();
-    this.contextMenu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - rect.width - 8))}px`;
-    this.contextMenu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - rect.height - 8))}px`;
-  }
-  
-  _hideContextMenu() {
-    this.contextRecord = null;
-    this.contextMenu?.classList.add("hidden");
   }
 
   navigateToFolder(path, name, breadcrumbIndex = null) {
