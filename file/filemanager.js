@@ -545,7 +545,62 @@ class SupabaseStorageService {
   }
 }
 
-class FileEntity {
+class Crypto {
+  static PBKDF2_ITERATIONS = 1e5;
+
+  static async _deriveKey(e, t) {
+    if (!e) throw new Error("Encryption passphrase is required.");
+    if (!t) throw new Error("Salt is required for key derivation.");
+    const r = new TextEncoder();
+    const n = await window.crypto.subtle.importKey(
+      "raw",
+      r.encode(e),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"]
+    );
+    return window.crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: typeof t === "string" ? r.encode(t) : t,
+        iterations: this.PBKDF2_ITERATIONS,
+        hash: "SHA-256"
+      },
+      n,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  static async encrypt(e, t, r) {
+    const n = await this._deriveKey(t, r);
+    const a = window.crypto.getRandomValues(new Uint8Array(12));
+    const i = e instanceof ArrayBuffer ? e : new TextEncoder().encode(e);
+    const o = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: a }, n, i);
+    const s = new Uint8Array(a.byteLength + o.byteLength);
+    s.set(a, 0);
+    s.set(new Uint8Array(o), a.byteLength);
+    let c = "";
+    for (let idx = 0; idx < s.byteLength; idx++) c += String.fromCharCode(s[idx]);
+    return btoa(c);
+  }
+
+  static async decrypt(e, t, r) {
+    const n = await this._deriveKey(t, r);
+    const a = atob(e);
+    const i = new Uint8Array(a.length);
+    for (let idx = 0; idx < a.length; idx++) i[idx] = a.charCodeAt(idx);
+    const o = i.slice(0, 12);
+    const s = i.slice(12);
+    return await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: o }, n, s);
+  }
+}
+
+class FileRecord {
+  static services = {};
+  static current = null;
+
   constructor({
     id = null,
     name = "",
@@ -570,6 +625,7 @@ class FileEntity {
     this._thumbnail = thumbnail;
     this._created_at = created_at;
     this._updated_at = updated_at;
+    this._storage = null;
   }
 
   getId() { return this._id; }
@@ -636,68 +692,6 @@ class FileEntity {
       zip: "application/zip"
     };
     return mimeMap[ext] || "application/octet-stream";
-  }
-}
-
-class Crypto {
-  static PBKDF2_ITERATIONS = 1e5;
-
-  static async _deriveKey(e, t) {
-    if (!e) throw new Error("Encryption passphrase is required.");
-    if (!t) throw new Error("Salt is required for key derivation.");
-    const r = new TextEncoder();
-    const n = await window.crypto.subtle.importKey(
-      "raw",
-      r.encode(e),
-      { name: "PBKDF2" },
-      false,
-      ["deriveKey"]
-    );
-    return window.crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: typeof t === "string" ? r.encode(t) : t,
-        iterations: this.PBKDF2_ITERATIONS,
-        hash: "SHA-256"
-      },
-      n,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt", "decrypt"]
-    );
-  }
-
-  static async encrypt(e, t, r) {
-    const n = await this._deriveKey(t, r);
-    const a = window.crypto.getRandomValues(new Uint8Array(12));
-    const i = e instanceof ArrayBuffer ? e : new TextEncoder().encode(e);
-    const o = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: a }, n, i);
-    const s = new Uint8Array(a.byteLength + o.byteLength);
-    s.set(a, 0);
-    s.set(new Uint8Array(o), a.byteLength);
-    let c = "";
-    for (let idx = 0; idx < s.byteLength; idx++) c += String.fromCharCode(s[idx]);
-    return btoa(c);
-  }
-
-  static async decrypt(e, t, r) {
-    const n = await this._deriveKey(t, r);
-    const a = atob(e);
-    const i = new Uint8Array(a.length);
-    for (let idx = 0; idx < a.length; idx++) i[idx] = a.charCodeAt(idx);
-    const o = i.slice(0, 12);
-    const s = i.slice(12);
-    return await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: o }, n, s);
-  }
-}
-
-class FileRecord extends FileEntity {
-  static services = {};
-  static current = null;
-
-  constructor(data = {}) {
-    super(data);
-    this._storage = data.storage || FileRecord.current;
   }
 
   static use(nameOrService, options = {}) {
