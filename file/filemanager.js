@@ -1,5 +1,41 @@
 const escapeHtml = e => String(e || "").replace(/[&<>'"]/g, e => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#039;", '"': "&quot;" }[e] || e));
+class EncryptionMiddleware {
+  static _getPassword(password) {
+    const key = password || localStorage.getItem("gdrive_encryption_password");
+    if (!key) throw new Error("Private encryption key / password is not set.");
+    return key;
+  }
 
+  static _getSalt(salt, record) {
+    return salt || record?.getFullPath?.() || record?.getName?.() || "default-salt";
+  }
+
+  static async encrypt(blob, { password, salt, record, mimeType = "application/octet-stream" } = {}) {
+    if (!(blob instanceof Blob)) {
+      throw new Error("EncryptionMiddleware.encrypt expects a Blob.");
+    }
+    const key = this._getPassword(password);
+    const resolvedSalt = this._getSalt(salt, record);
+    const buffer = await blob.arrayBuffer();
+    const cipherBase64 = await Crypto.encrypt(buffer, key, resolvedSalt);
+    return new Blob([cipherBase64], { type: mimeType });
+  }
+
+  static async decrypt(blob, { password, salt, record, mimeType } = {}) {
+    if (!(blob instanceof Blob)) {
+      throw new Error("EncryptionMiddleware.decrypt expects a Blob.");
+    }
+    const key = this._getPassword(password);
+    const resolvedSalt = this._getSalt(salt, record);
+    const cipherBase64 = await blob.text();
+    const plainBuffer = await Crypto.decrypt(cipherBase64, key, resolvedSalt);
+    const resolvedMime =
+      mimeType ||
+      record?._guessMimeType?.() ||
+      (blob.type && blob.type !== "application/octet-stream" ? blob.type : "application/octet-stream");
+    return new Blob([plainBuffer], { type: resolvedMime });
+  }
+}
 function showToast(e, t = "info", n = 4e3) {
   let o = document.getElementById("toastContainer");
   o || (o = document.createElement("div"), o.id = "toastContainer", o.className = "fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none max-w-sm w-full", document.body.appendChild(o));
@@ -641,6 +677,16 @@ class FileRecord {
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
 
+  async getContent(params = {}) {
+    const raw = await this.download(params);
+    let blob = raw instanceof Blob ? raw : await raw.blob();
+  
+    if (this.isEncryptedFile()) {
+      blob = await EncryptionMiddleware.decrypt(blob);
+    }
+  
+    return blob;
+  }
   isFolderNode() {
     return this._is_folder;
   }
