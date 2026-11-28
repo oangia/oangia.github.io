@@ -1030,7 +1030,7 @@ class FileManager {
     const close = () => {
       if (!panel.isConnected) return;
       document.removeEventListener("keydown", handleKeydown);
-      if (objectUrl) URL.revokeObjectURL(url);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
       panel.remove();
       if (this.activeFilePreview?.panel === panel) this.activeFilePreview = null;
     };
