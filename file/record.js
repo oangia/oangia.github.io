@@ -428,7 +428,49 @@ class Crypto {
   }
 }
 
-class FileRecord {
+class FileRecordInterface {
+  static use(name) {
+    throw new Error("FileRecordInterface.use() must be implemented");
+  }
+
+  static async list(path = "", options = {}) {
+    throw new Error("FileRecordInterface.list() must be implemented");
+  }
+
+  static async upload(path, file, options = {}) {
+    throw new Error("FileRecordInterface.upload() must be implemented");
+  }
+
+  async remove() {
+    throw new Error("remove() must be implemented");
+  }
+
+  getId() { throw new Error("Not implemented"); }
+  getName() { throw new Error("Not implemented"); }
+  getFullPath() { throw new Error("Not implemented"); }
+  getSize() { throw new Error("Not implemented"); }
+  getMimeType() { throw new Error("Not implemented"); }
+  getUrl() { throw new Error("Not implemented"); }
+  getThumbnail() { throw new Error("Not implemented"); }
+  getCreatedAt() { throw new Error("Not implemented"); }
+  getUpdatedAt() { throw new Error("Not implemented"); }
+  getDisplayName() { throw new Error("Not implemented"); }
+  getExtension() { throw new Error("Not implemented"); }
+
+  isFolderNode() { throw new Error("Not implemented"); }
+  isEncryptedFile() { throw new Error("Not implemented"); }
+  isImage() { throw new Error("Not implemented"); }
+  isVideo() { throw new Error("Not implemented"); }
+  isAudio() { throw new Error("Not implemented"); }
+  isHtml() { throw new Error("Not implemented"); }
+  isEditable() { throw new Error("Not implemented"); }
+
+  async getContent(params = {}) {
+    throw new Error("getContent() must be implemented");
+  }
+}
+
+class FileRecord extends FileRecordInterface {
   static services = {};
   static current = null;
 
@@ -445,6 +487,7 @@ class FileRecord {
     updated_at = null,
     storage = null
   } = {}) {
+    super();
     this._id = id;
     this._name = name;
     this._full_path = full_path;
@@ -472,28 +515,6 @@ class FileRecord {
   }
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
-
-  getNavigationTarget() {
-    const storage = this._storage || FileRecord.current;
-    return storage instanceof DriveStorageService ? this._id : this._full_path;
-  }
-
-  async getContent(params = {}) {
-    const storage = this._storage || FileRecord.current;
-    if (!storage) throw new Error("No storage service selected.");
-
-    const target = storage instanceof SupabaseStorageService
-      ? (this._full_path || this._id)
-      : (this._id || this._full_path);
-
-    const { data, error } = await storage.download({
-      id: target,
-      path: this._full_path,
-      ...params
-    });
-    if (error) throw error;
-    return data;
-  }
 
   isFolderNode() { return this._is_folder; }
   isEncryptedFile() { return this._name.endsWith(".enc"); }
@@ -540,12 +561,12 @@ class FileRecord {
     return mimeMap[ext] || "application/octet-stream";
   }
 
-  static use(name, options = {}) {
+  static use(name) {
     if (!this.services[name]) {
       const factories = {
-        drive: () => new DriveStorageService(options),
-        supabase: () => new SupabaseStorageService(options),
-        local: () => new LocalFileService({ folderButtonId: "openLocalFolderBtn", ...options })
+        drive: () => new DriveStorageService(),
+        supabase: () => new SupabaseStorageService(),
+        local: () => new LocalFileService({ folderButtonId: "openLocalFolderBtn" })
       };
       if (!factories[name]) throw new Error(`Unknown service: ${name}`);
       this.services[name] = factories[name]();
@@ -554,13 +575,12 @@ class FileRecord {
     return this.current;
   }
 
-  static isAvailable() {
-    return Boolean(this.current && (typeof this.current.isAvailable !== "function" || this.current.isAvailable()));
-  }
-
   static async list(path = "", options = {}) {
     const storage = this.current;
-    if (!storage) throw new Error("No storage service selected.");
+    if (!storage) return { data: [], error: null };
+    if (typeof storage.isAvailable === "function" && !storage.isAvailable()) {
+      return { data: [], error: null };
+    }
 
     const queryPath = storage instanceof DriveStorageService ? (path || "root") : path;
     const { data, error } = await storage.list(queryPath, options);
@@ -603,6 +623,23 @@ class FileRecord {
       : new File([file], name, { type: file.type || "application/octet-stream" });
 
     return await storage.upload(path, namedFile, options);
+  }
+
+  async getContent(params = {}) {
+    const storage = this._storage || FileRecord.current;
+    if (!storage) throw new Error("No storage service selected.");
+
+    const target = storage instanceof SupabaseStorageService
+      ? (this._full_path || this._id)
+      : (this._id || this._full_path);
+
+    const { data, error } = await storage.download({
+      id: target,
+      path: this._full_path,
+      ...params
+    });
+    if (error) throw error;
+    return data;
   }
 
   async remove() {
