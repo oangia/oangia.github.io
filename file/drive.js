@@ -4,11 +4,9 @@ new Config("navSettingsTab");
 class DriveStorageService {
   constructor(config = {}) {
     this.onConnectionChange = config.onConnectionChange || (() => {});
-
     this.clientId = localStorage.getItem("gdrive_oauth_client_id") || config.gdrive_oauth_client_id;
     this.apiBase = "https://www.googleapis.com/drive/v3/files";
     this.uploadBase = "https://www.googleapis.com/upload/drive/v3/files";
-    // Cần scope "drive" để upload/xóa mọi file; dùng "drive.file" nếu chỉ cần quyền trên file do app tạo/chọn
     this.scope = config.scope || "https://www.googleapis.com/auth/drive";
     this.tokenClient = null;
     this._refreshTimer = null;
@@ -45,12 +43,13 @@ class DriveStorageService {
 
   async list(folderId, options = {}) {
     try {
+      const targetFolder = folderId || "root";
       const nameFilter = options.name
         ? ` and name = '${String(options.name).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`
         : "";
       const mimeTypeFilter = options.mimeType ? ` and mimeType = '${options.mimeType}'` : "";
       const params = new URLSearchParams({
-        q: `'${folderId}' in parents and trashed = false${nameFilter}${mimeTypeFilter}`,
+        q: `'${targetFolder}' in parents and trashed = false${nameFilter}${mimeTypeFilter}`,
         fields: "nextPageToken,files(id, name, mimeType, size, modifiedTime, webContentLink, thumbnailLink)",
         orderBy: "folder,name",
         pageSize: "100"
@@ -59,9 +58,8 @@ class DriveStorageService {
 
       const res = await fetch(`${this.apiBase}?${params}`, { headers: this._headers() });
       if (!res.ok) throw new Error((await res.json()).error?.message || "Failed to list Drive items");
-      const files = await res.json();
-      console.log(folderId, files);
-      return { data: files, error: null };
+      const data = await res.json();
+      return { data: data.files || [], error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
@@ -83,12 +81,6 @@ class DriveStorageService {
     }
   }
 
-  /**
-   * Upload file lên Google Drive
-   * @param {string} folderId - ID thư mục đích trên Drive (vd: "root" hoặc folderId)
-   * @param {File|Blob} file - File hoặc Blob cần upload
-   * @param {object} options - { name, mimeType, fileId } (truyền fileId nếu muốn ghi đè nội dung file cũ)
-   */
   async upload(folderId = "root", file, options = {}) {
     try {
       if (!file) throw new Error("File is required to upload");
@@ -99,7 +91,6 @@ class DriveStorageService {
       const metadata = {
         name: fileName,
         mimeType,
-        // Khi cập nhật file đã tồn tại (PATCH), Drive không cho gửi parents trực tiếp
         ...(options.fileId ? {} : { parents: folderId ? [folderId] : ["root"] })
       };
 
@@ -132,11 +123,6 @@ class DriveStorageService {
     }
   }
 
-  /**
-   * Xóa một hoặc nhiều file/folder trên Google Drive
-   * @param {string|string[]} fileIds - Một fileId hoặc mảng fileIds
-   * @param {object} options - { permanent: false } (mặc định chuyển vào Thùng rác; true để xóa vĩnh viễn)
-   */
   async remove(fileIds, options = {}) {
     try {
       const ids = (Array.isArray(fileIds) ? fileIds : [fileIds]).filter(Boolean);
@@ -202,6 +188,7 @@ class DriveStorageService {
 
   _initOAuthClient() {
     if (this.tokenClient) return true;
+    this.clientId = localStorage.getItem("gdrive_oauth_client_id") || this.clientId;
     if (!this.clientId || !window.google?.accounts?.oauth2) return false;
 
     try {
@@ -264,10 +251,11 @@ class DriveStorageService {
 
 class LocalFileService {
   constructor(config = {}) {
-    this.onConnectionChange = config.onConnectionChange;
-    this.files = null;
+    this.onConnectionChange = config.onConnectionChange || (() => {});
+    this.files = [];
+    this._byPath = new Map();
     const button = document.getElementById(config.folderButtonId);
-    if (!button || button.dataset.localDriveBound) return this;
+    if (!button || button.dataset.localDriveBound) return;
 
     button.dataset.localDriveBound = "true";
 
@@ -279,8 +267,13 @@ class LocalFileService {
     document.body.appendChild(fileInput);
 
     fileInput.onchange = event => {
-      this.files = event.target.files;
-      console.log(this.files);
+      this.files = Array.from(event.target.files || []);
+      this._byPath.clear();
+      for (const file of this.files) {
+        const rel = file.webkitRelativePath || file.name;
+        const cleanPath = rel.split("/").slice(rel.includes("/") ? 1 : 0).join("/");
+        if (cleanPath) this._byPath.set(cleanPath, file);
+      }
       this.onConnectionChange(this.files);
     };
 
@@ -291,27 +284,61 @@ class LocalFileService {
     return Boolean(this.files?.length);
   }
 
-  async list() {
-    return { data: this.files, error: null };
+  async list(path = "") {
+    const base = String(path || "").replace(/^\/+|\/+$/g, "");
+    const folders = new Map();
+    const items = [];
+
+    for (const [fullPath, file] of this._byPath.entries()) {
+      if (base && !fullPath.startsWith(`${base}/`)) continue;
+      const rest = base ? fullPath.slice(base.length + 1) : fullPath;
+      if (!rest) continue;
+
+      const slashIndex = rest.indexOf("/");
+      if (slashIndex === -1) {
+        items.push({
+          id: fullPath,
+          name: file.name,
+          size: file.size,
+          mimeType: file.type || "application/octet-stream",
+          modifiedTime: file.lastModified
+        });
+      } else {
+        const folderName = rest.slice(0, slashIndex);
+        folders.set(folderName, (folders.get(folderName) || 0) + (file.size || 0));
+      }
+    }
+
+    for (const [name, size] of folders.entries()) {
+      items.unshift({
+        id: base ? `${base}/${name}` : name,
+        name,
+        size,
+        mimeType: "application/vnd.google-apps.folder"
+      });
+    }
+
+    return { data: items, error: null };
   }
 
-  async download({ id } = {}) {
-    if (!(id instanceof Blob)) {
-      return { data: null, error: new Error("A local File is required to fetch content") };
+  async download({ id, path } = {}) {
+    const key = String(path || id || "").replace(/^\/+|\/+$/g, "");
+    const file = this._byPath.get(key);
+    if (!file) {
+      return { data: null, error: new Error(`Local file not found: ${key}`) };
     }
-    return { data: new Response(id), error: null };
+    return { data: new Response(file), error: null };
   }
 }
 
 class SupabaseStorageService {
   constructor(config = {}) {
     this.onConnectionChange = config.onConnectionChange || (() => {});
-    this.client = null;
     this._bucket = localStorage.getItem("sb_bucket") || config.bucket || "files";
     const savedUrl = localStorage.getItem("sb_url") || config.url;
     const savedKey = localStorage.getItem("sb_key") || config.key;
 
-    this.client = savedUrl && savedKey
+    this.client = savedUrl && savedKey && window.supabase
       ? window.supabase.createClient(savedUrl, savedKey)
       : null;
   }
@@ -320,51 +347,74 @@ class SupabaseStorageService {
     return Boolean(this.client);
   }
 
-  async list(path, options = {}) {
-    const { data, error } = await this.client.storage.from(this._bucket).list(path, options);
-    console.log(path, { data, error });
+  async list(path = "", options = {}) {
+    if (!this.client) return { data: null, error: new Error("Supabase is not configured.") };
+    const cleanPath = String(path || "").replace(/^\/+|\/+$/g, "");
+    const { data, error } = await this.client.storage.from(this._bucket).list(cleanPath, options);
     return { data, error };
   }
 
-  async download({ id } = {}) {
-    const { data, error } = await this.client.storage.from(this._bucket).download(id);
+  async download({ id, path } = {}) {
+    if (!this.client) return { data: null, error: new Error("Supabase is not configured.") };
+    const target = String(path || id || "").replace(/^\/+|\/+$/g, "");
+    if (!target) return { data: null, error: new Error("File path required.") };
+    const { data, error } = await this.client.storage.from(this._bucket).download(target);
     return { data, error };
   }
 
   async upload(path, file, options = {}) {
-    const { data, error } = await this.client.storage.from(this._bucket).upload(path, file, options);
+    if (!this.client) return { data: null, error: new Error("Supabase is not configured.") };
+    const cleanPath = String(path || "").replace(/^\/+|\/+$/g, "");
+    const { data, error } = await this.client.storage.from(this._bucket).upload(cleanPath, file, options);
     return { data, error };
   }
 
   async remove(paths) {
-    const { data, error } = await this.client.storage.from(this._bucket).remove(paths);
+    if (!this.client) return { data: null, error: new Error("Supabase is not configured.") };
+    const cleanPaths = (Array.isArray(paths) ? paths : [paths])
+      .map(p => String(p || "").replace(/^\/+|\/+$/g, ""))
+      .filter(Boolean);
+    const { data, error } = await this.client.storage.from(this._bucket).remove(cleanPaths);
     return { data, error };
   }
 }
 
 class FileEntity {
-  constructor({id = null, name = "", full_path = "", size = 0, mime_type = null, url = null, thumbnail = null, is_folder = false, created_at = null, updated_at = null} = {}) {
+  constructor({
+    id = null,
+    name = "",
+    full_path = "",
+    size = 0,
+    mime_type = null,
+    url = null,
+    thumbnail = null,
+    is_folder = false,
+    created_at = null,
+    updated_at = null
+  } = {}) {
     this._id = id;
     this._name = name;
     this._full_path = full_path;
     this._is_folder = is_folder;
     this._size = size;
-    this._mime_type = this._is_folder? "inode/directory" : (mime_type || this._guessMimeType());
+    this._mime_type = this._is_folder
+      ? "inode/directory"
+      : (mime_type || this._guessMimeType());
     this._url = url;
     this._thumbnail = thumbnail;
     this._created_at = created_at;
     this._updated_at = updated_at;
   }
-  
+
   getId() { return this._id; }
   getName() { return this._name; }
   getFullPath() { return this._full_path; }
   getSize() { return this._size; }
   getMimeType() { return this._mime_type; }
-  getUrl(expiresIn = 60) { return this._url; }
-  getThumbnail() { 
+  getUrl() { return this._url; }
+  getThumbnail() {
     if (!this._thumbnail && this.isImage()) return this._url;
-    return this._thumbnail; 
+    return this._thumbnail;
   }
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
@@ -387,11 +437,14 @@ class FileEntity {
     return lastDot !== -1 ? realName.substring(lastDot + 1).toLowerCase() : "";
   }
 
-  _checkMineType(exts, prefix) {return exts.includes(this.getExtension()) || this.getMimeType().startsWith(prefix)}
-  isImage() {return this._checkMineType(["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"], "image/")}
-  isVideo() {return this._checkMineType(["mp4","webm","mov","avi","mkv"], "video/")}
-  isAudio() {return this._checkMineType(["mp3", "wav", "ogg"], "audio/")}
-  isHtml() {return this._checkMineType(["html", "htm"], "html/")}
+  _checkMineType(exts, prefix) {
+    return exts.includes(this.getExtension()) || this.getMimeType().startsWith(prefix);
+  }
+
+  isImage() { return this._checkMineType(["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"], "image/"); }
+  isVideo() { return this._checkMineType(["mp4", "webm", "mov", "avi", "mkv"], "video/"); }
+  isAudio() { return this._checkMineType(["mp3", "wav", "ogg"], "audio/"); }
+  isHtml() { return this._checkMineType(["html", "htm"], "html/"); }
   isEditable() {
     return !this.isImage() && !this.isVideo() && !this.isAudio()
       && this._checkMineType(
@@ -401,22 +454,76 @@ class FileEntity {
   }
 
   _guessMimeType() {
-    const ext = this.getDisplayName().toLowerCase().split(".").pop();
+    const ext = this.getExtension();
     const mimeMap = {
-      txt: "text/plain", html: "text/html", css: "text/css",
-      js: "application/javaseateipt", json: "application/json",
-      png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
-      gif: "image/gif", svg: "image/svg+xml", pdf: "application/pdf", zip: "application/zip"
+      txt: "text/plain",
+      html: "text/html",
+      css: "text/css",
+      js: "application/javascript",
+      json: "application/json",
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      gif: "image/gif",
+      svg: "image/svg+xml",
+      pdf: "application/pdf",
+      zip: "application/zip"
     };
     return mimeMap[ext] || "application/octet-stream";
   }
 }
 
-/**
- * FileRecord: Extends BaseStorageRecord to add Cryptography (AES-GCM), 
- * and secure wrappers over storage operations.
- */
-class Crypto{static PBKDF2_ITERATIONS=1e5;static async _deriveKey(e,t){if(!e)throw new Error("Encryption passphrase is required.");if(!t)throw new Error("Salt is required for key derivation.");const r=new TextEncoder,n=await window.crypto.subtle.importKey("raw",r.encode(e),{name:"PBKDF2"},!1,["deriveKey"]);return window.crypto.subtle.deriveKey({name:"PBKDF2",salt:"string"==typeof t?r.encode(t):t,iterations:this.PBKDF2_ITERATIONS,hash:"SHA-256"},n,{name:"AES-GCM",length:256},!1,["encrypt","decrypt"])}static async encrypt(e,t,r){const n=await this._deriveKey(t,r),a=window.crypto.getRandomValues(new Uint8Array(12)),i=e instanceof ArrayBuffer?e:(new TextEncoder).encode(e),o=await window.crypto.subtle.encrypt({name:"AES-GCM",iv:a},n,i),s=new Uint8Array(a.byteLength+o.byteLength);s.set(a,0),s.set(new Uint8Array(o),a.byteLength);let c="";for(let e=0;e<s.byteLength;e++)c+=String.fromCharCode(s[e]);return btoa(c)}static async decrypt(e,t,r){const n=await this._deriveKey(t,r),a=atob(e),i=new Uint8Array(a.length);for(let e=0;e<a.length;e++)i[e]=a.charCodeAt(e);const o=i.slice(0,12),s=i.slice(12);return await window.crypto.subtle.decrypt({name:"AES-GCM",iv:o},n,s)}}
+class Crypto {
+  static PBKDF2_ITERATIONS = 1e5;
+
+  static async _deriveKey(e, t) {
+    if (!e) throw new Error("Encryption passphrase is required.");
+    if (!t) throw new Error("Salt is required for key derivation.");
+    const r = new TextEncoder();
+    const n = await window.crypto.subtle.importKey(
+      "raw",
+      r.encode(e),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"]
+    );
+    return window.crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: typeof t === "string" ? r.encode(t) : t,
+        iterations: this.PBKDF2_ITERATIONS,
+        hash: "SHA-256"
+      },
+      n,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  static async encrypt(e, t, r) {
+    const n = await this._deriveKey(t, r);
+    const a = window.crypto.getRandomValues(new Uint8Array(12));
+    const i = e instanceof ArrayBuffer ? e : new TextEncoder().encode(e);
+    const o = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: a }, n, i);
+    const s = new Uint8Array(a.byteLength + o.byteLength);
+    s.set(a, 0);
+    s.set(new Uint8Array(o), a.byteLength);
+    let c = "";
+    for (let idx = 0; idx < s.byteLength; idx++) c += String.fromCharCode(s[idx]);
+    return btoa(c);
+  }
+
+  static async decrypt(e, t, r) {
+    const n = await this._deriveKey(t, r);
+    const a = atob(e);
+    const i = new Uint8Array(a.length);
+    for (let idx = 0; idx < a.length; idx++) i[idx] = a.charCodeAt(idx);
+    const o = i.slice(0, 12);
+    const s = i.slice(12);
+    return await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: o }, n, s);
+  }
+}
 
 class FileRecord extends FileEntity {
   static services = {};
@@ -454,10 +561,11 @@ class FileRecord extends FileEntity {
     const { data, error } = await storage.list(path, options);
     if (error || !data) return { data: [], error };
 
-    const cleanBase = path.replace(/^\/+|\/+$/g, "");
+    const cleanBase = String(path || "").replace(/^\/+|\/+$/g, "");
     const records = data.map(item => {
       const fullPath = cleanBase ? `${cleanBase}/${item.name}` : item.name;
-      const isFolder = item.mimeType === "application/vnd.google-apps.folder" || !item.id;
+      const isFolder = item.mimeType === "application/vnd.google-apps.folder"
+        || (storage instanceof SupabaseStorageService && !item.id);
       return new this({
         id: item.id || fullPath,
         name: item.name,
@@ -493,8 +601,12 @@ class FileRecord extends FileEntity {
     const storage = this._storage || FileRecord.current;
     if (!storage) throw new Error("No storage service selected.");
 
+    const target = storage instanceof SupabaseStorageService
+      ? (this._full_path || this._id)
+      : (this._id || this._full_path);
+
     const { data, error } = await storage.download({
-      id: this._full_path || this._id,
+      id: target,
       path: this._full_path,
       ...params
     });
@@ -506,7 +618,10 @@ class FileRecord extends FileEntity {
     const storage = this._storage || FileRecord.current;
     if (!storage) throw new Error("No storage service selected.");
 
-    const target = this._full_path || this._id;
+    const target = storage instanceof SupabaseStorageService
+      ? (this._full_path || this._id)
+      : (this._id || this._full_path);
+
     return await storage.remove([target]);
   }
 }
