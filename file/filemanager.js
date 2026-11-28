@@ -49,8 +49,8 @@ class FileManager {
     this._renderBreadcrumb();
     this._renderGrid([]);
 
-    const storage = this._ensureStorage();
-    if (typeof storage.isAvailable !== "function" || storage.isAvailable()) {
+    FileRecord.ensureService();
+    if (FileRecord.isAvailable()) {
       this.action("listFiles");
     }
   }
@@ -134,37 +134,36 @@ class FileManager {
 
   _bindEvents() {
     document.getElementById("openLocalFolderBtn")?.addEventListener("click", () => {
-      const local = FileRecord.use("local", {
+      FileRecord.use("local", {
         folderButtonId: "openLocalFolderBtn",
         onConnectionChange: () => {
-          if (FileRecord.current === local) {
+          if (FileRecord.services.local === FileRecord.current) {
             this.resetBreadcrumb();
             this.listFiles();
           }
         }
-      }).current;
-    
-      FileRecord.current = local;
+      });
     });
+
     document.getElementById("authBtn")?.addEventListener("click", () => {
       const hasSupabase = Boolean(localStorage.getItem("sb_url") && localStorage.getItem("sb_key"));
-      const drive = FileRecord.use("drive", {
+      FileRecord.use("drive", {
         onConnectionChange: ({ error }) => {
           if (error) {
             showToast(error, "error");
             return;
           }
-          if (FileRecord.current === drive && drive.isAvailable()) {
+          if (FileRecord.services.drive === FileRecord.current && FileRecord.isAvailable()) {
             this.listFiles();
           }
         }
-      }).current;
+      });
 
-      if (!hasSupabase || FileRecord.current === drive) {
-        FileRecord.current = drive;
+      if (!hasSupabase || FileRecord.services.drive === FileRecord.current) {
+        FileRecord.use("drive");
       }
 
-      if (drive.isAvailable()) {
+      if (FileRecord.isAvailable()) {
         this.listFiles();
       }
     });
@@ -209,19 +208,11 @@ class FileManager {
       this.action(record.isFolderNode() ? "navigate" : "openFilePreview", record);
     });
 
-
     this.breadcrumbContainer?.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
       const crumb = event.target.closest("[data-breadcrumb-index]");
       if (crumb) this.jumpToBreadcrumb(Number(crumb.dataset.breadcrumbIndex));
     });
-  }
-
-  _ensureStorage() {
-    if (!FileRecord.current) {
-      FileRecord.use(localStorage.getItem("sb_url") && localStorage.getItem("sb_key") ? "supabase" : "drive");
-    }
-    return FileRecord.current;
   }
 
   _renderBreadcrumb() {
@@ -321,11 +312,10 @@ class FileManager {
   async listFiles() {
     const requestId = ++this.listRequestId;
     try {
-      const storage = this._ensureStorage();
-      if (typeof storage.isAvailable === "function" && !storage.isAvailable()) return;
+      FileRecord.ensureService();
+      if (!FileRecord.isAvailable()) return;
 
-      const queryPath = storage instanceof DriveStorageService ? (this.path || "root") : this.path;
-      const { data, error } = await FileRecord.list(queryPath);
+      const { data, error } = await FileRecord.list(this.path);
       if (requestId !== this.listRequestId) return;
       if (error) throw error;
 
@@ -349,7 +339,7 @@ class FileManager {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    this._ensureStorage();
+    FileRecord.ensureService();
     showToast(`Uploading ${files.length} item(s)...`, "info", 2500);
     let success = 0;
     let failed = 0;
@@ -379,13 +369,10 @@ class FileManager {
   }
 
   navigate(file) {
-    const isDrive = (file._storage || FileRecord.current) instanceof DriveStorageService;
-    const nextPath = isDrive ? file.getId() : file.getFullPath();
-    this.navigateToFolder(nextPath, file.getDisplayName());
+    this.navigateToFolder(file.getNavigationTarget(), file.getDisplayName());
   }
 
   async openFilePreview(file) {
-    this._ensureStorage();
     this.activeFilePreview?.close();
 
     const panel = document.createElement("div");
@@ -465,7 +452,6 @@ class FileManager {
 
   async loadPreviewMedia(file, element, useThumbnail = true) {
     try {
-      this._ensureStorage();
       if (useThumbnail && element instanceof HTMLImageElement && file.getThumbnail()) {
         element.loading = "lazy";
         element.onerror = () => {
@@ -501,7 +487,6 @@ class FileManager {
 
   async downloadRecord(file) {
     try {
-      this._ensureStorage();
       const raw = await file.getContent();
       const blob = file.isEncryptedFile()
         ? await EncryptionMiddleware.decrypt(raw, file.getMimeType())
@@ -520,7 +505,6 @@ class FileManager {
 
   async removeRecord(file) {
     try {
-      this._ensureStorage();
       const { error } = await file.remove();
       if (error) throw error;
       showToast(`Deleted ${file.getDisplayName()}`, "success");
