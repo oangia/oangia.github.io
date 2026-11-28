@@ -33,7 +33,6 @@ class UITemplates {
 
 class ItemsGridRenderer {
   constructor(containerId, fileManagerInstance) {
-    super();
     this.containerId = containerId;
     this.fileManager = fileManagerInstance;
 
@@ -161,7 +160,6 @@ class ItemsGridRenderer {
 
 class BreadcrumbManager {
   constructor(containerId, fileManagerInstance) {
-    super();
     this.containerId = containerId;
     this.fileManager = fileManagerInstance;
 
