@@ -200,28 +200,6 @@
       <span id="syncProgressSummary">In progress</span>
     </div>
   </section>
-  <script src="./file/drive.js"></script>
   <script src="./file/filemanager.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const fileInput = document.getElementById("fileUpload");
-      const encryptedInput = document.getElementById("encryptedFileUpload");
-      const folderInput = document.getElementById("folderUpload");
-
-      fileInput?.addEventListener("change", (e) => fileManager.action("upload", e, false, false));
-
-      if (encryptedInput && typeof fileManager !== "undefined") {
-        encryptedInput.addEventListener("change", (e) => {
-          fileManager.action("upload", e, false, true);
-        });
-      }
-
-      if (folderInput && typeof fileManager !== "undefined") {
-        folderInput.addEventListener("change", (e) => fileManager.action("upload", e, true, false));
-      }
-      set_bg();
-    });
-    const fileManager = new FileManager();
-  </script>
 </body>
 </html>
