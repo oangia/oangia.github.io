@@ -1006,7 +1006,9 @@ class FileManager {
   }
 
   navigate(file) {
-    this.navigateToFolder(file.getFullPath(), file.getName());
+    const isDrive = (file._storage || FileRecord.current) instanceof DriveStorageService;
+    const nextPath = isDrive ? file.getId() : file.getFullPath();
+    this.navigateToFolder(nextPath, file.getDisplayName());
   }
 
   async openFilePreview(file) {
