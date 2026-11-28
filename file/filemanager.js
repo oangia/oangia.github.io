@@ -1,39 +1,23 @@
 const escapeHtml = e => String(e || "").replace(/[&<>'"]/g, e => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#039;", '"': "&quot;" }[e] || e));
 class EncryptionMiddleware {
-  static _getPassword(password) {
-    const key = password || localStorage.getItem("gdrive_encryption_password");
-    if (!key) throw new Error("Private encryption key / password is not set.");
-    return key;
+  static salt = "DriveManagerSecureSalt123";
+
+  static async encrypt(blob) {
+    if (!(blob instanceof Blob)) throw new Error("encrypt expects a Blob.");
+    const password = localStorage.getItem("gdrive_encryption_password");
+    if (!password) throw new Error("Encryption password not set.");
+
+    const cipher = await Crypto.encrypt(await blob.arrayBuffer(), password, this.salt);
+    return new Blob([cipher], { type: "application/octet-stream" });
   }
 
-  static _getSalt(salt, record) {
-    return salt || record?.getFullPath?.() || record?.getName?.() || "default-salt";
-  }
+  static async decrypt(blob) {
+    if (!(blob instanceof Blob)) throw new Error("decrypt expects a Blob.");
+    const password = localStorage.getItem("gdrive_encryption_password");
+    if (!password) throw new Error("Encryption password not set.");
 
-  static async encrypt(blob, { password, salt, record, mimeType = "application/octet-stream" } = {}) {
-    if (!(blob instanceof Blob)) {
-      throw new Error("EncryptionMiddleware.encrypt expects a Blob.");
-    }
-    const key = this._getPassword(password);
-    const resolvedSalt = this._getSalt(salt, record);
-    const buffer = await blob.arrayBuffer();
-    const cipherBase64 = await Crypto.encrypt(buffer, key, resolvedSalt);
-    return new Blob([cipherBase64], { type: mimeType });
-  }
-
-  static async decrypt(blob, { password, salt, record, mimeType } = {}) {
-    if (!(blob instanceof Blob)) {
-      throw new Error("EncryptionMiddleware.decrypt expects a Blob.");
-    }
-    const key = this._getPassword(password);
-    const resolvedSalt = this._getSalt(salt, record);
-    const cipherBase64 = await blob.text();
-    const plainBuffer = await Crypto.decrypt(cipherBase64, key, resolvedSalt);
-    const resolvedMime =
-      mimeType ||
-      record?._guessMimeType?.() ||
-      (blob.type && blob.type !== "application/octet-stream" ? blob.type : "application/octet-stream");
-    return new Blob([plainBuffer], { type: resolvedMime });
+    const plain = await Crypto.decrypt(await blob.text(), password, this.salt);
+    return new Blob([plain]);
   }
 }
 function showToast(e, t = "info", n = 4e3) {
@@ -1207,8 +1191,7 @@ class FileManager {
     this.activeFilePreview = { panel, close };
 
     try {
-      const raw = await file.download();
-      const blob = raw instanceof Blob ? raw : await raw.blob();
+      const blob = await file.getContent();
       if (!panel.isConnected) return;
 
       if (file.isHtml()) {
@@ -1271,8 +1254,7 @@ class FileManager {
         return;
       }
 
-      const raw = await file.download();
-      const blob = raw instanceof Blob ? raw : await raw.blob();
+      const blob = await file.getContent();
       element.loading = "lazy";
       element.preload = "auto";
       element.src = URL.createObjectURL(blob);
@@ -1285,8 +1267,8 @@ class FileManager {
   async downloadRecord(file) {
     try {
       this._ensureStorage();
-      const response = await file.download();
-      const url = URL.createObjectURL(await response.blob());
+      const blob = await file.getContent();
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = file.getDisplayName();
