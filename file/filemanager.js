@@ -827,7 +827,7 @@ class FileManager {
 
     this.gridContainer = document.getElementById(gridId);
     this.contextRecord = null;
-    this.contextMenu = document.createElement("div");
+    this.contextMenu = document.getElementById("contextMenuActions");
     this.contextMenu.className =
       "hidden fixed z-[110] max-h-[80vh] min-w-44 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg rounded-lg";
     document.body.appendChild(this.contextMenu);
@@ -1013,31 +1013,11 @@ class FileManager {
   }
 
   _showContextMenu(event, record) {
+    if (!this.contextMenu) return;
     event.preventDefault();
     event.stopPropagation();
     this.contextRecord = record || null;
-
-    if (!record) {
-      this.contextMenu.innerHTML = `
-        <button type="button" data-action="triggerUpload" data-target="fileUpload" class="w-full text-left px-3 py-2 text-xs hover:bg-white/10">Upload files</button>
-        <button type="button" data-action="triggerUpload" data-target="encryptedFileUpload" class="w-full text-left px-3 py-2 text-xs hover:bg-white/10">Upload encrypted</button>
-        <button type="button" data-action="triggerUpload" data-target="folderUpload" class="w-full text-left px-3 py-2 text-xs hover:bg-white/10">Upload folder</button>
-        <button type="button" data-action="refresh" class="w-full text-left px-3 py-2 text-xs hover:bg-white/10">Refresh</button>
-      `;
-    } else {
-      const openLabel = record.isFolderNode() ? "Open" : "Open preview";
-      const openAction = record.isFolderNode() ? "navigate" : "openFilePreview";
-      const downloadBtn = record.isFolderNode()
-        ? ""
-        : `<button type="button" data-action="downloadRecord" class="w-full text-left px-3 py-2 text-xs hover:bg-white/10">Download</button>`;
-
-      this.contextMenu.innerHTML = `
-        <button type="button" data-action="${openAction}" class="w-full text-left px-3 py-2 text-xs hover:bg-white/10">${escapeHtml(openLabel)}</button>
-        ${downloadBtn}
-        <button type="button" data-action="removeRecord" class="w-full text-left px-3 py-2 text-xs text-rose-300 hover:bg-white/10">Delete</button>
-      `;
-    }
-
+  
     this.contextMenu.classList.remove("hidden");
     const left = event.clientX || 8;
     const top = event.clientY || 8;
@@ -1045,10 +1025,10 @@ class FileManager {
     this.contextMenu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - rect.width - 8))}px`;
     this.contextMenu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - rect.height - 8))}px`;
   }
-
+  
   _hideContextMenu() {
     this.contextRecord = null;
-    this.contextMenu.classList.add("hidden");
+    this.contextMenu?.classList.add("hidden");
   }
 
   navigateToFolder(path, name, breadcrumbIndex = null) {
