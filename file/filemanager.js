@@ -1,6 +1,6 @@
-class UITemplates {
-  static get grid() {
-    return {
+class FileManager {
+  static _TEMPLATES = {
+    grid: {
       containerClass: "grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 p-4",
       cardClass: "group relative bg-transparent border border-white/20 hover:border-indigo-400 rounded-xl p-3 flex flex-col items-center justify-between text-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-150 aspect-square overflow-hidden",
       emptyState: `<div class="col-span-full py-16 text-center text-slate-400 text-sm"><i class="fa-regular fa-folder-open text-3xl mb-3 block opacity-90 hover:opacity-100"></i>No items found</div>`,
@@ -17,56 +17,53 @@ class UITemplates {
       },
       card: (record, mediaHTML) =>
         `${mediaHTML}<div class="w-full pt-2 border-t border-white/20 flex flex-col"><span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(record.getDisplayName())}">${escapeHtml(record.getDisplayName())}</span><span class="text-[9px] text-slate-300 font-mono mt-0.5">${record.isFolderNode() ? "Folder" : `${record.getSize()} B`}</span></div>`
-    };
-  }
-
-  static get breadcrumb() {
-    return {
+    },
+    breadcrumb: {
       crumb: (name, isRoot) => isRoot
         ? `<i class="fa-solid fa-house mr-1 text-xs"></i><span>${escapeHtml(name)}</span>`
         : `<span>${escapeHtml(name)}</span>`,
       separatorClass: "opacity-50 mx-1",
       crumbClass: (isLast) => (isLast ? "font-bold text-indigo-300 wire-text" : "wire-subtext hover:wire-text") + " inline-flex items-center"
-    };
-  }
-}
+    }
+  };
 
-class ItemsGridRenderer {
-  constructor(containerId, fileManagerInstance) {
-    this.containerId = containerId;
-    this.fileManager = fileManagerInstance;
-
-    this.initHTML();
-    this.bindEvents();
-    this.render();
-  }
-
-  initHTML() {
-    this.container = document.getElementById(this.containerId);
+  constructor(gridId = "itemsGrid", breadcrumbId = "breadcrumbNav") {
     this.items = [];
+    this.listRequestId = 0;
 
+    this.gridContainer = document.getElementById(gridId);
+    this.contextRecord = null;
     this.contextMenu = document.createElement("div");
     this.contextMenu.className =
       "hidden fixed z-[110] max-h-[80vh] min-w-44 border border-white/20 bg-zinc-900 py-1 text-slate-200 shadow-lg rounded-lg";
     document.body.appendChild(this.contextMenu);
+
+    this.breadcrumbContainer = document.getElementById(breadcrumbId);
+    this.path = "";
+    this.history = [{ path: "", name: "root" }];
+
+    this._bindEvents();
+    this._renderBreadcrumb();
+    this._renderGrid([]);
+    this.action("listFiles");
   }
 
-  bindEvents() {
-    this.container?.addEventListener("contextmenu", (event) => {
+  _bindEvents() {
+    this.gridContainer?.addEventListener("contextmenu", (event) => {
       if (!(event.target instanceof Element)) return;
       const card = event.target.closest("[data-item-index]");
       const record = card ? this.items[Number(card.dataset.itemIndex)] : null;
       if (!record) return;
-      this.showContextMenu(event, record);
+      this._showContextMenu(event, record);
     });
 
-    this.container?.addEventListener("click", (event) => {
+    this.gridContainer?.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
       const card = event.target.closest("[data-item-index]");
       if (!card) return;
       const record = this.items[Number(card.dataset.itemIndex)];
       if (!record) return;
-      this.fileManager.action(record.isFolderNode() ? "navigate" : "openFilePreview", record);
+      this.action(record.isFolderNode() ? "navigate" : "openFilePreview", record);
     });
 
     this.contextMenu.addEventListener("pointerdown", (e) => e.stopPropagation());
@@ -77,31 +74,65 @@ class ItemsGridRenderer {
       if (!button || !this.contextRecord) return;
       const action = button.dataset.action;
       const record = this.contextRecord;
-      this.hideContextMenu();
-      this.fileManager.action(action, record);
+      this._hideContextMenu();
+      this.action(action, record);
+    });
+
+    this.breadcrumbContainer?.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const crumb = event.target.closest("[data-breadcrumb-index]");
+      if (crumb) this.jumpToBreadcrumb(Number(crumb.dataset.breadcrumbIndex));
     });
 
     document.addEventListener("pointerdown", (event) => {
-      if (!this.contextMenu.contains(event.target)) this.hideContextMenu();
+      if (!this.contextMenu.contains(event.target)) this._hideContextMenu();
     });
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") this.hideContextMenu();
+      if (event.key === "Escape") this._hideContextMenu();
     });
   }
 
-  render(items = []) {
-    this.items = items;
-    if (!this.container) return [];
+  _ensureStorage() {
+    if (!FileRecord.current) {
+      FileRecord.use(localStorage.getItem("sb_url") && localStorage.getItem("sb_key") ? "supabase" : "drive");
+    }
+    return FileRecord.current;
+  }
 
-    const tpl = UITemplates.grid;
+  _renderBreadcrumb() {
+    if (!this.breadcrumbContainer) return;
+    const tpl = FileManager._TEMPLATES.breadcrumb;
+    this.breadcrumbContainer.innerHTML = "";
+
+    this.history.forEach((crumb, idx) => {
+      const isLast = idx === this.history.length - 1;
+      const btn = document.createElement("button");
+      btn.className = tpl.crumbClass(isLast);
+      btn.dataset.breadcrumbIndex = String(idx);
+      btn.innerHTML = tpl.crumb(crumb.name, crumb.name.toLowerCase() === "root");
+      this.breadcrumbContainer.appendChild(btn);
+
+      if (!isLast) {
+        const sep = document.createElement("span");
+        sep.className = tpl.separatorClass;
+        sep.textContent = "/";
+        this.breadcrumbContainer.appendChild(sep);
+      }
+    });
+  }
+
+  _renderGrid(items = []) {
+    if (!this.gridContainer) return [];
+
+    const tpl = FileManager._TEMPLATES.grid;
     const previewMedia = [];
 
-    this.container.className = tpl.containerClass;
-    this.container.innerHTML = "";
+    this.gridContainer.className = tpl.containerClass;
+    this.gridContainer.innerHTML = "";
 
     if (!items.length) {
-      this.container.innerHTML = tpl.emptyState;
+      this.gridContainer.innerHTML = tpl.emptyState;
       return previewMedia;
     }
 
@@ -113,7 +144,7 @@ class ItemsGridRenderer {
 
       const mediaHTML = record.isFolderNode() ? tpl.folderIcon : tpl.fileMedia(record);
       card.innerHTML = tpl.card(record, mediaHTML);
-      this.container.appendChild(card);
+      this.gridContainer.appendChild(card);
 
       const previewEl = card.querySelector(".widget-preview-area");
       if (
@@ -127,7 +158,7 @@ class ItemsGridRenderer {
     return previewMedia;
   }
 
-  showContextMenu(event, record) {
+  _showContextMenu(event, record) {
     event.preventDefault();
     event.stopPropagation();
     this.contextRecord = record;
@@ -152,34 +183,9 @@ class ItemsGridRenderer {
     this.contextMenu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - rect.height - 8))}px`;
   }
 
-  hideContextMenu() {
+  _hideContextMenu() {
     this.contextRecord = null;
     this.contextMenu.classList.add("hidden");
-  }
-}
-
-class BreadcrumbManager {
-  constructor(containerId, fileManagerInstance) {
-    this.containerId = containerId;
-    this.fileManager = fileManagerInstance;
-
-    this.initHTML();
-    this.bindEvents();
-    this.render();
-  }
-
-  initHTML() {
-    this.container = document.getElementById(this.containerId);
-    this.history = [{ path: "", name: "root" }];
-    this.path = "";
-  }
-
-  bindEvents() {
-    this.container?.addEventListener("click", (event) => {
-      if (!(event.target instanceof Element)) return;
-      const crumb = event.target.closest("[data-breadcrumb-index]");
-      if (crumb) this.jumpToBreadcrumb(Number(crumb.dataset.breadcrumbIndex));
-    });
   }
 
   navigateToFolder(path, name, breadcrumbIndex = null) {
@@ -190,52 +196,18 @@ class BreadcrumbManager {
       this.history = this.history.slice(0, breadcrumbIndex + 1);
     }
     this.path = path;
-    this.render();
-    this.fileManager.action("listFiles");
+    this._renderBreadcrumb();
+    this.action("listFiles");
   }
 
   jumpToBreadcrumb(index) {
     this.navigateToFolder(this.history[index].path, null, index);
   }
 
-  reset() {
+  resetBreadcrumb() {
     this.path = "";
     this.history = [{ path: "", name: "root" }];
-    this.render();
-  }
-
-  render() {
-    if (!this.container) return;
-    const tpl = UITemplates.breadcrumb;
-    this.container.innerHTML = "";
-
-    this.history.forEach((crumb, idx) => {
-      const isLast = idx === this.history.length - 1;
-      const btn = document.createElement("button");
-      btn.className = tpl.crumbClass(isLast);
-      btn.dataset.breadcrumbIndex = String(idx);
-      btn.innerHTML = tpl.crumb(crumb.name, crumb.name.toLowerCase() === "root");
-      this.container.appendChild(btn);
-
-      if (!isLast) {
-        const sep = document.createElement("span");
-        sep.className = tpl.separatorClass;
-        sep.textContent = "/";
-        this.container.appendChild(sep);
-      }
-    });
-  }
-}
-
-class FileManager {
-  constructor() {
-    this.items = [];
-    this.listRequestId = 0;
-
-    this.breadcrumb = new BreadcrumbManager("breadcrumbNav", this);
-    this.gridRenderer = new ItemsGridRenderer("itemsGrid", this);
-
-    this.action("listFiles");
+    this._renderBreadcrumb();
   }
 
   action(actionName, ...args) {
@@ -254,7 +226,8 @@ class FileManager {
   async listFiles() {
     const requestId = ++this.listRequestId;
     try {
-      const { data, error } = await FileRecord.list(this.breadcrumb.path);
+      this._ensureStorage();
+      const { data, error } = await FileRecord.list(this.path);
       if (requestId !== this.listRequestId) return;
       if (error) throw error;
 
@@ -266,7 +239,7 @@ class FileManager {
       const label = document.getElementById("itemCountLabel");
       if (label) label.textContent = `${this.items.length} item${this.items.length !== 1 ? "s" : ""}`;
 
-      const previewMedia = this.gridRenderer?.render(this.items) || [];
+      const previewMedia = this._renderGrid(this.items);
       previewMedia.forEach(({ file, element }) => this.loadPreviewMedia(file, element));
     } catch (err) {
       console.error(err);
@@ -278,16 +251,16 @@ class FileManager {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
+    this._ensureStorage();
     showToast(`Uploading ${files.length} item(s)...`, "info", 2500);
     let success = 0;
     let failed = 0;
-    const currentPath = this.breadcrumb.path;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
         const rel = isFolderUpload && file.webkitRelativePath ? file.webkitRelativePath : file.name;
-        const targetPath = currentPath ? `${currentPath}/${rel}` : rel;
+        const targetPath = this.path ? `${this.path}/${rel}` : rel;
         const { error } = await FileRecord.upload(targetPath, file, options);
         if (error) throw error;
         success++;
@@ -308,10 +281,11 @@ class FileManager {
   }
 
   navigate(file) {
-    this.breadcrumb.navigateToFolder(file.getFullPath(), file.getName());
+    this.navigateToFolder(file.getFullPath(), file.getName());
   }
 
   async openFilePreview(file) {
+    this._ensureStorage();
     this.activeFilePreview?.close();
 
     const panel = document.createElement("div");
@@ -389,6 +363,7 @@ class FileManager {
 
   async loadPreviewMedia(file, element, useThumbnail = true) {
     try {
+      this._ensureStorage();
       if (useThumbnail && element instanceof HTMLImageElement && file.getThumbnail()) {
         element.loading = "lazy";
         element.onerror = () => {
@@ -422,6 +397,7 @@ class FileManager {
 
   async downloadRecord(file) {
     try {
+      this._ensureStorage();
       const response = await file.download();
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
@@ -437,6 +413,7 @@ class FileManager {
 
   async removeRecord(file) {
     try {
+      this._ensureStorage();
       const { error } = await file.remove();
       if (error) throw error;
       showToast(`Deleted ${file.getDisplayName()}`, "success");
