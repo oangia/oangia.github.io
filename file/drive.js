@@ -494,7 +494,7 @@ class FileRecord extends FileEntity {
     if (!storage) throw new Error("No storage service selected.");
 
     const { data, error } = await storage.download({
-      id: this._id,
+      id: this._full_path || this._id,
       path: this._full_path,
       ...params
     });
@@ -506,7 +506,7 @@ class FileRecord extends FileEntity {
     const storage = this._storage || FileRecord.current;
     if (!storage) throw new Error("No storage service selected.");
 
-    const target = this._id || this._full_path;
+    const target = this._full_path || this._id;
     return await storage.remove([target]);
   }
 }
