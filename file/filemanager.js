@@ -847,6 +847,21 @@ class FileManager {
   }
 
   _bindEvents() {
+    document.getElementById("openLocalFolderBtn")?.addEventListener("click", () => {
+      const local = FileRecord.use("local", {
+        folderButtonId: "openLocalFolderBtn",
+        onConnectionChange: () => {
+          if (FileRecord.current === local) {
+            this.resetBreadcrumb();
+            this.listFiles();
+          }
+        }
+      }).current;
+    
+      FileRecord.current = local;
+      document.getElementById("contextMenuActions")?.classList.add("hidden");
+      this._hideContextMenu();
+    });
     document.getElementById("authBtn")?.addEventListener("click", () => {
       const hasSupabase = Boolean(localStorage.getItem("sb_url") && localStorage.getItem("sb_key"));
       const drive = FileRecord.use("drive", {
