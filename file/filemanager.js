@@ -49,6 +49,18 @@ class FileManager {
   }
 
   _bindEvents() {
+    document.getElementById("authBtn")?.addEventListener("click", async () => {
+      try {
+        const drive = FileRecord.use("drive").current;
+        if (typeof drive.connect === "function") await drive.connect();
+        else if (typeof drive.signIn === "function") await drive.signIn();
+        else if (typeof drive.login === "function") await drive.login();
+        await this.listFiles();
+      } catch (err) {
+        console.error(err);
+        showToast(err.message || "Google Drive sign-in failed", "error");
+      }
+    });
     this.gridContainer?.addEventListener("contextmenu", (event) => {
       if (!(event.target instanceof Element)) return;
       const card = event.target.closest("[data-item-index]");
