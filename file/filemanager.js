@@ -45,22 +45,37 @@ class FileManager {
     this._bindEvents();
     this._renderBreadcrumb();
     this._renderGrid([]);
-    this.action("listFiles");
+
+    const storage = this._ensureStorage();
+    if (typeof storage.isAvailable !== "function" || storage.isAvailable()) {
+      this.action("listFiles");
+    }
   }
 
   _bindEvents() {
-    document.getElementById("authBtn")?.addEventListener("click", async () => {
-      try {
-        const drive = FileRecord.use("drive").current;
-        if (typeof drive.connect === "function") await drive.connect();
-        else if (typeof drive.signIn === "function") await drive.signIn();
-        else if (typeof drive.login === "function") await drive.login();
-        await this.listFiles();
-      } catch (err) {
-        console.error(err);
-        showToast(err.message || "Google Drive sign-in failed", "error");
+    document.getElementById("authBtn")?.addEventListener("click", () => {
+      const hasSupabase = Boolean(localStorage.getItem("sb_url") && localStorage.getItem("sb_key"));
+      const drive = FileRecord.use("drive", {
+        onConnectionChange: ({ error }) => {
+          if (error) {
+            showToast(error, "error");
+            return;
+          }
+          if (FileRecord.current === drive && drive.isAvailable()) {
+            this.listFiles();
+          }
+        }
+      }).current;
+
+      if (!hasSupabase || FileRecord.current === drive) {
+        FileRecord.current = drive;
+      }
+
+      if (drive.isAvailable()) {
+        this.listFiles();
       }
     });
+
     this.gridContainer?.addEventListener("contextmenu", (event) => {
       if (!(event.target instanceof Element)) return;
       const card = event.target.closest("[data-item-index]");
@@ -238,8 +253,11 @@ class FileManager {
   async listFiles() {
     const requestId = ++this.listRequestId;
     try {
-      this._ensureStorage();
-      const { data, error } = await FileRecord.list(this.path);
+      const storage = this._ensureStorage();
+      if (typeof storage.isAvailable === "function" && !storage.isAvailable()) return;
+
+      const queryPath = storage instanceof DriveStorageService ? (this.path || "root") : this.path;
+      const { data, error } = await FileRecord.list(queryPath);
       if (requestId !== this.listRequestId) return;
       if (error) throw error;
 
