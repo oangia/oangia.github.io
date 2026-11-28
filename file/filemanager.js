@@ -486,17 +486,9 @@ class FileRecord {
       ...params
     });
     if (error) throw error;
-  
-    let blob = data instanceof Blob
-      ? data
-      : (data instanceof Response ? await data.blob() : new Blob([data]));
-  
-    if (this.isEncryptedFile()) {
-      blob = await EncryptionMiddleware.decrypt(blob, this.getMimeType());
-    }
-  
-    return blob;
+    return data;
   }
+  
   isFolderNode() {
     return this._is_folder;
   }
@@ -1047,7 +1039,10 @@ class FileManager {
     this.activeFilePreview = { panel, close };
 
     try {
-      const blob = await file.getContent();
+      const raw = await file.getContent();
+      const blob = file.isEncryptedFile()
+        ? await EncryptionMiddleware.decrypt(raw, file.getMimeType())
+        : (raw instanceof Blob ? raw : (raw instanceof Response ? await raw.blob() : new Blob([raw])));
       if (!panel.isConnected) return;
 
       if (file.isHtml()) {
@@ -1110,7 +1105,10 @@ class FileManager {
         return;
       }
 
-      const blob = await file.getContent();
+      const raw = await file.getContent();
+      const blob = file.isEncryptedFile()
+        ? await EncryptionMiddleware.decrypt(raw, file.getMimeType())
+        : (raw instanceof Blob ? raw : (raw instanceof Response ? await raw.blob() : new Blob([raw])));
       element.loading = "lazy";
       element.preload = "auto";
       element.src = URL.createObjectURL(blob);
@@ -1123,7 +1121,10 @@ class FileManager {
   async downloadRecord(file) {
     try {
       this._ensureStorage();
-      const blob = await file.getContent();
+      const raw = await file.getContent();
+      const blob = file.isEncryptedFile()
+        ? await EncryptionMiddleware.decrypt(raw, file.getMimeType())
+        : (raw instanceof Blob ? raw : (raw instanceof Response ? await raw.blob() : new Blob([raw])));
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
