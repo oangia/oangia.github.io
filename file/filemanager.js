@@ -49,7 +49,6 @@ class FileManager {
     this._renderBreadcrumb();
     this._renderGrid([]);
 
-    FileRecord.ensureService();
     if (FileRecord.isAvailable()) {
       this.action("listFiles");
     }
@@ -133,41 +132,6 @@ class FileManager {
   }
 
   _bindEvents() {
-    document.getElementById("openLocalFolderBtn")?.addEventListener("click", () => {
-      FileRecord.use("local", {
-        folderButtonId: "openLocalFolderBtn",
-        onConnectionChange: () => {
-          if (FileRecord.services.local === FileRecord.current) {
-            this.resetBreadcrumb();
-            this.listFiles();
-          }
-        }
-      });
-    });
-
-    document.getElementById("authBtn")?.addEventListener("click", () => {
-      const hasSupabase = Boolean(localStorage.getItem("sb_url") && localStorage.getItem("sb_key"));
-      FileRecord.use("drive", {
-        onConnectionChange: ({ error }) => {
-          if (error) {
-            showToast(error, "error");
-            return;
-          }
-          if (FileRecord.services.drive === FileRecord.current && FileRecord.isAvailable()) {
-            this.listFiles();
-          }
-        }
-      });
-
-      if (!hasSupabase || FileRecord.services.drive === FileRecord.current) {
-        FileRecord.use("drive");
-      }
-
-      if (FileRecord.isAvailable()) {
-        this.listFiles();
-      }
-    });
-
     const actionsMenu = document.getElementById("actionsMenu");
     const actionsDropdown = document.getElementById("actionsMenuToggleBtn");
     actionsMenu?.addEventListener("click", (event) => {
@@ -312,9 +276,6 @@ class FileManager {
   async listFiles() {
     const requestId = ++this.listRequestId;
     try {
-      FileRecord.ensureService();
-      if (!FileRecord.isAvailable()) return;
-
       const { data, error } = await FileRecord.list(this.path);
       if (requestId !== this.listRequestId) return;
       if (error) throw error;
@@ -339,7 +300,6 @@ class FileManager {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    FileRecord.ensureService();
     showToast(`Uploading ${files.length} item(s)...`, "info", 2500);
     let success = 0;
     let failed = 0;
