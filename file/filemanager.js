@@ -834,8 +834,13 @@ class FileManager {
         }
         return `<div class="widget-preview-area flex-1 w-full flex items-center justify-center overflow-hidden rounded-lg relative group-hover:scale-110 transition-colors"><i class="fa-solid fa-file text-3xl"></i></div>`;
       },
-      card: (record, mediaHTML) =>
-        `${mediaHTML}<div class="w-full pt-2 border-t border-white/20 flex flex-col"><span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(record.getDisplayName())}">${escapeHtml(record.getDisplayName())}</span><span class="text-[9px] text-slate-300 font-mono mt-0.5">${record.isFolderNode() ? "Folder" : `${record.getSize()} B`}</span></div>`
+      menuTrigger: (record, index) => `
+        <button type="button" data-item-menu-btn="${index}" aria-label="Actions for ${escapeHtml(record.getDisplayName())}"
+                class="absolute top-2 right-2 z-10 w-7 h-7 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-white/15 text-slate-300 hover:text-white flex items-center justify-center opacity-80 group-hover:opacity-100 transition">
+          <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
+        </button>`,
+      card: (record, mediaHTML, menuHTML = "") =>
+        `${menuHTML}${mediaHTML}<div class="w-full pt-2 border-t border-white/20 flex flex-col"><span class="w-full text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(record.getDisplayName())}">${escapeHtml(record.getDisplayName())}</span><span class="text-[9px] text-slate-300 font-mono mt-0.5">${record.isFolderNode() ? "Folder" : `${record.getSize()} B`}</span></div>`
     },
     breadcrumb: {
       crumb: (name, isRoot) => isRoot
@@ -852,11 +857,13 @@ class FileManager {
 
     this.gridContainer = document.getElementById(gridId);
     this.contextRecord = null;
+    this.itemMenu = null;
 
     this.breadcrumbContainer = document.getElementById(breadcrumbId);
     this.path = "";
     this.history = [{ path: "", name: "root" }];
 
+    this._initItemMenu();
     this._bindEvents();
     this._renderBreadcrumb();
     this._renderGrid([]);
@@ -865,6 +872,83 @@ class FileManager {
     if (typeof storage.isAvailable !== "function" || storage.isAvailable()) {
       this.action("listFiles");
     }
+  }
+
+  _initItemMenu() {
+    document.getElementById("itemContextMenu")?.remove();
+    const menu = document.createElement("div");
+    menu.id = "itemContextMenu";
+    menu.className = "hidden fixed z-[110] w-44 rounded-lg border border-white/20 bg-zinc-900 py-1 text-xs text-slate-200 shadow-xl";
+    menu.setAttribute("role", "menu");
+    menu.innerHTML = `
+      <button type="button" data-item-action="open" role="menuitem" class="w-full text-left flex items-center px-3 py-2 hover:bg-white/10 hover:text-white transition">
+        <i class="fa-solid fa-arrow-up-right-from-square mr-2.5 text-indigo-400 w-4"></i>
+        <span data-open-label>Open</span>
+      </button>
+      <button type="button" data-item-action="download" role="menuitem" class="w-full text-left flex items-center px-3 py-2 hover:bg-white/10 hover:text-white transition">
+        <i class="fa-solid fa-download mr-2.5 text-emerald-400 w-4"></i>
+        <span>Download</span>
+      </button>
+      <div class="border-t border-white/10 my-1"></div>
+      <button type="button" data-item-action="delete" role="menuitem" class="w-full text-left flex items-center px-3 py-2 text-rose-300 hover:bg-rose-500/15 hover:text-rose-200 transition">
+        <i class="fa-solid fa-trash mr-2.5 text-rose-400 w-4"></i>
+        <span>Delete</span>
+      </button>
+    `;
+    document.body.appendChild(menu);
+    this.itemMenu = menu;
+
+    menu.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      const btn = event.target instanceof Element ? event.target.closest("[data-item-action]") : null;
+      const record = this.contextRecord;
+      this.closeItemMenu();
+      if (!btn || !record) return;
+
+      const actionType = btn.dataset.itemAction;
+      if (actionType === "open") {
+        this.action(record.isFolderNode() ? "navigate" : "openFilePreview", record);
+      } else if (actionType === "download") {
+        await this.action("downloadRecord", record);
+      } else if (actionType === "delete") {
+        await this.action("removeRecord", record);
+      }
+    });
+  }
+
+  openItemMenu(record, anchorEl) {
+    if (!this.itemMenu || !record || !anchorEl) return;
+    this.contextRecord = record;
+
+    const openLabel = this.itemMenu.querySelector("[data-open-label]");
+    if (openLabel) openLabel.textContent = record.isFolderNode() ? "Open folder" : "Preview";
+
+    const downloadBtn = this.itemMenu.querySelector('[data-item-action="download"]');
+    if (downloadBtn) downloadBtn.classList.toggle("hidden", record.isFolderNode());
+
+    this.itemMenu.classList.remove("hidden");
+
+    const rect = anchorEl.getBoundingClientRect();
+    const menuRect = this.itemMenu.getBoundingClientRect();
+    const pad = 8;
+    let left = rect.right - menuRect.width;
+    let top = rect.bottom + 4;
+
+    if (left < pad) left = pad;
+    if (left + menuRect.width > window.innerWidth - pad) {
+      left = Math.max(pad, window.innerWidth - menuRect.width - pad);
+    }
+    if (top + menuRect.height > window.innerHeight - pad) {
+      top = Math.max(pad, rect.top - menuRect.height - 4);
+    }
+
+    this.itemMenu.style.left = `${left}px`;
+    this.itemMenu.style.top = `${top}px`;
+  }
+
+  closeItemMenu() {
+    this.itemMenu?.classList.add("hidden");
+    this.contextRecord = null;
   }
 
   _bindEvents() {
@@ -908,6 +992,7 @@ class FileManager {
     const actionsDropdown = document.getElementById("actionsMenuToggleBtn");
     actionsMenu?.addEventListener("click", (event) => {
       event.stopPropagation();
+      this.closeItemMenu();
       actionsDropdown?.classList.toggle("hidden");
     });
 
@@ -915,10 +1000,27 @@ class FileManager {
       if (!actionsMenu?.contains(event.target) && !actionsDropdown?.contains(event.target)) {
         actionsDropdown?.classList.add("hidden");
       }
+      if (!this.itemMenu?.contains(event.target) && !(event.target instanceof Element && event.target.closest("[data-item-menu-btn]"))) {
+        this.closeItemMenu();
+      }
     });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") this.closeItemMenu();
+    });
+
+    this.gridContainer?.addEventListener("scroll", () => this.closeItemMenu());
 
     this.gridContainer?.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
+      const menuBtn = event.target.closest("[data-item-menu-btn]");
+      if (menuBtn) {
+        event.stopPropagation();
+        const record = this.items[Number(menuBtn.dataset.itemMenuBtn)];
+        if (record) this.openItemMenu(record, menuBtn);
+        return;
+      }
+      this.closeItemMenu();
       const card = event.target.closest("[data-item-index]");
       if (!card) return;
       const record = this.items[Number(card.dataset.itemIndex)];
@@ -966,6 +1068,7 @@ class FileManager {
   _renderGrid(items = []) {
     if (!this.gridContainer) return [];
 
+    this.closeItemMenu();
     const tpl = FileManager._TEMPLATES.grid;
     const previewMedia = [];
 
@@ -980,11 +1083,11 @@ class FileManager {
     items.forEach((record, index) => {
       const card = document.createElement("div");
       card.className = tpl.cardClass;
-      card.title = "Right-click for actions";
       card.dataset.itemIndex = String(index);
 
       const mediaHTML = record.isFolderNode() ? tpl.folderIcon : tpl.fileMedia(record);
-      card.innerHTML = tpl.card(record, mediaHTML);
+      const menuHTML = tpl.menuTrigger(record, index);
+      card.innerHTML = tpl.card(record, mediaHTML, menuHTML);
       this.gridContainer.appendChild(card);
 
       const previewEl = card.querySelector(".widget-preview-area");
@@ -1119,7 +1222,7 @@ class FileManager {
     const close = () => {
       if (!panel.isConnected) return;
       document.removeEventListener("keydown", handleKeydown);
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (objectUrl) URL.revokeObjectURL(url);
       panel.remove();
       if (this.activeFilePreview?.panel === panel) this.activeFilePreview = null;
     };
