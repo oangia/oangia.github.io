@@ -132,10 +132,12 @@ class FileManager {
   _bindEvents() {
     document.getElementById("openLocalFolderBtn")?.addEventListener("click", () => {
       FileRecord.use("local");
+      this.action("listFiles");
     });
 
     document.getElementById("authBtn")?.addEventListener("click", () => {
       FileRecord.use("drive");
+      this.action("listFiles");
     });
 
     const actionsMenu = document.getElementById("actionsMenu");
