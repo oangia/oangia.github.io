@@ -49,9 +49,7 @@ class FileManager {
     this._renderBreadcrumb();
     this._renderGrid([]);
 
-    if (FileRecord.isAvailable()) {
-      this.action("listFiles");
-    }
+    this.action("listFiles");
   }
 
   _initItemMenu() {
@@ -132,6 +130,14 @@ class FileManager {
   }
 
   _bindEvents() {
+    document.getElementById("openLocalFolderBtn")?.addEventListener("click", () => {
+      FileRecord.use("local");
+    });
+
+    document.getElementById("authBtn")?.addEventListener("click", () => {
+      FileRecord.use("drive");
+    });
+
     const actionsMenu = document.getElementById("actionsMenu");
     const actionsDropdown = document.getElementById("actionsMenuToggleBtn");
     actionsMenu?.addEventListener("click", (event) => {
@@ -329,7 +335,8 @@ class FileManager {
   }
 
   navigate(file) {
-    this.navigateToFolder(file.getNavigationTarget(), file.getDisplayName());
+    const nextPath = file.getId() && file.getId() !== file.getFullPath() ? file.getId() : file.getFullPath();
+    this.navigateToFolder(nextPath, file.getDisplayName());
   }
 
   async openFilePreview(file) {
