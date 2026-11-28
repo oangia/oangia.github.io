@@ -477,7 +477,7 @@ class FileRecord {
     let blob = raw instanceof Blob ? raw : await raw.blob();
   
     if (this.isEncryptedFile()) {
-      blob = await EncryptionMiddleware.decrypt(blob);
+      blob = await EncryptionMiddleware.decrypt(blob, this.getMimeType());
     }
   
     return blob;
