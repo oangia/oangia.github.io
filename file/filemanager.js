@@ -473,8 +473,23 @@ class FileRecord {
   getUpdatedAt() { return this._updated_at; }
 
   async getContent(params = {}) {
-    const raw = await this.download(params);
-    let blob = raw instanceof Blob ? raw : await raw.blob();
+    const storage = this._storage || FileRecord.current;
+    if (!storage) throw new Error("No storage service selected.");
+  
+    const target = storage instanceof SupabaseStorageService
+      ? (this._full_path || this._id)
+      : (this._id || this._full_path);
+  
+    const { data, error } = await storage.download({
+      id: target,
+      path: this._full_path,
+      ...params
+    });
+    if (error) throw error;
+  
+    let blob = data instanceof Blob
+      ? data
+      : (data instanceof Response ? await data.blob() : new Blob([data]));
   
     if (this.isEncryptedFile()) {
       blob = await EncryptionMiddleware.decrypt(blob, this.getMimeType());
@@ -596,24 +611,6 @@ class FileRecord {
       : new File([file], name, { type: file.type || "application/octet-stream" });
 
     return await storage.upload(path, namedFile, options);
-  }
-
-  async download(params = {}) {
-    const storage = this._storage || FileRecord.current;
-    if (!storage) throw new Error("No storage service selected.");
-  
-    const target = storage instanceof SupabaseStorageService
-      ? (this._full_path || this._id)
-      : (this._id || this._full_path);
-  
-    const { data, error } = await storage.download({
-      id: target,
-      path: this._full_path,
-      ...params
-    });
-    if (error) throw error;
-    if (data instanceof Response || data instanceof Blob) return data;
-    return new Response(data);
   }
 
   async remove() {
