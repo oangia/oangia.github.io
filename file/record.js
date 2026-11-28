@@ -442,7 +442,8 @@ class FileRecord {
     thumbnail = null,
     is_folder = false,
     created_at = null,
-    updated_at = null
+    updated_at = null,
+    storage = null
   } = {}) {
     this._id = id;
     this._name = name;
@@ -456,7 +457,7 @@ class FileRecord {
     this._thumbnail = thumbnail;
     this._created_at = created_at;
     this._updated_at = updated_at;
-    this._storage = null;
+    this._storage = storage;
   }
 
   getId() { return this._id; }
@@ -472,14 +473,23 @@ class FileRecord {
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
 
-  async getContent(params = {}) {
+  _resolveStorage() {
     const storage = this._storage || FileRecord.current;
     if (!storage) throw new Error("No storage service selected.");
-  
+    return storage;
+  }
+
+  getNavigationTarget() {
+    const storage = this._storage || FileRecord.current;
+    return storage instanceof DriveStorageService ? this._id : this._full_path;
+  }
+
+  async getContent(params = {}) {
+    const storage = this._resolveStorage();
     const target = storage instanceof SupabaseStorageService
       ? (this._full_path || this._id)
       : (this._id || this._full_path);
-  
+
     const { data, error } = await storage.download({
       id: target,
       path: this._full_path,
@@ -488,7 +498,7 @@ class FileRecord {
     if (error) throw error;
     return data;
   }
-  
+
   isFolderNode() {
     return this._is_folder;
   }
@@ -562,14 +572,29 @@ class FileRecord {
     return this;
   }
 
-  static async list(path = "", options = {}) {
-    const storage = this.current;
-    if (!storage) throw new Error("No storage service selected.");
+  static ensureService() {
+    if (!this.current) {
+      this.use(localStorage.getItem("sb_url") && localStorage.getItem("sb_key") ? "supabase" : "drive");
+    }
+    return this.current;
+  }
 
-    const { data, error } = await storage.list(path, options);
+  static isAvailable() {
+    const storage = this.ensureService();
+    return typeof storage.isAvailable === "function" ? storage.isAvailable() : true;
+  }
+
+  static async list(path = "", options = {}) {
+    const storage = this.ensureService();
+    const queryPath = storage instanceof DriveStorageService ? (path || "root") : path;
+
+    const { data, error } = await storage.list(queryPath, options);
     if (error || !data) return { data: [], error };
 
-    const cleanBase = String(path || "").replace(/^\/+|\/+$/g, "");
+    const cleanBase = storage instanceof DriveStorageService
+      ? ""
+      : String(path || "").replace(/^\/+|\/+$/g, "");
+
     const records = data.map(item => {
       const fullPath = cleanBase ? `${cleanBase}/${item.name}` : item.name;
       const isFolder = item.mimeType === "application/vnd.google-apps.folder"
@@ -594,8 +619,7 @@ class FileRecord {
   }
 
   static async upload(path, file, options = {}) {
-    const storage = this.current;
-    if (!storage) throw new Error("No storage service selected.");
+    const storage = this.ensureService();
 
     const name = path.split("/").pop();
     const namedFile = file instanceof File && file.name === name
@@ -606,9 +630,7 @@ class FileRecord {
   }
 
   async remove() {
-    const storage = this._storage || FileRecord.current;
-    if (!storage) throw new Error("No storage service selected.");
-
+    const storage = this._resolveStorage();
     const target = storage instanceof SupabaseStorageService
       ? (this._full_path || this._id)
       : (this._id || this._full_path);
