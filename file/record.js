@@ -7,10 +7,9 @@ class FileEntity {
     this._size = size;
     this._mime_type = this._is_folder? "inode/directory" : (mime_type || this._guessMimeType());
     this._url = url;
-    this._thumbnail = thumbnail || null;
+    this._thumbnail = thumbnail;
     this._created_at = created_at;
     this._updated_at = updated_at;
-    if (!this._thumbnail && this.isImage()) this._thumbnail = this._url;
   }
   
   getId() { return this._id; }
@@ -19,7 +18,10 @@ class FileEntity {
   getSize() { return this._size; }
   getMimeType() { return this._mime_type; }
   getUrl(expiresIn = 60) { return this._url; }
-  getThumbnail() { return this._thumbnail; }
+  getThumbnail() { 
+    if (!this._thumbnail && this.isImage()) return this._url;
+    return this._thumbnail; 
+  }
   getCreatedAt() { return this._created_at; }
   getUpdatedAt() { return this._updated_at; }
 
